@@ -101,8 +101,8 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `4.21.0` — first release under the `cerby` name (extracted and renamed
-from `coding-rules`; see [CHANGELOG.md](CHANGELOG.md)).
+Current release: `4.21.1` — patch on the first `cerby`-named release (extracted and
+renamed from `coding-rules`; see [CHANGELOG.md](CHANGELOG.md)).
 
 **Opinionated — read first.** These are one author's rules. Read
 [`skills/cerby/resources/BOOTSTRAP.md`](skills/cerby/resources/BOOTSTRAP.md) end-to-end
