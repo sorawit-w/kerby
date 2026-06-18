@@ -1,0 +1,37 @@
+cerby
+Copyright (c) 2026 sorawit-w
+
+This product is licensed under the MIT License (see LICENSE).
+
+`cerby` was extracted from sorawit-w/agent-skills (MIT), where it shipped as
+`coding-rules`. Full commit history is preserved in this repo's git log.
+
+This product includes patterns, vocabulary, and methodology adapted from the
+projects listed below. Each absorption is attributed inline in the file where it
+lives — that inline attribution is authoritative; this NOTICE is the consolidated
+index of third-party copyright statements required by the upstream licenses.
+
+---
+
+## Absorbed patterns (ideas/vocabulary only — no verbatim code or prose)
+
+- `nidhinjs/prompt-master` (MIT) — prose-economy lens; see
+  `skills/cerby/CLAUDE.md` § Authoring style.
+- `addyosmani/agent-skills` (MIT) — two rules in
+  `skills/cerby/resources/references/working-patterns.md` cite this repo as source.
+- `elementalsouls/Claude-BugHunter` — discipline patterns in
+  `skills/cerby/resources/references/validation.md`, `debugging.md`, and
+  `working-patterns.md` (see file-level attribution).
+- `DietrichGebert/ponytail` (MIT) — the ordered decision-ladder and the
+  deliberate-shortcut upgrade-trigger ideas, in `resources/BOOTSTRAP.md` and
+  `references/working-patterns.md` / `validation.md`.
+- `shinpr/claude-code-workflows` (MIT) — two discipline rules in
+  `references/validation.md` and `working-patterns.md`.
+- `forrestchang/andrej-karpathy-skills` — the four-principle terseness compression
+  check, in `references/working-patterns.md` § Scope Discipline.
+- GSD (Get Shit Done) — five prose-level patterns across
+  `references/sub-agent-delegation.md`, `implementation-planning.md`,
+  `working-patterns.md`/`quality-gates.md`, `guardrails.md`, and `roadmap.md`.
+
+The remaining entries in `resources/references/external-resources.md` are
+cross-references (not absorbed) and carry their own inline links.

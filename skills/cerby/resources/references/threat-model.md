@@ -1,4 +1,4 @@
-# Threat Model — what coding-rules enforces, and what it can't
+# Threat Model — what cerby enforces, and what it can't
 
 This file states honestly which guardrails are *mechanically enforced* and which are *behavioral* (the agent applies them by judgment). It exists so the skill doesn't over-claim: an infosec reviewer reading "never print a secret" should know whether a hook stops it or the model is merely asked to.
 

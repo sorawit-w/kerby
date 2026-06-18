@@ -8,7 +8,7 @@ Hooks are shell commands or LLM prompts that run automatically at specific lifec
 
 ## Active Hooks
 
-coding-rules ships with these hooks:
+cerby ships with these hooks:
 
 ### SessionStart → Context Injection
 
@@ -48,7 +48,7 @@ Defaults to enabled when the section is missing. Override the staleness window w
 
 The `KNOWLEDGE.md` written by this hook contains `<!-- AUTO-INDEX:START -->` / `<!-- AUTO-INDEX:END -->` markers — only the lines between those markers are rewritten. Custom intro text or extra sections elsewhere in the file are preserved. If markers are missing, the hook prints a warning and skips index regen.
 
-**Mid-session updates.** When an agent writes a new knowledge entry during a session (after the proposal-then-approval flow in `references/knowledge-management.md`), it should run `bash "${CODING_RULES_DIR}/resources/hooks/knowledge-reindex.sh" --force` to refresh the index immediately rather than waiting for the next session. The script is safe to call ad-hoc — idempotent and side-effect-free if nothing changed.
+**Mid-session updates.** When an agent writes a new knowledge entry during a session (after the proposal-then-approval flow in `references/knowledge-management.md`), it should run `bash "${CERBY_DIR}/resources/hooks/knowledge-reindex.sh" --force` to refresh the index immediately rather than waiting for the next session. The script is safe to call ad-hoc — idempotent and side-effect-free if nothing changed.
 
 ---
 
@@ -133,8 +133,8 @@ To wire it as a per-project post-commit hook (one-paste, from the project's git 
 mkdir -p .git/hooks
 cat > .git/hooks/post-commit <<EOF
 #!/bin/bash
-# Wired by coding-rules. Add other post-commit logic above or below.
-"\${CODING_RULES_DIR:-\$HOME/dev/coding-rules}/resources/hooks/knowledge-reindex.sh"
+# Wired by cerby. Add other post-commit logic above or below.
+"\${CERBY_DIR:-\$HOME/dev/cerby}/resources/hooks/knowledge-reindex.sh"
 EOF
 chmod +x .git/hooks/post-commit
 ```
@@ -156,7 +156,7 @@ Two zero-dependency mechanical checks over `.ai/knowledge/` entries:
 
 **Advisory by default** — prints findings, always exits 0. Pass `--strict` to exit 1 on any finding (for a git pre-push or CI gate). Deliberately **not** a SessionStart hook: integrity drifts slowly and shouldn't be re-checked every session. There is **no orphan check** — `related:` is optional, so "no inbound link" is a curation opinion, not a correctness error; that's [OpenKB](external-resources.md)'s semantic-lint job, not this floor's.
 
-Same opt-out as the other knowledge hooks — `agent-context.yaml: knowledge.enabled: false`, or `CODING_RULES_HOOK_DISABLED=knowledge-lint`. Run it directly any time (`bash "${CODING_RULES_DIR}/resources/hooks/knowledge-lint.sh"`), or append the call to a project `post-commit` hook the same way as `knowledge-reindex.sh` above. Self-tested by `hooks/knowledge-lint.test.sh`.
+Same opt-out as the other knowledge hooks — `agent-context.yaml: knowledge.enabled: false`, or `CODING_RULES_HOOK_DISABLED=knowledge-lint`. Run it directly any time (`bash "${CERBY_DIR}/resources/hooks/knowledge-lint.sh"`), or append the call to a project `post-commit` hook the same way as `knowledge-reindex.sh` above. Self-tested by `hooks/knowledge-lint.test.sh`.
 
 ---
 
@@ -221,7 +221,7 @@ If a hook is causing issues in your project, you can:
 
 ### Adding Your Own Hooks
 
-You can extend coding-rules' hooks by adding to your project's `.claude/settings.json`:
+You can extend cerby's hooks by adding to your project's `.claude/settings.json`:
 
 ```json
 {

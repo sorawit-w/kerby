@@ -29,7 +29,7 @@ if [[ -z "$FILE_PATH" ]]; then
 fi
 
 if echo "$FILE_PATH" | grep -qE '\.env($|\.)'; then
-  echo "NOTE (coding-rules): you may read this .env file, but never print its secret values into the conversation — mask to last-4 if you must reference one. See coding-rules guardrails." >&2
+  echo "NOTE (cerby): you may read this .env file, but never print its secret values into the conversation — mask to last-4 if you must reference one. See cerby guardrails." >&2
 fi
 
 exit 0

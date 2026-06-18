@@ -88,7 +88,7 @@ any single task, (b) a fresh-eyes pass catches drift a busy implementer missed, 
 9. **Do NOT merge** — Leave that for human review
 
 > **Calibration note (2026-04-16):** This section was amended after round-1 of
-> the coding-rules eval. The prior version inherited `validation.md`'s
+> the cerby eval. The prior version inherited `validation.md`'s
 > complexity table, which let an agent skip QA/verification/manual-steps for a
 > low-complexity session. Shutdown now states its own rules explicitly and
 > overrides the complexity gating.

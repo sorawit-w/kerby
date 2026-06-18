@@ -62,14 +62,14 @@ if [[ -n "$SCANNER" ]]; then
   if [[ "$GL_RC" -eq 7 ]]; then
     echo "WARNING: $SCANNER detected possible secrets in staged changes." >&2
     echo "Output suppressed so the secret isn't echoed here — inspect locally with '$SCANNER stdin --redact', or allowlist a false positive in the scanner's config." >&2
-    echo "See coding-rules security guardrails." >&2
+    echo "See cerby security guardrails." >&2
     exit 2  # Hard-block on findings
   elif [[ "$GL_RC" -eq 0 ]]; then
     SECRET_SCAN_DONE=1  # scanner ran clean; trust it, skip the narrower regex
   else
     # Any non-7, non-0 code = tool error (bad config, unsupported flag, exec
     # failure), NOT a finding. Fall through to the regex floor.
-    echo "NOTE (coding-rules): $SCANNER exited $GL_RC (tool error, not a finding); using built-in secret regex." >&2
+    echo "NOTE (cerby): $SCANNER exited $GL_RC (tool error, not a finding); using built-in secret regex." >&2
   fi
 fi
 
@@ -78,7 +78,7 @@ if [[ -z "$SECRET_SCAN_DONE" ]]; then
   if [[ -n "$SECRETS_FOUND" ]]; then
     echo "WARNING: Possible secrets detected in staged files:" >&2
     echo "$SECRETS_FOUND" >&2
-    echo "Review these files before committing. See coding-rules security guardrails." >&2
+    echo "Review these files before committing. See cerby security guardrails." >&2
     exit 2  # Hard-block on potential secrets
   fi
 fi
@@ -90,7 +90,7 @@ esac
 
 # Soft reminder — injected as context, does not block
 cat <<'EOF'
-REMINDER (coding-rules): Before committing, ensure you have:
+REMINDER (cerby): Before committing, ensure you have:
 1. Run the project's lint command on your changed files
 2. Run the project's test suite
 3. Verified the build passes

@@ -56,7 +56,7 @@ Based on the task, you MUST read the appropriate workflow file before proceeding
 |-----------|---------------|
 | Architecture / scope decision *before* coding | Run `team-composer` first (if installed) for multi-role trade-off discussion; come back here to route the resulting work. Otherwise see `When Stuck → Architecture decision`. |
 | New project setup (no existing code) | `workflows/new-project.md` |
-| Existing code, no coding-rules artifacts yet (onboarding / `prepare`) | `workflows/adopt-existing.md` |
+| Existing code, no cerby artifacts yet (onboarding / `prepare`) | `workflows/adopt-existing.md` |
 | New feature or enhancement | `workflows/feature.md` |
 | Bug fix | `workflows/bugfix.md` |
 | Refactoring or tech debt | `workflows/feature.md` (same workflow) |
@@ -258,7 +258,7 @@ Details: `references/context-management.md`
 <reference_index>
 ## Reference Index
 
-All paths in this index are relative to the `resources/` directory where this `BOOTSTRAP.md` lives. The same paths resolve correctly whether the rules were loaded via the `coding-rules` skill (bundled at `<plugin-install>/skills/coding-rules/resources/`) or copied into a project (typically `.ai/coding-rules/resources/`). Load these when the workflow file tells you to, or when you need details for a specific action.
+All paths in this index are relative to the `resources/` directory where this `BOOTSTRAP.md` lives. The same paths resolve correctly whether the rules were loaded via the `cerby` skill (bundled at `<plugin-install>/skills/cerby/resources/`) or copied into a project (typically `.ai/cerby/resources/`). Load these when the workflow file tells you to, or when you need details for a specific action.
 
 | Topic | File |
 |-------|------|

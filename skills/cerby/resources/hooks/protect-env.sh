@@ -17,7 +17,7 @@ if [[ -z "$FILE_PATH" ]]; then
 fi
 
 if echo "$FILE_PATH" | grep -qE '\.env($|\.)'; then
-  echo "BLOCKED: Do not edit .env files directly. Use environment variables and document required vars in DEVELOPER_TODO.md. See coding-rules guardrails." >&2
+  echo "BLOCKED: Do not edit .env files directly. Use environment variables and document required vars in DEVELOPER_TODO.md. See cerby guardrails." >&2
   exit 2
 fi
 

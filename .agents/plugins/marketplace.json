@@ -1,0 +1,20 @@
+{
+  "name": "cerby",
+  "interface": {
+    "displayName": "sorawit-w · cerby"
+  },
+  "plugins": [
+    {
+      "name": "cerby",
+      "source": {
+        "source": "local",
+        "path": "."
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

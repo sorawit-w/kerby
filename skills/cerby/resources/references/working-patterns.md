@@ -111,7 +111,7 @@ When you need to extract a value from many files, **write a script that prints o
 
 When changing code that has no existing test, **write a characterization test that captures current behavior before modifying.** Run it once against the current code (it should pass), then make your change — a now-failing test means your change altered behavior, intended or not. Skip only if the area is genuinely untestable (config files, vendor dirs, build scripts, generated code) and note why in the commit body.
 
-This is especially common when adopting `coding-rules` into a project that predates the test-first discipline — characterization tests are the bridge into the change-comfort regime the rest of these rules assume.
+This is especially common when adopting `cerby` into a project that predates the test-first discipline — characterization tests are the bridge into the change-comfort regime the rest of these rules assume.
 
 ### Relationship to Quality Gates
 

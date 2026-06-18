@@ -156,7 +156,7 @@ Read this index to find relevant context before planning or implementing.
 2. **Search before creating** — grep existing entries for `domain:` overlap or title-token match against the proposed topic — either signal is enough to warrant a look (the `KNOWLEDGE.md` index is the fastest place to scan; if it's missing or empty, grep the entry files directly). If ≥1 near-match surfaces, **surface it to the user and ask merge-or-create**: prefer merging into the existing entry — note any contradiction in a new section rather than letting two entries quietly disagree — over creating a duplicate file. Only create a new entry when no near-match exists. This fights knowledge-base sprawl at the cheapest moment to catch it.
 3. Agent drafts the entry with `confidence: medium` or `confidence: low`
 4. Agent tells the user: "I've drafted a knowledge entry about [topic]. Want me to add it to the knowledge base?"
-5. If approved, agent writes the entry file and runs `bash "${CODING_RULES_DIR}/resources/hooks/knowledge-reindex.sh" --force` to refresh the AUTO-INDEX block in `KNOWLEDGE.md`. (If the hook isn't available — e.g., on a platform without `coding-rules` wired — the agent updates `KNOWLEDGE.md` by hand, adding one line in the format `- [Title](filename.md) — one-line summary` between the AUTO-INDEX markers.)
+5. If approved, agent writes the entry file and runs `bash "${CERBY_DIR}/resources/hooks/knowledge-reindex.sh" --force` to refresh the AUTO-INDEX block in `KNOWLEDGE.md`. (If the hook isn't available — e.g., on a platform without `cerby` wired — the agent updates `KNOWLEDGE.md` by hand, adding one line in the format `- [Title](filename.md) — one-line summary` between the AUTO-INDEX markers.)
 6. Human can later promote `confidence` to `high` after review
 
 **Never write knowledge entries silently.** Always tell the user what you're proposing and why.
@@ -220,7 +220,7 @@ It still drifts upward over time — dated "Session Notes" sections, completed-w
 
 This is agent-checkable: count the lines, flag when over, propose the archive move (never silently). It complements the index/entry size disciplines above rather than duplicating them — different file, different failure mode.
 
-Source: cap-and-archive pattern distilled from `EliaAlberti/cpr-compress-preserve-resume` (2026-06-07, MIT) `/preserve` command — its 280-line CLAUDE.md cap + `CLAUDE-Archive.md` move is the one idea in that repo not already covered by coding-rules' `.ai/` state-preservation machinery.
+Source: cap-and-archive pattern distilled from `EliaAlberti/cpr-compress-preserve-resume` (2026-06-07, MIT) `/preserve` command — its 280-line CLAUDE.md cap + `CLAUDE-Archive.md` move is the one idea in that repo not already covered by cerby's `.ai/` state-preservation machinery.
 
 ### Integrity check: knowledge-lint
 
@@ -235,7 +235,7 @@ It is **advisory by default**: prints findings and exits 0 (knowledge drift is n
 
 ### Built-in automation: bootstrap + index regeneration
 
-One hook ships with `coding-rules` to remove the most-forgotten chores:
+One hook ships with `cerby` to remove the most-forgotten chores:
 
 - **`knowledge-bootstrap`** (SessionStart) — creates `.ai/knowledge/KNOWLEDGE.md` from the template on first use, regenerates the AUTO-INDEX block in `KNOWLEDGE.md` from current entry files, and flags entries older than 180 days so agents treat them with appropriate skepticism. No per-project setup beyond wiring SessionStart in your agent's settings.
 

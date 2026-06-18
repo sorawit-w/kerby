@@ -1,6 +1,6 @@
 # Adopt Existing Project Workflow
 
-You are onboarding an **existing repo** (real code, git history, conventions) into coding-rules by populating — and refreshing — the artifacts BOOTSTRAP's `detect_project` step reads. This is the `prepare` sub-command's procedure.
+You are onboarding an **existing repo** (real code, git history, conventions) into cerby by populating — and refreshing — the artifacts BOOTSTRAP's `detect_project` step reads. This is the `prepare` sub-command's procedure.
 
 **This is to an existing repo what `new-project.md` is to greenfield:** it produces the same ready-state, but derived from *what is already built* (code + git history) rather than from requirements.
 
@@ -83,7 +83,7 @@ When the pass runs, draft entries from the step-2 signal using the `knowledge-ma
 
 Show each candidate; confirm each individually (per the never-write-knowledge-silently rule). After writing approved entries, run:
 ```bash
-bash "${CODING_RULES_DIR}/resources/hooks/knowledge-reindex.sh" --force
+bash "${CERBY_DIR}/resources/hooks/knowledge-reindex.sh" --force
 ```
 (or update the `AUTO-INDEX` block in `KNOWLEDGE.md` by hand if the hook isn't wired).
 

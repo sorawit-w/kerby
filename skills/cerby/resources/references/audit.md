@@ -1,6 +1,6 @@
 # Conformance Audit
 
-The `audit` sub-command checks an **end-user project's accumulated state** against the *current* coding-rules corpus and emits a human-readable report. The rules evolve; a repo drifts from them. This is the periodic drift check.
+The `audit` sub-command checks an **end-user project's accumulated state** against the *current* cerby corpus and emits a human-readable report. The rules evolve; a repo drifts from them. This is the periodic drift check.
 
 **Contract — the audit is read-only.** It never edits code, never commits, never merges, never opens a PR. It writes one report (and one baseline file) under `.ai/audits/` and stops. Acting on findings is the developer's call.
 

@@ -4,10 +4,10 @@
 
 ## Eval handoff
 
-Evaluation of rule changes is handled by the `skill-evaluator` skill (separate repo). coding-rules does not ship its own eval harness — one tool, one job.
+Evaluation of rule changes is handled by the `skill-evaluator` skill (separate repo). cerby does not ship its own eval harness — one tool, one job.
 
 When the user asks to:
-- "audit coding-rules"
+- "audit cerby"
 - "evaluate my change to <rule>"
 - "test this rule revision"
 - "run an eval on the new directive"
@@ -58,7 +58,7 @@ The checks below remove **different** biases and aren't equal strength, so they'
 
 Before handing a proposed new rule to skill-evaluator, run this cheap inline check first. It is a **cost gate, not a behavior gate** — skill-evaluator handles the latter. The two are complementary: the cost gate decides whether a rule is worth evaluating at all; skill-evaluator decides whether an evaluated rule actually changes agent behavior.
 
-Every rule added to coding-rules has persistent input-token cost — it loads on every session that consumes it. Many proposed rules do not pay back that cost. Before adding, answer:
+Every rule added to cerby has persistent input-token cost — it loads on every session that consumes it. Many proposed rules do not pay back that cost. Before adding, answer:
 
 1. **Cost.** How many lines does this rule add? (Line count is a fair proxy for recurring input tokens.)
 2. **Frequency.** How often does the failure this rule prevents actually happen? (Once a quarter, or every session?)

@@ -7,7 +7,7 @@
 # Behavior:
 # - If agent-context.yaml has `knowledge.enabled: false`, exits silently.
 # - Otherwise, if `.ai/knowledge/` is missing, scaffolds the directory
-#   from templates/KNOWLEDGE.md.template (resolved via $CODING_RULES_DIR
+#   from templates/KNOWLEDGE.md.template (resolved via $CERBY_DIR
 #   or repo-relative fallback).
 # - Scans existing entries for staleness (default: > 180 days since
 #   `updated:` or `created:`) and prints them so the agent can flag.
@@ -38,17 +38,17 @@ if [[ -f "agent-context.yaml" ]]; then
   fi
 fi
 
-# Resolve sibling paths. Prefer $CODING_RULES_DIR; fall back to script-relative.
+# Resolve sibling paths. Prefer $CERBY_DIR; fall back to script-relative.
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 TEMPLATE=""
 REINDEX=""
-if [[ -n "${CODING_RULES_DIR:-}" && -f "$CODING_RULES_DIR/resources/templates/KNOWLEDGE.md.template" ]]; then
-  TEMPLATE="$CODING_RULES_DIR/resources/templates/KNOWLEDGE.md.template"
+if [[ -n "${CERBY_DIR:-}" && -f "$CERBY_DIR/resources/templates/KNOWLEDGE.md.template" ]]; then
+  TEMPLATE="$CERBY_DIR/resources/templates/KNOWLEDGE.md.template"
 elif [[ -f "$SCRIPT_DIR/../templates/KNOWLEDGE.md.template" ]]; then
   TEMPLATE="$SCRIPT_DIR/../templates/KNOWLEDGE.md.template"
 fi
-if [[ -n "${CODING_RULES_DIR:-}" && -x "$CODING_RULES_DIR/resources/hooks/knowledge-reindex.sh" ]]; then
-  REINDEX="$CODING_RULES_DIR/resources/hooks/knowledge-reindex.sh"
+if [[ -n "${CERBY_DIR:-}" && -x "$CERBY_DIR/resources/hooks/knowledge-reindex.sh" ]]; then
+  REINDEX="$CERBY_DIR/resources/hooks/knowledge-reindex.sh"
 elif [[ -x "$SCRIPT_DIR/knowledge-reindex.sh" ]]; then
   REINDEX="$SCRIPT_DIR/knowledge-reindex.sh"
 fi

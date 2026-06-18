@@ -1,11 +1,11 @@
-// coding-rules/scripts/validate-agent-context.ts
+// cerby/scripts/validate-agent-context.ts
 //
 // Validates `agent-context.yaml` (at project root) against the
-// `agent-context.schema.yaml` bundled inside this coding-rules install.
+// `agent-context.schema.yaml` bundled inside this cerby install.
 //
 // Usage (from repo root) — pick whichever path matches your install:
-//   bun run .ai/coding-rules/resources/scripts/validate-agent-context.ts
-//   bun run <plugin-install>/skills/coding-rules/resources/scripts/validate-agent-context.ts
+//   bun run .ai/cerby/resources/scripts/validate-agent-context.ts
+//   bun run <plugin-install>/skills/cerby/resources/scripts/validate-agent-context.ts
 //
 // Requirements:
 //   pnpm add -D ajv ajv-formats js-yaml
@@ -19,8 +19,8 @@ import yaml from "js-yaml";
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
 
-// Schema lives next to this script's parent (coding-rules root), regardless of where
-// the user installed coding-rules. Data lives at the project root.
+// Schema lives next to this script's parent (cerby root), regardless of where
+// the user installed cerby. Data lives at the project root.
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SCHEMA_PATH = path.resolve(SCRIPT_DIR, "..", "agent-context.schema.yaml");
 const CONTEXT_PATH = path.resolve(process.cwd(), "agent-context.yaml");

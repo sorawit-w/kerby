@@ -26,7 +26,7 @@ echo "$ERR" | grep -q "never print its secret values" \
 
 # 2. Variant .env name (.env.local) also warns.
 run '{"tool_input":{"file_path":".env.local"}}'
-echo "$ERR" | grep -q "coding-rules" && pass ".env.local warns" || fail ".env.local should warn"
+echo "$ERR" | grep -q "cerby" && pass ".env.local warns" || fail ".env.local should warn"
 
 # 3. Non-.env read -> exit 0, silent.
 run '{"tool_input":{"file_path":"src/app.ts"}}'

@@ -1,0 +1,28 @@
+# Changelog
+
+All notable changes to `cerby` are documented here. Format follows
+[Keep a Changelog](https://keepachangelog.com/); versioning is semver.
+
+## [4.21.0] — 2026-06-17
+
+First release under the **`cerby`** name. The skill was extracted from
+[`sorawit-w/agent-skills`](https://github.com/sorawit-w/agent-skills) — where it shipped
+as `coding-rules` through v4.21.0 — into this standalone repo, with full commit history
+preserved (`git log`). The version number is continuous with the `coding-rules` line; the
+rename is the only change in this release.
+
+### Changed
+- **Renamed `coding-rules` → `cerby`** everywhere: skill `name`, trigger phrases, the
+  `/cerby` invocation, the `CERBY_DIR` env var, hook-path signatures, glob discovery, and
+  all prose. `coding-rules` is no longer recognized — invoke `cerby` (or `/cerby`).
+- **Standalone packaging.** Own plugin manifests (Claude Code, Codex, Cowork), own
+  `check-skill-compat.py`, vendored harness-engineering vocabulary in the repo-root
+  `CLAUDE.md`. Sibling skills it used to be bundled with (`sub-agent-coordinator`,
+  `team-composer`, `i18n`, `tech-stack-recommendations`, `brand-workshop`) are now
+  optional external pointers to `sorawit-w/agent-skills` with graceful fallback.
+
+### Notes
+- Prior per-version history (v4.0–v4.21.0 under the `coding-rules` name) lives in the
+  preserved git history and in the `sorawit-w/agent-skills` CHANGELOG.
+- **Breaking:** anyone invoking `/coding-rules` must switch to `/cerby`. There is no
+  back-compat alias by design — `cerby` is a clean-identity repo.

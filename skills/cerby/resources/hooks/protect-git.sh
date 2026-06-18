@@ -37,7 +37,7 @@ block() {
   echo "BLOCKED: $1" >&2
   echo "Reason: destructive git command — data loss is hard or impossible to undo." >&2
   echo "If you really need this, run it yourself in a terminal." >&2
-  echo "See coding-rules guardrails (hooks/protect-git.sh)." >&2
+  echo "See cerby guardrails (hooks/protect-git.sh)." >&2
   exit 2
 }
 

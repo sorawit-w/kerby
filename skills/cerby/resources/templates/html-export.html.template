@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  coding-rules — bundled HTML export template.
+  cerby — bundled HTML export template.
   Renders a Markdown document as a single self-contained, shareable HTML file.
   Governed by references/html-export.md.
 

@@ -7,7 +7,7 @@
 # Behavior:
 # - If agent-context.yaml has `context.enabled: false`, exits silently.
 # - Otherwise, if CONTEXT.md at project root is missing, scaffolds it
-#   from templates/CONTEXT.md.template (resolved via $CODING_RULES_DIR
+#   from templates/CONTEXT.md.template (resolved via $CERBY_DIR
 #   or repo-relative fallback).
 # - Never overwrites an existing CONTEXT.md.
 #
@@ -39,11 +39,11 @@ if [[ -f "CONTEXT.md" ]]; then
   exit 0
 fi
 
-# Resolve template path. Prefer $CODING_RULES_DIR; fall back to script-relative.
+# Resolve template path. Prefer $CERBY_DIR; fall back to script-relative.
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 TEMPLATE=""
-if [[ -n "${CODING_RULES_DIR:-}" && -f "$CODING_RULES_DIR/resources/templates/CONTEXT.md.template" ]]; then
-  TEMPLATE="$CODING_RULES_DIR/resources/templates/CONTEXT.md.template"
+if [[ -n "${CERBY_DIR:-}" && -f "$CERBY_DIR/resources/templates/CONTEXT.md.template" ]]; then
+  TEMPLATE="$CERBY_DIR/resources/templates/CONTEXT.md.template"
 elif [[ -f "$SCRIPT_DIR/../templates/CONTEXT.md.template" ]]; then
   TEMPLATE="$SCRIPT_DIR/../templates/CONTEXT.md.template"
 fi

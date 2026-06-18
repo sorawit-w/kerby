@@ -1,6 +1,6 @@
 # Multi-Tool Support
 
-coding-rules is a playbook. The hook scripts happen to target Claude Code, but the *rules themselves* — the prime directive, hard rules, workflows, and references — are vendor-independent and should work wherever an AI coding agent reads a project context file.
+cerby is a playbook. The hook scripts happen to target Claude Code, but the *rules themselves* — the prime directive, hard rules, workflows, and references — are vendor-independent and should work wherever an AI coding agent reads a project context file.
 
 This document defines how to expose the playbook to multiple agent runtimes without duplicating content.
 
@@ -11,12 +11,12 @@ This document defines how to expose the playbook to multiple agent runtimes with
 The canonical context file is **`AI-CONTEXT.md`** at the project root.
 
 - Any agent that doesn't know about vendor-specific names can be pointed at `AI-CONTEXT.md`
-- It is a symlink (or a thin pointer file) to `coding-rules/BOOTSTRAP.md` or your project's `CLAUDE.md`
+- It is a symlink (or a thin pointer file) to `cerby/BOOTSTRAP.md` or your project's `CLAUDE.md`
 - Prefer a symlink — keeps one source of truth
 
 ```bash
 # At project root
-ln -s coding-rules/BOOTSTRAP.md AI-CONTEXT.md
+ln -s cerby/BOOTSTRAP.md AI-CONTEXT.md
 ```
 
 If your platform doesn't handle symlinks cleanly (Windows, some CI), use a one-line pointer file:
@@ -24,7 +24,7 @@ If your platform doesn't handle symlinks cleanly (Windows, some CI), use a one-l
 ```markdown
 # AI Context
 
-See `coding-rules/BOOTSTRAP.md` for the operating rules.
+See `cerby/BOOTSTRAP.md` for the operating rules.
 ```
 
 ---
@@ -35,8 +35,8 @@ When a runtime expects a specific filename, add a symlink. The rule: **only two 
 
 | Runtime | Expected file | How to wire |
 |---------|---------------|-------------|
-| Claude Code | `CLAUDE.md` | `ln -s coding-rules/BOOTSTRAP.md CLAUDE.md` |
-| Codex (OpenAI) | `AGENTS.md` | `ln -s coding-rules/BOOTSTRAP.md AGENTS.md` |
+| Claude Code | `CLAUDE.md` | `ln -s cerby/BOOTSTRAP.md CLAUDE.md` |
+| Codex (OpenAI) | `AGENTS.md` | `ln -s cerby/BOOTSTRAP.md AGENTS.md` |
 | Other agents | `AI-CONTEXT.md` | Same symlink — the fallback |
 
 **Why only these two:** the maintenance cost of vendor-specific tweaks is non-zero. Supporting N vendors means N matrices to keep synchronized and eval. Claude Code + Codex is the smallest set that covers the current team's daily use.
@@ -55,7 +55,7 @@ Consequences for other runtimes:
 - **Cursor** likewise. `.cursorrules` can be a symlink to `BOOTSTRAP.md` if you want Cursor's rule-injection to see the playbook.
 - The text rules are the source of truth. Hooks are *enforcement scaffolding*, not the rules themselves.
 
-If you need a hook-equivalent in Codex, write it as a shell command in Codex's configuration and have it invoke the same script in `coding-rules/hooks/`. The scripts are plain bash and don't depend on Claude Code internals beyond the JSON input format (which you can mock for Codex via a thin wrapper).
+If you need a hook-equivalent in Codex, write it as a shell command in Codex's configuration and have it invoke the same script in `cerby/hooks/`. The scripts are plain bash and don't depend on Claude Code internals beyond the JSON input format (which you can mock for Codex via a thin wrapper).
 
 ---
 
@@ -65,7 +65,7 @@ The symlink approach makes this automatic. If you chose pointer files instead (e
 
 ```bash
 # In a repo hook or CI step
-canonical=$(sha256sum coding-rules/BOOTSTRAP.md | cut -d' ' -f1)
+canonical=$(sha256sum cerby/BOOTSTRAP.md | cut -d' ' -f1)
 for f in CLAUDE.md AGENTS.md AI-CONTEXT.md; do
   [[ -f "$f" ]] || continue
   if ! grep -q "$canonical" "$f" 2>/dev/null; then
