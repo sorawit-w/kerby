@@ -15,6 +15,7 @@ You are onboarding an **existing repo** (real code, git history, conventions) in
 2. **Diff-and-confirm every write.** Show the proposed file (or the proposed addition) and get a yes before writing. Same consent discipline as `install`. Never write silently.
 3. **Never clobber human-curated content.** Refresh re-derives only agent-owned material. Anything a human wrote or verified is frozen. Per-tier refresh rules below.
 4. **Never write secret contents.** When a scan surfaces `.env`-like or credential files, record *paths only*, never the values inside them.
+5. **No git repository = degrade, never improvise VCS.** If the repo has no git history (`git` commands fail), the code-derived tiers still run: `agent-context.yaml`, `CONTEXT.md`, and the `memory.log` stub populate from the filesystem. Skip the git-sourced work — the `git log` decision/lesson scan (§2.4) yields no candidates, and the STATUS stub records the branch as `n/a (no git)` (§2.5). Do **NOT** `git init` to satisfy a step — that is a repo-state change the human owns (see the ring-fence). Say so in the Finish handoff: which tiers ran, which were skipped for want of git. (This mirrors `audit`'s documented no-git stance — same skill, same input class, handled the same way.)
 </core_principles>
 
 ---

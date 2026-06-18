@@ -3,6 +3,17 @@
 All notable changes to `cerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [4.21.1] — 2026-06-17
+
+### Fixed
+- **`prepare` now degrades cleanly on a repo with no git history.** `adopt-existing.md`
+  issued the `git log` decision-scan and `git branch --show-current` as unconditional
+  steps with no fallback, leaving the no-git case undefined — an agent could stall or
+  `git init` unprompted (a repo-state change the ring-fence forbids). It now populates the
+  code-derived artifacts only, skips the git-history knowledge scan, records the branch as
+  `n/a (no git)`, and never `git init`s — mirroring `audit`'s existing no-git stance.
+  Surfaced by a `skill-evaluator` absent-state audit.
+
 ## [4.21.0] — 2026-06-17
 
 First release under the **`cerby`** name. The skill was extracted from
