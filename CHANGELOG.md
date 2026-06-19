@@ -3,6 +3,36 @@
 All notable changes to `cerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [4.21.2] — 2026-06-19
+
+A `team-composer` audit asked whether the agent-skills v5.2.0 "library-conventions"
+layer (authority tiers / supply-chain / co-load regression gate / state-passing)
+should be ported into cerby. Finding: **cerby already implements it, often as the
+origin** — tiers are mechanically hook-enforced (stronger than a review annotation),
+provenance lives in `NOTICE` + dated inline citations, eval grading is delegated to
+`skill-evaluator`, and the harness/control-loop vocabulary is in the root `CLAUDE.md`.
+The one genuinely-novel agent-skills mechanism — the cross-skill co-load regression
+gate — is N/A for a single skill. So nothing was ported; one fixture was added.
+
+### Added
+- **`.eval/triggers/cerby.json`** — a committed trigger-eval boundary corpus
+  (should-fire / should-not-fire / neighbor-steal) protecting cerby's sharp
+  "do NOT invoke on general coding tasks" boundary, including the load-bearing case
+  that a general "security review of my repo" must NOT fire (cerby `audit` is
+  conformance-to-cerby, not a general bug/security review). The fixture is data the
+  skill owns; the grading harness stays `skill-evaluator` — consistent with "one
+  tool, one job."
+- **`skills/cerby/CLAUDE.md`** — a short note recording why the conventions layer is
+  not ported and why a trigger fixture coexists with "ships no eval harness."
+
+### Changed
+- **`.gitignore`** — un-ignored `.eval/triggers/` only (`.eval/*` + `!.eval/triggers/`)
+  so the boundary corpus is committed while the rest of `.eval/` stays local scratch.
+
+### Notes
+- Backwards-compatible (PATCH). No rule text or `SKILL.md` description changed, so no
+  `skill-evaluator` gate fired. Fixture + docs only; no eval harness shipped.
+
 ## [4.21.1] — 2026-06-17
 
 ### Fixed
