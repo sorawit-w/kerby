@@ -19,9 +19,10 @@ gate — is N/A for a single skill. So nothing was ported; one fixture was added
   (should-fire / should-not-fire / neighbor-steal) protecting cerby's sharp
   "do NOT invoke on general coding tasks" boundary, including the load-bearing case
   that a general "security review of my repo" must NOT fire (cerby `audit` is
-  conformance-to-cerby, not a general bug/security review). The fixture is data the
-  skill owns; the grading harness stays `skill-evaluator` — consistent with "one
-  tool, one job."
+  conformance-to-cerby, not a general bug/security review). The fixture is labeled
+  data the skill owns, not a runner: triggering-accuracy runs are `skill-creator`'s
+  `run_eval` job (NOT `skill-evaluator`, which audits rule adherence), and no gate
+  auto-runs it — it is a manual regression checklist for description edits.
 - **`skills/cerby/CLAUDE.md`** — a short note recording why the conventions layer is
   not ported and why a trigger fixture coexists with "ships no eval harness."
 
