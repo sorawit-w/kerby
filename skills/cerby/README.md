@@ -36,6 +36,39 @@ Skills you'll likely want alongside `cerby` — all ship in this same marketplac
 
 None are required — `cerby` works on its own. They sharpen the edges where it deliberately stays thin (multi-role planning, sub-agent coordination, rule evaluation, stack selection).
 
+## Workflows
+
+cerby routes every task to one of **five task-shape playbooks** under [`resources/workflows/`](resources/workflows/) — the agent reads the matching file instead of improvising from memory. The files are the single source of truth; the table below names and links them.
+
+| Task | Workflow | What it does |
+|---|---|---|
+| New project (no code) | [`new-project.md`](resources/workflows/new-project.md) | Greenfield setup from requirements — branch, scaffold, fill `agent-context.yaml`, `ROADMAP.md`, verify. |
+| Existing code, no cerby artifacts yet | [`adopt-existing.md`](resources/workflows/adopt-existing.md) | Onboard an existing repo (the `prepare` sub-command) — derive context artifacts from code + git history, tiered by inferability, diff-and-confirm on every write. |
+| Feature / enhancement / refactor / tech debt | [`feature.md`](resources/workflows/feature.md) | Plan, then the task loop (do → check → commit gate → log → repeat), then validate + finish. |
+| Bug fix | [`bugfix.md`](resources/workflows/bugfix.md) | Reproduce → diagnose root cause (≤3 hypotheses) → failing test + minimal fix → commit gate → finish. |
+| Docs / config / single-file edit (complexity 1–3) | [`quick-task.md`](resources/workflows/quick-task.md) | Fit-check, in-place branch, do → check → commit. Escalates to `feature` if it outgrows the bounds. |
+| ⚠️ **High-stakes** — auth · payments · migrations · infra · CI · prod-traffic values | always [`feature.md`](resources/workflows/feature.md) | Override: blast radius isn't bounded by LOC, so these route to `feature` even for one-line edits — **never `quick-task`**. |
+
+![How cerby routes a task to a workflow file: five task types map to five workflow files; feature/refactor/debt converge on feature.md, docs/config/one-file go to quick-task.md, and a high-stakes override reroutes quick-task work to feature.md.](assets/workflow-routing.svg)
+
+### Where cerby sits in the loop
+
+cerby is a **governor, not an actor** — it shapes how each step is done (rules) and hard-blocks a few irreversible actions (hooks); it never writes the test or implements the change. The diagrams below show *where it sits* inside the agent's own loop, keyed to task type.
+
+**Feature loop** — `Plan → Do → Check → Commit gate → Log → repeat → Validate + finish`. Test-first is a preference *inside* `Do`, not a leading phase; the commit gate runs the full `build · lint · test` on **every** iteration, not once at the end.
+
+![cerby's place in the agent's feature task loop: the agent runs plan, do, check, commit gate, log, repeat, then validate and finish; cerby shapes each step as a rule (teal) and hard-blocks at the amber commit gate via hooks; a failing gate triggers a retry budget then revert.](assets/feature-loop.svg)
+
+**Bugfix loop** — same commit gate and failure branch, different front half: `Reproduce → Diagnose (root cause) → Fix (failing test → minimal fix) → commit gate → finish`. It does **not** start by writing tests; the failing test comes after diagnosis, inside `Fix`.
+
+![cerby's place in the agent's bugfix task loop: reproduce, diagnose the root cause within bounded hypotheses, fix (failing test then minimal change), commit gate, validate and finish; same teal rules / amber gate legend as the feature loop, with the same retry-then-revert failure branch.](assets/bugfix-loop.svg)
+
+In both loops the legend is the same — **agent acts** (gray) / **cerby rule** (teal) / **cerby gate / hook** (amber):
+
+- A **rule** shapes every step (how to plan, how to check, what "done" means).
+- **Hooks hard-block wherever the agent reaches for something irreversible** — not only at commit: `.env` edits (`protect-env`, during `Do`), destructive git (`protect-git`), secrets in staged files (`pre-commit-check`, at the commit gate).
+- **Failure branch:** a failing gate spends a per-error-type retry budget (build 5 / test 3 / lint 5 / deps 5), then "cheapen the loop before grinding"; if the budget is exhausted → **revert and mark `BLOCKED` in `.ai/BLOCKERS.md`**. The iron rule is *never leave the repo broken.*
+
 ## What it does
 
 - **Loads `resources/BOOTSTRAP.md`** into the current session via the `Read` tool, so the rules enter conversation context as a tool result (not a paraphrase).
