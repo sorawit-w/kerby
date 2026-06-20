@@ -3,6 +3,44 @@
 All notable changes to `cerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [4.22.0] — 2026-06-20
+
+Two `audit` runs over the same repo state diverged in layout — the HTML chrome was
+already deterministic, but the Markdown **body** wasn't: §6 defined finding *fields*
+without a layout, and §7 said "grouped by dimension, sorted by severity" without
+pinning list-vs-table. Each run improvised the body. Fix: **pin the body structure**
+and give the audit its **own render template** so the same findings always produce a
+structurally identical report.
+
+### Added
+- **`skills/cerby/resources/templates/audit-report.html.template`** — a dedicated
+  audit render template. Shares the generic `html-export.html.template` `:root` BASE-token
+  contract (so `DESIGN.md` overrides through one surface) and adds the audit-only layer:
+  coverage banner, `table.findings`, severity badges, confidence styling, `--measure: 52rem`,
+  and **fixed** semantic `--sev-*` status tokens (a brand palette can't make "blocker"
+  stop reading as danger).
+
+### Changed
+- **`references/audit.md` §6** — a finding is now a `<tr>` in a raw-HTML `table.findings`
+  with a fixed five-column order, not a Markdown bullet list. The raw-HTML scaffolding is
+  the only trusted markup; cell *content* is entity-escaped + wrapped in a literal
+  `<code>` element (Markdown backtick spans are inert inside the passed-through block —
+  §8 step 2's backtick rule governs Markdown body text, not cell content).
+- **`references/audit.md` §7** — the report skeleton is pinned to one exact top-to-bottom
+  order (title → banner → summary → per-dimension tables → footer). The banner is emitted
+  as raw HTML. Zero-findings renders the banner + "No violations among the statically-checkable
+  rules in scope" — never a bare ✓.
+- **`references/audit.md` §8** — the render now wraps in `audit-report.html.template`. The
+  untrusted-input escaping + self-check obligations are unchanged.
+- **`references/html-export.md`** — the "one sanctioned exception" note now says the audit
+  reuses the fill-and-override *machinery* and token contract via its **own** template, not
+  the generic one. Docs stay honest.
+
+### Notes
+- MINOR (additive, user-visible output-format change). Determinism is the acceptance bar:
+  same findings + same corpus → structurally identical report. No new checks, no hook
+  changes, `BOOTSTRAP.md` untouched.
+
 ## [4.21.2] — 2026-06-19
 
 A `team-composer` audit asked whether the agent-skills v5.2.0 "library-conventions"

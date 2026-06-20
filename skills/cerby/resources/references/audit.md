@@ -79,19 +79,38 @@ Agent judgment. Each finding must **name the heuristic it used** so a human can 
 
 ## 6. Finding shape
 
+A finding is a **`<tr>` in a `table.findings`**, not a Markdown bullet list — this is what makes the body byte-stable across converters (§7, §8). All seven concepts survive: **Dimension** becomes the `## <Dimension>` section header (§7); the other six map to the five fixed columns below. Emit the table as a **raw HTML block** (passed through pandoc / markdown-it / python-markdown untouched).
+
+```html
+<table class="findings"><thead><tr><th>Severity</th><th>Rule</th><th>Location</th><th>Finding &amp; fix</th><th>Conf.</th></tr></thead><tbody>
+<tr>
+  <td><span class="sev sev-blocker">blocker</span></td>
+  <td>committed secret<span class="src">guardrails.md</span></td>
+  <td><code>src/config/secrets.ts:8</code></td>
+  <td>A live-looking API key is committed in source.<span class="fix"><b>Fix:</b> rotate the key, move it to an env var, scrub history.</span></td>
+  <td><span class="conf conf-observed">observed</span></td>
+</tr>
+</tbody></table>
 ```
-- Rule:       <rule name> (<source file:section>)
-- Location:   <file:line>  or  <commit-sha>
-- Dimension:  security | quality | data | git-hygiene | docs
-- Severity:   blocker | major | minor
-- Confidence: observed | inferred
-- Finding:    <one sentence — what's non-conformant>
-- Fix:        <one sentence, or "human judgment needed">
-```
+
+Cell hooks (must match the template's class names exactly — `sev-blocker`, never `sev_blocker`):
+- **Severity** → `<span class="sev sev-blocker|sev-major|sev-minor">` — a **closed enum**, cerby's own classification, the one trusted cell value.
+- **Dimension** ∈ the stable set in §10 (`security | quality | data | git-hygiene | docs`); it is the `## <Dimension>` header (§7), not a column.
+- **Rule** → name + `<span class="src">{file} § {section}</span>` for its source.
+- **Location** → untrusted repo path; **§8-escaped + `<code>`-wrapped**.
+- **Finding** → one sentence; any repo-derived snippet **§8-escaped + `<code>`-wrapped**.
+- **Fix** → `<span class="fix"><b>Fix:</b> …</span>` (one sentence, or "human judgment needed").
+- **Confidence** → `<span class="conf conf-observed|conf-inferred">`.
+
+⚠️ **The raw-HTML table scaffolding is the *only* trusted markup. It does not relax escaping of cell *content*.** Every repo-derived cell value (Location, any snippet in Finding) is still untrusted (§1) and must be escaped at interpolation. Only Severity — the closed enum — is trusted.
+
+**Inside a raw-HTML cell, "escaped" = HTML-entity-escape the value *and* wrap it in a literal `<code>…</code>` element — NOT a Markdown backtick span.** The cell is a raw-HTML block the converter passes through untouched, so Markdown backticks are inert here and would render as visible `` ` `` characters (and two agents resolving this differently break determinism). Entity-escaping alone already neutralizes the §1 threat in a passed-through block — a `<img onerror=…>` in a path becomes inert `&lt;img onerror=…&gt;`, and `![x](beacon)` stays literal text, never an image. §8 step 2's backtick-run rule governs untrusted strings that remain in **Markdown** body text (e.g. a repo-derived `{{TITLE}}` / `{{SOURCE}}`), not raw-HTML cell content.
 
 **Severity** = the rule's own stakes, **bumped one level** when the finding sits on a **BOOTSTRAP §3 high-stakes path** (auth / payments / migrations / infra / CI / traffic-shaping) — reference that list by pointer, do not recopy it. So a hardcoded secret under `auth/` is always `blocker`; a missing upgrade-trigger comment in a util is `minor`.
 
 **Confidence** here is per-*finding* (`observed` = mechanical match; `inferred` = heuristic) — distinct from the knowledge-base entry `confidence` in `knowledge-management.md`. Don't conflate them.
+
+(Sample values above — `acme-checkout` / `src/config/…` — are placeholders only. Never an employer, customer, or vendor name: this is a public repo.)
 
 ---
 
@@ -107,19 +126,31 @@ Draft the report as Markdown, then write it under `.ai/audits/` (HTML rendering:
 - On a same-second collision, append `-2`, `-3`.
 - The filename is a convenience; the **coverage banner inside the report is authoritative.**
 
-**Coverage banner (top of every report) — three-way, never binary:**
+**Report skeleton — this exact top-to-bottom order, every report:**
 
-> `Audit scope: <dims> · <mode>. Checked C rules, P partial, Q process-only (of M total). Excluded: <skill dirs / vendor / .ai>. Not statically auditable: <list the process-only rules>.` Append `Not run: <checks>` when an auditable check couldn't run (e.g. no linter resolvable) — those are not "checked."
+1. `# <title>` (repo name) — also fills `{{TITLE}}`.
+2. **Coverage banner** (`<div class="banner">`) — mandatory, always first. The audit's honesty signal.
+3. One-line summary: `**N findings** — X blocker, Y major, Z minor` (or the zero-findings line below).
+4. Per-dimension `## <Dimension>` section, each with one `table.findings` (§6) sorted **blocker → major → minor**. A dimension with no findings renders `<p class="none">— no findings in these dimensions —</p>`.
+5. Footer: `### Not statically auditable (process-only)` + `### Not run` lists.
 
-A binary "C of M" would let a `partial` rule read as fully checked — the three-way split keeps it honest, and a `not-run` check (auditable, but its tool was unavailable) must never be folded into `C`. The banner restates the requested scope so an aspect-scoped pass never reads as a whole-repo pass.
+**Coverage banner (three-way, never binary).** Emit it as a **raw HTML block** so it survives every converter untouched:
 
-Then: findings grouped by dimension, sorted by severity. No mutation, no commit, no merge — confirm completion with the report path.
+```html
+<div class="banner"><strong>Coverage</strong> · <code>{dims}</code> · <code>{mode}</code>. Checked <strong>{C}</strong> rules, <strong>{P}</strong> partial, <strong>{Q}</strong> process-only <span class="muted">(of {M} total)</span>.<br><span class="muted">Excluded: … Not statically auditable: … {Not run: …}</span></div>
+```
+
+A binary "C of M" would let a `partial` rule read as fully checked — the three-way split keeps it honest, and a `not-run` check (auditable, but its tool was unavailable) must never be folded into `C`. Append `Not run: <checks>` when an auditable check couldn't run (e.g. no linter resolvable). The banner restates the requested scope so an aspect-scoped pass never reads as a whole-repo pass.
+
+**Zero-findings rule.** A clean audit still renders the banner. The summary line states **"No violations among the statically-checkable rules in scope"** — never a bare ✓. The banner (what *couldn't* be checked), not the empty table, is the signal.
+
+No mutation, no commit, no merge — confirm completion with the report path.
 
 ---
 
 ## 8. Report rendering (Markdown → HTML)
 
-The `.md` is canonical and sufficient; the `.html` is a shareable snapshot. Render it by **reusing the `html-export` machinery** — `html-export.md` § How to Produce It (convert body → wrap in `templates/html-export.html.template` filling `{{TITLE}}{{CONTENT}}{{SOURCE}}{{DATE}}` → apply DESIGN.md `:root` tokens if present). This is the **one sanctioned auto-render exception** to that file's opt-in rule — it's named there; do not generalize it.
+The `.md` is canonical and sufficient; the `.html` is a shareable snapshot. Render it by **reusing the `html-export` machinery** — `html-export.md` § How to Produce It (convert body → wrap in `templates/audit-report.html.template` filling `{{TITLE}}{{CONTENT}}{{SOURCE}}{{DATE}}` → apply DESIGN.md `:root` tokens if present). The audit wraps in its **own** `audit-report.html.template` (which shares the generic template's `:root` token contract and adds the audit-only `table.findings` / `.banner` / `--sev-*` styling), not the generic `html-export.html.template`. This is the **one sanctioned auto-render exception** to that file's opt-in rule — it's named there; do not generalize it.
 
 Two audit-specific obligations on top of the shared machinery:
 
