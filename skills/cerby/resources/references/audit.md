@@ -131,7 +131,7 @@ Draft the report as Markdown, then write it under `.ai/audits/` (HTML rendering:
 1. `# <title>` (repo name) — also fills `{{TITLE}}`.
 2. **Coverage banner** (`<div class="banner">`) — mandatory, always first. The audit's honesty signal.
 3. One-line summary: `**N findings** — X blocker, Y major, Z minor` (or the zero-findings line below).
-4. Per-dimension `## <Dimension>` section **in the §10 stable-map order** (`security → quality → data → git-hygiene → docs`; any novel dimension last, alphabetically), each with one `table.findings` (§6). Rows sort **blocker → major → minor**, and **within one severity, by Location** — file path lexicographically ascending, then line number ascending; commit-SHA findings after file findings, ordered by SHA. This total order (sections + rows) is what makes two runs byte-identical — never emit dimensions or same-severity rows in filesystem or git-discovery order. A dimension with no findings renders `<p class="none">— no findings in these dimensions —</p>`.
+4. Per-dimension `## <Dimension>` section **in the §10 stable-map order** (`security → quality → data → git-hygiene → docs`; any novel dimension last, alphabetically), each with one `table.findings` (§6). Rows sort **blocker → major → minor**, and **within one severity, by Location** — file path lexicographically ascending, then line number ascending; commit-SHA findings after file findings, ordered by SHA. **When two rows still tie** (same file:line, or both file-level with no line), break by **Rule** (name, then source), then by **Finding text** — so the order is total even for co-located findings. This total order (sections + rows) is what makes two runs byte-identical — never emit dimensions or same-severity rows in filesystem or git-discovery order. A dimension with no findings renders `<p class="none">— no findings in these dimensions —</p>`.
 5. Footer: `### Not statically auditable (process-only)` + `### Not run` lists.
 
 **Coverage banner (three-way, never binary).** Emit it as a **raw HTML block** so it survives every converter untouched:
@@ -143,6 +143,8 @@ Draft the report as Markdown, then write it under `.ai/audits/` (HTML rendering:
 A binary "C of M" would let a `partial` rule read as fully checked — the three-way split keeps it honest, and a `not-run` check (auditable, but its tool was unavailable) must never be folded into `C`. Append `Not run: <checks>` when an auditable check couldn't run (e.g. no linter resolvable). The banner restates the requested scope so an aspect-scoped pass never reads as a whole-repo pass.
 
 **Zero-findings rule.** A clean audit still renders the banner. The summary line states **"No violations among the statically-checkable rules in scope"** — never a bare ✓. The banner (what *couldn't* be checked), not the empty table, is the signal.
+
+This summary means *checked and clean* — it is **not** the same as an **empty incremental** (valid baseline, no changed files or commits since the last audit). That no-op case reports **"no changes since last audit"** (SKILL.md audit edge case; § Incremental scope), never a conformance summary, because nothing was examined. Conflating the two would let a run that checked *nothing* read as a clean pass — the silent-empty-incremental failure § Incremental scope exists to prevent.
 
 No mutation, no commit, no merge — confirm completion with the report path.
 
