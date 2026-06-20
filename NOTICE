@@ -1,9 +1,9 @@
-cerby
+kerby
 Copyright (c) 2026 sorawit-w
 
 This product is licensed under the MIT License (see LICENSE).
 
-`cerby` was extracted from sorawit-w/agent-skills (MIT), where it shipped as
+`kerby` was extracted from sorawit-w/agent-skills (MIT), where it shipped as
 `coding-rules`. Full commit history is preserved in this repo's git log.
 
 This product includes patterns, vocabulary, and methodology adapted from the
@@ -16,11 +16,11 @@ index of third-party copyright statements required by the upstream licenses.
 ## Absorbed patterns (ideas/vocabulary only — no verbatim code or prose)
 
 - `nidhinjs/prompt-master` (MIT) — prose-economy lens; see
-  `skills/cerby/CLAUDE.md` § Authoring style.
+  `skills/kerby/CLAUDE.md` § Authoring style.
 - `addyosmani/agent-skills` (MIT) — two rules in
-  `skills/cerby/resources/references/working-patterns.md` cite this repo as source.
+  `skills/kerby/resources/references/working-patterns.md` cite this repo as source.
 - `elementalsouls/Claude-BugHunter` — discipline patterns in
-  `skills/cerby/resources/references/validation.md`, `debugging.md`, and
+  `skills/kerby/resources/references/validation.md`, `debugging.md`, and
   `working-patterns.md` (see file-level attribution).
 - `DietrichGebert/ponytail` (MIT) — the ordered decision-ladder and the
   deliberate-shortcut upgrade-trigger ideas, in `resources/BOOTSTRAP.md` and

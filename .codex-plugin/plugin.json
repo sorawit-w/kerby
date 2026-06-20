@@ -1,31 +1,31 @@
 {
-  "name": "cerby",
-  "version": "4.22.0",
-  "description": "cerby — the gate guardian for agentic coding. A loadable rule-corpus plus opt-in guardrail hooks that govern how an AI agent does coding work: clarity over cleverness, safety over speed, never leave the repo broken, and nothing unproven passes the gate. Load it into a session, reload after compaction, install per-project hooks, prepare an existing repo, or audit a repo's conformance to the rules.",
+  "name": "kerby",
+  "version": "5.0.0",
+  "description": "kerby — the gate guardian for agentic coding. A loadable rule-corpus plus opt-in guardrail hooks that govern how an AI agent does coding work: clarity over cleverness, safety over speed, never leave the repo broken, and nothing unproven passes the gate. Load it into a session, reload after compaction, install per-project hooks, prepare an existing repo, or audit a repo's conformance to the rules.",
   "author": {
     "name": "sorawit-w",
     "url": "https://github.com/sorawit-w"
   },
-  "homepage": "https://github.com/sorawit-w/cerby",
-  "repository": "https://github.com/sorawit-w/cerby",
+  "homepage": "https://github.com/sorawit-w/kerby",
+  "repository": "https://github.com/sorawit-w/kerby",
   "license": "MIT",
-  "keywords": ["cerby", "guardrails", "agentic-coding", "coding-discipline", "merge-gate", "validation", "hooks", "state-preservation", "sub-agent", "harness-engineering", "memory", "skill"],
+  "keywords": ["kerby", "guardrails", "agentic-coding", "coding-discipline", "merge-gate", "validation", "hooks", "state-preservation", "sub-agent", "harness-engineering", "memory", "skill"],
   "skills": "./skills/",
   "interface": {
-    "displayName": "cerby",
+    "displayName": "kerby",
     "shortDescription": "The gate guardian for agentic coding: loadable rules plus opt-in guardrail hooks.",
-    "longDescription": "cerby packages coding guardrails for Codex sessions. Use it to load a rule corpus, prepare repositories for disciplined agentic coding, install opt-in hooks, reload rules after compaction, or audit whether a repo follows the expected workflow.",
+    "longDescription": "kerby packages coding guardrails for Codex sessions. Use it to load a rule corpus, prepare repositories for disciplined agentic coding, install opt-in hooks, reload rules after compaction, or audit whether a repo follows the expected workflow.",
     "developerName": "sorawit-w",
     "category": "Developer Tools",
     "capabilities": ["Interactive", "Read", "Write"],
-    "websiteURL": "https://github.com/sorawit-w/cerby",
+    "websiteURL": "https://github.com/sorawit-w/kerby",
     "defaultPrompt": [
-      "Load cerby for this coding session.",
-      "Audit this repo against cerby coding guardrails.",
+      "Load kerby for this coding session.",
+      "Audit this repo against kerby coding guardrails.",
       "Prepare this repo for disciplined agentic coding."
     ],
     "brandColor": "#111827",
-    "composerIcon": "./assets/cerby-avatar.png",
-    "logo": "./assets/cerby-hero.png"
+    "composerIcon": "./assets/kerby-avatar.png",
+    "logo": "./assets/kerby-hero.png"
   }
 }
