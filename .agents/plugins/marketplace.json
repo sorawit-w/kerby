@@ -1,11 +1,11 @@
 {
-  "name": "cerby",
+  "name": "kerby",
   "interface": {
-    "displayName": "sorawit-w · cerby"
+    "displayName": "sorawit-w · kerby"
   },
   "plugins": [
     {
-      "name": "cerby",
+      "name": "kerby",
       "source": {
         "source": "local",
         "path": "./"

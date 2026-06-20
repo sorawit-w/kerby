@@ -187,7 +187,7 @@ playground.xcworkspace
 # Local skill-evaluation workspaces (eval sets, optimization-loop reports,
 # grader traces, etc.). Useful locally for pre-shipment audits; regenerated
 # per audit run, not worth tracking — EXCEPT .eval/triggers/, the committed
-# boundary corpus for cerby's own triggering (should-fire / should-not-fire).
+# boundary corpus for kerby's own triggering (should-fire / should-not-fire).
 # Manual regression checklist: feed to skill-creator's run_eval (or eyeball)
 # when the SKILL.md description changes. No gate auto-runs it.
 .eval/*

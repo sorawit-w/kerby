@@ -1,7 +1,26 @@
 # Changelog
 
-All notable changes to `cerby` are documented here. Format follows
+All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
+
+## [5.0.0] — 2026-06-20
+
+**Renamed the project from `cerby` to `kerby`.** The name now follows the Greek
+**Kerberos** (Κέρβερος) — the hound at the gate — rather than the Latin *Cerberus*
+the old name shortened. This is a breaking change: the plugin/skill install name
+changed from `cerby` to `kerby`, so existing installs must reinstall under the new
+name. Rules, hooks, workflows, and behavior are otherwise unchanged.
+
+### Changed
+- **Plugin identity** — `name`/`id`/`keywords`/URLs across `.claude-plugin/`,
+  `.codex-plugin/`, and `.agents/plugins/` manifests now read `kerby`; repo URLs
+  point to `github.com/sorawit-w/kerby`.
+- **Skill** — `skills/cerby/` → `skills/kerby/`; SKILL.md `name: cerby` → `kerby`;
+  all prose, references, hooks, templates, and the `.eval/triggers/` corpus updated.
+- **Voice** — `VOICE.md` lore now derives the name from Greek *Kerberos* (Latin
+  *Cerberus* noted as the later spelling).
+- **Assets** — `assets/cerby-*.png` → `assets/kerby-*.png` (filenames + references).
+  ⚠️ The bitmap artwork still renders the old wordmark and needs a redraw.
 
 ## [4.22.0] — 2026-06-20
 
@@ -13,7 +32,7 @@ and give the audit its **own render template** so the same findings always produ
 structurally identical report.
 
 ### Added
-- **`skills/cerby/resources/templates/audit-report.html.template`** — a dedicated
+- **`skills/kerby/resources/templates/audit-report.html.template`** — a dedicated
   audit render template. Shares the generic `html-export.html.template` `:root` BASE-token
   contract (so `DESIGN.md` overrides through one surface) and adds the audit-only layer:
   coverage banner, `table.findings`, severity badges, confidence styling, `--measure: 52rem`,
@@ -47,7 +66,7 @@ structurally identical report.
 
 A `team-composer` audit asked whether the agent-skills v5.2.0 "library-conventions"
 layer (authority tiers / supply-chain / co-load regression gate / state-passing)
-should be ported into cerby. Finding: **cerby already implements it, often as the
+should be ported into kerby. Finding: **kerby already implements it, often as the
 origin** — tiers are mechanically hook-enforced (stronger than a review annotation),
 provenance lives in `NOTICE` + dated inline citations, eval grading is delegated to
 `skill-evaluator`, and the harness/control-loop vocabulary is in the root `CLAUDE.md`.
@@ -55,15 +74,15 @@ The one genuinely-novel agent-skills mechanism — the cross-skill co-load regre
 gate — is N/A for a single skill. So nothing was ported; one fixture was added.
 
 ### Added
-- **`.eval/triggers/cerby.json`** — a committed trigger-eval boundary corpus
-  (should-fire / should-not-fire / neighbor-steal) protecting cerby's sharp
+- **`.eval/triggers/kerby.json`** — a committed trigger-eval boundary corpus
+  (should-fire / should-not-fire / neighbor-steal) protecting kerby's sharp
   "do NOT invoke on general coding tasks" boundary, including the load-bearing case
-  that a general "security review of my repo" must NOT fire (cerby `audit` is
-  conformance-to-cerby, not a general bug/security review). The fixture is labeled
+  that a general "security review of my repo" must NOT fire (kerby `audit` is
+  conformance-to-kerby, not a general bug/security review). The fixture is labeled
   data the skill owns, not a runner: triggering-accuracy runs are `skill-creator`'s
   `run_eval` job (NOT `skill-evaluator`, which audits rule adherence), and no gate
   auto-runs it — it is a manual regression checklist for description edits.
-- **`skills/cerby/CLAUDE.md`** — a short note recording why the conventions layer is
+- **`skills/kerby/CLAUDE.md`** — a short note recording why the conventions layer is
   not ported and why a trigger fixture coexists with "ships no eval harness."
 
 ### Changed
@@ -87,16 +106,16 @@ gate — is N/A for a single skill. So nothing was ported; one fixture was added
 
 ## [4.21.0] — 2026-06-17
 
-First release under the **`cerby`** name. The skill was extracted from
+First release under the **`kerby`** name. The skill was extracted from
 [`sorawit-w/agent-skills`](https://github.com/sorawit-w/agent-skills) — where it shipped
 as `coding-rules` through v4.21.0 — into this standalone repo, with full commit history
 preserved (`git log`). The version number is continuous with the `coding-rules` line; the
 rename is the only change in this release.
 
 ### Changed
-- **Renamed `coding-rules` → `cerby`** everywhere: skill `name`, trigger phrases, the
-  `/cerby` invocation, the `CERBY_DIR` env var, hook-path signatures, glob discovery, and
-  all prose. `coding-rules` is no longer recognized — invoke `cerby` (or `/cerby`).
+- **Renamed `coding-rules` → `kerby`** everywhere: skill `name`, trigger phrases, the
+  `/kerby` invocation, the `KERBY_DIR` env var, hook-path signatures, glob discovery, and
+  all prose. `coding-rules` is no longer recognized — invoke `kerby` (or `/kerby`).
 - **Standalone packaging.** Own plugin manifests (Claude Code, Codex, Cowork), own
   `check-skill-compat.py`, vendored harness-engineering vocabulary in the repo-root
   `CLAUDE.md`. Sibling skills it used to be bundled with (`sub-agent-coordinator`,
@@ -106,5 +125,5 @@ rename is the only change in this release.
 ### Notes
 - Prior per-version history (v4.0–v4.21.0 under the `coding-rules` name) lives in the
   preserved git history and in the `sorawit-w/agent-skills` CHANGELOG.
-- **Breaking:** anyone invoking `/coding-rules` must switch to `/cerby`. There is no
-  back-compat alias by design — `cerby` is a clean-identity repo.
+- **Breaking:** anyone invoking `/coding-rules` must switch to `/kerby`. There is no
+  back-compat alias by design — `kerby` is a clean-identity repo.

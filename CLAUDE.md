@@ -1,26 +1,26 @@
-# CLAUDE.md — the `cerby` repo
+# CLAUDE.md — the `kerby` repo
 
-`cerby` is the gate guardian for agentic coding: a loadable rule-corpus + opt-in
+`kerby` is the gate guardian for agentic coding: a loadable rule-corpus + opt-in
 guardrail hooks that govern how an agent does coding work (clarity over cleverness,
 safety over speed, never leave the repo broken — and *nothing unproven passes the
-gate*). The skill itself lives at [`skills/cerby/`](skills/cerby/SKILL.md); the rules
-it loads live in [`skills/cerby/resources/BOOTSTRAP.md`](skills/cerby/resources/BOOTSTRAP.md).
+gate*). The skill itself lives at [`skills/kerby/`](skills/kerby/SKILL.md); the rules
+it loads live in [`skills/kerby/resources/BOOTSTRAP.md`](skills/kerby/resources/BOOTSTRAP.md).
 
 This file is the repo-root context doc. Its main job is to hold the **harness-engineering
-vocabulary** that `SKILL.md` references — the named primitives behind how `cerby` is
-built. `cerby` is the canonical, working implementation of these primitives; when the
+vocabulary** that `SKILL.md` references — the named primitives behind how `kerby` is
+built. `kerby` is the canonical, working implementation of these primitives; when the
 vocabulary below cites one abstractly, the concrete machinery is somewhere under
-`skills/cerby/resources/`.
+`skills/kerby/resources/`.
 
 ---
 
 ## Harness vocabulary
 
-Building a rule-corpus like `cerby` is **harness engineering** — designing everything
+Building a rule-corpus like `kerby` is **harness engineering** — designing everything
 *around* an agent that determines whether it succeeds: context, scaffolding, feedback,
 state, evaluation. Naming the primitives lets edits be deliberate instead of accidental.
 
-| Primitive | What it means | Concrete artifact in `cerby` |
+| Primitive | What it means | Concrete artifact in `kerby` |
 |---|---|---|
 | **Context engineering** | Organize information so the agent can reason over it — repo-local, versioned, not in chat threads. | `CONTEXT.md` (project glossary) + `BOOTSTRAP.md` (operating rules) + vendor agent-context files kept in sync — see `resources/references/multi-tool.md`. |
 | **Progressive disclosure** | Load detail on demand instead of front-loading everything. | `BOOTSTRAP.md` is the index; `resources/references/*.md` carry the long-tail, loaded only when cited. |
@@ -41,7 +41,7 @@ failures wearing a prompt-failure mask.
 Prompt engineering optimizes a single forward pass. **Loop engineering** optimizes the
 trajectory across many passes: the agent acts, observes a result (test output, build
 error, screenshot), and that observation re-enters context and shapes the next action.
-It is the runtime-control-flow half of harness engineering. `cerby` implements the loop
+It is the runtime-control-flow half of harness engineering. `kerby` implements the loop
 primitives; this table is the map — each row points to where the primitive is enforced.
 
 | Primitive | One-line meaning | Lives in |
@@ -64,11 +64,11 @@ search, fan-out) are loop-specific.
 ## Editing the rules
 
 The skill-internal authoring guide lives at
-[`skills/cerby/CLAUDE.md`](skills/cerby/CLAUDE.md) — read it before changing rule text
+[`skills/kerby/CLAUDE.md`](skills/kerby/CLAUDE.md) — read it before changing rule text
 (every rule carries a recurring input-token cost; each should trace to a real past
 failure). Run `python3 scripts/check-skill-compat.py` after any frontmatter or
 version-bearing change.
 
-The product voice — how cerby *talks* in the README, verdict output, and CHANGELOG — is
+The product voice — how kerby *talks* in the README, verdict output, and CHANGELOG — is
 specified in [`VOICE.md`](VOICE.md). Read it before editing any persona-bearing copy; the
 rules and command references stay literal regardless (see its Zoning table).
