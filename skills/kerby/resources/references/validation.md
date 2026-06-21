@@ -115,19 +115,25 @@ A third lens that fires alongside the code-quality pass (Medium Check 2 or High 
 - Secrets handling (env loading, key rotation, vault access, credential parsing)
 - Database migrations — especially destructive ones (DROP, ALTER constraint, schema rename)
 - Public API surface changes without versioning
-- File upload, deserialization, dynamic-code paths (`eval`, `exec`, shell invocation)
+- File upload, deserialization, dynamic-code paths (`eval`, `exec`, shell invocation) — untrusted deserialization / unverified fetched code `[A08 · CWE-502/494]`
+- Outbound requests to a URL or host influenced by user input — webhooks, link-preview / unfurlers, image/file fetchers, proxy endpoints; i.e. any outbound fetch whose destination a user can steer toward internal services or cloud metadata
 
 **What the pass checks:**
 
-- **Trust boundaries** — does untrusted input reach a sink without sanitization?
-- **Output encoding** — HTML / SQL / shell contexts use the right escape; no string concatenation into queries or commands
-- **Authn/authz placement** — is every protected endpoint actually protected, or did the new code create an unauthenticated path?
-- **Secret exposure** — no secrets in logs, error messages, response bodies, telemetry, commit history, or the agent's own chat output to the user
-- **Redaction** — when output must reference a secret, mask it (last-4 only); never reproduce a live credential verbatim, even when reading it back from a file the user showed you
-- **Timing-safe comparisons** where applicable (token comparison, signature verification)
-- **Crypto primitives** — using vetted libraries, not hand-rolled; modern algorithms (no MD5/SHA1 for security uses)
-- **Injection vectors** — SQL, command, LDAP, XPath, template, header, log injection
-- **Indirect prompt injection** if the diff ingests agent-authored artifacts (see `guardrails.md` § Agent-Authored Artifacts as Untrusted Input)
+- **Trust boundaries** — does untrusted input reach a sink without sanitization? `[A03 · CWE-20]`
+- **Output encoding** — HTML / SQL / shell contexts use the right escape; no string concatenation into queries or commands `[A03 · CWE-79/89/78]`
+- **Authn/authz placement** — is every protected endpoint actually protected, or did the new code create an unauthenticated path? `[A01 · CWE-862/285; auth failures A07 · CWE-287]`
+- **Secret exposure** — no secrets in logs, error messages, response bodies, telemetry, commit history, or the agent's own chat output to the user `[A02 · CWE-200/532]`
+- **Redaction** — when output must reference a secret, mask it (last-4 only); never reproduce a live credential verbatim, even when reading it back from a file the user showed you `[A02 · CWE-532]`
+- **Timing-safe comparisons** where applicable (token comparison, signature verification) `[A02 · CWE-208]`
+- **Crypto primitives** — using vetted libraries, not hand-rolled; modern algorithms (no MD5/SHA1 for security uses) `[A02 · CWE-327/916]`
+- **Injection vectors** — SQL, command, LDAP, XPath, template, header, log injection `[A03 · CWE-89/78/90/643/94/113/117]`
+- **SSRF** — a destination URL/host derived from user input is allowlisted, not raw-passed to an outbound request; internal ranges and cloud metadata (`169.254.169.254`) are blocked; no redirect-following or DNS-rebinding into internal targets `[A10 · CWE-918]`
+- **Insecure design** — prefer secure-by-default patterns; threat-model the boundary before coding (see `working-patterns.md` § platform code, `safety-mindset.md`) `[A04 · CWE-657]`
+- **Security misconfiguration** — safe defaults; no debug/verbose errors in prod; no permissive CORS; security headers set `[A05 · CWE-16]`
+- **Indirect prompt injection** if the diff ingests agent-authored artifacts (see `guardrails.md` § Agent-Authored Artifacts as Untrusted Input) `[LLM01]`
+
+**Standard targeted, not certified.** The bracketed tags map each check to the **OWASP Top 10 (2021)** (`Axx`) and — for `LLM01` — the **OWASP Top 10 for LLM Applications**; CWE IDs are indicative, not exhaustive. This lens is `[behavioral]`: it *targets* these standards best-effort by agent judgment, with nothing that mechanically verifies conformance. **Never describe code reviewed through it as "OWASP-compliant"** — the mapping is hand-maintained against the 2021 list and is not auto-tracked for drift.
 
 **Do NOT skip when triggered.** Security failures from missed lenses are silent until exploited; the cost of running the pass is small relative to the cost of missing a vuln.
 

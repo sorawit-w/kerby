@@ -3,6 +3,40 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [5.1.0] — 2026-06-21
+
+Mapped the **Security Lens** ([`validation.md`](skills/kerby/resources/references/validation.md)
+§ Security Lens — Conditional Pass) to named, dated security standards and closed one
+genuine coverage gap. The lens stays **conditional** and **`[behavioral]`** — it *targets*
+these standards best-effort by agent judgment; nothing mechanically verifies conformance,
+and no artifact may claim the code is "OWASP-compliant."
+
+### Added
+- **SSRF coverage** `[A10 · CWE-918]` — new trigger (*outbound requests to a user-influenced
+  URL/host* — webhooks, unfurlers, fetchers, proxies, cloud metadata) plus a check item
+  (allowlist destinations, block internal ranges + `169.254.169.254`, no redirect-following
+  or DNS-rebinding into internal targets). This is the behavior-changing addition: the lens
+  now fires on a surface the prior trigger list missed.
+- **OWASP Top 10 (2021) + CWE tags** on every Security Lens check, plus `[A06 · CWE-1104]`
+  on the dependency-review rule in [`guardrails.md`](skills/kerby/resources/references/guardrails.md)
+  § Security Awareness. Tags are a dated citation, stamped against the 2021 list; `LLM01`
+  references the separate OWASP Top 10 for LLM Applications.
+- **A04 (Insecure design)** `[A04 · CWE-657]` and **A05 (Security misconfiguration)**
+  `[A05 · CWE-16]` named as explicit check items. **A08** folded into the existing
+  deserialization trigger as `[A08 · CWE-502/494]` rather than a duplicate bullet.
+- **Non-certification honesty note** in the lens: targets the standards best-effort,
+  `[behavioral]`, mapping is hand-maintained and not auto-tracked for drift.
+
+### Notes
+- **A09 (logging/monitoring) deliberately not named** — its "never log secrets" half is
+  already the Secret-exposure check (`[A02 · CWE-200/532]`); its "log security events" half
+  is ops scope-creep outside a coding lens.
+- **`working-patterns.md` intentionally left untagged** — its platform-code security items
+  are woven into prose, not a taggable list; tagging there spreads the citation-staleness
+  liability for little gain.
+- No tooling added (no SAST/CodeQL/SARIF); no change to `audit.md` or the `security` audit
+  dimension; no third-party skill references.
+
 ## [5.0.0] — 2026-06-20
 
 **Renamed the project from `cerby` to `kerby`.** The name now follows the Greek

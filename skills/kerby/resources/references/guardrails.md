@@ -66,7 +66,7 @@ Stay on task. Agents tend to "fix while you're here" — refactoring adjacent co
 - **Never print a live secret into the conversation** — even when reading it back from a file. Mask to last-4 if you must reference one. **[behavioral]** — a hook can't see chat output. The **[enforced-partial]** `warn-env-read` hook reminds you on `.env` *reads* via the Read tool, but a Bash `cat .env` is not caught.
 - **Check for exposed credentials** — scan changed files for patterns like `sk_live_`, `AKIA`, `-----BEGIN PRIVATE KEY-----`, hardcoded passwords
 - **Use environment variables** for all secrets, and document the required vars in `DEVELOPER_TODO.md`
-- **Review dependency additions** — check for known vulnerabilities, verify license compatibility, prefer well-maintained packages
+- **Review dependency additions** — check for known vulnerabilities, verify license compatibility, prefer well-maintained packages `[A06 · CWE-1104]`
 
 ### Configuration vs. Secrets Boundary
 
