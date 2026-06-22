@@ -18,15 +18,21 @@ finding rows (`audit.md` § 6).
    `runs[].originalUriBaseIds`, and any `properties` carrying scan time / host /
    duration. They change every run and carry no finding signal.
 3. **Canonical finding identity.** For each result compute a stable key
-   `(ruleId, relPath, startLine, sha256(message))`. Normalize the message before
-   hashing: trim, collapse internal whitespace to single spaces, strip any embedded
-   absolute path. Hashing the *normalized* message keeps two genuinely-distinct
-   co-located findings distinct — don't sort on raw message text, where whitespace
-   alone would reorder them or collapse them.
-4. **Stable total-order sort.** Sort all results by the tuple
-   `(ruleId, relPath, startLine, message-hash)`. The order must be **total** — no
-   ties left to filesystem or scan order — the same discipline `audit.md` § 7 applies
-   to report rows.
+   `(ruleId, relPath, startLine, startColumn, endLine, endColumn, sha256(message))`.
+   Include the **full region** (start *and* end line/column), not just `startLine`:
+   two matches of the same rule on one line with the same message but different
+   columns would otherwise collide on the key, and the tie would fall back to
+   semgrep's explicitly-unstable result order — reintroducing the drift this pass
+   exists to remove. Normalize the message before hashing: trim, collapse internal
+   whitespace to single spaces, strip any embedded absolute path. Hashing the
+   *normalized* message keeps two genuinely-distinct co-located findings distinct —
+   don't sort on raw message text, where whitespace alone would reorder them.
+4. **Stable total-order sort.** Sort all results by the full tuple
+   `(ruleId, relPath, startLine, startColumn, endLine, endColumn, message-hash)`. The
+   order must be **total** — no ties left to filesystem or scan order — the same
+   discipline `audit.md` § 7 applies to report rows. (If two results are still equal
+   on every component they are byte-identical, so their relative order can't change
+   the serialized output.)
 5. **Canonical serialization.** Emit with sorted JSON object keys, fixed separators,
    LF newlines, no trailing whitespace, fixed numeric formatting. Two logically
    identical result sets must serialize to identical bytes.

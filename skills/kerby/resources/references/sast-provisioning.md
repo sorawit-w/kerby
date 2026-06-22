@@ -20,10 +20,19 @@ scripts don't: kerby ships this procedure, not the pins and not the scanners.
 
 ## Where it installs
 
-An out-of-tree, **git-ignored** toolchain dir — `.ai/sast/` by default. **Never repo
-source.** This keeps the audit's read-only-on-the-repo contract and the "No source
-files changed" completion claim true (`audit.md` § 7): provisioning writes only under
-`.ai/`, the scan writes only the report under `.ai/audits/`.
+An out-of-tree, **git-ignored** toolchain dir — `.ai/sast/` by default — holds the
+**generated** artifacts only: the venv, the vendored ruleset, the advisory snapshot.
+**Never repo source.** This keeps the audit's read-only-on-the-repo contract and the
+"No source files changed" completion claim true (`audit.md` § 7): provisioning writes
+only under `.ai/sast/`, the scan writes only the report under `.ai/audits/`.
+
+The hash-locked **requirements lockfile is a committed, versioned input** — it lives
+**outside** the `.ai/sast/` cache (e.g. `sast/requirements.lock`), because it must be
+present on a fresh checkout / teammate machine for the install to be reproducible. If
+it lived in the git-ignored cache it would be absent on clone, and provisioning would
+silently degrade to `not-run` — defeating the determinism the pin exists to give.
+Pins in `agent-context.yaml` + the committed lockfile are the reproducible *inputs*;
+`.ai/sast/` is the disposable, regenerable *output*.
 
 ## Procedure — default: pinned venv, no Docker
 
@@ -32,11 +41,13 @@ pinned version.
 
 1. **Python.** Use the pinned interpreter (`stack.tools.sast.python`). semgrep
    behavior can shift across minor versions, so the interpreter is part of the pin.
-2. **semgrep + Python deps.** Create a venv under `.ai/sast/` and install from the
-   **hash-locked** lockfile: `pip install --require-hashes -r
-   <stack.tools.sast.requirements>`. `--require-hashes` makes the install *fail*
-   rather than silently drift if any byte differs from the pin. `semgrep==<version>`
-   alone is **not** reproducible — the lockfile pins every transitive dep + its hash.
+2. **semgrep + Python deps.** Create the venv under `.ai/sast/` (generated, cache) and
+   install from the **committed** hash-locked lockfile: `pip install --require-hashes
+   -r <stack.tools.sast.requirements>`. The lockfile is a versioned repo input, not a
+   cache artifact (see "Where it installs"). `--require-hashes` makes the install
+   *fail* rather than silently drift if any byte differs from the pin.
+   `semgrep==<version>` alone is **not** reproducible — the lockfile pins every
+   transitive dep + its hash.
 3. **Ruleset.** Vendor the pinned semgrep ruleset
    (`stack.tools.sast.semgrep.ruleset`) into `.ai/sast/` so the scan resolves it
    offline. Pin to a ruleset revision/hash, not a moving registry tag.

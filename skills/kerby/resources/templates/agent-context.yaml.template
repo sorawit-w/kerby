@@ -34,7 +34,7 @@ stack:
   #     sast:
   #       enabled: true
   #       python: "3.12.7"                            # pinned interpreter
-  #       requirements: ".ai/sast/requirements.lock"  # hash-locked (pip --require-hashes)
+  #       requirements: "sast/requirements.lock"      # COMMITTED hash-locked lockfile (pip --require-hashes) — NOT inside the .ai/sast cache
   #       semgrep:
   #         version: "1.86.0"
   #         ruleset: "p/owasp-top-ten@<rev>"          # pinned ruleset (OWASP/CWE)
