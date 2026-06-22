@@ -2,7 +2,7 @@
 
 The `audit` sub-command checks an **end-user project's accumulated state** against the *current* kerby corpus and emits a human-readable report. The rules evolve; a repo drifts from them. This is the periodic drift check.
 
-**Contract — the audit is read-only.** It never edits code, never commits, never merges, never opens a PR. It writes one report (and one baseline file) under `.ai/audits/` and stops. Acting on findings is the developer's call.
+**Contract — the audit is read-only on your code and git state.** It never edits source, never commits, never merges, never opens a PR. It writes only generated artifacts under `.ai/` — the report and its baseline under `.ai/audits/`, plus (only when `--sast` triggers provisioning) the tool cache under `.ai/sast/` (`sast-provisioning.md`) — never repo source, then stops. Acting on findings is the developer's call.
 
 **What it is NOT:** not a bug finder (use `/code-review`), not a minimality/bloat review, not a SKILL.md text audit (that's `skill-evaluator`). It checks *conformance to these rules* — nothing else.
 
@@ -58,6 +58,10 @@ Deterministic. **Reuse existing tooling; never reimplement it.**
 | **Commit-type discipline** | `git log --format=%s <range>`; flag any subject whose type prefix isn't one of `feat fix chore docs refactor test perf build ci` (BOOTSTRAP §4 Commit Discipline). | BOOTSTRAP §4 |
 | **Schema change without migration** | Per commit, `git show --name-only`; if a model/schema file changed but no migration path (BOOTSTRAP §3 migration globs) changed in the same commit, flag it. | `working-patterns.md` § Schema-Migration Coupling |
 | **Dead code** | Shell out to **the project's own** linter/analyzer (resolve from `agent-context.yaml` / project config) — never a bundled one (methodology travels, scripts don't). Unused imports, unreachable branches, orphaned files. Honor the **platform-code caveat**: exported symbols in libs/SDKs may have external callers — treat unused *exports* as live unless verified. **If no linter is resolvable, mark this check `not-run` and say so in the coverage banner — never silently drop it** (a dropped check counted as "checked" is the silent-cap failure the banner exists to prevent). | `working-patterns.md` § Code Standards |
+| **SAST (semgrep)** — `--sast` only | Resolve the project's **pinned** semgrep + ruleset from `agent-context.yaml` `stack.tools.sast` (provision per `sast-provisioning.md`); run it **offline** over the audit scope; **normalize the SARIF per `sast-normalization.md` before emitting** — pinning alone isn't byte-stable. Map `ruleId` + CWE/OWASP tags → finding; bump severity on BOOTSTRAP §3 high-stakes paths by pointer. **No pinned toolchain resolvable → `not-run` in the banner** — never silent, never a live install. | `validation.md` § Security Lens + `guardrails.md` § Security Awareness |
+| **Vulnerable dependencies** — `--sast` only | Scan declared deps against the **pinned advisory snapshot** (`stack.tools.sast.advisoryDb`) — **never a live query**. Map advisories → finding `[A06 · CWE-1104]`. **Snapshot present → run; absent → `not-run` in the banner.** | `guardrails.md` § Security Awareness (dependency review) |
+
+**The two SAST rows are opt-in (`--sast`), off by default** (§ 10, SKILL.md). not-run reuses the dead-code mechanism exactly: an unprovisioned tool or missing snapshot folds into the banner's `Not run:` slot (§ 7) **and** renders a `<p class="notrun">` in the security section (template) — never the checked count, never a clean ✓. `observed` here means *tool-reported, reproducible — not confirmed* (§ 6). Under incremental scope (§ 9) semgrep runs over the **changed files whole** (not diff hunks); dataflow into *unchanged* files is a declared blind spot — `--full` is the whole-repo sweep.
 
 ### Inference band — `confidence: inferred`
 
@@ -108,7 +112,7 @@ Cell hooks (must match the template's class names exactly — `sev-blocker`, nev
 
 **Severity** = the rule's own stakes, **bumped one level** when the finding sits on a **BOOTSTRAP §3 high-stakes path** (auth / payments / migrations / infra / CI / traffic-shaping) — reference that list by pointer, do not recopy it. So a hardcoded secret under `auth/` is always `blocker`; a missing upgrade-trigger comment in a util is `minor`.
 
-**Confidence** here is per-*finding* (`observed` = mechanical match; `inferred` = heuristic) — distinct from the knowledge-base entry `confidence` in `knowledge-management.md`. Don't conflate them.
+**Confidence** here is per-*finding* (`observed` = mechanical match; `inferred` = heuristic) — distinct from the knowledge-base entry `confidence` in `knowledge-management.md`. Don't conflate them. For tool-sourced rows (SAST, vulnerable deps), `observed` means **the tool reported this — reproducible, not a confirmed vulnerability**; the Fix cell stays the model's `inferred` advice. A semgrep result lacking an OWASP/CWE tag is emitted under the Rule name **`uncategorized`**, never dropped.
 
 (Sample values above — `acme-checkout` / `src/config/…` — are placeholders only. Never an employer, customer, or vendor name: this is a public repo.)
 
@@ -118,7 +122,7 @@ Cell hooks (must match the template's class names exactly — `sev-blocker`, nev
 
 Draft the report as Markdown, then write it under `.ai/audits/` (HTML rendering: § Report rendering).
 
-**Git exclusion (recommend, never edit).** Audit reports are point-in-time and local — they don't belong in git. But the audit is **read-only**, so it must not edit `.gitignore` itself — doing so would write a file outside the report dir, falsify the "no source files changed" completion claim, and leave a dirty worktree. If `.ai/audits/` isn't already excluded in the target repo, **surface a one-line recommendation** in the completion message (*"Tip: add `.ai/audits/` to `.gitignore` so reports aren't tracked"*) and let the developer act. The only file the audit writes is the report (and its `.last-audit` baseline) under `.ai/audits/` — nothing else, ever.
+**Git exclusion (recommend, never edit).** Audit reports are point-in-time and local — they don't belong in git. But the audit is **read-only**, so it must not edit `.gitignore` itself — doing so would write a file outside the report dir, falsify the "no source files changed" completion claim, and leave a dirty worktree. If `.ai/audits/` isn't already excluded in the target repo, **surface a one-line recommendation** in the completion message (*"Tip: add `.ai/audits/` — and `.ai/sast/` if you use `--sast` — to `.gitignore` so reports and the tool cache aren't tracked"*) and let the developer act. The only things the audit writes are the report and its `.last-audit` baseline under `.ai/audits/` — plus, **only when `--sast` triggers provisioning**, the generated SAST tool cache under `.ai/sast/` (`sast-provisioning.md`; never repo source). Nothing else, ever — and the same recommend-never-edit `.gitignore` rule covers `.ai/sast/` too.
 
 **File name** — `.ai/audits/audit-<dims>-<mode>-<YYYYMMDD-HHMMSS>.{md,html}`:
 - `<dims>` = `all` (every dimension — the default) or an alphabetically-sorted proper subset joined by `+` (e.g. `security`, `quality+security`). All dimensions collapse to `all` — never enumerate the full set.
@@ -160,6 +164,7 @@ Two audit-specific obligations on top of the shared machinery:
   1. **HTML-entity-escape** the string — `&`→`&amp;`, `<`→`&lt;`, `>`→`&gt;`, `"`→`&quot;`. This kills raw `<script>` / `<img>` / `<iframe>`.
   2. **Wrap it in an inline code span / fenced block** so Markdown-active syntax (`![]()`, `[]()`, tables, pipes) renders literally in both the `.md` and the HTML. **Choose a backtick run (or fence length) longer than the longest backtick run inside the content** — otherwise the content closes the span early and breaks out (same closing-delimiter-spoofing class as the SessionStart provenance framing in `hooks/session-start-context.sh`). Never interpolate an untrusted string as bare body text.
 - **MUST self-check before writing the `.html`.** After conversion, confirm no untrusted-derived region produced live HTML: the rendered HTML must contain **no** `<script`, `<img`, `<iframe`, `javascript:`, or `on*=` attribute that originated from interpolated repo content. If the check cannot be performed or fails, **write the `.md` only** and say so — never ship an `.html` you could not verify. The `.md` is canonical; the `.html` is the vector, so the gate is on the `.html`.
+- **SARIF excerpts are untrusted repo content (§1), no exception.** semgrep messages, code snippets, and paths get the same escape + `<code>`-wrap as any other cell (§ 6) and pass the same pre-write self-check above. Defense-in-depth: `audit-report.html.template` ships a restrictive CSP `<meta>` (no script, no external loads, no images) behind the escaping, and carries no runtime JS — so even a missed escape can't beacon or execute. Don't add JS to that template.
 - **Degrade when no converter is present.** Try `pandoc` → `markdown-it` → Python `markdown`. If none is available, **write the `.md` only** and say so in one line: *"No Markdown converter found; wrote `audit-….md` only — install pandoc or run html-export later."* Never hand-author the HTML tag-by-tag (`html-export.md` forbids it). The audit is **done when the `.md` exists** — HTML never blocks completion.
 
 ---
@@ -168,7 +173,7 @@ Two audit-specific obligations on top of the shared machinery:
 
 The audit is **incremental by default** — it checks only what changed since the last audit. `--full` opts into a whole-repo sweep.
 
-**Baseline.** On successful completion, write `.ai/audits/.last-audit` with two lines: the `HEAD` SHA at completion, and the dimension scope that ran (e.g. `all`, or `quality+security`). It lives under the git-excluded `.ai/audits/` because the baseline is **local working-copy state**, not shared history.
+**Baseline.** On successful completion, write `.ai/audits/.last-audit` with three lines: the `HEAD` SHA at completion, the dimension scope that ran (e.g. `all`, or `quality+security`), and whether the `--sast` checks ran for that scope (`sast:yes` / `sast:no`). The SAST line is what lets a later `--sast` run tell whether the static-analysis checks have ever covered this baseline. It lives under the git-excluded `.ai/audits/` because the baseline is **local working-copy state**, not shared history.
 
 **Incremental run** (`mode=incr`):
 - File-level checks scope to `git diff --name-only <baseline-sha>..HEAD` ∪ `git status --porcelain` (uncommitted changes), minus the § 3 exclusions.
@@ -177,7 +182,8 @@ The audit is **incremental by default** — it checks only what changed since th
 **Force `--full` (the safety fallback).** A silent empty incremental — reporting "clean" because it checked nothing — is the dangerous failure. Fall back to a full audit, and **say so in the banner** (*"no usable baseline — ran full"*), whenever any of:
 - `.last-audit` is missing (first run),
 - the recorded SHA is unreachable (`git cat-file -e <sha>^{commit}` fails — e.g. rebased away),
-- the requested dimensions are **not a subset** of the last run's scope (a `security`-only baseline can't certify a `quality` audit).
+- the requested dimensions are **not a subset** of the last run's scope (a `security`-only baseline can't certify a `quality` audit),
+- `--sast` is requested but the baseline didn't cover SAST for this scope (`sast:no`, or a pre-`--sast` baseline with no SAST line). The static-analysis + dependency checks have never scanned this baseline, so an incremental delta would silently miss pre-existing findings — fall back to full so the first `--sast` pass sees the whole scope. Banner: *"first `--sast` run for this scope — ran full"*.
 
 `--full` always runs `mode=full` regardless of baseline.
 
@@ -198,12 +204,14 @@ audit --full security     security only, whole repo
 
 | Dimension | Checks |
 |---|---|
-| `security` | committed secrets |
+| `security` | committed secrets; SAST (semgrep) — `--sast`; vulnerable dependencies — `--sast` |
 | `quality` | dead code, abstraction-for-one-use, shortcut-without-upgrade-trigger, hollow/stub tests |
 | `data` | schema change without migration |
 | `git-hygiene` | commit-type discipline, protected-branch commits, `.ai/memory.log` cadence |
 | `docs` | docs-not-updated-with-behavior |
 
 A **novel rule** (one not in this table) is assigned a dimension by live classification when the audit walks the corpus; the banner notes that tail is approximate (`inferred` dimensioning). Seed checks are never re-inferred.
+
+The two `--sast` security checks are off unless `--sast` is passed **and `security` is in scope** (§ 5, SKILL.md) — they live in the `security` dimension, so an explicit non-security scope (e.g. `audit --sast quality`) leaves them off and skips provisioning entirely; `--sast` then no-ops. When the dependency check runs, the banner appends the advisory snapshot's date (`stack.tools.sast.advisoryDb.date`) as a freshness line — observed project state, not a kerby-maintained currency claim.
 
 **Unknown / ambiguous dimension** (`audit secrity`, or a word that isn't a dimension) → **don't guess.** List the available dimensions and ask which was meant. This is a disambiguation fallback, not a standing interactive mode — a correct dimension name runs straight through.
