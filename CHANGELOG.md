@@ -36,7 +36,10 @@ leaving the Verification rule and quality gates intact; (3) the §2.5 emitted ro
 the full §3 workflow set (`bugfix`/`new-project`/`adopt-existing`, not just
 `quick-task`/`feature`) so a bug fix isn't forced to mislabel as a feature; and (4) the
 Plan Gate's inline-plan path no longer stops grade 4–6 work — the approval STOP is scoped
-to grade ≥ 7, matching the ladder.
+to grade ≥ 7, matching the ladder; and (5) the Realized Outcomes check is now a §4 Plan
+Gate hard rule (pointing to feature.md §7 as the canonical procedure) so it applies to
+*every* workflow at grade ≥ threshold — a grade-4+ bug fix or setup task can no longer
+finish without the match/mismatch classification.
 
 ## [5.2.0] — 2026-06-21
 
