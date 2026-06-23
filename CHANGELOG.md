@@ -59,7 +59,10 @@ the knob (`plan_threshold ≤ grade < 7`) instead of a hardcoded `4–6`, so a m
 actually takes effect; the canonical ladder notes that its Plan entries assume the default
 while the requirement tracks the knob (approval at ≥7 fixed); and quick-task escalations no
 longer name "step 2 (Clarify)" — they point to the target workflow's own step 2 (Reproduce
-in `bugfix.md`).
+in `bugfix.md`). Finally, `planThreshold` is capped at **7** (schema `maximum`, template
+comment, and the §4 rule): approval is fixed at grade ≥ 7, so a higher threshold would make
+grade-7 work require approval with no plan to review — 7 is the point where plan and approval
+coincide.
 
 ## [5.2.0] — 2026-06-21
 

@@ -106,7 +106,7 @@ These rules apply to ALL tasks regardless of workflow. Violating any of these is
 
 **No code before a plan once the grade clears the bar.** The grade is emitted at § 2.5; this rule is what it gates.
 
-- Grade ≥ `plan_threshold` (`ai.planThreshold`) → produce a written plan **with an Expected Outcomes block** (`workflows/feature.md` § 3) before any code.
+- Grade ≥ `plan_threshold` (`ai.planThreshold`) → produce a written plan **with an Expected Outcomes block** (`workflows/feature.md` § 3) before any code. (`plan_threshold` is capped at 7 — the fixed approval point — so a plan always exists for the grade ≥ 7 approval to review.)
 - **`plan_threshold` ≤ grade < 7:** write the plan, then proceed to implement — no approval stop. (At the default threshold of 4 this is grades 4–6; it tracks the knob, so a higher threshold shrinks this band and a lower one widens it.)
 - **Grade ≥ 7:** after the plan, **STOP and get user approval** before implementing.
 - Use your platform's native plan mode if it exposes one; otherwise emit the PLAN block inline. (The STOP belongs to the grade ≥ 7 case above — emitting a medium-grade plan inline does not by itself halt work.) kerby is behavioral — this gate is *instructed, not enforced*, so the emitted plan is the only proof it ran. Skipping it silently is a failure.
