@@ -50,16 +50,16 @@ Check the knowledge base (`.ai/knowledge/`) for relevant decisions, conventions,
 2. Identify affected files — scope the change before editing
 3. Check dependencies — will this change break anything downstream?
 4. **If the feature introduces a new third-party vendor** (auth, db, payments, mailer, etc.), consult `references/vendor-adapters.md` for the ports/adapters pattern. Define the port from consumer needs; add the adapter under `adapters/<vendor>/`.
-5. Rate complexity (1–10):
+5. Rate complexity (1–10). **This table is the canonical complexity ladder — the single source of truth; other files point here.**
 
-| Complexity | Approach |
-|-----------|----------|
-| Low (1–3) | Handle directly. Self-review when done. |
-| Med (4–6) | Write a brief plan, then implement. Self-check when done. |
-| High (7–8) | Write plan, get user approval before starting. QA sub-agent when done. |
-| Critical (9–10) | Plan + approval + staged rollout. QA sub-agent when done. |
+| Grade | Indicators | Approach |
+|-------|-----------|----------|
+| Low (1–3) | Single file, config, typo | Handle directly. Self-review when done. |
+| Med (4–6) | Multiple related files, moderate logic | **Plan + Expected Outcomes** (below), then implement. Self-check when done. |
+| High (7–8) | Multi-file, design decisions, new patterns | **Plan + Expected Outcomes, get user approval before starting.** QA sub-agent when done. |
+| Critical (9–10) | Cross-cutting, architectural, breaking | Plan + approval + staged rollout. QA sub-agent when done. |
 
-For complexity 6+, read `references/implementation-planning.md` for structured planning.
+`plan_threshold` (`ai.planThreshold`, default 4) is the grade at/above which a written plan is required (`BOOTSTRAP.md` § 2.5 / § 4 Plan Gate). For complexity 6+, read `references/implementation-planning.md` for structured planning.
 </plan>
 
 <delegate_check>

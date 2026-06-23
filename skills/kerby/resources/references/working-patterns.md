@@ -80,14 +80,9 @@ When you need to extract a value from many files, **write a script that prints o
 
 ## Complexity Routing
 
-| Complexity   | Indicators                                 | Approach                          | Model Routing |
-|--------------|-----------------------------------------------|-----------------------------------|---------------|
-| Low (1–3)    | Single file, config change, typo fix        | Handle directly                   | Fastest available model |
-| Med (4–6)    | Multiple related files, moderate logic      | Plan first, then implement. Self-check when done. | General-purpose model |
-| High (7–8)   | Multi-file, design decisions, new patterns  | Write plan, get approval. QA sub-agent when done. | Best reasoning model |
-| Critical (9–10) | Cross-cutting, architectural, breaking    | Plan + approval + staged rollout. QA sub-agent when done. | Best reasoning or specialized model |
+Grade tasks on the canonical complexity ladder — the single source of truth in `workflows/feature.md` § 3 (bands, indicators, approach). It also defines `plan_threshold` (`ai.planThreshold`, default 4), the grade at/above which a written plan is required.
 
-**Model routing:** If the agent has access to multiple models, route sub-agent tasks to a model that matches the complexity. Don't waste a top-tier reasoning model on a config change; don't trust a fast model with an architectural decision.
+**Model routing:** If the agent has access to multiple models, route sub-agent tasks to a model that matches the grade — a fast model for low grades, a general-purpose model mid-range, the best reasoning model for high/critical grades. Don't waste a top-tier reasoning model on a config change; don't trust a fast model with an architectural decision.
 
 ---
 
