@@ -90,14 +90,7 @@ Complete ALL of these before declaring done:
 5. **`CONTEXT.md` filled** with the project's core domain terms — at least 3 entries. The `context-bootstrap` hook scaffolds the file; you fill it before declaring done. See `references/domain-glossary.md`.
 6. **`ROADMAP.md` populated** from requirements — not just the empty bootstrap header. Active items reflect the planned scope; phase grouping if multi-phase.
 7. **Vendor-adapter structure scaffolded** — `ports/`, `adapters/`, and `composition.ts` exist under the source root, even if empty (adapters added per vendor on demand).
-8. **Manual verification instructions provided:**
-   ```markdown
-   ## How to Verify
-   1. [How to install dependencies]
-   2. [How to run the dev server]
-   3. [What to expect in the browser/terminal]
-   4. [Any required environment setup]
-   ```
+8. **Manual verification instructions provided** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions). For a new project, include: how to install dependencies, how to run the dev server, and what to expect in the browser/terminal.
 9. **DEVELOPER_TODO.md created** if human actions are needed
 10. **Do NOT merge** — leave for human review
 </finish>

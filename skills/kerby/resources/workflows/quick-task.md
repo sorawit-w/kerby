@@ -65,11 +65,7 @@ If you can't state it cleanly, the task doesn't fit. Switch workflows.
    git commit -m "<type>(<scope>): <description>"
    ```
 5. **Log** — append to `.ai/memory.log`
-6. **Tell the developer how to verify:**
-   ```markdown
-   ## How to Verify
-   1. [What to check]
-   ```
+6. **Tell the developer how to verify** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions).
 </do_it>
 
 <escalate>

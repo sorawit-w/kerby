@@ -48,6 +48,12 @@ unconditionally to `feature.md`, preserving the bugfix reproduce/diagnose/test p
 including `quick-task.md`'s own four internal escalation points, now aligned to the same
 task-type rule.
 
+Two harness-lens cleanups from the fresh-session skill-evaluator pass: the **How to Verify**
+template is now defined once in BOOTSTRAP §4 and referenced by the four workflows +
+validation.md (was duplicated five times), preserving each workflow's domain-specific
+hints; and the `planThreshold` absent-config fallback is now explicit at first use ("if
+the file or key is absent, use the default 4 — never block on the missing knob").
+
 ## [5.2.0] — 2026-06-21
 
 Added an **opt-in deterministic code-static security layer** to `kerby audit`.

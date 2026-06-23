@@ -184,14 +184,7 @@ Complete ALL of these before declaring done:
 3. **Memory log updated** — session summary appended to `.ai/memory.log`
 4. **STATUS.md updated** — `.ai/STATUS.md` reflects current state
 5. **`ROADMAP.md` self-check** — completed features flipped to `[x]` and swept to `## Shipped`; new in-scope items added if scope expanded mid-task. The flips should already have happened in the COMMIT step of the loop; this is the verification
-6. **Manual verification instructions provided** — tell the developer how to test:
-   ```markdown
-   ## How to Verify
-   1. [Step-by-step instructions]
-   2. [What to look for]
-   3. [Edge cases to test]
-   4. [Environment setup if needed]
-   ```
+6. **Manual verification instructions provided** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions): steps to test, what to look for, edge cases, env setup.
 7. **Realized Outcomes captured (grade ≥ `plan_threshold`)** — distinct from "How to Verify" above (that's instructions for the human; this is *your* check against the § 3 prediction). *Skip this step only when the plan was waived by a logged user opt-out (`BOOTSTRAP.md` § 2.5) — there is no Expected Outcome to compare against; standard Verification (§ 6) still applies.* After implementing:
    1. Capture the **actual** result from a real run — or a dry-run transcript where no runnable surface exists — and place it next to the § 3 Expected Outcome. Evidence is an object (screenshot path / captured JSON / CLI dump / diff), **not** prose.
    2. Emit `outcome: match | mismatch`.

@@ -100,13 +100,7 @@ Complete ALL of these before declaring done:
    ```
 3. **Memory log updated** — what the bug was, what caused it, how you fixed it
 4. **STATUS.md updated**
-5. **Manual verification instructions provided:**
-   ```markdown
-   ## How to Verify
-   1. [Steps to reproduce the original bug — should no longer occur]
-   2. [Steps to verify the fix works correctly]
-   3. [Related areas to spot-check for regressions]
-   ```
+5. **Manual verification instructions provided** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions). For a bug fix, include: steps to reproduce the original bug (should no longer occur), steps confirming the fix, and related areas to spot-check for regressions.
 6. **Project knowledge artifacts** — propose additions before writing; skip if nothing applies:
    - **`.ai/knowledge/` lesson** if this bug reveals an operational lesson worth keeping
    - **`CONTEXT.md` update** if a new domain term was introduced or renamed. See `references/domain-glossary.md`.
