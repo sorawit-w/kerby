@@ -60,7 +60,7 @@ complexity: <N> (trigger: <≤8-word reason>) → route: <quick-task | feature>
 
 - `quick-task.md` is selectable **only when `grade < plan_threshold`** (`ai.planThreshold` in `agent-context.yaml`, default 4). At or above it, route to `feature.md`.
 - The § 3 high-stakes path override still forces `feature.md` regardless of grade.
-- **User opt-out** (`skip plan`, `no plan`, `quick`, `just do it`): emit `plan: skipped (user opt-out: "<quoted phrase>")` and append the same line to `.ai/memory.log`. The grade line is still emitted.
+- **User opt-out** — only an *explicit instruction to skip planning* counts: `skip plan`, `skip the plan`, `no plan`, `just do it`. A bare `quick` / `quick one` is tone, not an opt-out — do not treat it as one (it collides with casual openers like "quick question"). On a real opt-out, emit `plan: skipped (user opt-out: "<quoted phrase>")` and append the same line to `.ai/memory.log`. The grade line is still emitted.
 </grade_before_route>
 
 <route_workflow>
@@ -89,6 +89,8 @@ Based on the task, you MUST read the appropriate workflow file before proceeding
 - **Production-traffic-shaping values:** retry/timeout/rate-limit constants, feature-flag defaults that gate prod traffic, secrets-loading code
 
 The blast radius on these paths is not bounded by LOC. A one-character change to a rate-limit constant or a migration file can take down production — the discipline floor must scale to the risk surface, not the diff size.
+
+Routing here is decided by **which file the edit lands in**, not by whether the changed lines look security-relevant. An observational write (e.g. adding a `lastLogin` timestamp) inside an auth/login handler still routes to `feature.md` — "the edit isn't the security logic" does not waive the override.
 
 **Read the workflow file now. It contains the detailed steps for your task type.** Do not proceed from memory — the workflow file has rules you need.
 </route_workflow>
