@@ -28,11 +28,15 @@ silently skipping the plan) — only explicit skip-planning instructions count. 
 high-stakes path override now states that routing is decided by *which file* an edit
 lands in, not by whether the changed lines look security-relevant.
 
-A Codex PR review closed two consistency seams in the unified model: quick-task
+A Codex PR review closed four consistency seams in the unified model: (1) quick-task
 eligibility now requires *both* `grade < plan_threshold` *and* the quick-task fit check
-(so raising the knob can't route a moderate-logic task into a workflow that rejects it),
-and a user opt-out now explicitly waives the Expected/Realized Outcomes comparison while
-leaving the Verification rule and quality gates intact.
+(so raising the knob can't route a moderate-logic task into a workflow that rejects it);
+(2) a user opt-out now explicitly waives the Expected/Realized Outcomes comparison while
+leaving the Verification rule and quality gates intact; (3) the §2.5 emitted route allows
+the full §3 workflow set (`bugfix`/`new-project`/`adopt-existing`, not just
+`quick-task`/`feature`) so a bug fix isn't forced to mislabel as a feature; and (4) the
+Plan Gate's inline-plan path no longer stops grade 4–6 work — the approval STOP is scoped
+to grade ≥ 7, matching the ladder.
 
 ## [5.2.0] — 2026-06-21
 
