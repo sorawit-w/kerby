@@ -106,10 +106,12 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `5.2.0` — adds an opt-in deterministic code-static security layer to
-`kerby audit` (`--sast`: pinned semgrep + a pinned offline dependency-advisory snapshot
-alongside gitleaks), emitting `observed` (tool-reported, not confirmed) findings. Off by
-default; degrades to `not-run` when unprovisioned; never certifies "OWASP-compliant".
+Current release: `5.3.0` — makes the **complexity grade observable** and turns "plan
+first" into a hard gate. `BOOTSTRAP.md` §2.5 emits the grade before routing; the §4
+**Plan Gate** requires a plan with **Expected Outcomes** at grade ≥ `plan_threshold`
+(`ai.planThreshold`, default 4) and approval at ≥7. The three complexity tables collapse
+into one canonical ladder, and the finish step adds **Realized Outcomes** (`outcome:
+match | mismatch` with code-wrong / prediction-wrong / ambiguous routing).
 See [CHANGELOG.md](CHANGELOG.md).
 
 **Opinionated — read first.** These are one author's rules. Read

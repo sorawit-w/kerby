@@ -3,6 +3,25 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [5.3.0] — 2026-06-22
+
+Made the **complexity grade observable** and turned "plan first" into a hard gate.
+`BOOTSTRAP.md` §2.5 ("Grade before you route") emits a `complexity:` line before routing
+— always, even for one-liners — and a new §4 **Plan Gate** hard rule requires a written
+plan with an **Expected Outcomes** block at grade ≥ `plan_threshold` (`ai.planThreshold`,
+default 4) and STOP-for-approval at ≥7. The gate is behavioral — instructed, not enforced
+— so the emitted plan is the proof it ran. `quick-task` is now reachable only when
+`grade < plan_threshold`, unifying routing and the gate behind one knob.
+
+The three divergent complexity tables collapse into **one canonical ladder**
+(`feature.md §3`); `working-patterns.md` and `implementation-planning.md` point to it
+(the latter keeping its Who/When delegation mapping). The finish step gains **Realized
+Outcomes** — capture the actual run result (or dry-run transcript) as an evidence object,
+emit `outcome: match | mismatch`, and route a mismatch to **code-wrong** (fix via the
+existing loop + circuit breaker), **prediction-wrong** (update the prediction + log to
+`.ai/memory.log`), or **ambiguous** (STOP for human adjudication). The Iron Law now
+forbids editing realized evidence to match a prediction and judges on material intent.
+
 ## [5.2.0] — 2026-06-21
 
 Added an **opt-in deterministic code-static security layer** to `kerby audit`.
