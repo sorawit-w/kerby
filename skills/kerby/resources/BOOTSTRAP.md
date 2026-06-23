@@ -81,7 +81,7 @@ Based on the task, you MUST read the appropriate workflow file before proceeding
 | Documentation only | `workflows/quick-task.md` |
 | Config change, single-file edit | `workflows/quick-task.md` |
 
-**High-stakes path override — always route to `workflows/feature.md`, never `quick-task.md`,** when the change touches any of these paths, even for one-line edits:
+**High-stakes path override — always route to a full workflow (`workflows/feature.md`, or `workflows/bugfix.md` for a bug fix), never `quick-task.md`,** when the change touches any of these paths, even for one-line edits:
 
 - **Schema migrations:** `**/migrations/**`, `**/prisma/migrations/**`, `**/alembic/**`, `**/db/migrate/**`, `**/drizzle/**`
 - **Authentication / authorization:** `**/auth/**`, files matching `*authz*` / `*authentication*` / `*login*` / `*session*` / `*token*`

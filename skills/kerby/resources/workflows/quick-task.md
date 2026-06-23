@@ -2,7 +2,7 @@
 
 For simple tasks — single-file edits, config changes, documentation updates, or fixes with obvious root cause (complexity below `plan_threshold` — default 4, i.e. the low band).
 
-**Branching:** quick-task stays in-place. Use a normal `git checkout -b` — worktree overhead is not justified for changes this small. Worktree default applies only to `workflows/feature.md` and `workflows/bugfix.md`. (If the task turns out to be more complex than expected, escalate to feature.md and create a worktree at that point.)
+**Branching:** quick-task stays in-place. Use a normal `git checkout -b` — worktree overhead is not justified for changes this small. Worktree default applies only to `workflows/feature.md` and `workflows/bugfix.md`. (If the task turns out to be more complex than expected, escalate to the task-type workflow — `bugfix.md` for a bug fix, else `feature.md` — and create a worktree at that point.)
 
 <fit_check>
 ## Fit Check (before you start)
@@ -16,7 +16,7 @@ The quick-task path is appropriate only when ALL of these hold. If even one fail
 - **Diff stays ≤ ~50 LOC** — rough budget; if you're approaching it, the change isn't a quick task
 - **Change is strings, copy, comments, config values, data, or formatting** — not new logic, not refactoring, not behavior change
 
-**Why this is hard-floored, not advisory:** quick-task skips overhead because the risk surface is bounded. Violating any criterion means the risk surface is no longer bounded — at that point the savings are illusory and the discipline of `feature.md` is the cheaper path overall.
+**Why this is hard-floored, not advisory:** quick-task skips overhead because the risk surface is bounded. Violating any criterion means the risk surface is no longer bounded — at that point the savings are illusory and the discipline of the full task-type workflow (`feature.md` / `bugfix.md`) is the cheaper path overall.
 
 **Grade ceiling vs. risk guard — two independent axes.** The complexity ceiling tracks `plan_threshold` (raising the knob never lowers the bar here); the criteria above are independent risk guards. A change that introduces logic, refactors, exceeds the LOC budget, or touches schema/contracts escalates to the task-type workflow (`bugfix.md` / `feature.md`) *even when its grade is below the threshold*. Both the grade ceiling and the fit check must hold.
 

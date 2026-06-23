@@ -68,7 +68,11 @@ fallback so an outgrown quick bugfix isn't described as routing to `feature.md`.
 consolidated self-audit then closed the last propagation gap: `bugfix.md` and
 `new-project.md` finish steps now explicitly list the Realized Outcomes obligation (pointer
 to feature.md §7), matching how Manual Verification is surfaced — the §4 hard rule no longer
-relies on the agent cross-referencing it from a workflow that didn't mention it.
+relies on the agent cross-referencing it from a workflow that didn't mention it. Final
+sweep of *every* `feature.md` routing mention (not just the escalation sections) caught
+three the earlier passes missed — `quick-task.md`'s Branching note and "hard-floored"
+rationale, and the §3 high-stakes override — all now route bug fixes to `bugfix.md`,
+preserving its reproduce/diagnose/failing-test path even under the override.
 
 ## [5.2.0] — 2026-06-21
 
