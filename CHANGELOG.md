@@ -54,6 +54,13 @@ validation.md (was duplicated five times), preserving each workflow's domain-spe
 hints; and the `planThreshold` absent-config fallback is now explicit at first use ("if
 the file or key is absent, use the default 4 — never block on the missing knob").
 
+Further Codex-review fixes: the Plan Gate's no-approval band is now expressed relative to
+the knob (`plan_threshold ≤ grade < 7`) instead of a hardcoded `4–6`, so a moved threshold
+actually takes effect; the canonical ladder notes that its Plan entries assume the default
+while the requirement tracks the knob (approval at ≥7 fixed); and quick-task escalations no
+longer name "step 2 (Clarify)" — they point to the target workflow's own step 2 (Reproduce
+in `bugfix.md`).
+
 ## [5.2.0] — 2026-06-21
 
 Added an **opt-in deterministic code-static security layer** to `kerby audit`.

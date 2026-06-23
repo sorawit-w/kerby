@@ -7,7 +7,7 @@ For simple tasks — single-file edits, config changes, documentation updates, o
 <fit_check>
 ## Fit Check (before you start)
 
-The quick-task path is appropriate only when ALL of these hold. If even one fails, switch to the task-type workflow (`bugfix.md` for a bug fix, else `workflows/feature.md`) from step 2 (Clarify) — no exceptions.
+The quick-task path is appropriate only when ALL of these hold. If even one fails, switch to the task-type workflow (`bugfix.md` for a bug fix, else `workflows/feature.md`) and start from its step 2 — no exceptions.
 
 - **No new files** — you're editing existing files only, not adding modules
 - **No test logic changes** — tests may *run* during checks, but you're not modifying assertions, test scaffolding, or fixtures
@@ -73,5 +73,5 @@ If you can't state it cleanly, the task doesn't fit. Switch workflows.
 
 If the task turns out to be more complex than expected (touching multiple files, unexpected failures, unclear requirements), switch to the full workflow for the task type — **`bugfix.md` for a bug fix** (it keeps the reproduce → diagnose → failing-test path), otherwise **`feature.md`**:
 
-Read that workflow and start from step 2 (Clarify).
+Read that workflow and start from its step 2 (Clarify in `feature.md`, Reproduce in `bugfix.md`).
 </escalate>

@@ -59,7 +59,7 @@ Check the knowledge base (`.ai/knowledge/`) for relevant decisions, conventions,
 | High (7–8) | Multi-file, design decisions, new patterns | **Plan + Expected Outcomes, get user approval before starting.** QA sub-agent when done. |
 | Critical (9–10) | Cross-cutting, architectural, breaking | Plan + approval + staged rollout. QA sub-agent when done. |
 
-`plan_threshold` (`ai.planThreshold`, default 4) is the grade at/above which a written plan is required (`BOOTSTRAP.md` § 2.5 / § 4 Plan Gate). For complexity 6+, read `references/implementation-planning.md` for structured planning.
+`plan_threshold` (`ai.planThreshold`, default 4) is the grade at/above which a written plan is required (`BOOTSTRAP.md` § 2.5 / § 4 Plan Gate). The table's **Plan + Expected Outcomes** entries assume that default; the plan requirement tracks the knob (raise it and more Med grades handle-directly), while the approval gate at grade ≥ 7 is fixed. For complexity 6+, read `references/implementation-planning.md` for structured planning.
 
 ### Expected Outcomes (grade ≥ `plan_threshold`)
 
