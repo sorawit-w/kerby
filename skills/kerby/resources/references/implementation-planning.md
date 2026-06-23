@@ -134,6 +134,8 @@ task:
     - "bun run dev starts without errors"
     - "Build passes"
     - "Lint passes"
+  expected_outcomes: |   # grade >= plan_threshold — predicted observable end-state (see workflows/feature.md § 3)
+    bun run dev serves apps/web at :5173; the home route renders the SvelteKit welcome page.
 ```
 
 ### Plan-Fits-Fresh-Context Heuristic

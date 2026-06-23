@@ -4,6 +4,8 @@
 
 Never say "done," "should work," "probably passes," or "seems correct." These words are red flags that you haven't verified. Run the verification, read the output, confirm it passes, *then* state the claim with evidence.
 
+**Iron Law extension — outcome verification.** When a plan declared **Expected Outcomes**, the finish step captures **Realized Outcomes** from a real run — or a dry-run transcript where no runnable surface exists. Realized evidence is recorded as-observed and is **never edited to match the prediction**; a doctored result is the one failure this whole discipline exists to prevent. Judge `match` vs `mismatch` on **material intent** — does the behavior do what was predicted — not byte-exact comparison. Mismatch routing lives in `workflows/feature.md` § 7.
+
 ---
 
 ## The Verification Gate
