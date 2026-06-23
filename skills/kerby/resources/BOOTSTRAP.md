@@ -110,6 +110,7 @@ These rules apply to ALL tasks regardless of workflow. Violating any of these is
 - **Grade 4–6 (≥ threshold, < 7):** write the plan, then proceed to implement — no approval stop.
 - **Grade ≥ 7:** after the plan, **STOP and get user approval** before implementing.
 - Use your platform's native plan mode if it exposes one; otherwise emit the PLAN block inline. (The STOP belongs to the grade ≥ 7 case above — emitting a medium-grade plan inline does not by itself halt work.) kerby is behavioral — this gate is *instructed, not enforced*, so the emitted plan is the only proof it ran. Skipping it silently is a failure.
+- **At the finish (any workflow):** capture **Realized Outcomes** and emit `outcome: match | mismatch` with mismatch routing, per `workflows/feature.md` § 7. Expected and Realized are a pair: this applies to whichever workflow the task ran under (`bugfix.md`, `new-project.md`, `adopt-existing.md`, …), not feature work only. As a § 4 hard rule it overrides any workflow whose own finish step omits it.
 - A user opt-out (§ 2.5) waives the plan but is logged; the grade is still emitted.
 
 ### Branching
