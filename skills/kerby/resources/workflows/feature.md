@@ -50,16 +50,29 @@ Check the knowledge base (`.ai/knowledge/`) for relevant decisions, conventions,
 2. Identify affected files — scope the change before editing
 3. Check dependencies — will this change break anything downstream?
 4. **If the feature introduces a new third-party vendor** (auth, db, payments, mailer, etc.), consult `references/vendor-adapters.md` for the ports/adapters pattern. Define the port from consumer needs; add the adapter under `adapters/<vendor>/`.
-5. Rate complexity (1–10):
+5. Rate complexity (1–10). **This table is the canonical complexity ladder — the single source of truth; other files point here.**
 
-| Complexity | Approach |
-|-----------|----------|
-| Low (1–3) | Handle directly. Self-review when done. |
-| Med (4–6) | Write a brief plan, then implement. Self-check when done. |
-| High (7–8) | Write plan, get user approval before starting. QA sub-agent when done. |
-| Critical (9–10) | Plan + approval + staged rollout. QA sub-agent when done. |
+| Grade | Indicators | Approach |
+|-------|-----------|----------|
+| Low (1–3) | Single file, config, typo | Handle directly. Self-review when done. |
+| Med (4–6) | Multiple related files, moderate logic | **Plan + Expected Outcomes** (below), then implement. Self-check when done. |
+| High (7–8) | Multi-file, design decisions, new patterns | **Plan + Expected Outcomes, get user approval before starting.** QA sub-agent when done. |
+| Critical (9–10) | Cross-cutting, architectural, breaking | Plan + approval + staged rollout. QA sub-agent when done. |
 
-For complexity 6+, read `references/implementation-planning.md` for structured planning.
+`plan_threshold` (`ai.planThreshold`, default 4) is the grade at/above which a written plan is required (`BOOTSTRAP.md` § 2.5 / § 4 Plan Gate). The table's **Plan + Expected Outcomes** entries assume that default; the plan requirement tracks the knob (raise it and more Med grades handle-directly), while the approval gate at grade ≥ 7 is fixed. For complexity 6+, read `references/implementation-planning.md` for structured planning.
+
+### Expected Outcomes (grade ≥ `plan_threshold`)
+
+Before any code, predict the **observable end-state** — what the change will look like from outside, in the medium that fits. This is the prediction the finish step (§ 7) checks against. Predict the result, not the implementation.
+
+| Change medium | Predict |
+|---|---|
+| UI | 2–3 line description or rough sketch of the surface + key states (empty / loading / error) |
+| API | the request/response payload shape |
+| CLI / script | the output lines the user will see |
+| Data / state | the state transition (before → after) |
+
+Below `plan_threshold` this block is optional.
 </plan>
 
 <delegate_check>
@@ -171,19 +184,21 @@ Complete ALL of these before declaring done:
 3. **Memory log updated** — session summary appended to `.ai/memory.log`
 4. **STATUS.md updated** — `.ai/STATUS.md` reflects current state
 5. **`ROADMAP.md` self-check** — completed features flipped to `[x]` and swept to `## Shipped`; new in-scope items added if scope expanded mid-task. The flips should already have happened in the COMMIT step of the loop; this is the verification
-6. **Manual verification instructions provided** — tell the developer how to test:
-   ```markdown
-   ## How to Verify
-   1. [Step-by-step instructions]
-   2. [What to look for]
-   3. [Edge cases to test]
-   4. [Environment setup if needed]
-   ```
-7. **DEVELOPER_TODO.md created** if any human actions are needed (API keys, cloud resources, etc.)
-8. **Project knowledge artifacts** — propose additions before writing; skip if nothing applies:
+6. **Manual verification instructions provided** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions): steps to test, what to look for, edge cases, env setup.
+7. **Realized Outcomes captured (grade ≥ `plan_threshold`)** — distinct from "How to Verify" above (that's instructions for the human; this is *your* check against the § 3 prediction). *Skip this step only when the plan was waived by a logged user opt-out (`BOOTSTRAP.md` § 2.5) — there is no Expected Outcome to compare against; standard Verification (§ 6) still applies.* After implementing:
+   1. Capture the **actual** result from a real run — or a dry-run transcript where no runnable surface exists — and place it next to the § 3 Expected Outcome. Evidence is an object (screenshot path / captured JSON / CLI dump / diff), **not** prose.
+   2. Emit `outcome: match | mismatch`.
+   3. On `mismatch`, classify the cause and route — **only one branch changes code**:
+      - **Code wrong** (real bug) → fix via the § 5 task loop, bounded by the existing circuit breaker (`references/working-patterns.md`: 3 no-progress / same error 3×; `references/error-handling.md`: build 5 / test 3 / lint 5 → BLOCKED). No new loop.
+      - **Prediction wrong** (system is fine) → update the § 3 Expected Outcome with a one-line reason and log it to `.ai/memory.log` (recurring wrong predictions signal mis-calibrated planning). No code change.
+      - **Ambiguous** → STOP. Surface both artifacts + your hypothesis. The human adjudicates.
+
+   Realized evidence is recorded as-observed — never edited to match the prediction (`references/validation.md` Iron Law).
+8. **DEVELOPER_TODO.md created** if any human actions are needed (API keys, cloud resources, etc.)
+9. **Project knowledge artifacts** — propose additions before writing; skip if nothing applies:
    - **`.ai/knowledge/` entry** for a new decision, convention, or lesson
    - **`CONTEXT.md` update** for new domain terms used 2+ times. See `references/domain-glossary.md`.
-9. **Branch finalization — pick one of four options** (ask the user if unclear):
+10. **Branch finalization — pick one of four options** (ask the user if unclear):
 
    | Option | When to use | Action |
    |--------|-------------|--------|
@@ -194,7 +209,7 @@ Complete ALL of these before declaring done:
 
    If using an in-place branch (npm fallback), skip worktree cleanup — only option 1 or 2 applies.
 
-10. **Do NOT merge to a protected branch without explicit user instruction** — leave option 1 (PR) as the default.
+11. **Do NOT merge to a protected branch without explicit user instruction** — leave option 1 (PR) as the default.
 
 Details: `references/context-management.md`, `references/git-worktrees.md`
 </finish>

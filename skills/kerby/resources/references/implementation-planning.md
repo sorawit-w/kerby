@@ -134,6 +134,8 @@ task:
     - "bun run dev starts without errors"
     - "Build passes"
     - "Lint passes"
+  expected_outcomes: |   # grade >= plan_threshold — predicted observable end-state (see workflows/feature.md § 3)
+    bun run dev serves apps/web at :5173; the home route renders the SvelteKit welcome page.
 ```
 
 ### Plan-Fits-Fresh-Context Heuristic
@@ -148,14 +150,16 @@ Each plan should be small enough that an agent could execute it in a fresh conte
 
 ---
 
-### Complexity Scale
+### Complexity Scale — delegation mapping
 
-| Score | Scope | Who | When |
-|-------|-------|-----|------|
-| **1-3** | Single file, config change, trivial fix | You | Direct |
-| **4-6** | Multiple related files, moderate logic | Sub-agent | With clear spec |
-| **7-8** | Complex multi-file, design decisions | Sub-agent | With plan approval |
-| **9-10** | Architectural, cross-cutting concerns | Sub-agent | With detailed plan + review |
+Bands and indicators are defined once in the canonical ladder (`workflows/feature.md` § 3). This table adds the **delegation mapping** only — who executes and what gate applies at each grade:
+
+| Grade | Who | When |
+|-------|-----|------|
+| **1–3** | You | Direct |
+| **4–6** | Sub-agent | With clear spec |
+| **7–8** | Sub-agent | With plan approval |
+| **9–10** | Sub-agent | With detailed plan + review |
 
 ### Task Types
 

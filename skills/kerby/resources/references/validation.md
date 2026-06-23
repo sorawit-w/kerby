@@ -4,6 +4,8 @@
 
 Never say "done," "should work," "probably passes," or "seems correct." These words are red flags that you haven't verified. Run the verification, read the output, confirm it passes, *then* state the claim with evidence.
 
+**Iron Law extension — outcome verification.** When a plan declared **Expected Outcomes**, the finish step captures **Realized Outcomes** from a real run — or a dry-run transcript where no runnable surface exists. Realized evidence is recorded as-observed and is **never edited to match the prediction**; a doctored result is the one failure this whole discipline exists to prevent. Judge `match` vs `mismatch` on **material intent** — does the behavior do what was predicted — not byte-exact comparison. Mismatch routing lives in `workflows/feature.md` § 7.
+
 ---
 
 ## The Verification Gate
@@ -143,18 +145,7 @@ A third lens that fires alongside the code-quality pass (Medium Check 2 or High 
 
 ## Manual Verification Instructions
 
-After completing an implementation, **always tell the developer how to manually verify it works**. Don't just say "done" — provide:
-
-```markdown
-## How to Verify
-
-1. [Step-by-step instructions to test the feature manually]
-2. [What to look for — expected behavior, UI changes, API responses]
-3. [Edge cases worth testing manually]
-4. [Any environment setup needed — env vars, test data, etc.]
-```
-
-This is especially important for UI changes, API behavior, and integrations where automated tests may not cover the full user experience.
+After completing an implementation, **always tell the developer how to manually verify it works** — emit the **How to Verify** block defined canonically in `BOOTSTRAP.md` § 4 (Manual Verification Instructions). Don't just say "done." This is especially important for UI changes, API behavior, and integrations where automated tests may not cover the full user experience.
 
 ### Give the agent a tool to *see* its output
 

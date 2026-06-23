@@ -47,6 +47,24 @@ Read these files now:
 9. `git log --oneline -20` — recent commit history
 </detect_project>
 
+<grade_before_route>
+## 2.5 Grade Before You Route
+
+Before choosing a workflow, grade the task on the canonical ladder (`workflows/feature.md` § 3) and emit one line — **always, even for one-liners**:
+
+```
+complexity: <N> (trigger: <≤8-word reason>) → route: <new-project | adopt-existing | feature | bugfix | quick-task>
+```
+
+**Default up** when the task sits between two bands. The emitted grade is what makes a skipped plan catchable — a silent grade defeats the § 4 Plan Gate.
+
+Pick the workflow by **task type** (§ 3 routing table — a bug fix routes to `bugfix.md`, not `feature.md`). The grade governs only the **quick-task-vs-task-type-workflow** split below (quick-task when grade < threshold and the fit check holds, otherwise the § 3 task-type workflow — `bugfix.md` for a bug fix, else `feature.md`) and the § 4 Plan Gate, which applies to whichever workflow you choose.
+
+- `quick-task.md` is selectable **only when `grade < plan_threshold`** (`ai.planThreshold` in `agent-context.yaml`; if the file or key is absent, use the default **4** — never block on the missing knob) **AND the change passes the quick-task fit check** (no new logic/refactor, ≤~50 LOC, no schema/contract changes — see `workflows/quick-task.md`). If either fails, route to the **task-type workflow** (`bugfix.md` for a bug fix, otherwise `feature.md`) — never drop a bug fix's reproduce/diagnose/failing-test path just because it outgrew quick-task. The grade is a ceiling; the fit check is an independent risk guard — both must hold.
+- The § 3 high-stakes path override still forces a full workflow (`feature.md`, or `bugfix.md` for a bug fix) regardless of grade.
+- **User opt-out** — only an *explicit instruction to skip planning* counts: `skip plan`, `skip the plan`, `no plan`, `just do it`. A bare `quick` / `quick one` is tone, not an opt-out — do not treat it as one (it collides with casual openers like "quick question"). On a real opt-out, emit `plan: skipped (user opt-out: "<quoted phrase>")` and append the same line to `.ai/memory.log`. The grade line is still emitted. Opt-out waives the plan — including its Expected Outcomes, and therefore the § 7 Realized Outcomes comparison (no prediction to compare against). It does **not** waive the § 4 Verification rule or quality gates: opt-out skips planning, never verification.
+</grade_before_route>
+
 <route_workflow>
 ## 3. Route to Workflow
 
@@ -63,7 +81,7 @@ Based on the task, you MUST read the appropriate workflow file before proceeding
 | Documentation only | `workflows/quick-task.md` |
 | Config change, single-file edit | `workflows/quick-task.md` |
 
-**High-stakes path override — always route to `workflows/feature.md`, never `quick-task.md`,** when the change touches any of these paths, even for one-line edits:
+**High-stakes path override — always route to a full workflow (`workflows/feature.md`, or `workflows/bugfix.md` for a bug fix), never `quick-task.md`,** when the change touches any of these paths, even for one-line edits:
 
 - **Schema migrations:** `**/migrations/**`, `**/prisma/migrations/**`, `**/alembic/**`, `**/db/migrate/**`, `**/drizzle/**`
 - **Authentication / authorization:** `**/auth/**`, files matching `*authz*` / `*authentication*` / `*login*` / `*session*` / `*token*`
@@ -74,6 +92,8 @@ Based on the task, you MUST read the appropriate workflow file before proceeding
 
 The blast radius on these paths is not bounded by LOC. A one-character change to a rate-limit constant or a migration file can take down production — the discipline floor must scale to the risk surface, not the diff size.
 
+Routing here is decided by **which file the edit lands in**, not by whether the changed lines look security-relevant. An observational write (e.g. adding a `lastLogin` timestamp) inside an auth/login handler still routes to `feature.md` — "the edit isn't the security logic" does not waive the override.
+
 **Read the workflow file now. It contains the detailed steps for your task type.** Do not proceed from memory — the workflow file has rules you need.
 </route_workflow>
 
@@ -81,6 +101,17 @@ The blast radius on these paths is not bounded by LOC. A one-character change to
 ## 4. Hard Rules (Always Apply)
 
 These rules apply to ALL tasks regardless of workflow. Violating any of these is a failure.
+
+### Plan Gate
+
+**No code before a plan once the grade clears the bar.** The grade is emitted at § 2.5; this rule is what it gates.
+
+- Grade ≥ `plan_threshold` (`ai.planThreshold`) → produce a written plan **with an Expected Outcomes block** (`workflows/feature.md` § 3) before any code. (`plan_threshold` is capped at 7 — the fixed approval point — so a plan always exists for the grade ≥ 7 approval to review.)
+- **`plan_threshold` ≤ grade < 7:** write the plan, then proceed to implement — no approval stop. (At the default threshold of 4 this is grades 4–6; it tracks the knob, so a higher threshold shrinks this band and a lower one widens it.)
+- **Grade ≥ 7:** after the plan, **STOP and get user approval** before implementing.
+- Use your platform's native plan mode if it exposes one; otherwise emit the PLAN block inline. (The STOP belongs to the grade ≥ 7 case above — emitting a medium-grade plan inline does not by itself halt work.) kerby is behavioral — this gate is *instructed, not enforced*, so the emitted plan is the only proof it ran. Skipping it silently is a failure.
+- **At the finish of any § 3-routed coding workflow** (`feature.md`, `bugfix.md`, `new-project.md`, or a `quick-task` that escalated), at grade ≥ `plan_threshold`: capture **Realized Outcomes** and emit `outcome: match | mismatch` with mismatch routing, per `workflows/feature.md` § 7. Expected and Realized are a pair; as a § 4 hard rule this overrides any such workflow whose own finish step omits it. *(Scope: this gate governs graded coding work in a loaded session. The `prepare` / `audit` sub-commands are separate entry points that never run the § 2.5 grading step — onboarding is governed by its own diff-and-confirm procedure, audit by its report shape, not by this gate.)*
+- A user opt-out (§ 2.5) waives the plan but is logged; the grade is still emitted.
 
 ### Branching
 

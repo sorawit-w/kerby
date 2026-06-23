@@ -3,6 +3,77 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [5.3.0] — 2026-06-22
+
+Made the **complexity grade observable** and turned "plan first" into a hard gate.
+`BOOTSTRAP.md` §2.5 ("Grade before you route") emits a `complexity:` line before routing
+— always, even for one-liners — and a new §4 **Plan Gate** hard rule requires a written
+plan with an **Expected Outcomes** block at grade ≥ `plan_threshold` (`ai.planThreshold`,
+default 4) and STOP-for-approval at ≥7. The gate is behavioral — instructed, not enforced
+— so the emitted plan is the proof it ran. `quick-task` is now reachable only when
+`grade < plan_threshold`, unifying routing and the gate behind one knob.
+
+The three divergent complexity tables collapse into **one canonical ladder**
+(`feature.md §3`); `working-patterns.md` and `implementation-planning.md` point to it
+(the latter keeping its Who/When delegation mapping). The finish step gains **Realized
+Outcomes** — capture the actual run result (or dry-run transcript) as an evidence object,
+emit `outcome: match | mismatch`, and route a mismatch to **code-wrong** (fix via the
+existing loop + circuit breaker), **prediction-wrong** (update the prediction + log to
+`.ai/memory.log`), or **ambiguous** (STOP for human adjudication). The Iron Law now
+forbids editing realized evidence to match a prediction and judges on material intent.
+
+Tightened by an in-session `skill-evaluator` pass: the opt-out trigger set drops the
+bare word `quick` (it collided with casual openers like "quick question" and risked
+silently skipping the plan) — only explicit skip-planning instructions count. The §3
+high-stakes path override now states that routing is decided by *which file* an edit
+lands in, not by whether the changed lines look security-relevant.
+
+A Codex PR review closed four consistency seams in the unified model: (1) quick-task
+eligibility now requires *both* `grade < plan_threshold` *and* the quick-task fit check
+(so raising the knob can't route a moderate-logic task into a workflow that rejects it);
+(2) a user opt-out now explicitly waives the Expected/Realized Outcomes comparison while
+leaving the Verification rule and quality gates intact; (3) the §2.5 emitted route allows
+the full §3 workflow set (`bugfix`/`new-project`/`adopt-existing`, not just
+`quick-task`/`feature`) so a bug fix isn't forced to mislabel as a feature; and (4) the
+Plan Gate's inline-plan path no longer stops grade 4–6 work — the approval STOP is scoped
+to grade ≥ 7, matching the ladder; and (5) the Realized Outcomes check is now a §4 Plan
+Gate hard rule (pointing to feature.md §7 as the canonical procedure) so it applies to
+*every* workflow at grade ≥ threshold — a grade-4+ bug fix or setup task can no longer
+finish without the match/mismatch classification; (6) that Realized-Outcomes rule is now
+correctly scoped to §3-routed coding workflows in a loaded session — the standalone
+`prepare`/`audit` sub-commands (which never run the §2.5 grading step) are governed by
+their own diff-and-confirm / report procedures, not the gate; and (7) when a task outgrows
+quick-task it now falls back to the task-type workflow (`bugfix.md` for a bug fix), not
+unconditionally to `feature.md`, preserving the bugfix reproduce/diagnose/test path —
+including `quick-task.md`'s own four internal escalation points, now aligned to the same
+task-type rule.
+
+Two harness-lens cleanups from the fresh-session skill-evaluator pass: the **How to Verify**
+template is now defined once in BOOTSTRAP §4 and referenced by the four workflows +
+validation.md (was duplicated five times), preserving each workflow's domain-specific
+hints; and the `planThreshold` absent-config fallback is now explicit at first use ("if
+the file or key is absent, use the default 4 — never block on the missing knob").
+
+Further Codex-review fixes: the Plan Gate's no-approval band is now expressed relative to
+the knob (`plan_threshold ≤ grade < 7`) instead of a hardcoded `4–6`, so a moved threshold
+actually takes effect; the canonical ladder notes that its Plan entries assume the default
+while the requirement tracks the knob (approval at ≥7 fixed); and quick-task escalations no
+longer name "step 2 (Clarify)" — they point to the target workflow's own step 2 (Reproduce
+in `bugfix.md`). Finally, `planThreshold` is capped at **7** (schema `maximum`, template
+comment, and the §4 rule): approval is fixed at grade ≥ 7, so a higher threshold would make
+grade-7 work require approval with no plan to review — 7 is the point where plan and approval
+coincide. And the §2.5 summary line now frames the grade decision as
+quick-task-vs-**task-type-workflow** (not quick-task-vs-feature), matching the task-type
+fallback so an outgrown quick bugfix isn't described as routing to `feature.md`. A
+consolidated self-audit then closed the last propagation gap: `bugfix.md` and
+`new-project.md` finish steps now explicitly list the Realized Outcomes obligation (pointer
+to feature.md §7), matching how Manual Verification is surfaced — the §4 hard rule no longer
+relies on the agent cross-referencing it from a workflow that didn't mention it. Final
+sweep of *every* `feature.md` routing mention (not just the escalation sections) caught
+three the earlier passes missed — `quick-task.md`'s Branching note and "hard-floored"
+rationale, and the §3 high-stakes override — all now route bug fixes to `bugfix.md`,
+preserving its reproduce/diagnose/failing-test path even under the override.
+
 ## [5.2.0] — 2026-06-21
 
 Added an **opt-in deterministic code-static security layer** to `kerby audit`.

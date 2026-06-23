@@ -81,6 +81,7 @@ $defs:
       memoryPolicy:
         type: object
         additionalProperties: true
+      planThreshold: { type: integer, minimum: 1, maximum: 7 }   # capped at 7: a plan must exist for the fixed grade>=7 approval to review
     additionalProperties: true
 
   KnowledgeSection:
