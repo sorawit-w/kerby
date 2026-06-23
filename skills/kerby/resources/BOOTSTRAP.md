@@ -47,6 +47,22 @@ Read these files now:
 9. `git log --oneline -20` — recent commit history
 </detect_project>
 
+<grade_before_route>
+## 2.5 Grade Before You Route
+
+Before choosing a workflow, grade the task on the canonical ladder (`workflows/feature.md` § 3) and emit one line — **always, even for one-liners**:
+
+```
+complexity: <N> (trigger: <≤8-word reason>) → route: <quick-task | feature>
+```
+
+**Default up** when the task sits between two bands. The emitted grade is what makes a skipped plan catchable — a silent grade defeats the § 4 Plan Gate.
+
+- `quick-task.md` is selectable **only when `grade < plan_threshold`** (`ai.planThreshold` in `agent-context.yaml`, default 4). At or above it, route to `feature.md`.
+- The § 3 high-stakes path override still forces `feature.md` regardless of grade.
+- **User opt-out** (`skip plan`, `no plan`, `quick`, `just do it`): emit `plan: skipped (user opt-out: "<quoted phrase>")` and append the same line to `.ai/memory.log`. The grade line is still emitted.
+</grade_before_route>
+
 <route_workflow>
 ## 3. Route to Workflow
 
@@ -81,6 +97,15 @@ The blast radius on these paths is not bounded by LOC. A one-character change to
 ## 4. Hard Rules (Always Apply)
 
 These rules apply to ALL tasks regardless of workflow. Violating any of these is a failure.
+
+### Plan Gate
+
+**No code before a plan once the grade clears the bar.** The grade is emitted at § 2.5; this rule is what it gates.
+
+- Grade ≥ `plan_threshold` (`ai.planThreshold`) → produce a written plan **with an Expected Outcomes block** (`workflows/feature.md` § 3) before any code.
+- Grade ≥ 7 → **STOP and get user approval** before implementing.
+- Enter your platform's native plan mode if it exposes one; otherwise emit the PLAN block inline and STOP. kerby is behavioral — this gate is *instructed, not enforced*, so the emitted plan is the only proof it ran. Skipping it silently is a failure.
+- A user opt-out (§ 2.5) waives the plan but is logged; the grade is still emitted.
 
 ### Branching
 
