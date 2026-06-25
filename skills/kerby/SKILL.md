@@ -204,6 +204,7 @@ If `y`:
    | `PreToolUse` | `"Read"` | `<hooks-dir>/warn-env-read.sh` |
    | `PreToolUse` | `"Bash"` | `<hooks-dir>/protect-git.sh` |
    | `PreToolUse` | `"Bash"` | `<hooks-dir>/pre-commit-check.sh` |
+   | `PreToolUse` | `"Edit\|Write"` | `<hooks-dir>/route-high-stakes.sh` |
    | `SessionStart` | `""` | `<hooks-dir>/session-start-context.sh` |
    | `SessionStart` | `""` | `<hooks-dir>/knowledge-bootstrap.sh` |
    | `SessionStart` | `""` | `<hooks-dir>/context-bootstrap.sh` |
@@ -219,7 +220,7 @@ If `y`:
    }
    ```
 
-5. **Detect already-managed entries.** A hook entry is *kerby-managed* iff its `command` ends in one of the seven script filenames above AND its path contains `/skills/kerby/resources/hooks/`. Skip already-present entries — Phase 2 is idempotent.
+5. **Detect already-managed entries.** A hook entry is *kerby-managed* iff its `command` ends in one of the eight script filenames above AND its path contains `/skills/kerby/resources/hooks/`. Skip already-present entries — Phase 2 is idempotent.
 
 6. **Show the full diff** — print a unified diff of what will be added to the chosen settings file. Include the resolved absolute paths so the user can verify them.
 
