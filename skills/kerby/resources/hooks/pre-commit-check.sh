@@ -92,14 +92,20 @@ case ",${CODING_RULES_HOOK_DISABLED:-}," in
 esac
 
 # Soft reminder — injected as context via JSON additionalContext (plain stdout on
-# exit 0 is ignored for PreToolUse); does not block.
+# exit 0 is ignored for PreToolUse); does not block. NOTE: a PreToolUse
+# additionalContext surfaces WITH the tool result (next turn), so this reminder
+# arrives as the commit completes — it is a post-commit safety net, not a gate.
+# The gate in this hook is the secret scan above (exit 2, pre-execution). Making
+# this reminder gate the commit would mean permissionDecision ask/deny — a
+# deliberate commit-discipline change, out of scope here.
 REMINDER=$(cat <<'EOF'
-REMINDER (kerby): Before committing, ensure you have:
-1. Run the project's lint command on your changed files
-2. Run the project's test suite
-3. Verified the build passes
-If any of these are failing due to YOUR changes, fix them before committing.
-Pre-existing failures from other code are acceptable — do not block on them.
+REMINDER (kerby): verify your changes against the project's gates —
+1. lint on the changed files
+2. the test suite
+3. the build
+This advisory surfaces WITH the commit result and does NOT block it; if your
+changes broke any gate, run it and amend the commit. Pre-existing failures from
+other code are acceptable — do not block on them.
 EOF
 )
 jq -n --arg ctx "$REMINDER" \
