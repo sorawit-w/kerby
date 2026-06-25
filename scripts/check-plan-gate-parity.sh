@@ -31,26 +31,35 @@ done
 
 # Default plan_threshold: the digit in "default <N>" on a planThreshold line.
 # BOOTSTRAP renders it "default **4**"; feature.md renders it "default 4".
+# Returns every DISTINCT value found (one per line) — see uniq_or_fail below.
 extract_default() { # $1=file
-  grep -iE 'planThreshold' "$1" | grep -oE 'default \**[0-9]+' | grep -oE '[0-9]+' | head -1
+  grep -iE 'planThreshold' "$1" | grep -oE 'default \**[0-9]+' | grep -oE '[0-9]+' | sort -u
 }
 
 # Fixed approval point: the N in "grade >= N" / "capped at N". The >= is the
-# Unicode glyph (U+2265) in both files.
+# Unicode glyph (U+2265) in both files. Returns every DISTINCT value found.
 extract_approval() { # $1=file
-  grep -oE 'capped at [0-9]+|≥ ?[0-9]+' "$1" | grep -oE '[0-9]+' | sort -u | head -1
+  grep -oE 'capped at [0-9]+|≥ ?[0-9]+' "$1" | grep -oE '[0-9]+' | sort -u
 }
 
-bs_default=$(extract_default "$BOOTSTRAP")
-ft_default=$(extract_default "$FEATURE")
-bs_approval=$(extract_approval "$BOOTSTRAP")
-ft_approval=$(extract_approval "$FEATURE")
+# A file must state exactly ONE value per constant. Zero = the constant was
+# dropped; more than one = a stale+updated pair drifting WITHIN the file (e.g.
+# the main rule says "≥ 8" but a "capped at 7" line was left behind). Collapsing
+# that with head -1 would let the gate pass on the exact inconsistency it exists
+# to catch — so treat it as a failure, then compare the single values across files.
+uniq_or_fail() { # $1=label ; $2=raw multiline values ; sets VALUE
+  local label="$1" raw="$2" n
+  n=$(printf '%s\n' "$raw" | grep -c .)
+  if   [[ "$n" -eq 0 ]]; then VALUE=""; fail "$label: constant not found"
+  elif [[ "$n" -gt 1 ]]; then VALUE=""; fail "$label: conflicting values within file -> $(printf '%s' "$raw" | tr '\n' ',' | sed 's/,$//')"
+  else VALUE="$raw"; pass "$label states one value ($raw)"
+  fi
+}
 
-# --- Constants must be present in both files (a refactor that drops one fails) -
-[[ -n "$bs_default" ]]  && pass "BOOTSTRAP states a plan_threshold default ($bs_default)" || fail "BOOTSTRAP: no plan_threshold default found"
-[[ -n "$ft_default" ]]  && pass "feature.md states a plan_threshold default ($ft_default)" || fail "feature.md: no plan_threshold default found"
-[[ -n "$bs_approval" ]] && pass "BOOTSTRAP states an approval point ($bs_approval)" || fail "BOOTSTRAP: no approval point found"
-[[ -n "$ft_approval" ]] && pass "feature.md states an approval point ($ft_approval)" || fail "feature.md: no approval point found"
+uniq_or_fail "BOOTSTRAP plan_threshold default"  "$(extract_default "$BOOTSTRAP")";  bs_default="$VALUE"
+uniq_or_fail "feature.md plan_threshold default" "$(extract_default "$FEATURE")";    ft_default="$VALUE"
+uniq_or_fail "BOOTSTRAP approval point"          "$(extract_approval "$BOOTSTRAP")"; bs_approval="$VALUE"
+uniq_or_fail "feature.md approval point"         "$(extract_approval "$FEATURE")";   ft_approval="$VALUE"
 
 # --- Cross-file agreement (the real anti-drift teeth) ------------------------
 if [[ -n "$bs_default" && -n "$ft_default" ]]; then
