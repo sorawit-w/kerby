@@ -98,16 +98,16 @@ esac
 # The gate in this hook is the secret scan above (exit 2, pre-execution). Making
 # this reminder gate the commit would mean permissionDecision ask/deny — a
 # deliberate commit-discipline change, out of scope here.
-REMINDER=$(cat <<'EOF'
-REMINDER (kerby): verify your changes against the project's gates —
+# Plain double-quoted string (literal newlines), NOT a heredoc-in-$(...). Under
+# bash 3.2 (macOS default) the command-substitution parser counts quotes even
+# inside a quoted heredoc, so an ODD number of apostrophes in the body fails with
+# "unexpected EOF while looking for matching '". Keeping this inline and
+# apostrophe-free (like warn-env-read.sh) sidesteps it entirely.
+REMINDER="REMINDER (kerby): verify your changes against the project gates —
 1. lint on the changed files
 2. the test suite
 3. the build
-This advisory surfaces WITH the commit result and does NOT block it; if your
-changes broke any gate, run it and amend the commit. Pre-existing failures from
-other code are acceptable — do not block on them.
-EOF
-)
+This advisory surfaces WITH the commit result and does NOT block it; if your changes broke any gate, run it and amend the commit. Pre-existing failures from other code are acceptable — do not block on them."
 jq -n --arg ctx "$REMINDER" \
   '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$ctx}}'
 
