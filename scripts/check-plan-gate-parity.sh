@@ -1,83 +1,102 @@
 #!/bin/bash
-# Parity: the Plan Gate constants must agree across the files that restate them.
+# Parity: the Plan Gate constants must agree across EVERY file that restates them.
 #
-# The plan_threshold DEFAULT (4) and the fixed APPROVAL point (grade >= 7) are
-# hardcoded in BOTH resources/BOOTSTRAP.md (§2.5 / §4) and
-# resources/workflows/feature.md (§3). Each file must stand alone, so the values
-# are deliberately duplicated -- but nothing stopped them drifting when one file
-# is edited and the others aren't. This does.
+# Two constants are duplicated across shipped guidance (each file must stand
+# alone): the plan_threshold DEFAULT (4) and the fixed APPROVAL point (grade >= 7).
+# Nothing stops them drifting when one file is edited and the rest aren't — this
+# does. CLAUDE.md tells authors to rely on this guard after changing either
+# constant, so the checked set must include ALL restatements, not just two files.
+# When a new restatement ships, add the file to the set below (or drop its literal).
 #
-# Mirrors the glob-parity guard in hooks/route-high-stakes.test.sh: same
-# teeth-bearing shape, so the two docs can't silently disagree.
+# Mirrors the bidirectional glob-parity guard in hooks/route-high-stakes.test.sh:
+# same teeth-bearing shape, so shipped guidance can't silently disagree.
 #
 # Run: bash scripts/check-plan-gate-parity.sh
-# Exit 0 = constants agree and the cap invariant holds; non-zero = drift,
-# a missing constant, or default > approval.
+# Exit 0 = constants agree everywhere and the cap invariant holds; non-zero =
+# cross-file drift, within-file drift, a missing constant, or default > approval.
 
 set -u
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-BOOTSTRAP="$SCRIPT_DIR/../skills/kerby/resources/BOOTSTRAP.md"
-FEATURE="$SCRIPT_DIR/../skills/kerby/resources/workflows/feature.md"
+RES="$SCRIPT_DIR/../skills/kerby/resources"
 
 FAILS=0
 pass() { echo "PASS: $1"; }
 fail() { echo "FAIL: $1"; FAILS=$((FAILS + 1)); }
 
-for f in "$BOOTSTRAP" "$FEATURE"; do
-  [[ -f "$f" ]] || { fail "cannot find $f"; }
+# Every file that restates the plan_threshold DEFAULT as a literal.
+DEFAULT_FILES=(
+  BOOTSTRAP.md
+  workflows/feature.md
+  workflows/quick-task.md
+  references/working-patterns.md
+  templates/agent-context.yaml.template
+)
+# Every file that restates the fixed grade>=7 APPROVAL point / cap. (The schema
+# is the authoritative cap; implementation-planning.md's "complexity ≥ 7" is a
+# roadmap-sizing reference, a different concept, deliberately excluded.)
+APPROVAL_FILES=(
+  BOOTSTRAP.md
+  workflows/feature.md
+  agent-context.schema.yaml
+)
+
+for rel in "${DEFAULT_FILES[@]}" "${APPROVAL_FILES[@]}"; do
+  [[ -f "$RES/$rel" ]] || fail "cannot find $RES/$rel"
 done
 [[ "$FAILS" -eq 0 ]] || { echo "---"; echo "$FAILS assertion(s) failed."; exit 1; }
 
-# Default plan_threshold: the digit in "default <N>" on a planThreshold line.
-# BOOTSTRAP renders it "default **4**"; feature.md renders it "default 4".
-# Returns every DISTINCT value found (one per line) — see uniq_or_fail below.
+# Default plan_threshold: a "default <N>" on a line that NAMES the knob (so an
+# unrelated "default 180 days" can't be mistaken for it), plus the YAML form
+# `planThreshold: <N>`. Returns every DISTINCT value found, one per line.
 extract_default() { # $1=file
-  grep -iE 'planThreshold' "$1" | grep -oE 'default \**[0-9]+' | grep -oE '[0-9]+' | sort -u
+  {
+    grep -iE 'plan_?threshold' "$1" | grep -oE 'default \**[0-9]+' | grep -oE '[0-9]+'
+    grep -oE 'planThreshold:[[:space:]]*[0-9]+' "$1" | grep -oE '[0-9]+'
+  } | sort -u
 }
 
-# Fixed approval point: the N in "grade >= N" / "capped at N". The >= is the
-# Unicode glyph (U+2265) in both files. Returns every DISTINCT value found.
+# Fixed approval point: "grade ≥ N" (Unicode ≥ or ascii >=), "capped at N", or
+# the schema's "maximum: N". Returns every DISTINCT value found, one per line.
 extract_approval() { # $1=file
-  grep -oE 'capped at [0-9]+|≥ ?[0-9]+' "$1" | grep -oE '[0-9]+' | sort -u
+  grep -oE 'capped at [0-9]+|≥ ?[0-9]+|grade ?>= ?[0-9]+|maximum:[[:space:]]*[0-9]+' "$1" \
+    | grep -oE '[0-9]+' | sort -u
 }
 
-# A file must state exactly ONE value per constant. Zero = the constant was
-# dropped; more than one = a stale+updated pair drifting WITHIN the file (e.g.
-# the main rule says "≥ 8" but a "capped at 7" line was left behind). Collapsing
-# that with head -1 would let the gate pass on the exact inconsistency it exists
-# to catch — so treat it as a failure, then compare the single values across files.
-uniq_or_fail() { # $1=label ; $2=raw multiline values ; sets VALUE
-  local label="$1" raw="$2" n
-  n=$(printf '%s\n' "$raw" | grep -c .)
-  if   [[ "$n" -eq 0 ]]; then VALUE=""; fail "$label: constant not found"
-  elif [[ "$n" -gt 1 ]]; then VALUE=""; fail "$label: conflicting values within file -> $(printf '%s' "$raw" | tr '\n' ',' | sed 's/,$//')"
-  else VALUE="$raw"; pass "$label states one value ($raw)"
+# Check one constant across a SET of files: each file must state exactly ONE
+# value (zero = the constant was dropped; >1 = a stale+updated pair drifting
+# WITHIN the file), and all files must agree. Sets AGREED to the common value
+# (empty on any failure) for the downstream invariant check.
+check_constant() { # $1=label $2=extractor-fn $3.. = files (relative to RES)
+  local label="$1" fn="$2"; shift 2
+  local nfiles=$# rel raw n vals=""
+  AGREED=""
+  for rel in "$@"; do
+    raw=$("$fn" "$RES/$rel")
+    n=$(printf '%s\n' "$raw" | grep -c .)
+    if   [[ "$n" -eq 0 ]]; then fail "$label: $rel states no value"; continue
+    elif [[ "$n" -gt 1 ]]; then fail "$label: $rel drifts within file -> $(printf '%s' "$raw" | tr '\n' ',' | sed 's/,$//')"; continue
+    fi
+    pass "$label: $rel = $raw"
+    vals="$vals$raw"$'\n'
+  done
+  local distinct; distinct=$(printf '%s' "$vals" | sort -u | grep -c .)
+  if [[ "$distinct" -eq 1 ]]; then
+    AGREED=$(printf '%s' "$vals" | sort -u | tr -d '\n')
+    pass "$label: agrees across all $nfiles files ($AGREED)"
+  else
+    fail "$label: DRIFT across files -> $(printf '%s' "$vals" | sort -u | tr '\n' ',' | sed 's/,$//')"
   fi
 }
 
-uniq_or_fail "BOOTSTRAP plan_threshold default"  "$(extract_default "$BOOTSTRAP")";  bs_default="$VALUE"
-uniq_or_fail "feature.md plan_threshold default" "$(extract_default "$FEATURE")";    ft_default="$VALUE"
-uniq_or_fail "BOOTSTRAP approval point"          "$(extract_approval "$BOOTSTRAP")"; bs_approval="$VALUE"
-uniq_or_fail "feature.md approval point"         "$(extract_approval "$FEATURE")";   ft_approval="$VALUE"
+check_constant "plan_threshold default" extract_default  "${DEFAULT_FILES[@]}";  DEFAULT_VAL="$AGREED"
+check_constant "approval point"         extract_approval "${APPROVAL_FILES[@]}"; APPROVAL_VAL="$AGREED"
 
-# --- Cross-file agreement (the real anti-drift teeth) ------------------------
-if [[ -n "$bs_default" && -n "$ft_default" ]]; then
-  [[ "$bs_default" == "$ft_default" ]] \
-    && pass "default agrees across files ($bs_default)" \
-    || fail "default DRIFT: BOOTSTRAP=$bs_default vs feature.md=$ft_default"
-fi
-if [[ -n "$bs_approval" && -n "$ft_approval" ]]; then
-  [[ "$bs_approval" == "$ft_approval" ]] \
-    && pass "approval point agrees across files ($bs_approval)" \
-    || fail "approval DRIFT: BOOTSTRAP=$bs_approval vs feature.md=$ft_approval"
-fi
-
-# --- Documented invariant: plan_threshold is "capped at" the approval point --
-if [[ -n "$bs_default" && -n "$bs_approval" ]]; then
-  [[ "$bs_default" -le "$bs_approval" ]] \
-    && pass "invariant holds: default ($bs_default) <= approval ($bs_approval)" \
-    || fail "invariant broken: default ($bs_default) > approval ($bs_approval)"
+# Documented invariant: the default is "capped at" the approval point.
+if [[ -n "$DEFAULT_VAL" && -n "$APPROVAL_VAL" ]]; then
+  [[ "$DEFAULT_VAL" -le "$APPROVAL_VAL" ]] \
+    && pass "invariant holds: default ($DEFAULT_VAL) <= approval ($APPROVAL_VAL)" \
+    || fail "invariant broken: default ($DEFAULT_VAL) > approval ($APPROVAL_VAL)"
 fi
 
 echo "---"
