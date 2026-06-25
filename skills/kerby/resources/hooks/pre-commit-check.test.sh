@@ -133,6 +133,15 @@ reset_index; stage_secret
 rc=0; ( cd "$REPO" && echo '{"tool_input":{"command":"git status"}}' | PATH="$BIN_NO" bash "$HOOK" >/dev/null 2>&1 ) || rc=$?
 [[ "$rc" -eq 0 ]] && pass "non-commit command exits 0 early" || fail "non-commit should exit 0 (got $rc)"
 
+# I. Soft reminder is emitted as JSON additionalContext on STDOUT (plain stdout on
+#    exit 0 is ignored for PreToolUse). Clean staged + no scanner -> reminder path.
+reset_index; stage_clean
+OUT=$( cd "$REPO" && echo "$COMMIT_INPUT" | PATH="$BIN_NO" SCANNER_ARGS_FILE="$ARGS_FILE" bash "$HOOK" 2>/dev/null ); rc=$?
+CTX=$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null)
+{ [[ "$rc" -eq 0 ]] && printf '%s' "$CTX" | grep -q "REMINDER (kerby)"; } \
+  && pass "soft reminder emitted as JSON additionalContext on stdout" \
+  || fail "soft reminder should be JSON additionalContext (rc=$rc, out='$OUT')"
+
 # --- Summary -----------------------------------------------------------------
 echo "---"
 if [[ "$FAILS" -eq 0 ]]; then
