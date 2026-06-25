@@ -14,11 +14,13 @@ FAILS=0
 pass() { echo "PASS: $1"; }
 fail() { echo "FAIL: $1"; FAILS=$((FAILS + 1)); }
 
-run() { # $1=file path ; sets RC and ERR
-  ERR=$(printf '{"tool_input":{"file_path":%s}}' "$(printf '%s' "$1" | jq -R .)" | bash "$HOOK" 2>&1 >/dev/null); RC=$?
+run() { # $1=file path ; sets RC, OUT(stdout), CTX(additionalContext), DEC(permissionDecision)
+  OUT=$(printf '{"tool_input":{"file_path":%s}}' "$(printf '%s' "$1" | jq -R .)" | bash "$HOOK" 2>/dev/null); RC=$?
+  CTX=$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null)
+  DEC=$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.permissionDecision // empty' 2>/dev/null)
 }
 
-# --- One positive per globbable §3 category: reminder + exit 0 ----------------
+# --- One positive per globbable §3 category: additionalContext on stdout, exit 0 ---
 POS=(
   "app/migrations/0001_init.sql"            # schema migrations
   "src/auth/login.ts"                       # authentication (dir glob)
@@ -31,14 +33,24 @@ POS=(
 )
 for p in "${POS[@]}"; do
   run "$p"
-  if [[ "$RC" -eq 0 ]] && echo "$ERR" | grep -q "high-stakes path"; then
-    pass "high-stakes triggers reminder: $p"
+  if [[ "$RC" -eq 0 ]] && printf '%s' "$CTX" | grep -q "high-stakes path"; then
+    pass "high-stakes injects additionalContext: $p"
   else
-    fail "should trigger (rc=$RC, err='$ERR'): $p"
+    fail "should inject context (rc=$RC, ctx='$CTX'): $p"
   fi
 done
 
-# --- Negatives: ordinary paths are silent, exit 0 ----------------------------
+# Advisory must NOT carry a permission decision — it reminds, never auto-approves.
+run "src/auth/login.ts"
+[[ -z "$DEC" ]] && pass "advisory sets no permissionDecision (no auto-approve)" \
+  || fail "advisory must not set permissionDecision (got '$DEC')"
+
+# A match must emit its reminder on stdout, not stderr (PreToolUse exit-0 channel).
+STDERR=$(printf '{"tool_input":{"file_path":"src/auth/login.ts"}}' | bash "$HOOK" 2>&1 >/dev/null)
+[[ -z "$STDERR" ]] && pass "match writes nothing to stderr (uses stdout JSON)" \
+  || fail "match should not write to stderr (got '$STDERR')"
+
+# --- Negatives: ordinary paths emit nothing, exit 0 --------------------------
 NEG=(
   "src/util.ts"
   "README.md"
@@ -46,22 +58,22 @@ NEG=(
 )
 for p in "${NEG[@]}"; do
   run "$p"
-  if [[ "$RC" -eq 0 && -z "$ERR" ]]; then
-    pass "ordinary path silent: $p"
+  if [[ "$RC" -eq 0 && -z "$OUT" ]]; then
+    pass "ordinary path silent (no JSON): $p"
   else
-    fail "should be silent exit 0 (rc=$RC, err='$ERR'): $p"
+    fail "should be silent exit 0 (rc=$RC, out='$OUT'): $p"
   fi
 done
 
 # --- Missing path -> silent exit 0 -------------------------------------------
-ERR=$(echo '{"tool_input":{}}' | bash "$HOOK" 2>&1 >/dev/null); RC=$?
-[[ "$RC" -eq 0 && -z "$ERR" ]] && pass "missing path silent exit 0" \
-  || fail "missing path should be silent (rc=$RC, err='$ERR')"
+OUT=$(echo '{"tool_input":{}}' | bash "$HOOK" 2>/dev/null); RC=$?
+[[ "$RC" -eq 0 && -z "$OUT" ]] && pass "missing path silent exit 0" \
+  || fail "missing path should be silent (rc=$RC, out='$OUT')"
 
 # --- Disabled via env var -> silent even on a high-stakes path ---------------
-ERR=$(printf '{"tool_input":{"file_path":"src/auth/login.ts"}}' | CODING_RULES_HOOK_DISABLED=route-high-stakes bash "$HOOK" 2>&1 >/dev/null); RC=$?
-[[ "$RC" -eq 0 && -z "$ERR" ]] && pass "disabled -> silent exit 0" \
-  || fail "disabled should be silent (rc=$RC, err='$ERR')"
+OUT=$(printf '{"tool_input":{"file_path":"src/auth/login.ts"}}' | CODING_RULES_HOOK_DISABLED=route-high-stakes bash "$HOOK" 2>/dev/null); RC=$?
+[[ "$RC" -eq 0 && -z "$OUT" ]] && pass "disabled -> silent exit 0" \
+  || fail "disabled should be silent (rc=$RC, out='$OUT')"
 
 # --- Glob parity with BOOTSTRAP §3 (teeth-bearing) ---------------------------
 # Extract the high-stakes override block, scope to its category bullets ('- **'),

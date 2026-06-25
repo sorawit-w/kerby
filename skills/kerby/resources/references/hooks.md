@@ -97,14 +97,14 @@ The behavioral counterpart to `protect-env`. Reading a `.env` is legitimate (the
 ### PreToolUse → High-Stakes Path Routing
 
 **Script:** `hooks/route-high-stakes.sh`
-**Strictness:** Soft-warn (exit 0 with stderr note) — disablable
+**Strictness:** Soft-warn (exit 0; injects a reminder via stdout JSON `hookSpecificOutput.additionalContext`) — disablable
 **Matcher:** `Edit|Write` targeting BOOTSTRAP §3 high-stakes paths
 
 Makes BOOTSTRAP §3's high-stakes path override **[enforced-partial]** instead of pure [behavioral]. When the agent edits a path matching §3's globs (auth, schema migrations, payments/billing, infrastructure, CI/CD), it emits a one-line reminder that the change requires `workflows/feature.md` / `bugfix.md` + the §4 Plan Gate — **not** `quick-task.md`, even for a one-liner. It never blocks: routing is a *decision*, not a destructive-action veto. Disablable via `CODING_RULES_HOOK_DISABLED=route-high-stakes`.
 
 **Single source of truth:** the matched globs are embedded in the script byte-identical to BOOTSTRAP §3, and `hooks/route-high-stakes.test.sh` asserts parity — it fails if §3 gains a glob the hook doesn't carry, so the two can't silently drift.
 
-**Coverage gap (by design, not a bug):** §3's sixth category — *production-traffic-shaping values* (retry/timeout/rate-limit constants, feature-flag defaults, secrets-loading code) — is prose with no glob and cannot be path-matched; it stays [behavioral]. That named gap is what makes this rule [enforced-partial] rather than [enforced]. Matching is case-insensitive so filename patterns catch `Login.tsx` / `UserToken.ts`. Self-tested by `hooks/route-high-stakes.test.sh`. *(Pattern absorbed concept-only from `paulDuvall/ai-development-patterns` (MIT) — Progressive Disclosure; see `NOTICE`.)*
+**Coverage gap (by design, not a bug):** §3's sixth category — *production-traffic-shaping values* (retry/timeout/rate-limit constants, feature-flag defaults, secrets-loading code) — is prose with no glob and cannot be path-matched; it stays [behavioral]. That named gap is what makes this rule [enforced-partial] rather than [enforced]. Matching is case-insensitive so filename patterns catch `Login.tsx` / `UserToken.ts`. **Delivery mechanism:** the reminder is emitted as stdout JSON (`hookSpecificOutput.additionalContext`), *not* stderr — on exit 0 a PreToolUse hook's stderr is not surfaced to the agent, only its JSON-on-stdout is. It carries no `permissionDecision`, so the edit proceeds through normal permissions (it reminds, never auto-approves). Self-tested by `hooks/route-high-stakes.test.sh`. *(Pattern absorbed concept-only from `paulDuvall/ai-development-patterns` (MIT) — Progressive Disclosure; see `NOTICE`.)*
 
 ---
 

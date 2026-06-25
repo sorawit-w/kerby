@@ -11,8 +11,11 @@ Moved BOOTSTRAP §3's **high-stakes path override** from `[behavioral]` to
 (auth / schema migrations / payments / infrastructure / CI-CD) and, on a match,
 reminds the agent that the change requires `workflows/feature.md` or `bugfix.md`
 + the §4 Plan Gate — not `quick-task.md`, even for a one-liner. It is advisory:
-exit 0, stderr note, disablable via `CODING_RULES_HOOK_DISABLED=route-high-stakes`
-— routing is a decision, not a destructive-action veto, so no new hard blocks.
+exit 0, injecting the reminder via stdout JSON (`hookSpecificOutput.additionalContext`,
+the channel a PreToolUse hook's output actually reaches the agent on exit 0; it carries
+no `permissionDecision`, so the edit still goes through normal permissions), disablable
+via `CODING_RULES_HOOK_DISABLED=route-high-stakes` — routing is a decision, not a
+destructive-action veto, so no new hard blocks.
 The matched globs are embedded byte-identical to §3 and `route-high-stakes.test.sh`
 asserts parity, so the hook and the rule can't silently drift. §3's prose-only
 *production-traffic-shaping* category has no glob and stays `[behavioral]` — that
