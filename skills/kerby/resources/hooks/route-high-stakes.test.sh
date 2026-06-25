@@ -91,17 +91,27 @@ else
   else
     pass "parity: prod-traffic-shaping contributes no globs (prose-only)"
   fi
+  # Parse the hook's ACTUAL GLOBS array (not arbitrary file text), so the guard
+  # verifies the runtime list. A glob that survives only in a comment — while
+  # being deleted from GLOBS — must NOT satisfy parity. Extract just the array
+  # literal and eval it; this never runs the hook's stdin/jq logic.
+  ARRAY_SRC=$(sed -n '/^GLOBS=(/,/^)/p' "$HOOK")
+  if [[ -z "$ARRAY_SRC" ]]; then
+    fail "parity: could not locate the GLOBS=( ... ) array in $HOOK"
+  fi
+  unset GLOBS; eval "$ARRAY_SRC"
+  contains() { local x="$1"; shift; local e; for e in "$@"; do [[ "$e" == "$x" ]] && return 0; done; return 1; }
   MISSING=0
   while IFS= read -r g; do
     [[ -z "$g" ]] && continue
-    if grep -qF "'$g'" "$HOOK"; then
-      pass "parity: §3 glob covered: $g"
+    if contains "$g" "${GLOBS[@]}"; then
+      pass "parity: §3 glob in GLOBS array: $g"
     else
-      fail "parity: §3 glob NOT in hook GLOBS array: $g"
+      fail "parity: §3 glob NOT in GLOBS array: $g"
       MISSING=$((MISSING + 1))
     fi
   done <<< "$GLOBS_IN_SPEC"
-  [[ "$MISSING" -eq 0 ]] && pass "parity: all §3 globs covered by the hook"
+  [[ "$MISSING" -eq 0 ]] && pass "parity: all §3 globs present in the runtime GLOBS array"
 fi
 
 echo "---"
