@@ -59,7 +59,7 @@ stage_secret() {
   echo 'const k = "sk_live_ABCDEFG1234567890fake";' > "$REPO/secret.js"
   git -C "$REPO" add secret.js
 }
-reset_index() { git -C "$REPO" rm -r --cached -q -f . >/dev/null 2>&1 || true; rm -f "$REPO"/*.js; }
+reset_index() { git -C "$REPO" rm -r --cached -q -f . >/dev/null 2>&1 || true; rm -f "$REPO"/*.js "$REPO"/*.go; }
 
 # Hollow-test fixtures — staged test/spec files exercising the soft heuristic.
 stage_test_focus() { # focused test (.only) silently disables the rest of the suite
@@ -86,6 +86,14 @@ stage_test_subdir() { # focused test staged at repo root — committed FROM a su
   mkdir -p "$REPO/src"
   printf 'describe.only("x", () => { it("y", () => { expect(sum(1,1)).toBe(2); }); });\n' > "$REPO/pkg.test.js"
   git -C "$REPO" add pkg.test.js
+}
+stage_test_focus_bsd() { # markers caught ONLY by the \b focus branches (no .only/.skip present)
+  printf 'fit("a", () => { expect(x).toBe(y); });\nxit("b", () => {});\nfdescribe("c", () => {});\n' > "$REPO/bsd_focus.test.js"
+  git -C "$REPO" add bsd_focus.test.js
+}
+stage_test_misc_bsd() { # \b-dependent markers across langs: t.Skip(, @Disabled, assert True\b
+  printf 'func TestX(t *testing.T) { t.Skip("wip") }\n@Disabled\nassert True\n' > "$REPO/bsd_misc_test.go"
+  git -C "$REPO" add bsd_misc_test.go
 }
 # additionalContext for a clean-secret commit on the current index (no scanner -> regex floor, clean).
 hook_ctx() {
@@ -232,6 +240,22 @@ CTX=$(hook_ctx_from src)
 printf '%s' "$CTX" | grep -q "HOLLOW-TEST CHECK" \
   && pass "advisory fires for root test file when committing from a subdir (:(top) pathspec)" \
   || fail "top-anchored pathspec should catch test files regardless of cwd (ctx='$CTX')"
+
+# P. \b-boundary focus markers (fit(/xit(/fdescribe() are counted by the REAL grep the
+#    hook uses (/usr/bin/grep on macOS). These branches were previously untested; this
+#    guards the coverage the release notes claim, and proves \b works on stock BSD grep.
+reset_index; stage_test_focus_bsd
+CTX=$(hook_ctx)
+printf '%s' "$CTX" | grep -q "3 focused/disabled" \
+  && pass "BSD grep counts fit(/xit(/fdescribe( — 3 \\b focus markers" \
+  || fail "BSD grep should count 3 \\b focus markers (ctx='$CTX')"
+
+# Q. \b-dependent markers across languages (t.Skip(, @Disabled, assert True\\b) fire too.
+reset_index; stage_test_misc_bsd
+CTX=$(hook_ctx)
+printf '%s' "$CTX" | grep -q "HOLLOW-TEST CHECK" \
+  && pass "BSD grep fires on t.Skip(/@Disabled/assert True (\\b-dependent markers)" \
+  || fail "BSD grep should fire on \\b-dependent markers (ctx='$CTX')"
 
 # --- Summary -----------------------------------------------------------------
 echo "---"
