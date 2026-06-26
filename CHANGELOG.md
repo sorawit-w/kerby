@@ -3,6 +3,55 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [5.6.0] — 2026-06-25
+
+Closed the **commit-on-protected-branch gap** in `protect-git.sh`. The hook previously
+blocked only `git push` to a protected branch and `git push --force`; `git commit` while
+*on* a protected branch was allowed (it was in the hook's own ALLOW test set). So an agent
+that forgot to branch would commit straight onto `main`/`develop` and only hit a wall at
+push time — leaving local commits on a protected branch to unwind. This is the
+intermittent, agent-to-agent-varying failure that prose rules alone (BOOTSTRAP "never work
+on protected branches") couldn't stop, because prose enforcement is probabilistic.
+
+Added (`hooks/protect-git.sh` section 7):
+
+- **Commit-time gate.** Hard-blocks `git commit` (incl. `--amend`) when the **target**
+  repo is on a protected branch (`main`, `master`, `dev`, `develop`, `staging`, `trunk`,
+  `release/*`). This is the hook's first check that reads live repo state, not only the
+  command string. It parses the git **subcommand** (so `git log --grep=commit` is not a
+  commit), matches global options by shape plus the finite set of value-taking globals
+  (both `--opt=val` and space forms), and resolves the target repo from `-C` **or**
+  `--git-dir` — so `git -c k=v -C <path> commit` and `git --git-dir=<path> commit` (the
+  bare-repo / dotfiles pattern) probe the right repo's branch, not the hook's cwd. In a
+  compound command, the command is walked by segment (`&&`/`||`/`;`), **every** commit
+  invocation is checked (not just the first), and a leading `cd <path>` is honored so a
+  bare commit is checked against the branch of the directory it actually runs in
+  (`cd /repo && git commit`). A
+  single PreToolUse pass can't fully model runtime git — relative cumulative
+  `-C`/`--git-dir` and quoted-space paths are a documented residual (see
+  `references/threat-model.md`).
+- **Scoped, per-command override.** `CODING_RULES_ALLOW_PROTECTED_COMMIT=1` bypasses
+  **only** the commit gate, for commits the user explicitly authorized. The hook detects
+  the assignment **in the command string**, and only when it directly prefixes the git
+  commit (`CODING_RULES_ALLOW_PROTECTED_COMMIT=1 git commit …`) — a PreToolUse hook runs
+  before the command, so it can't read the child shell's env. An ambiently-exported var,
+  or the token appearing elsewhere in the command (an `echo` arg, a commit message, a
+  different `&&` segment), is deliberately **not** honored — all are self-bypasses. The
+  destructive blocks (force-push, `reset --hard`, `clean -f`, `branch -D`, wholesale
+  discard) remain non-disablable. A new BOOTSTRAP line scopes the override behaviorally:
+  set it only on explicit authorization, never to self-bypass.
+- **Carve-outs** to fire only on the real mistake: the repo's first-ever commit (unborn
+  HEAD) and detached HEAD. Compound branch-create-then-commit one-liners
+  (`git switch -c x && git commit …`) are **not** carved out — a PreToolUse hook can't
+  prove the commit lands off the protected branch (the switch may fail, the new branch
+  may itself be protected like `release/*`, `;` runs the commit regardless), so branch
+  creation and the commit must be **separate** commands.
+
+Block-and-instruct, not auto-switch: the hook tells the agent to create a feature branch
+rather than silently creating one. Branch naming stays kerby-convention (`feat/`, `fix/`),
+not a vendor-specific prefix. Docs synced: `guardrails.md`, `threat-model.md`, `BOOTSTRAP.md`.
+Tests extended with real temp-repo cases (the string-only harness can't control the branch).
+
 ## [5.5.0] — 2026-06-25
 
 Fixed the **soft-hook delivery channel**. A PreToolUse hook's stderr is surfaced to the
