@@ -61,6 +61,30 @@ stage_secret() {
 }
 reset_index() { git -C "$REPO" rm -r --cached -q -f . >/dev/null 2>&1 || true; rm -f "$REPO"/*.js; }
 
+# Hollow-test fixtures — staged test/spec files exercising the soft heuristic.
+stage_test_focus() { # focused test (.only) silently disables the rest of the suite
+  printf 'describe.only("x", () => { it("y", () => { expect(sum(1,1)).toBe(2); }); });\n' > "$REPO/widget.test.js"
+  git -C "$REPO" add widget.test.js
+}
+stage_test_true() { # always-true assertion verifies nothing
+  printf 'test("hollow", () => { expect(true).toBe(true); });\n' > "$REPO/hollow.spec.js"
+  git -C "$REPO" add hollow.spec.js
+}
+stage_test_clean() { # a real assertion in a test file — must NOT trip the heuristic
+  printf 'test("real", () => { expect(sum(2,2)).toBe(4); });\n' > "$REPO/real.test.js"
+  git -C "$REPO" add real.test.js
+}
+stage_nontest_only() { # .only outside a test/spec path — must NOT trip the heuristic
+  printf 'foo.only(bar);\n' > "$REPO/config.js"
+  git -C "$REPO" add config.js
+}
+# additionalContext for a clean-secret commit on the current index (no scanner -> regex floor, clean).
+hook_ctx() {
+  local out
+  out=$( cd "$REPO" && echo "$COMMIT_INPUT" | PATH="$BIN_NO" SCANNER_ARGS_FILE="$ARGS_FILE" bash "$HOOK" 2>/dev/null )
+  printf '%s' "$out" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null
+}
+
 run_hook() { # $1=PATH  $2=gitleaks_rc(opt)  $3=betterleaks_rc(opt)
   ( cd "$REPO" && echo "$COMMIT_INPUT" | PATH="$1" \
       GITLEAKS_STUB_RC="${2:-0}" BETTERLEAKS_STUB_RC="${3:-0}" \
@@ -150,6 +174,34 @@ ERRTXT=$(cat "$ERRF")
   || fail "soft reminder must not set permissionDecision (got '$DEC')"
 [[ -z "$ERRTXT" ]] && pass "soft reminder writes nothing to stderr (uses stdout JSON)" \
   || fail "soft reminder should not write to stderr (got '$ERRTXT')"
+
+# J. Focused test (.only) in a staged *test* file -> hollow-test advisory fires.
+reset_index; stage_test_focus
+CTX=$(hook_ctx)
+printf '%s' "$CTX" | grep -q "HOLLOW-TEST CHECK" \
+  && pass "focused test (.only) triggers hollow-test advisory" \
+  || fail "hollow-test advisory should fire on .only (ctx='$CTX')"
+
+# K. Always-true assertion in a staged *spec* file -> advisory fires.
+reset_index; stage_test_true
+CTX=$(hook_ctx)
+printf '%s' "$CTX" | grep -q "HOLLOW-TEST CHECK" \
+  && pass "always-true assertion triggers hollow-test advisory" \
+  || fail "hollow-test advisory should fire on expect(true).toBe(true) (ctx='$CTX')"
+
+# L. Clean test file with a real assertion -> NO hollow-test advisory (no false positive).
+reset_index; stage_test_clean
+CTX=$(hook_ctx)
+printf '%s' "$CTX" | grep -q "HOLLOW-TEST CHECK" \
+  && fail "hollow-test advisory should NOT fire on a real assertion" \
+  || pass "clean test file does not trigger hollow-test advisory"
+
+# M. .only in a NON-test file -> NO advisory (path filter scopes to *test*/*spec*).
+reset_index; stage_nontest_only
+CTX=$(hook_ctx)
+printf '%s' "$CTX" | grep -q "HOLLOW-TEST CHECK" \
+  && fail "hollow-test advisory should NOT fire outside test/spec files" \
+  || pass "non-test file with .only does not trigger advisory"
 
 # --- Summary -----------------------------------------------------------------
 echo "---"
