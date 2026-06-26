@@ -114,10 +114,12 @@ fi
 # Subcommand matcher: `git`, zero or more global options (some take an arg), then
 # `commit` as the subcommand (\b…([[:space:]]|$) so `commit-graph`/`commit-tree`
 # don't match). GIT_GLOBAL_OPT matches option SHAPES, not a hardcoded list of
-# names, so an unlisted or future global (`-P`, `--config-env=…`) before `commit`
-# is still skipped: value-taking `-C`/`-c` and separate-arg long opts consume their
-# argument; everything else is a `--long[=val]` or single-letter `-X` flag.
-GIT_GLOBAL_OPT='(-C[[:space:]]+[^[:space:]]+|-c[[:space:]]+[^[:space:]]+|--git-dir[=[:space:]][^[:space:]]+|--work-tree[=[:space:]][^[:space:]]+|--namespace[=[:space:]][^[:space:]]+|--super-prefix[=[:space:]][^[:space:]]+|--[A-Za-z][A-Za-z-]*=[^[:space:]]+|--[A-Za-z][A-Za-z-]*|-[A-Za-z])'
+# names, so an unlisted or future flag before `commit` is still skipped. Two parts:
+#   1. The FINITE set of value-taking globals (`git --help` synopsis) listed
+#      explicitly with `[=[:space:]]` so BOTH `--opt=val` and `--opt val` (space)
+#      forms consume their argument — the space form is otherwise ambiguous.
+#   2. Shape fallbacks: any `--long=val`, any `--long` flag, any `-X` short flag.
+GIT_GLOBAL_OPT='(-C[[:space:]]+[^[:space:]]+|-c[[:space:]]+[^[:space:]]+|--git-dir[=[:space:]][^[:space:]]+|--work-tree[=[:space:]][^[:space:]]+|--namespace[=[:space:]][^[:space:]]+|--super-prefix[=[:space:]][^[:space:]]+|--config-env[=[:space:]][^[:space:]]+|--exec-path[=[:space:]][^[:space:]]+|--attr-source[=[:space:]][^[:space:]]+|--[A-Za-z][A-Za-z-]*=[^[:space:]]+|--[A-Za-z][A-Za-z-]*|-[A-Za-z])'
 GIT_COMMIT_RE="\\bgit\\b([[:space:]]+${GIT_GLOBAL_OPT})*[[:space:]]+commit\\b([[:space:]]|\$)"
 
 if echo "$LC" | grep -qE "$GIT_COMMIT_RE"; then
@@ -136,10 +138,18 @@ if echo "$LC" | grep -qE "$GIT_COMMIT_RE"; then
     # paths are case-sensitive and `-C` (chdir) ≠ `-c` (config). Last -C wins.
     # (Residual: multiple commit invocations with differing -C, quoted paths.)
     INVOC=$(printf '%s' "$STRIPPED" | grep -oE "$GIT_COMMIT_RE" | head -1)
-    TARGET=$(printf '%s' "$INVOC" | grep -oE '(^|[[:space:]])-C[[:space:]]+[^[:space:]]+' | tail -1 | sed -E 's/.*-C[[:space:]]+//')
-    if [[ -n "$TARGET" ]]; then
-      CURRENT=$(git -C "$TARGET" branch --show-current 2>/dev/null)
-      git -C "$TARGET" rev-parse --verify -q HEAD >/dev/null 2>&1 && HAS_HEAD=1 || HAS_HEAD=0
+    GITDIR=$(printf '%s' "$INVOC" | grep -oE '(^|[[:space:]])--git-dir[=[:space:]][^[:space:]]+' | tail -1 | sed -E 's/.*--git-dir[=[:space:]]//')
+    CPATH=$(printf '%s' "$INVOC" | grep -oE '(^|[[:space:]])-C[[:space:]]+[^[:space:]]+' | tail -1 | sed -E 's/.*-C[[:space:]]+//')
+    # Resolve the repo the commit targets. Prefer --git-dir (names the repo
+    # directly), else -C (chdir), else the hook cwd. Branch is read from the
+    # target's HEAD either way. (Explicit branches, not a bash array — `set -u`
+    # + macOS bash 3.2 makes empty-array expansion unsafe.)
+    if [[ -n "$GITDIR" ]]; then
+      CURRENT=$(git --git-dir="$GITDIR" branch --show-current 2>/dev/null)
+      git --git-dir="$GITDIR" rev-parse --verify -q HEAD >/dev/null 2>&1 && HAS_HEAD=1 || HAS_HEAD=0
+    elif [[ -n "$CPATH" ]]; then
+      CURRENT=$(git -C "$CPATH" branch --show-current 2>/dev/null)
+      git -C "$CPATH" rev-parse --verify -q HEAD >/dev/null 2>&1 && HAS_HEAD=1 || HAS_HEAD=0
     else
       CURRENT=$(git branch --show-current 2>/dev/null)
       git rev-parse --verify -q HEAD >/dev/null 2>&1 && HAS_HEAD=1 || HAS_HEAD=0

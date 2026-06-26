@@ -199,6 +199,21 @@ run_in "$R" "git --config-env=foo.bar=ENV commit -m x"
 run_in "$CWD_FEAT" "git -P -C $TGT_MAIN commit -m x"
 [[ "$RC" -eq 2 ]] && pass "blocks: git -P -C <repo-on-main> commit" || fail "-P then -C target must block (got $RC)"
 
+# value-taking global in SPACE-separated form must consume its value, so commit
+# is still detected: `git --config-env foo.bar=FOO commit` on main.
+R="$TMPROOT/config-env-space"; repo_with_commit "$R" main
+run_in "$R" "git --config-env foo.bar=FOO commit -m x"
+[[ "$RC" -eq 2 ]] && pass "blocks: git --config-env <val> commit (space form)" || fail "--config-env space form must block (got $RC)"
+
+# --git-dir/--work-tree name the target repo: branch must be probed there, not cwd.
+# cwd is on a feature branch; the --git-dir repo is on main.
+run_in "$CWD_FEAT" "git --git-dir=$TGT_MAIN/.git --work-tree=$TGT_MAIN commit -m x"
+[[ "$RC" -eq 2 ]] && pass "blocks: git --git-dir=<repo-on-main> commit" || fail "--git-dir target must block (got $RC)"
+
+# --git-dir pointing at a feature-branch repo → allowed
+run_in "$CWD_FEAT" "git --git-dir=$TGT_FEAT/.git --work-tree=$TGT_FEAT commit -m x"
+[[ "$RC" -eq 0 ]] && pass "allows: git --git-dir=<repo-on-feature> commit" || fail "--git-dir feature target must allow (got $RC)"
+
 echo "---"
 if [[ "$FAILS" -eq 0 ]]; then
   echo "All assertions passed."
