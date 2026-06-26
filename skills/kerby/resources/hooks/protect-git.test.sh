@@ -146,6 +146,33 @@ R="$TMPROOT/cg"; repo_with_commit "$R" main
 run_in "$R" "git commit-graph write"
 [[ "$RC" -eq 0 ]] && pass "allows: git commit-graph write on main" || fail "commit-graph should allow (got $RC)"
 
+# allows: 'commit' as an ARGUMENT value, not the subcommand (no false-block)
+R="$TMPROOT/grep-commit"; repo_with_commit "$R" main
+run_in "$R" "git log --grep=commit"
+[[ "$RC" -eq 0 ]] && pass "allows: git log --grep=commit on main (commit is an arg)" || fail "subcommand matcher false-blocked (got $RC)"
+
+# blocks: a real commit subcommand behind a global option (-c k=v)
+R="$TMPROOT/dash-c-opt"; repo_with_commit "$R" main
+run_in "$R" "git -c user.name=x commit -m y"
+[[ "$RC" -eq 2 ]] && pass "blocks: git -c user.name=x commit on main" || fail "global-opt commit must block (got $RC)"
+
+# blocks: override on a LATER commit does not authorize an earlier bare one
+R="$TMPROOT/multi-commit"; repo_with_commit "$R" main
+run_in "$R" "git commit -m a && CODING_RULES_ALLOW_PROTECTED_COMMIT=1 git commit -m b"
+[[ "$RC" -eq 2 ]] && pass "blocks: bare commit before an override-authorized commit" || fail "per-invocation override must block (got $RC)"
+
+# -C target repo: the branch checked must be the TARGET repo's, not the hook cwd.
+# cwd repo is on a feature branch; target repo is on main.
+CWD_FEAT="$TMPROOT/cwd-feat"; repo_with_commit "$CWD_FEAT" feat/cwd
+TGT_MAIN="$TMPROOT/tgt-main"; repo_with_commit "$TGT_MAIN" main
+run_in "$CWD_FEAT" "git -C $TGT_MAIN commit -m x"
+[[ "$RC" -eq 2 ]] && pass "blocks: git -C <repo-on-main> commit (probes target repo)" || fail "-C target branch must block (got $RC)"
+
+# -C target repo on a feature branch → allowed even though cwd is also a feature
+TGT_FEAT="$TMPROOT/tgt-feat"; repo_with_commit "$TGT_FEAT" feat/tgt
+run_in "$CWD_FEAT" "git -C $TGT_FEAT commit -m x"
+[[ "$RC" -eq 0 ]] && pass "allows: git -C <repo-on-feature> commit" || fail "-C feature target must allow (got $RC)"
+
 echo "---"
 if [[ "$FAILS" -eq 0 ]]; then
   echo "All assertions passed."

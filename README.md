@@ -109,10 +109,11 @@ These are not decoration. They are what every verdict comes back to:
 Current release: `5.6.0` — closes the **commit-on-protected-branch gap**. `protect-git.sh`
 previously blocked only *pushing* to a protected branch, so an agent could still `git commit`
 directly onto `main`/`develop` and only hit a wall at push. Section 7 now hard-blocks
-`git commit` while you are *on* a protected branch (reading live branch state), with a
-*scoped* escape hatch — `CODING_RULES_ALLOW_PROTECTED_COMMIT=1`, inline and per-command —
-for user-authorized commits, plus carve-outs for the initial commit and branch-creating
-compound commands. The destructive blocks stay non-disablable. See [CHANGELOG.md](CHANGELOG.md).
+`git commit` while you are *on* a protected branch (parsing the git subcommand and reading
+the target repo's live branch), with a *scoped* escape hatch — `CODING_RULES_ALLOW_PROTECTED_COMMIT=1`,
+inline and directly prefixing the commit — for user-authorized commits, plus a carve-out for
+the repo's first-ever commit. Branch creation and the commit must be separate commands. The
+destructive blocks stay non-disablable. See [CHANGELOG.md](CHANGELOG.md).
 
 Prior release: `5.5.0` — fixed the **soft-hook delivery channel**: a PreToolUse hook's
 stderr on exit 0 is not surfaced to the agent (only JSON-on-stdout is), so two soft

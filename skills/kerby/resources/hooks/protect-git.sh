@@ -97,32 +97,50 @@ if echo "$LC" | grep -qE '\bgit\b.*\b(checkout|restore)\b([[:space:]]+--)?[[:spa
 fi
 
 # 7. Commit while ON a protected branch (WORKFLOW guard — escapable, unlike 1–6).
-# Unlike the checks above, this reads real repo state (the current branch), not
-# just the command string.
-# `\bcommit\b([[:space:]]|$)` matches `git commit` / `-m …` / `--amend` but NOT
-# `git commit-graph` / `commit-tree` (the trailing `-` fails [[:space:]]|$).
-# A PreToolUse hook fires BEFORE the command runs and cannot predict the runtime
-# branch of a compound command (a `switch -c` may fail, its new branch may itself
-# be protected, `;` runs the commit regardless). So we do NOT try to carve out
-# `switch -c … && commit` one-liners — branch creation and the commit must be
-# SEPARATE commands. The only escape is the explicit inline override below.
-if echo "$LC" | grep -qE '\bgit\b[^|;&]*\bcommit\b([[:space:]]|$)'; then
-  # Allow ONLY the documented inline override, and only when the assignment
-  # directly prefixes THIS git-commit invocation. A PreToolUse hook runs before
-  # the command, so an inline `VAR=1 git commit` assignment lives in the child
-  # shell the hook never sees — we parse it out of the command, not our own env,
-  # and deliberately do NOT honor an ambiently-exported var (session-wide
-  # self-bypass). Tying it to `…=1[[:space:]]+git…commit` prevents the token from
-  # counting when it merely appears elsewhere — an echo arg, a commit message, a
-  # different `&&` segment. (Match $CMD, not $LC — the var name is upper-case.)
-  if ! echo "$CMD" | grep -qE '(^|[[:space:]])CODING_RULES_ALLOW_PROTECTED_COMMIT=1[[:space:]]+git\b[^|;&]*\bcommit\b'; then
-    CURRENT=$(git branch --show-current 2>/dev/null)
+# This reads real repo state (the TARGET repo's current branch), not just the
+# command string, and it parses the git invocation rather than scanning for a bare
+# "commit" word — so `git log --grep=commit` (subcommand `log`) is NOT a commit,
+# while `git -C path commit` / `git -c k=v commit` are.
+#
+# A PreToolUse hook fires BEFORE the command runs, so:
+#   - the inline override `VAR=1 git commit` lives in the child shell we can't see;
+#     we parse the assignment out of the command string instead (never an exported
+#     ambient var — that's a session-wide self-bypass), and per-invocation: an
+#     override on a LATER commit must not authorize an earlier bare one.
+#   - we cannot predict the runtime branch of a compound command (a `switch -c`
+#     may fail, its new branch may be protected, `;` runs the commit regardless),
+#     so branch creation and the commit must be SEPARATE commands — no carve-out.
+#
+# Subcommand matcher: `git`, zero or more global options (some take an arg), then
+# `commit` as the subcommand (\b…([[:space:]]|$) so `commit-graph`/`commit-tree`
+# don't match). Keep GIT_GLOBAL_OPT roughly in sync with `git --help` globals;
+# an unknown global option before `commit` is a residual gap (see threat-model).
+GIT_GLOBAL_OPT='(-C[[:space:]]+[^[:space:]]+|-c[[:space:]]+[^[:space:]]+|--git-dir[=[:space:]][^[:space:]]+|--work-tree[=[:space:]][^[:space:]]+|--namespace[=[:space:]][^[:space:]]+|-p|--paginate|--no-pager|--bare|--no-replace-objects|--literal-pathspecs|--icase-pathspecs|--no-optional-locks)'
+GIT_COMMIT_RE="\\bgit\\b([[:space:]]+${GIT_GLOBAL_OPT})*[[:space:]]+commit\\b([[:space:]]|\$)"
+
+if echo "$LC" | grep -qE "$GIT_COMMIT_RE"; then
+  # Strip every override-AUTHORIZED commit invocation, then see if an UNauthorized
+  # commit subcommand still remains. This makes the override per-invocation and
+  # ties the assignment to the git it prefixes (not a token in an echo arg, a
+  # commit message, or a different segment). sed on $CMD — the var is upper-case.
+  STRIPPED=$(printf '%s' "$CMD" | sed -E 's/(^|[[:space:]])CODING_RULES_ALLOW_PROTECTED_COMMIT=1[[:space:]]+git[^|;&]*//g')
+  STRIPPED_LC=$(printf '%s' "$STRIPPED" | tr '[:upper:]' '[:lower:]')
+  if echo "$STRIPPED_LC" | grep -qE "$GIT_COMMIT_RE"; then
+    # Probe the repo the commit actually targets: `git -C <path> commit` commits in
+    # <path>, not the hook's cwd. Use the first -C of the remaining invocation; a
+    # bare commit uses cwd. (Residual: multiple -C / --git-dir — see threat-model.)
+    TARGET=$(printf '%s' "$STRIPPED" | grep -oE '\bgit[[:space:]]+-C[[:space:]]+[^[:space:]]+' | head -1 | sed -E 's/.*-C[[:space:]]+//')
+    if [[ -n "$TARGET" ]]; then
+      CURRENT=$(git -C "$TARGET" branch --show-current 2>/dev/null)
+      git -C "$TARGET" rev-parse --verify -q HEAD >/dev/null 2>&1 && HAS_HEAD=1 || HAS_HEAD=0
+    else
+      CURRENT=$(git branch --show-current 2>/dev/null)
+      git rev-parse --verify -q HEAD >/dev/null 2>&1 && HAS_HEAD=1 || HAS_HEAD=0
+    fi
     # Allow when there's nothing to commit onto yet or no branch:
     #   - empty CURRENT = detached HEAD / not a repo
-    #   - HEAD does not resolve = initial commit (unborn branch still reports a
-    #     name via --show-current, so test HEAD separately)
-    if [[ -n "$CURRENT" ]] && git rev-parse --verify -q HEAD >/dev/null 2>&1 \
-       && echo "$CURRENT" | grep -qE "^${PROTECTED}$"; then
+    #   - HEAD does not resolve = initial commit (unborn branch still reports a name)
+    if [[ -n "$CURRENT" && "$HAS_HEAD" == "1" ]] && echo "$CURRENT" | grep -qE "^${PROTECTED}$"; then
       echo "BLOCKED: git commit on protected branch '$CURRENT'." >&2
       echo "Create a feature branch first: git checkout -b feat/<short-description>" >&2
       echo "(or git switch -c fix/<...>), then stage and commit there." >&2
