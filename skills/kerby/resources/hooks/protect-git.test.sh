@@ -214,6 +214,15 @@ run_in "$CWD_FEAT" "git --git-dir=$TGT_MAIN/.git --work-tree=$TGT_MAIN commit -m
 run_in "$CWD_FEAT" "git --git-dir=$TGT_FEAT/.git --work-tree=$TGT_FEAT commit -m x"
 [[ "$RC" -eq 0 ]] && pass "allows: git --git-dir=<repo-on-feature> commit" || fail "--git-dir feature target must allow (got $RC)"
 
+# EVERY commit invocation is checked, not just the first: first targets the
+# feature cwd (allowed), second targets a protected repo via -C → must block.
+run_in "$CWD_FEAT" "git commit -m a; git -C $TGT_MAIN commit -m b"
+[[ "$RC" -eq 2 ]] && pass "blocks: later -C commit to protected repo after an allowed one" || fail "every commit must be checked (got $RC)"
+
+# both commits target allowed (feature) repos → allowed
+run_in "$CWD_FEAT" "git commit -m a; git -C $TGT_FEAT commit -m b"
+[[ "$RC" -eq 0 ]] && pass "allows: multiple commits all on feature repos" || fail "all-feature multi-commit must allow (got $RC)"
+
 echo "---"
 if [[ "$FAILS" -eq 0 ]]; then
   echo "All assertions passed."

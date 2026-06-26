@@ -22,7 +22,9 @@ Added (`hooks/protect-git.sh` section 7):
   commit), matches global options by shape plus the finite set of value-taking globals
   (both `--opt=val` and space forms), and resolves the target repo from `-C` **or**
   `--git-dir` — so `git -c k=v -C <path> commit` and `git --git-dir=<path> commit` (the
-  bare-repo / dotfiles pattern) probe the right repo's branch, not the hook's cwd. A
+  bare-repo / dotfiles pattern) probe the right repo's branch, not the hook's cwd. In a
+  compound command, **every** commit invocation is checked (not just the first), so a
+  later commit to a protected repo can't ride behind an allowed earlier one. A
   single PreToolUse pass can't fully model runtime git — relative cumulative
   `-C`/`--git-dir` and quoted-space paths are a documented residual (see
   `references/threat-model.md`).
