@@ -33,11 +33,14 @@ Scope: [files/components to touch]
   - [file 2]
   Out of scope: [what NOT to touch]
 Budget: ~[N] tool calls
+Model: [tier] ([alias]) — [reason, if upgraded from orchestrator tier]
 Done when:
   ✅ [criterion 1]
   ✅ [criterion 2]
   ✅ Quality gates pass (build + lint + test)
 ```
+
+Omit the `Model:` line when inheriting the orchestrator's tier — include it only on a deliberate upgrade (or downgrade), per the Disclosure Contract.
 
 ### Tool-Call Budget Anchors
 
@@ -91,6 +94,56 @@ When breaking work into parallel sub-agent tasks, prefer **vertical slices** (ea
 Model selection axes (capability tier / reasoning effort / speed lane) AND the canonical default mapping for coding work both live in `sub-agent-coordinator` § Model Selection — Capability, Reasoning, Speed. **kerby inherits both without overrides.**
 
 If a kerby-specific override emerges later (e.g., "for this team, every production-path change is `high` regardless of scope"), add it here as a thin overlay table rather than forking the full matrix.
+
+### Sanctioned tier upgrade (the reverse of "never downgrade")
+
+Default stays **inherit**. But "never silently downgrade" reads in reverse too:
+an *upgrade* above the orchestrator's tier is allowed — and expected — when the
+delegated task is genuinely harder than the orchestrator's tier is sized for.
+`[behavioral]` — no hook enforces model routing; this is judgment, like the
+rest of `sub-agent-coordinator`'s Model Selection axes.
+
+Upgrade the sub-agent to at least `high` when **any** fires — not merely one
+tier above wherever the orchestrator happens to sit. An orchestrator running
+on `low` doesn't get to under-serve a governance-surface or approval-gated
+task by landing at `standard`; `working-patterns.md`'s Complexity Routing
+already says high/critical work gets "the best reasoning model" regardless of
+what routed the delegation there. (From `standard`, this is the
+`standard → high` step described below; from `low`, it's `low → high`, not
+`low → standard`.) The triggers:
+
+- **Approval-gated:** the task's complexity is at or above the fixed grade ≥ 7
+  approval point (`BOOTSTRAP.md`'s user-approval gate — distinct from the
+  lower, configurable `plan_threshold`) — i.e. the same line that already
+  requires user approval before starting. Match the model to the judgment.
+- **Blast-radius override:** the change touches the governance surface — a gate,
+  verdict logic, a Security Lens rule, or a skill's decline/routing block —
+  **regardless of its complexity score**. A low-score edit here is still
+  high-stakes bounded authoring. Score gates ceremony; blast radius gates the model.
+- **Divergence retry:** a `FAILED → TODO` retry on the *code-wrong* branch
+  of an Expected-vs-Realized divergence (`workflows/feature.md` § 7) once
+  it has already hit the circuit breaker (3 no-progress / same-error 3x —
+  the space turned out unknown, not just the first attempt being off). The
+  same applies when a human resumes work after adjudicating an "ambiguous"
+  divergence (feature.md's STOP branch) — a human-confirmed unknown is the
+  same signal. "Prediction wrong" alone never retries — it updates the
+  Expected Outcome and logs, per feature.md § 7.3; it does not reach this
+  trigger. Upgrade tier **and** flip reasoning `on`.
+
+Any upgrade is a deliberate axis change, so it MUST be disclosed per the
+coordinator's Disclosure Contract, e.g.:
+
+    Tier: high (upgraded from orchestrator's standard — complexity 8, approval-gated).
+    Thinking: on (orchestrator had it off — divergence retry, unknown space).
+
+In kerby's own Quick Brief Template (above), the same disclosure collapses
+into the single `Model:` line — don't emit both `Tier:`/`Thinking:` and
+`Model:` for one brief; use whichever field matches the brief shape you're
+writing.
+
+Do **not** upgrade routine work: a complexity 1–3 config change stays at the
+orchestrator tier (or lower). Upgrading everything "just in case" is the waste
+this overlay exists to prevent.
 
 ---
 
