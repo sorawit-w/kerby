@@ -59,6 +59,44 @@ If you need a hook-equivalent in Codex, write it as a shell command in Codex's c
 
 ---
 
+## Sub-Agent Model Pinning (Claude Code)
+
+The tier-upgrade rule in `sub-agent-delegation.md` § Capability Tier needs a
+concrete way to pin a sub-agent's model. Claude Code exposes three, pick by how
+the sub-agent is spawned:
+
+| Spawn shape | Mechanism |
+|---|---|
+| Persistent, reusable sub-agent | `model:` field in the sub-agent's frontmatter (`.claude/agents/*.md`) |
+| One-shot delegation | the Agent/Task tool's `model` parameter |
+| Session-wide default for all sub-agents | `CLAUDE_CODE_SUBAGENT_MODEL` env var |
+
+**Tier → alias binding (quarantined here; the only place it lives):**
+
+    low      → haiku
+    standard → sonnet
+    high     → opus
+
+Use the **aliases**, never dated strings. Claude Code's `opus` / `sonnet` /
+`haiku` aliases auto-resolve to the current flagship, so this binding never rots
+and needs no edit when a new version ships. (As of 2026-06-30: `opus` = Opus 4.8,
+`sonnet` = Sonnet 5, `haiku` = Haiku 4.5 — informational only; do not pin these.)
+
+Blocked-model safety: a blocked sub-agent model override falls back to the
+inherited/default model rather than failing the request — so an upgrade attempt
+degrades gracefully instead of erroring.
+
+**Codex:** no equivalent per-sub-agent model pin in this form. Fall back to
+sequential execution on the session model, or set Codex's own model flag at the
+session level. Best-effort, consistent with the two-vendor doctrine above.
+
+**Orthogonal alternative (interactive sessions):** `opusplan` gives Opus-grade
+planning that auto-drops to Sonnet for execution — zero config, but it keys off
+Claude Code's *native* plan mode, not kerby's `plan_threshold`. Use it when you
+drive interactively; use sub-agent pinning when kerby delegates. They compose.
+
+---
+
 ## GitHub Copilot — hookless, advisory-only
 
 Some teams are *required* to use Copilot (org mandate, no opt-out). Copilot is a harder case than Codex or Cursor on two axes:

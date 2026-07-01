@@ -39,6 +39,7 @@ APPROVAL_FILES=(
   BOOTSTRAP.md
   workflows/feature.md
   agent-context.schema.yaml
+  references/sub-agent-delegation.md
 )
 
 for rel in "${DEFAULT_FILES[@]}" "${APPROVAL_FILES[@]}"; do
