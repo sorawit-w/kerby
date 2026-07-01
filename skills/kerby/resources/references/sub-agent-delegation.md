@@ -103,7 +103,14 @@ delegated task is genuinely harder than the orchestrator's tier is sized for.
 `[behavioral]` — no hook enforces model routing; this is judgment, like the
 rest of `sub-agent-coordinator`'s Model Selection axes.
 
-Upgrade the sub-agent one tier (typically `standard → high`) when **any** fires:
+Upgrade the sub-agent to at least `high` when **any** fires — not merely one
+tier above wherever the orchestrator happens to sit. An orchestrator running
+on `low` doesn't get to under-serve a governance-surface or approval-gated
+task by landing at `standard`; `working-patterns.md`'s Complexity Routing
+already says high/critical work gets "the best reasoning model" regardless of
+what routed the delegation there. (From `standard`, this is the
+`standard → high` step described below; from `low`, it's `low → high`, not
+`low → standard`.) The triggers:
 
 - **Approval-gated:** the task's complexity is at or above the fixed grade ≥ 7
   approval point (`BOOTSTRAP.md`'s user-approval gate — distinct from the

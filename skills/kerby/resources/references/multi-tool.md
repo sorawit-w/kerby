@@ -92,8 +92,13 @@ and needs no edit when a new version ships. (As of 2026-06-30: `opus` = Opus 4.8
 `sonnet` = Sonnet 5, `haiku` = Haiku 4.5 — informational only; do not pin these.)
 
 Blocked-model safety: a blocked sub-agent model override falls back to the
-inherited/default model rather than failing the request — so an upgrade attempt
-degrades gracefully instead of erroring.
+inherited/default model rather than failing the request. That's fine for an
+optional choice, but for the mandatory upgrade triggers above, silent
+fallback means the upgrade gate can appear satisfied while the sub-agent
+actually runs at the lower, un-upgraded tier — no error, no signal. For an
+approval-gated or blast-radius upgrade, verify the resolved model rather than
+assuming the requested alias took effect, and escalate instead of proceeding
+silently if it was blocked.
 
 **Codex:** custom agent files support their own `model` and
 `model_reasoning_effort` fields (inherited from the parent session when
