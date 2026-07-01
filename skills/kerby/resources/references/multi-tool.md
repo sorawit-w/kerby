@@ -71,6 +71,15 @@ the sub-agent is spawned:
 | One-shot delegation | the Agent/Task tool's `model` parameter |
 | Session-wide default for all sub-agents | `CLAUDE_CODE_SUBAGENT_MODEL` env var |
 
+**Precedence — the env var wins.** Claude Code resolves these in a fixed
+order: env var > per-invocation parameter > frontmatter > main conversation's
+model. If a team sets `CLAUDE_CODE_SUBAGENT_MODEL` to a fixed alias (e.g.
+`sonnet`) as a blanket default, this rule's per-invocation/frontmatter
+attempts to upgrade a task to `opus` are silently ignored until the env var is
+unset or set to `inherit` — the tier-upgrade rule then runs at the wrong tier
+with no error. If your team sets this env var, unset it or set it to
+`inherit` before delegating an upgraded task.
+
 **Tier → alias binding (quarantined here; the only place it lives):**
 
     low      → haiku
@@ -86,9 +95,12 @@ Blocked-model safety: a blocked sub-agent model override falls back to the
 inherited/default model rather than failing the request — so an upgrade attempt
 degrades gracefully instead of erroring.
 
-**Codex:** no equivalent per-sub-agent model pin in this form. Fall back to
-sequential execution on the session model, or set Codex's own model flag at the
-session level. Best-effort, consistent with the two-vendor doctrine above.
+**Codex:** custom agent files support their own `model` and
+`model_reasoning_effort` fields (inherited from the parent session when
+omitted) — use those to pin a Codex sub-agent's tier directly, the same
+concept as Claude Code's frontmatter `model:` field. No env-var-level default
+equivalent to `CLAUDE_CODE_SUBAGENT_MODEL` is documented; set per-agent-file
+`model` explicitly on any task that needs an upgrade.
 
 **Orthogonal alternative (interactive sessions):** `opusplan` gives Opus-grade
 planning that auto-drops to Sonnet for execution — zero config, but it keys off

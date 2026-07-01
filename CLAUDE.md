@@ -90,3 +90,16 @@ in the script). If you add a new restatement, add the file to that set.
 The product voice — how kerby *talks* in the README, verdict output, and CHANGELOG — is
 specified in [`VOICE.md`](VOICE.md). Read it before editing any persona-bearing copy; the
 rules and command references stay literal regardless (see its Zoning table).
+
+---
+
+## PR Workflow (repo default)
+
+After opening a PR (base `main`):
+
+0. **Always @codex.** On PR creation AND after every fix push, post a comment mentioning `@codex review` to (re)trigger a review — don't rely on auto-review.
+1. **Poll for Codex review comments every ~5 minutes.** Codex (`chatgpt-codex-connector` bot) reviews on PR open or a `@codex review` comment. Fetch with `gh api repos/{owner}/{repo}/pulls/<n>/comments` (inline) and `gh pr view <n> --json reviews`.
+2. **Address each comment** — fix if valid; **push back if you disagree** (surface disagreement, don't comply blindly). Commit + push fixes, reply on the PR, and re-trigger with a `@codex review` comment. Keep going round after round until clean — don't pause to ask.
+3. **Merge on either green light** (`gh pr merge --squash`), which overrides kerby's "leave for human review" guardrail for this repo:
+   - **Codex approves** — review/comment saying the code looks good / no issues (or 👍 with no open suggestions): merge immediately, don't wait out the timer.
+   - **10-minute silence cap (mandatory)** — if Codex posts no new comments for 10 minutes after the **latest push**, merge once comments are addressed. The cap **resets on every push** (each fix gives Codex a fresh 10-minute window).
