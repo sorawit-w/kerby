@@ -6,7 +6,7 @@
 set -u
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
-VALIDATOR="$SCRIPT_DIR/validate-rulebook.py"
+VALIDATOR="$REPO_ROOT/skills/kerby/resources/scripts/validate-rulebook.py"
 FIXTURES="$REPO_ROOT/.eval/rulebooks"
 BUILTIN_ROOT="$FIXTURES/builtin"
 

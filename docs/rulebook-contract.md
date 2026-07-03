@@ -7,10 +7,13 @@ rulebook root (D1); everything else the rulebook contains is declared in the
 manifest by relative path. **The manifest is the single authority for what a
 rulebook contains — the engine never guesses filenames.**
 
-Mechanical validation: `python3 scripts/validate-rulebook.py <rulebook-dir>`
+Mechanical validation:
+`python3 skills/kerby/resources/scripts/validate-rulebook.py <rulebook-dir>`
 (requires Python ≥ 3.11 for stdlib `tomllib`; the validator has no
-third-party imports). An advisory pass is never a trust grant — the `load`
-flow always re-checks, cheaply when the hash is pinned (D10).
+third-party imports). The validator ships inside the skill bundle so the
+`load` flow can invoke it wherever the skill is installed. An advisory pass
+is never a trust grant — `load` always re-checks, cheaply when the hash is
+pinned (D10).
 
 ## Origins and trust (D6, D7)
 
@@ -81,6 +84,15 @@ Subject type `git_change` provides: `changed_files`, `changed_content`,
   cannot be satisfied by the *current* subject is **skipped and reported** in
   `status` — visible, never silent.
 
+## Loading order
+
+Manifest declaration order is significance order. At load, the engine reads
+eagerly: every prose body with `token_cost = "low"`, plus the **selected**
+rulebook's first-declared prose check — its *root body* (for the builtin
+`code` rulebook that is `operating-rules` → `BOOTSTRAP.md`, preserving the
+classic BOOTSTRAP → references pattern). All other prose loads on demand.
+Extended packs contribute their own low-cost bodies but no root.
+
 ## Merge rules (`extends`)
 
 1. `base` is always merged first, whether or not listed (a rulebook whose
@@ -143,4 +155,5 @@ first successful load; read by every later load.
 - Validation is hash-keyed, not operation-keyed (D10): unknown/changed hash →
   validate (and re-prompt for non-builtin trust); matching pinned hash → skip.
 
-Compute the hash with `python3 scripts/validate-rulebook.py <dir> --hash`.
+Compute the hash with
+`python3 skills/kerby/resources/scripts/validate-rulebook.py <dir> --hash`.

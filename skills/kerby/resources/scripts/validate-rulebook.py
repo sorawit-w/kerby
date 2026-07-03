@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """Validate a kerby rulebook against manifest contract v1.
 
+Ships inside the skill bundle (resources/scripts/) so the load flow can
+invoke it wherever the skill is installed — the repo-level scripts/ dir
+does not travel with the plugin.
+
 Usage:
-    python3 scripts/validate-rulebook.py <rulebook-dir> [options]
+    python3 <install-root>/resources/scripts/validate-rulebook.py <rulebook-dir> [options]
 
 Options:
     --origin {builtin,local}   Trust origin (default: local)
@@ -51,7 +55,8 @@ TOP_REQUIRED = ("id", "version", "contract", "accepts")
 
 
 def default_builtin_root() -> Path:
-    return Path(__file__).resolve().parent.parent / "skills" / "kerby" / "resources" / "rulebooks"
+    # this script lives at <resources>/scripts/; builtins at <resources>/rulebooks/
+    return Path(__file__).resolve().parent.parent / "rulebooks"
 
 
 class Result:

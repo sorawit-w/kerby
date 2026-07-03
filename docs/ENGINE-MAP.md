@@ -132,7 +132,7 @@ registration state (D3/D4) instead of prose assertions.
 | Artifact | Notes |
 |---|---|
 | `SKILL.md` sub-command flows (`load`/`reload`/`status`/`install`/`uninstall`/`prepare`/`audit`) | `load`/`reload`/`status` rewritten in Phase 3 to run through manifests; the rest untouched |
-| `scripts/check-skill-compat.py`, `scripts/check-plan-gate-parity.sh` | unchanged; new sibling `scripts/validate-rulebook.py` |
+| `scripts/check-skill-compat.py`, `scripts/check-plan-gate-parity.sh` | unchanged; new validator ships in the skill bundle at `resources/scripts/validate-rulebook.py` (repo `scripts/` does not travel with the plugin), tested by repo-level `scripts/validate-rulebook.test.sh` |
 | `templates/*` (6), `agent-context.schema.yaml`, `scripts/validate-agent-context.ts` | project-scaffolding machinery |
 | `.ai/` conventions (memory.log, STATUS.md, knowledge/, BLOCKERS.md) | state preservation |
 | `assets/*.svg`, README, CLAUDE.md, VOICE.md | docs/meta |
