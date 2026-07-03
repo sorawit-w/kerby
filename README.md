@@ -106,15 +106,22 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `5.8.0` — closes the **repeated-literal drift gap**. `working-patterns.md`
-long told agents to *inline until a second caller forces the seam* but said nothing about what
-to do once that caller arrives — so the same allowed-values array gets re-typed at each call
-site, copies drift, and a bare literal has no IDE find-usages. The new **Hoist repeated
-literals to a single named source** rule names the move for that moment and draws a hard line
-between *deduplication* (one named in-code constant) and *externalization* (config/env), which
-the existing hardcoded-value rule still governs. See [CHANGELOG.md](CHANGELOG.md).
+Current release: `6.0.0` — the **engine/rulebook split**. kerby is now a domain-blind engine
+(loader, validator, lockfile, verdicts) and the rules are manifest-declared **rulebooks**:
+`base` (the universal, non-overridable floor) composed under `code` (everything kerby has
+always enforced, now declared in `rulebook.toml` instead of hardcoded in the load flow).
+External rulebooks pass a one-time trust review with a hash pin; enforcement degrade is
+visible in `status` instead of implied; adding a rulebook never requires an engine edit.
+No action needed for existing users — `kerby load` behaves as it always has, plus one line
+announcing which rulebook is on duty. See [CHANGELOG.md](CHANGELOG.md) and
+[docs/AUTHORING-RULEBOOKS.md](docs/AUTHORING-RULEBOOKS.md).
 
-Prior release: `5.7.0` — closed the **hollow-pass gap**. `validation.md` long *named* the
+Prior release: `5.8.0` — closed the **repeated-literal drift gap**: the new **Hoist repeated
+literals to a single named source** rule (`working-patterns.md` § Code Standards) names the
+move for the moment a second caller forces the seam, separating *deduplication* (named
+in-code constant) from *externalization* (config/env).
+
+Earlier: `5.7.0` — closed the **hollow-pass gap**. `validation.md` long *named* the
 green runs that prove nothing — always-true assertions, `.only`/`.skip` focused suites — but
 naming a fake is not catching one. `pre-commit-check.sh` now reads the diff: over the *added*
 lines of staged test files it statically flags focused/disabled markers and always-true
