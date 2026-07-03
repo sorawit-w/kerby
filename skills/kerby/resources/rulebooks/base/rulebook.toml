@@ -1,0 +1,58 @@
+# base — the universal floor every rulebook inherits (merge rule 1:
+# always composed first, whether or not listed in `extends`).
+# Contract: docs/rulebook-contract.md. floor = true checks are
+# non-overridable by any config or extending rulebook (D9).
+id = "base"
+version = "1.0.0"
+contract = 1
+accepts = ["*"]
+
+[gate]
+block_on = ["block"]
+hold_on = ["warn"]
+
+[[check]]
+id = "secrets-staged"
+kind = "data"
+needs = ["staged_content"]
+enforcement = "hard"
+enforcer = "hooks/pre-commit-check.sh"   # builtin origin: resources-relative (D6)
+runner = "gitleaks"                       # betterleaks/gitleaks if present, else the built-in regex floor
+severity = "block"
+floor = true
+
+[[check]]
+id = "no-print-secret"
+kind = "prose"
+body = "rules/no-print-secret.md"
+enforcement = "behavioral"                # a hook can't see chat output
+severity = "block"
+floor = true
+token_cost = "low"
+
+[[check]]
+id = "untrusted-agent-artifacts"
+kind = "prose"
+body = "rules/untrusted-agent-artifacts.md"
+enforcement = "behavioral"
+severity = "block"
+floor = true
+token_cost = "medium"
+
+[[check]]
+id = "iron-law-claims"
+kind = "prose"
+body = "rules/iron-law-claims.md"
+enforcement = "behavioral"
+severity = "block"
+floor = true
+token_cost = "medium"
+
+[[check]]
+id = "approval-for-irreversible"
+kind = "prose"
+body = "rules/approval-for-irreversible.md"
+enforcement = "behavioral"
+severity = "block"
+floor = true
+token_cost = "low"

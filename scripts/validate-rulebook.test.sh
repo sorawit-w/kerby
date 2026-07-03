@@ -109,6 +109,22 @@ fi
 python3 "$VALIDATOR" "$FIXTURES/invalid-E03-contract" --builtin-root "$BUILTIN_ROOT" --hash >/dev/null 2>&1
 [[ $? -eq 1 ]] && pass "--hash refuses an invalid rulebook (fail-closed)" || fail "--hash hashed an invalid rulebook"
 
+# --- Real builtin rulebooks validate and cover the ENGINE-MAP declared set ----
+REAL_ROOT="$REPO_ROOT/skills/kerby/resources/rulebooks"
+if [[ -d "$REAL_ROOT/base" ]]; then
+  for rb in base code; do
+    OUT="$(python3 "$VALIDATOR" "$REAL_ROOT/$rb" --origin builtin 2>&1)"; RC=$?
+    [[ "$RC" -eq 0 ]] && pass "real builtin rulebook validates: $rb" || fail "real builtin rulebook invalid: $rb — $OUT"
+  done
+  # Coverage: declared check ids match docs/ENGINE-MAP.md § 9 exactly.
+  BASE_IDS="$(grep -E '^id = "' "$REAL_ROOT/base/rulebook.toml" | sed -E 's/id = "(.*)".*/\1/' | tail -n +2 | sort | tr '\n' ' ')"
+  CODE_IDS="$(grep -E '^id = "' "$REAL_ROOT/code/rulebook.toml" | sed -E 's/id = "(.*)".*/\1/' | tail -n +2 | sort | tr '\n' ' ')"
+  EXPECT_BASE="approval-for-irreversible iron-law-claims no-print-secret secrets-staged untrusted-agent-artifacts "
+  EXPECT_CODE="destructive-git env-read-warning guardrails-scope-security high-stakes-routing hollow-test-heuristic operating-rules protect-env protected-branch-commit quality-gate-tiers security-lens verification-before-completion "
+  [[ "$BASE_IDS" == "$EXPECT_BASE" ]] && pass "base declares the ENGINE-MAP check set" || fail "base check-set drift — got: $BASE_IDS expected: $EXPECT_BASE"
+  [[ "$CODE_IDS" == "$EXPECT_CODE" ]] && pass "code declares the ENGINE-MAP check set" || fail "code check-set drift — got: $CODE_IDS expected: $EXPECT_CODE"
+fi
+
 # --- Validator stays stdlib-only ----------------------------------------------
 BAD_IMPORTS="$(grep -E '^(import|from) ' "$VALIDATOR" | grep -vE '^(import|from) (argparse|hashlib|sys|tomllib|pathlib)\b')"
 if [[ -z "$BAD_IMPORTS" ]]; then
