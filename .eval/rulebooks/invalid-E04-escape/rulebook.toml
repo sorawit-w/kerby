@@ -1,0 +1,13 @@
+# E04: declared path escapes the rulebook root (non-builtin confinement).
+id = "fixture-e04"
+version = "1.0.0"
+contract = 1
+accepts = ["*"]
+
+[[check]]
+id = "escapee"
+kind = "prose"
+body = "../builtin/base/rules/floor-rule.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"

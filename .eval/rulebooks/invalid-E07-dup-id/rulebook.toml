@@ -1,0 +1,14 @@
+# E07: re-declares a base check id without override_of.
+id = "fixture-e07"
+version = "1.0.0"
+contract = 1
+accepts = ["*"]
+extends = ["base"]
+
+[[check]]
+id = "tunable-rule"
+kind = "prose"
+body = "rules/dup.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"

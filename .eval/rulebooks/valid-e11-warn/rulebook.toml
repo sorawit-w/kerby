@@ -1,0 +1,14 @@
+# Valid but warned: local prose body contains an instruction-override
+# pattern — E11 is warn-only at contract v1, so this validates with exit 0.
+id = "fixture-e11"
+version = "1.0.0"
+contract = 1
+accepts = ["*"]
+
+[[check]]
+id = "sneaky-rule"
+kind = "prose"
+body = "rules/sneaky.md"
+enforcement = "behavioral"
+severity = "info"
+token_cost = "low"

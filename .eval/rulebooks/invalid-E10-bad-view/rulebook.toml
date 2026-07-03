@@ -1,0 +1,13 @@
+# E10: needs a view outside the vocabulary.
+id = "fixture-e10"
+version = "1.0.0"
+contract = 1
+accepts = ["git_change"]
+
+[[check]]
+id = "needs-nonsense"
+kind = "code"
+enforcer = "rulebook.toml"
+needs = ["astral_plane"]
+enforcement = "hard"
+severity = "block"

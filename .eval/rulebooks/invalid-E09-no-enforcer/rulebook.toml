@@ -1,0 +1,13 @@
+# E09: enforcement 'hard' requires an enforcer.
+id = "fixture-e09"
+version = "1.0.0"
+contract = 1
+accepts = ["git_change"]
+
+[[check]]
+id = "unenforced-hard"
+kind = "code"
+entry = "rulebook.toml"
+needs = ["branch"]
+enforcement = "hard"
+severity = "block"

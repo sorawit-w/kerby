@@ -1,0 +1,13 @@
+# Happy path: a minimal local prose-only rulebook.
+id = "fixture-minimal"
+version = "1.0.0"
+contract = 1
+accepts = ["*"]
+
+[[check]]
+id = "one-rule"
+kind = "prose"
+body = "rules/one-rule.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"

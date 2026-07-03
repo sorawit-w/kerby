@@ -1,0 +1,5 @@
+# E03: targets a contract version this engine does not support.
+id = "fixture-e03"
+version = "1.0.0"
+contract = 2
+accepts = ["*"]

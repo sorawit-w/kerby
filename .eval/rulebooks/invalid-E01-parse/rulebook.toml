@@ -1,0 +1,5 @@
+# E01: not valid TOML — unterminated string.
+id = "fixture-e01
+version = "1.0.0"
+contract = 1
+accepts = ["*"]
