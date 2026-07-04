@@ -49,7 +49,7 @@ kerby routes every task to one of **five task-shape playbooks** under [`rulebook
 | Docs / config / single-file edit (complexity 1–3) | [`quick-task.md`](rulebooks/code/workflows/quick-task.md) | Fit-check, in-place branch, do → check → commit. Escalates to `feature` if it outgrows the bounds. |
 | ⚠️ **High-stakes** — auth · payments · migrations · infra · CI · prod-traffic values | always [`feature.md`](rulebooks/code/workflows/feature.md) | Override: blast radius isn't bounded by LOC, so these route to `feature` even for one-line edits — **never `quick-task`**. |
 
-![How kerby routes a task to a workflow file: five task types map to five workflow files; feature/refactor/debt converge on feature.md, docs/config/one-file go to quick-task.md, and a high-stakes override reroutes quick-task work to feature.md.](assets/workflow-routing.svg)
+![How kerby routes a task to a workflow file: five task types map to five workflow files; feature/refactor/debt converge on feature.md, docs/config/one-file go to quick-task.md, and a high-stakes override reroutes quick-task work to feature.md.](rulebooks/code/assets/workflow-routing.svg)
 
 ### Where kerby sits in the loop
 
@@ -57,11 +57,11 @@ kerby is a **governor, not an actor** — it shapes how each step is done (rules
 
 **Feature loop** — `Plan → Do → Check → Commit gate → Log → repeat → Validate + finish`. Test-first is a preference *inside* `Do`, not a leading phase; the commit gate runs the full `build · lint · test` on **every** iteration, not once at the end.
 
-![kerby's place in the agent's feature task loop: the agent runs plan, do, check, commit gate, log, repeat, then validate and finish; kerby shapes each step as a rule (teal) and hard-blocks at the amber commit gate via hooks; a failing gate triggers a retry budget then revert.](assets/feature-loop.svg)
+![kerby's place in the agent's feature task loop: the agent runs plan, do, check, commit gate, log, repeat, then validate and finish; kerby shapes each step as a rule (teal) and hard-blocks at the amber commit gate via hooks; a failing gate triggers a retry budget then revert.](rulebooks/code/assets/feature-loop.svg)
 
 **Bugfix loop** — same commit gate and failure branch, different front half: `Reproduce → Diagnose (root cause) → Fix (failing test → minimal fix) → commit gate → finish`. It does **not** start by writing tests; the failing test comes after diagnosis, inside `Fix`.
 
-![kerby's place in the agent's bugfix task loop: reproduce, diagnose the root cause within bounded hypotheses, fix (failing test then minimal change), commit gate, validate and finish; same teal rules / amber gate legend as the feature loop, with the same retry-then-revert failure branch.](assets/bugfix-loop.svg)
+![kerby's place in the agent's bugfix task loop: reproduce, diagnose the root cause within bounded hypotheses, fix (failing test then minimal change), commit gate, validate and finish; same teal rules / amber gate legend as the feature loop, with the same retry-then-revert failure branch.](rulebooks/code/assets/bugfix-loop.svg)
 
 In both loops the legend is the same — **agent acts** (gray) / **kerby rule** (teal) / **kerby gate / hook** (amber):
 

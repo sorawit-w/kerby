@@ -122,11 +122,16 @@ def check_top_level(data: dict, res: Result):
         res.error("E02", "manifest: 'description' must be a string")
 
 
-def check_commands(data: dict, root: Path, builtin_root: Path, res: Result, declared_files: list[Path]) -> None:
+def check_commands(data: dict, root: Path, builtin_root: Path, origin: str, res: Result, declared_files: list[Path]) -> None:
     """[[command]] — user-invocable rulebook commands (contract 2, V2/V16).
     E13 = name collisions (reserved engine names, builtin rulebook ids,
     duplicates within this rulebook); E14 = command shape. Bodies are declared
-    files: they resolve folder-confined (E04) and enter the trust hash."""
+    files: they resolve folder-confined (E04) and enter the trust hash — and,
+    for a non-builtin rulebook, get the same E11 prose-injection lint a prose
+    check body gets. A command body is read as agent instructions at dispatch,
+    but the trust prompt shows only the command's name/description, so without
+    this lint an external rulebook could smuggle an injection phrase past the
+    approval the user relies on."""
     commands = data.get("command")
     if commands is None:
         return
@@ -159,6 +164,8 @@ def check_commands(data: dict, root: Path, builtin_root: Path, res: Result, decl
             resolved = resolve_declared(body, root, label, res)
             if resolved is not None:
                 declared_files.append(resolved)
+                if origin != "builtin":
+                    lint_prose(resolved, label, res)
         cdesc = cmd.get("description")
         if not isinstance(cdesc, str) or not cdesc.strip():
             res.error("E14", f"{label}: 'description' must be a non-empty string (shown in dispatch listings and the trust prompt)")
@@ -609,7 +616,7 @@ def validate(root: Path, origin: str, builtin_root: Path, config_path: Path | No
         except (OSError, tomllib.TOMLDecodeError) as e:
             res.error("E01", f"config {config_path}: unreadable or unparseable: {e}")
     declared = merge_and_check(data, root, origin, builtin_root, config_gate, res)
-    check_commands(data, root, builtin_root, res, declared)
+    check_commands(data, root, builtin_root, origin, res, declared)
     return res, declared
 
 
