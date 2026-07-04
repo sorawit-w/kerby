@@ -218,8 +218,14 @@ def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, res
     if not isinstance(extends, list) or not all(isinstance(e, str) for e in extends):
         res.error("E02", "manifest: 'extends' must be an array of rulebook ids")
         extends = []
-    if rid != "base" and "base" not in extends:
-        extends = ["base"] + extends  # merge rule 1: base is implicit-mandatory
+    # merge rule 1: base is implicit-mandatory. Only the real builtin base
+    # rulebook is exempt from merging itself — `id` is untrusted manifest
+    # data for any non-builtin origin, so a local/remote rulebook claiming
+    # id="base" must not skip the floor merge (that would let it bypass
+    # every non-overridable check by simply naming itself "base").
+    is_real_base = origin == "builtin" and rid == "base"
+    if not is_real_base and "base" not in extends:
+        extends = ["base"] + extends
 
     merged: dict[str, dict] = {}  # id -> check (extended packs first)
     for pack_id in extends:
