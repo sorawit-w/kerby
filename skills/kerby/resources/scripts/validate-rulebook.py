@@ -485,32 +485,42 @@ def lint_prose(path: Path, cid: str, res: Result):
             res.warn("E11", f"check '{cid}': prose body contains instruction-override pattern ('{pattern}'); review before trusting")
 
 
-def compute_hash(root: Path, declared: list[Path]) -> str:
-    """sha256 over the manifest plus every declared file, each **framed** by its
-    root-relative path and byte length.
+def compute_hash(root: Path) -> str:
+    """sha256 over **every file in the rulebook folder**, each **framed** by its
+    root-relative path and byte length, ordered by that path.
 
-    A bare byte-concatenation is ambiguous: with two or more declared files, an
-    edit can move bytes across a file boundary — e.g. from an on-demand body
-    into the eagerly-loaded root body, changing what actually enters context —
-    while keeping the concatenated stream, and thus the hash, identical. That
-    would let the loader skip the re-approval the hash-keyed trust prompt is
-    meant to force. Length-prefixing each file (and binding its path) commits
-    the boundaries so any cross-file move changes the digest. Keys are
-    root-relative (POSIX) so the hash is stable regardless of where the rulebook
-    sits on disk; files are ordered by that key for determinism."""
+    Not just manifest-*declared* files. A rulebook's instructions dispatch to
+    files the manifest never declares: BOOTSTRAP's reference index reads every
+    `references/*.md`, command bodies read their `references/`/`workflows/`
+    targets, workflows drive multi-step edits to user files. If the trust hash
+    covered only declared files, those undeclared-but-behavior-bearing files
+    would be a mutable-after-approval instruction channel — edit only
+    `references/audit.md` (or a workflow) after the user approved a local/remote
+    rulebook and the stored SHA still matches, so a later load skips the trust
+    prompt while the command follows new, unapproved instructions (indirect
+    prompt injection). Covering the whole folder closes that channel and removes
+    any "is this file behavior-bearing?" classification an attacker could hide
+    instructions behind. The cost: editing *any* file (a README included)
+    re-triggers approval for a local/remote rulebook — the safe direction for
+    untrusted content. Builtins are repo-versioned (`sha256: null`) and are
+    never trust-gated by this hash, so their READMEs cost nothing.
+
+    A bare byte-concatenation is ambiguous: an edit can move bytes across a file
+    boundary while keeping the concatenated stream, and thus the hash,
+    identical. Length-prefixing each file (and binding its path) commits the
+    boundaries so any cross-file move changes the digest. Keys are root-relative
+    (POSIX) so the hash is stable regardless of where the rulebook sits on disk.
+    Symlinks and any `.git/` metadata are skipped — a clone has its `.git/`
+    removed at fetch, and a symlink is not first-class rulebook content."""
     root_r = root.resolve()
     entries: list[tuple[str, Path]] = []
-    for f in [root / "rulebook.toml"] + list(set(declared)):
-        fr = f.resolve()
-        try:
-            key = fr.relative_to(root_r).as_posix()
-        except ValueError:
-            # Defensive only: under contract 2 every declared file is
-            # folder-confined (resolve_declared rejects any escape, E04), so a
-            # declared path cannot resolve outside root and this branch is
-            # unreachable in practice. Kept as a non-crashing fallback.
-            key = fr.name
-        entries.append((key, fr))
+    for f in root_r.rglob("*"):
+        if f.is_symlink() or not f.is_file():
+            continue
+        rel = f.relative_to(root_r)
+        if ".git" in rel.parts:
+            continue
+        entries.append((rel.as_posix(), f))
     h = hashlib.sha256()
     for key, fr in sorted(entries):
         data = fr.read_bytes()
@@ -575,7 +585,7 @@ def main() -> int:
                 print(e, file=sys.stderr)
             print("invalid: refusing to hash an invalid rulebook (fail-closed)", file=sys.stderr)
             return 1
-        print(compute_hash(root, declared))
+        print(compute_hash(root))
         return 0
 
     for w in res.warnings:

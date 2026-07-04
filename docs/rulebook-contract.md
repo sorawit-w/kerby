@@ -172,9 +172,21 @@ first successful load; read by every later load.
 - `remote` entries carry `path_or_url` = the source URL (identity) and
   `local_path` = the clone dir — re-derived from the id at load, never trusted
   from the file.
-- `sha256` covers the manifest **plus every declared file** (a manifest-only
-  hash would let a declared body mutate silently). `builtin` entries may set
-  it `null` — they are repo-versioned.
+- `sha256` covers **every file in the rulebook folder**, each framed by its
+  root-relative path and byte length (not just manifest-*declared* files). A
+  rulebook's instructions dispatch to files the manifest never declares —
+  BOOTSTRAP's reference index reads every `references/*.md`, command bodies read
+  their `references/`/`workflows/` targets, workflows drive edits to user files.
+  Hashing only declared files would leave those undeclared-but-behavior-bearing
+  files a mutable-after-approval instruction channel (edit only a reference or
+  workflow after approval, the SHA still matches, a later load skips the trust
+  prompt while the command follows unapproved instructions — indirect prompt
+  injection). Whole-folder coverage closes that channel and removes any
+  "is this file behavior-bearing?" classification an attacker could hide
+  behind; the cost is that editing *any* file (a README included) re-triggers
+  approval for a local/remote rulebook — the safe direction for untrusted
+  content. Symlinks and `.git/` metadata are skipped. `builtin` entries may set
+  `sha256` `null` — they are repo-versioned and never trust-gated by this hash.
 - Validation is hash-keyed, not operation-keyed (D10): unknown/changed hash →
   validate (and re-prompt for non-builtin trust); matching pinned hash → skip
   **for builtins only**. For a `local` rulebook the project lockfile is

@@ -179,6 +179,24 @@ else
   fail "hash unchanged after moving bytes across a file boundary ($HB1 vs $HB2)"
 fi
 
+# Undeclared-but-present files are covered too: the trust hash spans the whole
+# rulebook folder, so tampering a file the manifest never declares (a reference
+# or workflow a command body reads) still changes the digest. Without this an
+# approved local/remote rulebook could have its instructions swapped after
+# approval while the stored SHA stayed valid — indirect prompt injection.
+TMP_UND="$(mktemp -d "$TMP_DETECT/und.XXXX")"
+cp -R "$FIXTURES/valid-minimal/." "$TMP_UND/"
+mkdir -p "$TMP_UND/references"
+printf 'approved instructions' > "$TMP_UND/references/extra.md"
+HU1="$(python3 "$VALIDATOR" "$TMP_UND" --builtin-root "$BUILTIN_ROOT" --hash)"
+printf ' TAMPERED' >> "$TMP_UND/references/extra.md"
+HU2="$(python3 "$VALIDATOR" "$TMP_UND" --builtin-root "$BUILTIN_ROOT" --hash)"
+if [[ -n "$HU1" && "$HU1" != "$HU2" ]]; then
+  pass "hash covers undeclared folder files (reference/workflow tamper is caught)"
+else
+  fail "hash unchanged after tampering an undeclared folder file ($HU1 vs $HU2)"
+fi
+
 # --- Real builtin rulebooks validate and cover the ENGINE-MAP declared set ----
 REAL_ROOT="$REPO_ROOT/skills/kerby/rulebooks"
 if [[ -d "$REAL_ROOT/base" ]]; then
