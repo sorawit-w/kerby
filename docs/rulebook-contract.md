@@ -132,7 +132,7 @@ everything else is an error (exit 1). E02-unknown-event also warns.
 | E01 | manifest parses as TOML |
 | E02 | required fields present, types correct (`id`, `version`, `contract`, `accepts`; per check: `id`, `kind`, `enforcement`, `severity`) |
 | E03 | `contract` supported by this engine (currently: 2) |
-| E04 | declared paths exist and are readable; non-builtin paths resolve inside the rulebook root (no `..` / absolute / symlink escape) |
+| E04 | declared paths exist and are readable; non-builtin paths resolve inside the rulebook root (no `..` / absolute / symlink escape); no symlinks or `.git/` anywhere under the folder; the manifest `id` is a strict slug (it becomes a path component at `.kerby/rulebooks/<id>`, so `..` / slashes / absolute are rejected before any move or pin) |
 | E05 | no base check removed or shadowed; `override_of` never targets `floor = true` |
 | E06 | `[gate]` + config only tighten; never below the floor |
 | E07 | `id` unique across the merged set |

@@ -103,8 +103,17 @@ def check_top_level(data: dict, res: Result):
     for field in TOP_REQUIRED:
         if field not in data:
             res.error("E02", f"manifest: missing required field '{field}'")
-    if not isinstance(data.get("id", ""), str):
+    rulebook_id = data.get("id", "")
+    if not isinstance(rulebook_id, str):
         res.error("E02", "manifest: 'id' must be a string")
+    elif not RULEBOOK_ID_RE.match(rulebook_id):
+        # The id becomes a path component (a remote clone / pin materializes at
+        # `.kerby/rulebooks/<id>`), so it must be a strict slug — never a value
+        # like `../escape`, an absolute path, or one containing a slash, which
+        # would let the clone/pin escape its directory. Enforce it here in the
+        # authoritative validation, before any move/pin uses the id (loader prose
+        # cannot be the only gate).
+        res.error("E04", f"manifest: 'id' {rulebook_id!r} is not a valid rulebook id — must be a slug (lowercase alphanumeric with single hyphens, e.g. 'my-rulebook'); the id is used as a path component, so `..`, slashes, or absolute paths are rejected")
     if not isinstance(data.get("version", ""), str):
         res.error("E02", "manifest: 'version' must be a string")
     contract = data.get("contract")

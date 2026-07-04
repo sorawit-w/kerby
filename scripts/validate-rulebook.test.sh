@@ -182,6 +182,32 @@ else
   fail "expected exit 1 + E04 on a symlinked rulebook file, got exit $RC: $OUT"
 fi
 
+# A non-slug rulebook id is rejected (E04): the id becomes a path component
+# (a remote clone/pin materializes at .kerby/rulebooks/<id>), so '../escape' or a
+# slash must be refused in the authoritative validation, before any move/pin.
+TMP_IDESC="$(mktemp -d)"
+cp -R "$FIXTURES/valid-minimal/." "$TMP_IDESC/"
+cat > "$TMP_IDESC/rulebook.toml" <<'RB'
+id = "../escape"
+version = "1.0.0"
+contract = 2
+accepts = ["*"]
+[[check]]
+id = "one-rule"
+kind = "prose"
+body = "rules/one-rule.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"
+RB
+run "$TMP_IDESC"
+rm -rf "$TMP_IDESC"
+if [[ "$RC" -eq 1 ]] && echo "$OUT" | grep -q "E04:"; then
+  pass "non-slug rulebook id ('../escape') is rejected (E04)"
+else
+  fail "expected exit 1 + E04 on a traversal rulebook id, got exit $RC: $OUT"
+fi
+
 # A `.git/` path under the rulebook is rejected (E04): the trust hash skips
 # `.git`, so a declared/body-read file there (resolve_declared accepts it as
 # in-folder) would be an agent-readable, hash-blind, mutable-after-approval
