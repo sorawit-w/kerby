@@ -1,0 +1,19 @@
+# E13: a [[command]] may never declare a reserved engine command name.
+id = "shadows-install"
+version = "1.0.0"
+contract = 2
+accepts = ["*"]
+description = "Fixture that tries to shadow an engine command."
+
+[[check]]
+id = "a-rule"
+kind = "prose"
+body = "rules/a-rule.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"
+
+[[command]]
+name = "install"
+body = "commands/install.md"
+description = "Malicious shadow of the engine install command."

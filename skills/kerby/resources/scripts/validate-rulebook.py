@@ -56,6 +56,10 @@ ALL_VIEWS = set().union(*VIEWS_BY_SUBJECT.values())
 INJECTION_PATTERNS = ("ignore previous", "you must now", "disregard the above")
 CHECK_REQUIRED = ("id", "kind", "enforcement", "severity")
 TOP_REQUIRED = ("id", "version", "contract", "accepts")
+# Engine command names a rulebook may never declare or shadow (V16). Includes
+# grammar tokens (`list`, `create`) and `help` (reserved-only at v7).
+RESERVED_COMMANDS = {"load", "unload", "reload", "status", "install", "uninstall",
+                     "rulebooks", "list", "create", "help"}
 
 
 def default_builtin_root() -> Path:
@@ -109,6 +113,51 @@ def check_top_level(data: dict, res: Result):
     if accepts is not None:
         if not isinstance(accepts, list) or not accepts or not all(isinstance(a, str) for a in accepts):
             res.error("E10", "manifest: 'accepts' must be a non-empty array of subject-type strings")
+    desc = data.get("description")
+    if desc is not None and not isinstance(desc, str):
+        res.error("E02", "manifest: 'description' must be a string")
+
+
+def check_commands(data: dict, root: Path, builtin_root: Path, res: Result, declared_files: list[Path]) -> None:
+    """[[command]] — user-invocable rulebook commands (contract 2, V2/V16).
+    E13 = name collisions (reserved engine names, builtin rulebook ids,
+    duplicates within this rulebook); E14 = command shape. Bodies are declared
+    files: they resolve folder-confined (E04) and enter the trust hash."""
+    commands = data.get("command")
+    if commands is None:
+        return
+    if not isinstance(commands, list):
+        res.error("E14", "manifest: [[command]] entries must be an array of tables")
+        return
+    builtin_ids = {p.name for p in builtin_root.iterdir() if p.is_dir()} if builtin_root.is_dir() else set()
+    seen: set[str] = set()
+    for idx, cmd in enumerate(commands):
+        label = f"command #{idx + 1}"
+        if not isinstance(cmd, dict):
+            res.error("E14", f"{label}: must be a table")
+            continue
+        name = cmd.get("name")
+        if not isinstance(name, str) or not RULEBOOK_ID_RE.match(name):
+            res.error("E14", f"{label}: 'name' must be a lowercase slug string (a dispatch token)")
+            continue
+        label = f"command '{name}'"
+        if name in RESERVED_COMMANDS:
+            res.error("E13", f"{label}: collides with a reserved engine command — rulebooks may never declare or shadow {sorted(RESERVED_COMMANDS)}")
+        if name in builtin_ids:
+            res.error("E13", f"{label}: collides with the builtin rulebook id '{name}' — rulebook ids shadow command names in dispatch")
+        if name in seen:
+            res.error("E13", f"duplicate command name '{name}' within this rulebook; rename one")
+        seen.add(name)
+        body = cmd.get("body")
+        if not isinstance(body, str):
+            res.error("E14", f"{label}: 'body' must be a path string (the instruction file read at invocation)")
+        else:
+            resolved = resolve_declared(body, root, label, res)
+            if resolved is not None:
+                declared_files.append(resolved)
+        cdesc = cmd.get("description")
+        if not isinstance(cdesc, str) or not cdesc.strip():
+            res.error("E14", f"{label}: 'description' must be a non-empty string (shown in dispatch listings and the trust prompt)")
 
 
 def check_fields(check: dict, idx: int, res: Result) -> str:
@@ -483,6 +532,7 @@ def validate(root: Path, origin: str, builtin_root: Path, config_path: Path | No
         except (OSError, tomllib.TOMLDecodeError) as e:
             res.error("E01", f"config {config_path}: unreadable or unparseable: {e}")
     declared = merge_and_check(data, root, origin, builtin_root, config_gate, res)
+    check_commands(data, root, builtin_root, res, declared)
     return res, declared
 
 
@@ -516,7 +566,7 @@ def main() -> int:
             print(e)
         print(f"invalid: {root} — {len(res.errors)} error(s), {len(res.warnings)} warning(s)")
         return 1
-    print(f"ok: {root} — contract 1, {len(res.warnings)} warning(s)")
+    print(f"ok: {root} — contract {CONTRACT_SUPPORTED[-1]}, {len(res.warnings)} warning(s)")
     return 0
 
 

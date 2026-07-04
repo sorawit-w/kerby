@@ -1,0 +1,19 @@
+# A rulebook declaring a user-invocable command (contract 2, [[command]]).
+id = "with-commands"
+version = "1.0.0"
+contract = 2
+accepts = ["*"]
+description = "Fixture rulebook that provides a command."
+
+[[check]]
+id = "a-rule"
+kind = "prose"
+body = "rules/a-rule.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"
+
+[[command]]
+name = "review"
+body = "commands/review.md"
+description = "Run the fixture review flow."
