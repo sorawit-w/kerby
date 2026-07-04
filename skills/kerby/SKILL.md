@@ -195,7 +195,7 @@ Same procedure as `load` — the pin in `.kerby/rulebooks.lock` is read, never r
 
 ## `unload`
 
-Remove a rulebook from the selection: drop `<id>` from `selected` in the lockfile and confirm in one line (`unloaded <id>; selection is now <list>`). `base` is not in `selected` and cannot be unloaded — say so if asked. Unloading does not delete any files, approval records, or registered hooks (that is `uninstall`'s job); a later `load +<id>` re-selects it without a fresh trust prompt while its hash still matches the user-local approval.
+Remove a rulebook from the selection: drop `<id>` from `selected` in the lockfile and confirm in one line (`unloaded <id>; selection is now <list>`). **The removability test is presence in `selected`, not the id string.** The install-resolved builtin **floor** is never a `selected` member (it is composed into every load implicitly), so `unload base` *referring to the floor* has nothing to drop — say so if asked. But a `local`/`remote` rulebook that merely declares `id = "base"` (an untrusted id string — § origin rules honor it) is an ordinary `selected` member, and `unload base` removes **that** entry like any other: only the floor is non-removable, and it can't be a `selected` id anyway. So resolve `unload <id>` by `selected` membership — if `<id>` is in `selected`, drop it (even when `<id>` is `base`); if `<id>` is `base` and *not* in `selected`, it's the floor and there is nothing to unload. Unloading does not delete any files, approval records, or registered hooks (that is `uninstall`'s job); a later `load +<id>` re-selects it without a fresh trust prompt while its hash still matches the user-local approval.
 
 ---
 
