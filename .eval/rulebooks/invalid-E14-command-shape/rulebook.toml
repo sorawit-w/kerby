@@ -1,0 +1,18 @@
+# E14: command shape — body must be a path string, description non-empty.
+id = "bad-command-shape"
+version = "1.0.0"
+contract = 2
+accepts = ["*"]
+description = "Fixture with a malformed command."
+
+[[check]]
+id = "a-rule"
+kind = "prose"
+body = "rules/a-rule.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"
+
+[[command]]
+name = "broken"
+description = ""

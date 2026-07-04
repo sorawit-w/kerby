@@ -6,7 +6,7 @@
 
 A Claude Code skill that loads **one specific person's** operating system for agentic coding into your session — branching discipline, commit cadence, verification gates, sub-agent delegation triggers, ambiguity-before-cost rules, and a small amount of taste about how rules themselves should be written.
 
-> ⚠️ **Read this before installing.** This skill is **deliberately, aggressively opinionated.** It captures *one author's* personal taste, accumulated from years of breaking and fixing things while pairing with agents. It is **not** a "best-practice" guide or a neutral default. The choices are personal, sometimes contrarian, and load on every session that uses them — there is a real input-token cost. **Read `resources/BOOTSTRAP.md` end-to-end before adopting. Fork, edit, or skip rules that don't fit your taste.** The skill provides a frame; your judgment is what makes it useful.
+> ⚠️ **Read this before installing.** This skill is **deliberately, aggressively opinionated.** It captures *one author's* personal taste, accumulated from years of breaking and fixing things while pairing with agents. It is **not** a "best-practice" guide or a neutral default. The choices are personal, sometimes contrarian, and load on every session that uses them — there is a real input-token cost. **Read `rulebooks/code/BOOTSTRAP.md` end-to-end before adopting. Fork, edit, or skip rules that don't fit your taste.** The skill provides a frame; your judgment is what makes it useful.
 
 ## Why this exists
 
@@ -38,18 +38,18 @@ None are required — `kerby` works on its own. They sharpen the edges where it 
 
 ## Workflows
 
-kerby routes every task to one of **five task-shape playbooks** under [`resources/workflows/`](resources/workflows/) — the agent reads the matching file instead of improvising from memory. The files are the single source of truth; the table below names and links them.
+kerby routes every task to one of **five task-shape playbooks** under [`rulebooks/code/workflows/`](rulebooks/code/workflows/) — the agent reads the matching file instead of improvising from memory. The files are the single source of truth; the table below names and links them.
 
 | Task | Workflow | What it does |
 |---|---|---|
-| New project (no code) | [`new-project.md`](resources/workflows/new-project.md) | Greenfield setup from requirements — branch, scaffold, fill `agent-context.yaml`, `ROADMAP.md`, verify. |
-| Existing code, no kerby artifacts yet | [`adopt-existing.md`](resources/workflows/adopt-existing.md) | Onboard an existing repo (the `prepare` sub-command) — derive context artifacts from code + git history, tiered by inferability, diff-and-confirm on every write. |
-| Feature / enhancement / refactor / tech debt | [`feature.md`](resources/workflows/feature.md) | Plan, then the task loop (do → check → commit gate → log → repeat), then validate + finish. |
-| Bug fix | [`bugfix.md`](resources/workflows/bugfix.md) | Reproduce → diagnose root cause (≤3 hypotheses) → failing test + minimal fix → commit gate → finish. |
-| Docs / config / single-file edit (complexity 1–3) | [`quick-task.md`](resources/workflows/quick-task.md) | Fit-check, in-place branch, do → check → commit. Escalates to `feature` if it outgrows the bounds. |
-| ⚠️ **High-stakes** — auth · payments · migrations · infra · CI · prod-traffic values | always [`feature.md`](resources/workflows/feature.md) | Override: blast radius isn't bounded by LOC, so these route to `feature` even for one-line edits — **never `quick-task`**. |
+| New project (no code) | [`new-project.md`](rulebooks/code/workflows/new-project.md) | Greenfield setup from requirements — branch, scaffold, fill `agent-context.yaml`, `ROADMAP.md`, verify. |
+| Existing code, no kerby artifacts yet | [`adopt-existing.md`](rulebooks/code/workflows/adopt-existing.md) | Onboard an existing repo (the `prepare` sub-command) — derive context artifacts from code + git history, tiered by inferability, diff-and-confirm on every write. |
+| Feature / enhancement / refactor / tech debt | [`feature.md`](rulebooks/code/workflows/feature.md) | Plan, then the task loop (do → check → commit gate → log → repeat), then validate + finish. |
+| Bug fix | [`bugfix.md`](rulebooks/code/workflows/bugfix.md) | Reproduce → diagnose root cause (≤3 hypotheses) → failing test + minimal fix → commit gate → finish. |
+| Docs / config / single-file edit (complexity 1–3) | [`quick-task.md`](rulebooks/code/workflows/quick-task.md) | Fit-check, in-place branch, do → check → commit. Escalates to `feature` if it outgrows the bounds. |
+| ⚠️ **High-stakes** — auth · payments · migrations · infra · CI · prod-traffic values | always [`feature.md`](rulebooks/code/workflows/feature.md) | Override: blast radius isn't bounded by LOC, so these route to `feature` even for one-line edits — **never `quick-task`**. |
 
-![How kerby routes a task to a workflow file: five task types map to five workflow files; feature/refactor/debt converge on feature.md, docs/config/one-file go to quick-task.md, and a high-stakes override reroutes quick-task work to feature.md.](assets/workflow-routing.svg)
+![How kerby routes a task to a workflow file: five task types map to five workflow files; feature/refactor/debt converge on feature.md, docs/config/one-file go to quick-task.md, and a high-stakes override reroutes quick-task work to feature.md.](rulebooks/code/assets/workflow-routing.svg)
 
 ### Where kerby sits in the loop
 
@@ -57,11 +57,11 @@ kerby is a **governor, not an actor** — it shapes how each step is done (rules
 
 **Feature loop** — `Plan → Do → Check → Commit gate → Log → repeat → Validate + finish`. Test-first is a preference *inside* `Do`, not a leading phase; the commit gate runs the full `build · lint · test` on **every** iteration, not once at the end.
 
-![kerby's place in the agent's feature task loop: the agent runs plan, do, check, commit gate, log, repeat, then validate and finish; kerby shapes each step as a rule (teal) and hard-blocks at the amber commit gate via hooks; a failing gate triggers a retry budget then revert.](assets/feature-loop.svg)
+![kerby's place in the agent's feature task loop: the agent runs plan, do, check, commit gate, log, repeat, then validate and finish; kerby shapes each step as a rule (teal) and hard-blocks at the amber commit gate via hooks; a failing gate triggers a retry budget then revert.](rulebooks/code/assets/feature-loop.svg)
 
 **Bugfix loop** — same commit gate and failure branch, different front half: `Reproduce → Diagnose (root cause) → Fix (failing test → minimal fix) → commit gate → finish`. It does **not** start by writing tests; the failing test comes after diagnosis, inside `Fix`.
 
-![kerby's place in the agent's bugfix task loop: reproduce, diagnose the root cause within bounded hypotheses, fix (failing test then minimal change), commit gate, validate and finish; same teal rules / amber gate legend as the feature loop, with the same retry-then-revert failure branch.](assets/bugfix-loop.svg)
+![kerby's place in the agent's bugfix task loop: reproduce, diagnose the root cause within bounded hypotheses, fix (failing test then minimal change), commit gate, validate and finish; same teal rules / amber gate legend as the feature loop, with the same retry-then-revert failure branch.](rulebooks/code/assets/bugfix-loop.svg)
 
 In both loops the legend is the same — **agent acts** (gray) / **kerby rule** (teal) / **kerby gate / hook** (amber):
 
@@ -71,7 +71,7 @@ In both loops the legend is the same — **agent acts** (gray) / **kerby rule** 
 
 ## What it does
 
-- **Loads `resources/BOOTSTRAP.md`** into the current session via the `Read` tool, so the rules enter conversation context as a tool result (not a paraphrase).
+- **Loads `rulebooks/code/BOOTSTRAP.md`** into the current session via the `Read` tool, so the rules enter conversation context as a tool result (not a paraphrase).
 - **Seven sub-commands** routed via the `args` parameter: `load` (default), `reload`, `status`, `install`, `uninstall`, `prepare`, `audit`.
 - **Per-project install** appends a single instruction line to your `CLAUDE.md` / `AGENTS.md` / `AI-CONTEXT.md` / `.cursorrules` so future sessions auto-invoke `kerby` at start. **Per-file confirmation required — never silent.**
 - **Compaction-safe.** Long sessions can strip earlier context; `args: status` checks whether BOOTSTRAP markers are still present, `args: reload` re-injects them.
@@ -93,7 +93,7 @@ In both loops the legend is the same — **agent acts** (gray) / **kerby rule** 
 
 ## When not to use it
 
-- **You haven't read `resources/BOOTSTRAP.md`.** Loading rules you haven't read defeats the purpose. The cost is paid in tokens on every session; the value is paid out only when the rules match your judgment.
+- **You haven't read `rulebooks/code/BOOTSTRAP.md`.** Loading rules you haven't read defeats the purpose. The cost is paid in tokens on every session; the value is paid out only when the rules match your judgment.
 - **The rules conflict with your team's conventions.** Branching and commit discipline rules are not universal. If your team batches commits or works on `main`, this skill will fight you. Fork and adapt.
 - **You want a neutral, "best-practice" preamble.** This isn't that. Try a more general guide instead.
 - **You're trying to fix a specific bug.** The skill governs how tasks are done — it doesn't *do* the task. Use a debugging skill (e.g., [`engineering:debug`](https://github.com/anthropics/skills) or [`anthropic-skills:diagnose`](https://github.com/anthropics/skills)) for that.
@@ -104,7 +104,7 @@ The skill is invoked via `Skill` tool with `args: <sub-command>`. Defaults to `l
 
 | Sub-command | What it does |
 |---|---|
-| `load` (default) | Select a rulebook (explicit arg → `rulebooks.lock` pin → default `code`), announce it in one line, then read its eager prose — `resources/BOOTSTRAP.md` plus the base floor rules — via `Read` so it enters context as a tool result, confirm to user. External (`local`) rulebooks pass a one-time trust review with a hash pin first. |
+| `load` (default) | Select rulebooks (explicit arg — id, path, URL, or `owner/repo` → `.kerby/rulebooks.lock` pin → default `code`), announce it in one line, then read its eager prose — `rulebooks/code/BOOTSTRAP.md` plus the base floor rules — via `Read` so it enters context as a tool result, confirm to user. External (`local`) rulebooks pass a one-time trust review with a hash pin first. |
 | `reload` | Same as `load`, but with a "BOOTSTRAP refreshed" confirmation. Useful after Claude Code compacts the conversation. |
 | `status` | Scan recent context for BOOTSTRAP signatures (e.g., `Prime Directive`, `<hard_rules>`, distinctive headers); report loaded / not loaded, plus the rulebook panel — each check's declared vs. *effective* enforcement, with degrades and named gaps visible. |
 | `install` | **Phase 1** — append the session-start instruction to your vendor agent-instruction files (`CLAUDE.md` / `AGENTS.md` / `AI-CONTEXT.md` / `.cursorrules`), per-file confirmation. **Phase 2 (optional)** — register `kerby`' Claude Code lifecycle hooks (`PreToolUse` + `SessionStart`) in your chosen settings file. Both phases are independently skippable; both show a diff and require explicit confirmation. |
@@ -255,7 +255,7 @@ The rules in `BOOTSTRAP.md` reflect specific choices that may not match your jud
 - **`DESIGN.md` as design-token authority** when present. Opinionated wiring into the [Google Labs spec](https://github.com/google-labs-code/design.md), alpha.
 - **Methodology over scripts.** Hardcoded commands (`npm test`) lose to project-detected commands (`{test_command}`).
 
-These choices have stated reasons in the rule files. Read the reasons; keep the ones that match your work; **delete or rewrite the ones that don't.** The skill loads whatever is in `resources/BOOTSTRAP.md` — the easiest way to make it yours is to fork the repo and edit BOOTSTRAP directly.
+These choices have stated reasons in the rule files. Read the reasons; keep the ones that match your work; **delete or rewrite the ones that don't.** The skill loads whatever is in `rulebooks/code/BOOTSTRAP.md` — the easiest way to make it yours is to fork the repo and edit BOOTSTRAP directly.
 
 ## Editing the rules
 

@@ -6,7 +6,7 @@
 # merge entirely and this fixture validated clean — proving the bypass.
 id = "base"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["*"]
 
 [[check]]

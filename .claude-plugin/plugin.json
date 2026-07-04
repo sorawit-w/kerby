@@ -1,7 +1,7 @@
 {
   "name": "kerby",
-  "description": "kerby — the gate guardian for agentic coding. A loadable rule-corpus plus opt-in guardrail hooks that govern how an AI agent does coding work: clarity over cleverness, safety over speed, never leave the repo broken, and nothing unproven passes the gate. Load it into a session, reload after compaction, install per-project hooks, prepare an existing repo, or audit a repo's conformance to the rules.",
-  "version": "6.0.0",
+  "description": "kerby \u2014 the gate guardian for agentic coding. A loadable rule-corpus plus opt-in guardrail hooks that govern how an AI agent does coding work: clarity over cleverness, safety over speed, never leave the repo broken, and nothing unproven passes the gate. Load it into a session, reload after compaction, install per-project hooks, prepare an existing repo, or audit a repo's conformance to the rules.",
+  "version": "7.0.0",
   "author": {
     "name": "sorawit-w",
     "url": "https://github.com/sorawit-w"
@@ -9,7 +9,20 @@
   "license": "MIT",
   "homepage": "https://github.com/sorawit-w/kerby",
   "repository": "https://github.com/sorawit-w/kerby",
-  "keywords": ["kerby", "guardrails", "agentic-coding", "coding-discipline", "merge-gate", "validation", "hooks", "state-preservation", "sub-agent", "harness-engineering", "memory", "skill"],
+  "keywords": [
+    "kerby",
+    "guardrails",
+    "agentic-coding",
+    "coding-discipline",
+    "merge-gate",
+    "validation",
+    "hooks",
+    "state-preservation",
+    "sub-agent",
+    "harness-engineering",
+    "memory",
+    "skill"
+  ],
   "skills": [
     "./skills/kerby"
   ]

@@ -1,0 +1,20 @@
+# E13: a command may not share a name with a builtin rulebook id (position-1
+# dispatch: rulebook ids shadow command names).
+id = "cmd-named-code"
+version = "1.0.0"
+contract = 2
+accepts = ["*"]
+description = "Fixture whose command collides with the builtin id 'base'."
+
+[[check]]
+id = "a-rule"
+kind = "prose"
+body = "rules/a-rule.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"
+
+[[command]]
+name = "base"
+body = "commands/base.md"
+description = "Collides with the builtin rulebook id."

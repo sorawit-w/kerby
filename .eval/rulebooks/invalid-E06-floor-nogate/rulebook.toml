@@ -4,7 +4,7 @@
 # gate, not skip the check when [gate] is absent.
 id = "floor-nogate"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["*"]
 
 [[check]]

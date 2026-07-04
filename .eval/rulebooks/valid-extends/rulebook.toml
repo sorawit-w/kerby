@@ -2,7 +2,7 @@
 # declares a code check whose enforcer lives inside the rulebook root.
 id = "fixture-extends"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["git_change"]
 extends = ["base"]
 

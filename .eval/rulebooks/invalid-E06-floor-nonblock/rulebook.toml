@@ -4,7 +4,7 @@
 # validation while mapping to HELD not DENIED — a floor that doesn't block.
 id = "floor-nonblock"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["*"]
 
 [gate]

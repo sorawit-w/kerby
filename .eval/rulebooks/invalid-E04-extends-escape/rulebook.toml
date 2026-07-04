@@ -5,7 +5,7 @@
 # `extends` now takes bare builtin ids only.
 id = "extends-escape"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["*"]
 extends = ["../evil-pack"]
 

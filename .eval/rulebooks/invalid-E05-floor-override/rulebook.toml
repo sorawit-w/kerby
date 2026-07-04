@@ -1,7 +1,7 @@
 # E05: override_of targets a floor = true check in the extended base.
 id = "fixture-e05"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["*"]
 extends = ["base"]
 

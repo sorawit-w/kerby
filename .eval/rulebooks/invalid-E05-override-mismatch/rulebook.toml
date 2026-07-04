@@ -4,7 +4,7 @@
 # redeclaring check's own id.
 id = "override-mismatch"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["*"]
 extends = ["base"]
 

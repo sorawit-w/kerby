@@ -4,7 +4,7 @@
 guardrail hooks that govern how an agent does coding work (clarity over cleverness,
 safety over speed, never leave the repo broken — and *nothing unproven passes the
 gate*). The skill itself lives at [`skills/kerby/`](skills/kerby/SKILL.md); the rules
-it loads live in [`skills/kerby/resources/BOOTSTRAP.md`](skills/kerby/resources/BOOTSTRAP.md).
+it loads live in [`skills/kerby/rulebooks/code/BOOTSTRAP.md`](skills/kerby/rulebooks/code/BOOTSTRAP.md).
 
 This file is the repo-root context doc. Its main job is to hold the **harness-engineering
 vocabulary** that `SKILL.md` references — the named primitives behind how `kerby` is
@@ -22,9 +22,9 @@ state, evaluation. Naming the primitives lets edits be deliberate instead of acc
 
 | Primitive | What it means | Concrete artifact in `kerby` |
 |---|---|---|
-| **Context engineering** | Organize information so the agent can reason over it — repo-local, versioned, not in chat threads. | `CONTEXT.md` (project glossary) + `BOOTSTRAP.md` (operating rules) + vendor agent-context files kept in sync — see `resources/references/multi-tool.md`. |
-| **Progressive disclosure** | Load detail on demand instead of front-loading everything. | `BOOTSTRAP.md` is the index; `resources/references/*.md` carry the long-tail, loaded only when cited. |
-| **Observable feedback loops** | Prefer machine-checkable signal over aspirational prose. | `resources/hooks/pre-commit-check.sh`, `protect-env.sh`, `warn-env-read.sh`, `protect-git.sh` + gates in `references/quality-gates.md` and `references/validation.md`. |
+| **Context engineering** | Organize information so the agent can reason over it — repo-local, versioned, not in chat threads. | `CONTEXT.md` (project glossary) + `BOOTSTRAP.md` (operating rules) + vendor agent-context files kept in sync — see `rulebooks/code/references/multi-tool.md`. |
+| **Progressive disclosure** | Load detail on demand instead of front-loading everything. | `BOOTSTRAP.md` is the index; `rulebooks/code/references/*.md` carry the long-tail, loaded only when cited. |
+| **Observable feedback loops** | Prefer machine-checkable signal over aspirational prose. | `rulebooks/base/hooks/pre-commit-check.sh`, `protect-env.sh`, `warn-env-read.sh`, `protect-git.sh` + gates in `references/quality-gates.md` and `references/validation.md`. |
 | **State preservation** | Carry useful context across session boundaries. | `.ai/memory.log` (append-only history) + `.ai/STATUS.md` (current state) + `.ai/knowledge/` (curated wiki) + `.ai/BLOCKERS.md`, bootstrapped by `session-start-context.sh` + `knowledge-bootstrap.sh`. |
 | **Eval discipline** | Decide what "working" means before shipping. | `references/quality-gates.md` + the verification-before-completion pattern; the pre-commit hook enforces gates mechanically rather than relying on agent memory. |
 
@@ -46,13 +46,13 @@ primitives; this table is the map — each row points to where the primitive is 
 
 | Primitive | One-line meaning | Lives in |
 |---|---|---|
-| Inner / outer check split | cheap check while coding, full gate at the boundary | `resources/workflows/feature.md` (iteration-check tiers vs commit check) |
-| Termination condition | what must be true to exit the loop | `resources/references/validation.md` (Iron Law: no claim without fresh evidence) |
-| Retry budget / circuit breaker | bounded retries per failure type, then escalate | `resources/references/error-handling.md` (build 5 / test 3 / lint 5 → BLOCKED) |
-| Bounded search | cap the hypothesis count so the loop can't flail | `resources/references/debugging.md` (max 3 hypotheses) |
+| Inner / outer check split | cheap check while coding, full gate at the boundary | `rulebooks/code/workflows/feature.md` (iteration-check tiers vs commit check) |
+| Termination condition | what must be true to exit the loop | `rulebooks/code/references/validation.md` (Iron Law: no claim without fresh evidence) |
+| Retry budget / circuit breaker | bounded retries per failure type, then escalate | `rulebooks/code/references/error-handling.md` (build 5 / test 3 / lint 5 → BLOCKED) |
+| Bounded search | cap the hypothesis count so the loop can't flail | `rulebooks/code/references/debugging.md` (max 3 hypotheses) |
 | State across iterations | what carries forward so the loop has no amnesia | `.ai/memory.log`, `.ai/STATUS.md`, checkpoint-before-context-fills |
-| Iteration cost is the speed limit | a faster loop buys more hypotheses | `resources/references/debugging.md` (assess the feedback loop first) |
-| Parallel loops (fan-out) | independent iterations run concurrently | `resources/references/sub-agent-delegation.md` (vertical slices, blind lenses) |
+| Iteration cost is the speed limit | a faster loop buys more hypotheses | `rulebooks/code/references/debugging.md` (assess the feedback loop first) |
+| Parallel loops (fan-out) | independent iterations run concurrently | `rulebooks/code/references/sub-agent-delegation.md` (vertical slices, blind lenses) |
 
 These are the runtime expression of the harness primitives above: *State across
 iterations* is *State preservation* applied mid-task; the two check rows are *Observable
@@ -69,9 +69,9 @@ framings: a self-verification loop with no circuit breaker burns its budget
 re-deriving the same wrong fix. The verification gate also leans behavioral by
 design — the methodology travels across toolchains where a hardcoded check would not
 (`skills/kerby/CLAUDE.md` § Authoring style). The one mechanical floor under it is
-`resources/hooks/pre-commit-check.sh`: the non-disablable secret scan, plus a soft
+`rulebooks/base/hooks/pre-commit-check.sh`: the non-disablable secret scan, plus a soft
 hollow-test heuristic that statically flags the green-but-empty fakes
-(`resources/references/validation.md` § What Counts as Evidence).
+(`rulebooks/code/references/validation.md` § What Counts as Evidence).
 
 ---
 

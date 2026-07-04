@@ -1,4 +1,4 @@
-# Rulebook contract — v1
+# Rulebook contract — v2
 
 The manifest contract between the kerby engine (loader/validator) and a
 **rulebook** — a folder of rules the engine can load, weigh, and enforce
@@ -19,9 +19,9 @@ pinned (D10).
 
 | Origin | Where it lives | Path rules | Trust |
 |---|---|---|---|
-| `builtin` | `skills/kerby/resources/rulebooks/<id>/`, ships inside kerby | may declare repo-relative paths — resolved against the rulebook root first, then against `resources/` (so `references/quality-gates.md` and `hooks/protect-git.sh` declare existing files in place) | repo-versioned; no hash pin required. **Builtin-ness is anchored to the install location, never asserted by a lockfile**: a rulebook is builtin *iff* it resolves to `<install-root>/resources/rulebooks/<id>`. The validator rejects `--origin builtin` for any path outside `--builtin-root` (E04); a `rulebooks.lock` entry claiming `origin: builtin` for a workspace path is invalid, not trusted |
-| `local` | anywhere on disk, loaded by explicit path | confined: every declared path must resolve **inside** the rulebook root — no `..`, no absolute paths, no symlink escapes (E04) | one-time review + hash pin (TOFU) on first load — for **any** local rulebook, including a `data`-only one (loading it replaces the default gate; a prose/code rulebook *additionally* admits external instructions/scripts). Silent re-load only while the hash matches **and** the hash is in the per-machine `~/.claude/kerby/approved-rulebooks.json` — a committed project `rulebooks.lock` is untrusted content and can never by itself pre-approve an external rulebook |
-| `remote` | — | — | **reserved**; no fetching at v1 |
+| `builtin` | `skills/kerby/rulebooks/<id>/`, ships inside kerby | **folder-confined like every origin** (contract 2 — the v1 resources-relative exemption is gone; builtins are self-contained) | repo-versioned; no hash pin required. **Builtin trust is anchored to the install location, never *granted* by a lockfile**: an entry claiming `origin: builtin` is the builtin *iff* its `id` resolves to `<install-root>/rulebooks/<id>` and its `path_or_url` is that install path. The validator rejects `--origin builtin` for any path outside `--builtin-root` (E04); a `builtin` claim for a workspace path is invalid HELD, not trusted. A pin claiming `origin: local`/`remote` — even one whose `id` collides with a builtin — is honored as that external rulebook (loaded from its `path_or_url` through TOFU, never silently swapped for the builtin), since it grants no trust; that keeps builtin-id forks reloadable |
+| `local` | anywhere on disk, loaded by explicit path | confined: every declared path must resolve **inside** the rulebook root — no `..`, no absolute paths (E04). **No symlinks and no `.git/` anywhere under the folder** (declared *or* undeclared): a rulebook must be self-contained plain files, since a symlink escapes confinement (a mutable-target instruction channel the trust hash can't cover) and `.git/` is skipped by the hash (so content under it would be a hash-blind channel) — both E04. Remote clones strip `.git/` at fetch; a local rulebook must be a clean content dir, not a git working tree | one-time review + hash pin (TOFU) on first load — for **any** local rulebook, including a `data`-only one (loading it replaces the default gate; a prose/code rulebook *additionally* admits external instructions/scripts). Silent re-load only while the hash matches **and** the hash is in the per-machine `~/.claude/kerby/approved-rulebooks.json` — a committed project lockfile is untrusted content and can never by itself pre-approve an external rulebook |
+| `remote` | fetched by explicit `load <git-URL \| owner/repo>`, materialized at `.kerby/rulebooks/<id>/` (session temp dir when the workspace is read-only) | confined exactly like `local`; clone's `.git/` deleted after fetch; manifest `id` must be a slug (it becomes the path component) | TOFU exactly like `local`, plus `Source: <url>` provenance in the prompt. **No silent network** (plain `load`/`reload` use the existing clone) and **no silent updates** (re-running `load <source>` re-clones; a changed hash re-prompts). Lockfile entry adds `local_path` — untrusted like every lockfile field: the loader re-derives it from the id; a mismatch or out-of-root path is fail-closed HELD |
 
 Auto-selection is builtin-only (D19): external rulebooks load by explicit
 invocation only, whatever they declare.
@@ -31,20 +31,26 @@ invocation only, whatever they declare.
 ```toml
 id = "code"                 # unique rulebook id (required)
 version = "1.0.0"           # the rulebook's own semver (required)
-contract = 1                # manifest contract version (required; engine rejects unsupported, E03)
+contract = 2                # manifest contract version (required; engine rejects unsupported, E03)
 accepts = ["git_change"]    # subject types this rulebook can judge (required, non-empty; "*" = any)
+description = "…"           # one line for `rulebooks list` (optional string)
 extends = ["base"]          # packs composed in — see Merge rules
 
 [gate]                      # severity → verdict mapping; defaults shown
 block_on = ["block"]        # severities that DENY
 hold_on  = ["warn"]         # severities that HOLD
 
-[commands]                  # optional; domain facts the core tier ladder consumes (D14)
-build = "{build_command}"
-lint  = "{lint_command}"
-test  = "{test_command}"
+[tooling]                   # optional; domain facts the core tier ladder consumes (D14)
+build = "{build_command}"    # (renamed from v1 [commands] to disambiguate from [[command]],
+lint  = "{lint_command}"     #  the user-invocable rulebook commands added in Phase B of the
+test  = "{test_command}"     #  v7 PR)
 
-[detect]                    # RESERVED at contract v1 (D17–D19)
+[[command]]                 # user-invocable commands this rulebook provides (V2)
+name = "audit"              # dispatch token: slug, non-reserved, no builtin-id collision (E13)
+body = "commands/audit.md"  # instruction file read at invocation; folder-confined, trust-hashed
+description = "…"           # shown in dispatch listings + the trust prompt (E14)
+
+[detect]                    # RESERVED at contract v2 (D17–D19)
 markers = ["package.json"]  # shape-validated only (E12); the loader never matches on it
 ```
 
@@ -60,9 +66,10 @@ markers = ["package.json"]  # shape-validated only (E12); the loader never match
 | `runner` | string | for `data`: built-in runner id (`gitleaks`, `semgrep`, `regex-floor`) |
 | `config` / `entry` / `body` | path | the declared file: ruleset (`data`, optional when the runner carries defaults), script (`code`), markdown (`prose`) |
 | `severity` | `block \| warn \| info` | feeds `[gate]` mapping to DENIED / HELD |
-| `floor` | bool | non-overridable (D9); no config or extending rulebook may loosen it. Only meaningful in `base` at contract v1 |
+| `floor` | bool | non-overridable (D9); no config or extending rulebook may loosen it. Only meaningful in `base` at contract v2 |
 | `override` | string | escape-hatch policy for non-floor checks, e.g. `"authorized-scoped"` (the `CODING_RULES_ALLOW_PROTECTED_COMMIT=1` pattern) |
 | `gap` | string | for `partial`: the named enforcement gap (warn if absent, E09); surfaces in `status` |
+| `event` / `matcher` | strings | how `install` derives the hook registration for this check's enforcer: a Claude Code lifecycle event (unknown events warn) + tool-name pattern (empty = all). An enforcer without `event` cannot be auto-registered (E09 warns). Dedup at registration = **(event, matcher, resolved script path)** — follow an enforcer shim to the script it `exec`s (reading the final `exec` target, resolving a `target=` variable if the shim guards resolvability first; not required to be one physical line), so a builtin's shared script coalesces to one entry while two unrelated rulebooks that share a hook *basename* at different paths each register. Never dedup on filename alone (it would let one rulebook's hook mask another's). `status`/`uninstall` compare the same resolved-path identity |
 | `token_cost` | `low \| medium \| high` | prose only: recurring context cost; drives progressive loading order (low loads eagerly) |
 
 Kind/field coherence (E08): `data` → `runner` required (`config` optional);
@@ -114,33 +121,35 @@ Extended packs contribute their own low-cost bodies but no root.
 4. User config sits above the merged result: tighten freely; loosen only to
    the floor; never through it (E06).
 
-## Error catalog (E01–E12)
+## Error catalog (E01–E14)
 
 Messages are fix-forward and literal (VOICE.md zoning: error strings carry no
 persona). E09-gap, E11, and E12-non-builtin emit as warnings (exit 0);
-everything else is an error (exit 1).
+everything else is an error (exit 1). E02-unknown-event also warns.
 
 | Code | Invariant |
 |---|---|
 | E01 | manifest parses as TOML |
 | E02 | required fields present, types correct (`id`, `version`, `contract`, `accepts`; per check: `id`, `kind`, `enforcement`, `severity`) |
-| E03 | `contract` supported by this engine (currently: 1) |
-| E04 | declared paths exist and are readable; non-builtin paths resolve inside the rulebook root (no `..` / absolute / symlink escape) |
+| E03 | `contract` supported by this engine (currently: 2) |
+| E04 | declared paths exist and are readable; non-builtin paths resolve inside the rulebook root (no `..` / absolute / symlink escape); no symlinks or `.git/` anywhere under the folder; the manifest `id` is a strict slug (it becomes a path component at `.kerby/rulebooks/<id>`, so `..` / slashes / absolute are rejected before any move or pin) |
 | E05 | no base check removed or shadowed; `override_of` never targets `floor = true` |
 | E06 | `[gate]` + config only tighten; never below the floor |
 | E07 | `id` unique across the merged set |
 | E08 | kind/field coherence (see table above) |
 | E09 | `enforcement ∈ {hard, partial, behavioral}`; `hard`/`partial` require `enforcer`; `partial` without `gap` → warning |
 | E10 | `accepts` non-empty; every `needs` entry known and satisfiable (see View vocabulary) |
-| E11 | prose-injection lint, non-builtin origins, **warn-only**: flags `ignore previous`, `you must now`, `disregard the above` in prose bodies |
+| E11 | prose-injection lint, non-builtin origins, **warn-only**: flags `ignore previous`, `you must now`, `disregard the above` in **every prose/text file the trust hash covers** — declared check + command bodies (**regardless of file extension** — a body like `commands/review` with no `.md`/`.txt` suffix is still dispatched as instructions, so it is linted too) *and* undeclared `references/`/`workflows/` markdown a body can read — **and in the free-text manifest fields the loader displays** (the rulebook `description`, each `[[command]].description`, each `[[check]].gap`), so the payload can't be hidden by moving it out of a declared body or into a string shown at the trust prompt |
 | E12 | `[detect]` shape: `markers` = non-empty array of strings (error if malformed); declared by a non-builtin rulebook → warning (ignored at load, D19) |
+| E13 | no `[[command]]` name collides with a reserved engine command, a builtin rulebook id, or another command in the same rulebook |
+| E14 | `[[command]]` shape: `name` a slug, `body` a folder-confined path string, `description` non-empty |
 
 **Fail-closed:** a validator crash or an unreadable declared file is an
 invalid result, never a pass. Anything gated while the loader is failed is
 **HELD** (D11) — "the gate couldn't run" escalates to a human; it is not
 DENIED and it is never PASS.
 
-## Lockfile (`rulebooks.lock`)
+## Lockfile (`.kerby/rulebooks.lock`)
 
 JSON, at the consuming project's root (same tier as `.ai/`). Written by the
 first successful load; read by every later load.
@@ -155,14 +164,36 @@ first successful load; read by every later load.
 }
 ```
 
+- Location: `.kerby/rulebooks.lock` (v7). A pre-v7 root `rulebooks.lock` is read
+  as fallback for one major version and auto-migrated on the next pin write.
 - `selected` is the D17 pin: which rulebooks this project loads. Changing
-  rulebooks is an explicit act (`kerby load <id>`), never drift.
-- `sha256` covers the manifest **plus every declared file** (a manifest-only
-  hash would let a declared body mutate silently). `builtin` entries may set
-  it `null` — they are repo-versioned.
+  rulebooks is an explicit act (`load <x>` replaces, `load +<x>` adds,
+  `unload <x>` removes), never drift. **Ids are unique within `selected`** —
+  since it keys on `id` and every user-facing op dispatches by id, `load +`
+  refuses a rulebook whose id already names an active selection (e.g. the
+  builtin `code` plus a local fork also named `code`); the user unloads the
+  incumbent or `load`-replaces instead.
+- `remote` entries carry `path_or_url` = the source URL (identity) and
+  `local_path` = the clone dir — re-derived from the id at load, never trusted
+  from the file.
+- `sha256` covers **every file in the rulebook folder**, each framed by its
+  root-relative path and byte length (not just manifest-*declared* files). A
+  rulebook's instructions dispatch to files the manifest never declares —
+  BOOTSTRAP's reference index reads every `references/*.md`, command bodies read
+  their `references/`/`workflows/` targets, workflows drive edits to user files.
+  Hashing only declared files would leave those undeclared-but-behavior-bearing
+  files a mutable-after-approval instruction channel (edit only a reference or
+  workflow after approval, the SHA still matches, a later load skips the trust
+  prompt while the command follows unapproved instructions — indirect prompt
+  injection). Whole-folder coverage closes that channel and removes any
+  "is this file behavior-bearing?" classification an attacker could hide
+  behind; the cost is that editing *any* file (a README included) re-triggers
+  approval for a local/remote rulebook — the safe direction for untrusted
+  content. Symlinks and `.git/` metadata are skipped. `builtin` entries may set
+  `sha256` `null` — they are repo-versioned and never trust-gated by this hash.
 - Validation is hash-keyed, not operation-keyed (D10): unknown/changed hash →
   validate (and re-prompt for non-builtin trust); matching pinned hash → skip
-  **for builtins only**. For a `local` rulebook the project `rulebooks.lock` is
+  **for builtins only**. For a `local` rulebook the project lockfile is
   untrusted workspace content — a matching pin proves the files agree with each
   other, not that *this user* approved them. A committed lockfile must never be
   a pre-approval token for external prose/code (indirect prompt injection). The

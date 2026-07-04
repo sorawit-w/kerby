@@ -4,8 +4,8 @@ kerby's engine is domain-blind: it loads, weighs, and enforces whatever a
 manifest declares. A rulebook is how you tell it what your domain's rules
 are. This guide is everything an external author needs; the normative schema
 lives in [`rulebook-contract.md`](rulebook-contract.md), and the shipped
-[`base`](../skills/kerby/resources/rulebooks/base/rulebook.toml) and
-[`code`](../skills/kerby/resources/rulebooks/code/rulebook.toml) rulebooks
+[`base`](../skills/kerby/rulebooks/base/rulebook.toml) and
+[`code`](../skills/kerby/rulebooks/code/rulebook.toml) rulebooks
 are the worked examples.
 
 kerby will read your manifest, validate it, show the user exactly what your
@@ -21,22 +21,27 @@ arrange — the manifest declares it by relative path:
 ```
 my-rulebook/
 ├── rulebook.toml        # the only fixed name — the manifest
+├── README.md            # what this rulebook is for, its checks + commands
 ├── rules/               # prose bodies (markdown)
 │   └── cite-sources.md
+├── commands/            # bodies of user-invocable commands, if you provide any
+│   └── review.md
 └── hooks/               # enforcer scripts, if you ship any
     └── check-citations.sh
 ```
 
-A non-builtin rulebook is **path-confined**: every declared path must resolve
-inside the folder. No `..`, no absolute paths, no symlinks that point out
-(E04). If a file matters, it lives in the folder.
+Every rulebook is **path-confined** (contract 2 — builtins too): every declared
+path must resolve inside the folder. No `..`, no absolute paths, no symlinks
+that point out (E04). If a file matters, it lives in the folder. That is what
+makes a rulebook **plug-and-play**: copy the folder, and the receiving kerby
+has everything — it will still ask its own user for approval before loading.
 
 ## The manifest, walked through
 
 ```toml
 id = "prose-review"          # unique id; how users load you: kerby load ./my-rulebook
 version = "1.0.0"            # your semver — bump it when rules change; the hash pin will notice anyway
-contract = 1                 # the manifest contract this targets (E03)
+contract = 2                 # the manifest contract this targets (E03)
 accepts = ["document"]       # subject types you can judge; "*" = anything
 
 [gate]                       # how severities become verdicts
@@ -50,13 +55,23 @@ body = "rules/cite-sources.md"
 enforcement = "behavioral"
 severity = "block"
 token_cost = "low"
+
+[[command]]                  # optional: a flow users invoke as `kerby [your-id] review`
+name = "review"              # slug; must not collide with engine commands or builtin ids (E13)
+body = "commands/review.md"  # read in full at invocation — write it as instructions to the agent
+description = "Run the review flow."   # shown in listings + the trust prompt (E14)
 ```
+
+Add `description = "one line"` at the top level too — `kerby rulebooks list`
+shows it. If you ship a `hard`/`partial` enforcer, also declare its trigger so
+`install` can register it: `event = "PreToolUse"`, `matcher = "Bash"` (an
+enforcer without an `event` cannot be auto-registered; the validator warns).
 
 Validate while you work (advisory; the load flow re-runs the same logic
 authoritatively):
 
 ```
-python3 skills/kerby/resources/scripts/validate-rulebook.py ./my-rulebook
+python3 <install-root>/resources/scripts/validate-rulebook.py ./my-rulebook
 ```
 
 ### Choosing `kind`
@@ -90,7 +105,7 @@ being enforced.
 - `severity` maps through `[gate]`: `block` → DENIED, `warn` → HELD, `info`
   → advisory.
 - `floor = true` marks a check nothing may loosen — not user config, not an
-  extending rulebook (E05/E06). Floors belong in `base`; at contract v1
+  extending rulebook (E05/E06). Floors belong in `base`; at contract v2
   declaring your own floors outside base is legal but pointless, since only
   base is implicitly composed into everyone else.
 - Non-floor checks may declare an `override` policy naming a scoped,
@@ -117,7 +132,7 @@ undeclared collision is an error, not a merge (E07).
 
 ### `[detect]` — reserved
 
-You may declare workspace fingerprints, but at contract v1 the engine never
+You may declare workspace fingerprints, but at contract v2 the engine never
 matches on them, and for non-builtin rulebooks it never will (E12 warns):
 auto-selection is builtin-only, because untrusted workspace content must
 never steer which gate governs. Users load your rulebook by name or path,
@@ -132,19 +147,55 @@ rulebook the way it treats any external input:
    sees a trust prompt — your id/version/origin, every check with its kind,
    and any lint warnings. They approve or decline.
 2. **Approval pins a hash** over the manifest *and every declared file* — in
-   two places: the project `rulebooks.lock` (for selection + drift detection)
+   two places: the project `.kerby/rulebooks.lock` (for selection + drift detection)
    and a **per-machine** `~/.claude/kerby/approved-rulebooks.json` (the record
    that *this user* approved *this content*). Later loads are silent only while
-   the hash matches **and** it's in that per-machine store. A `rulebooks.lock`
+   the hash matches **and** it's in that per-machine store. A lockfile
    you ship inside your rulebook cannot pre-approve it for someone who clones
    it — they still get the prompt on first load. (Don't commit a
-   `rulebooks.lock` expecting it to skip the prompt; it won't, by design.)
+   lockfile expecting it to skip the prompt; it won't, by design.)
 3. **Any edit re-opens the gate.** One changed character → re-validation and
    a fresh prompt. Version fields are courtesy; the hash is the truth.
 4. Your prose enters context framed as rules-not-instructions (`DATA>`
    provenance). Text like "ignore previous instructions" gets flagged by the
    injection lint (E11) and shown to the user in the prompt. Write rules,
    not payloads.
+
+## Creating a rulebook interactively — `kerby rulebooks create`
+
+You don't have to hand-write any of this. `kerby rulebooks create` runs the
+authoring interview and builds the folder with you:
+
+1. **Interview** — domain, purpose, `id` (slug-checked), one-line
+   `description`, subject types.
+2. **Checks, one at a time** — kind, enforcement (with an honest `gap` for
+   `partial`), severity, `token_cost`; prose bodies are drafted *with* you.
+3. **Commands** (optional) — name (E13-checked live), body, description.
+4. **Continuous validation** — the validator runs after every addition;
+   E-codes surface fix-forward; the E11 injection lint runs on each prose
+   body and shows hits.
+5. **Emit** — `rulebook.toml`, `README.md`, `rules/` (+ `hooks/`,
+   `commands/` as declared).
+6. **Test load** — through the normal trust prompt. Creating a rulebook is
+   not pre-approval; your own gate still gates you.
+
+## Sharing your rulebook
+
+A rulebook folder is the distribution unit — self-containment is what makes it
+portable:
+
+- **Hand someone the folder** (or commit it inside a project): they run
+  `kerby load ./path-to-it`, review the trust prompt, approve. Done.
+- **Publish it as a git repo whose root is the rulebook** (manifest at the
+  repo root). Anyone can then run `kerby load your-name/your-rulebook` (GitHub
+  shorthand) or the full git URL — kerby shallow-clones it to
+  `.kerby/rulebooks/<id>/`, validates, and shows the trust prompt with a
+  `Source:` line. Updates are never silent: users re-run `load <source>` to
+  fetch a new version, and any change re-opens the approval gate.
+- You cannot pre-approve your rulebook for anyone — not with a shipped
+  lockfile, not with anything. Each user's approval lives on their machine.
+  Design for the prompt: a clear `description`, honest `gap`s, and clean E11
+  lint results are what make a stranger click yes.
 
 ## Error catalog — what the validator will tell you
 
@@ -165,6 +216,8 @@ literal and name the fix.
 | E10 | unknown view name, or `needs` unsatisfiable by any accepted subject | `needs` and subject types |
 | E11 | *(warning)* prose body contains an instruction-override pattern | write rules, not payloads (Trust model) |
 | E12 | `[detect].markers` malformed; warns when a non-builtin declares it | `[detect]` is reserved, auto-selection is builtin-only |
+| E13 | a command name collides with a reserved engine command, a builtin rulebook id, or a sibling command | Commands (the manifest walkthrough) — dispatch tokens must be unambiguous |
+| E14 | a command is malformed (name not a slug, `body` missing/not a path, empty `description`) | Commands — every command is a named, described, folder-confined instruction file |
 
 ## Checklist before you ship
 

@@ -1,7 +1,7 @@
 # E07: re-declares a base check id without override_of.
 id = "fixture-e07"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["*"]
 extends = ["base"]
 

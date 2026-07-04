@@ -3,7 +3,7 @@
 # disabling E05/E06 and eager floor-loading for a rule meant to be a floor.
 id = "floor-not-bool"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["*"]
 
 [[check]]

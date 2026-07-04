@@ -2,7 +2,7 @@
 # validator's implicit-base merge (merge rule 1) resolves during tests.
 id = "base"
 version = "0.0.1"
-contract = 1
+contract = 2
 accepts = ["*"]
 
 [gate]

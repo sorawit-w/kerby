@@ -243,3 +243,6 @@ skills/ghostwriter/references/samples-*.md
 # Python bytecode
 __pycache__/
 *.pyc
+
+# generated plugin caches (impeccable)
+**/.impeccable/hook.cache.json

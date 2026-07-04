@@ -4,8 +4,9 @@
 # non-overridable by any config or extending rulebook (D9).
 id = "base"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["*"]
+description = "The universal floor: secrets, untrusted-artifact, verification-claim, and irreversibility rules every rulebook inherits."
 
 [gate]
 block_on = ["block"]
@@ -16,7 +17,9 @@ id = "secrets-staged"
 kind = "data"
 needs = ["staged_content"]
 enforcement = "hard"
-enforcer = "hooks/pre-commit-check.sh"   # builtin origin: resources-relative (D6)
+enforcer = "hooks/pre-commit-check.sh"   # self-contained: base owns the floor secret scan (V14)
+event = "PreToolUse"
+matcher = "Bash"
 runner = "gitleaks"                       # betterleaks/gitleaks if present, else the built-in regex floor
 severity = "block"
 floor = true

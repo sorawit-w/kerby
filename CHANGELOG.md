@@ -3,6 +3,55 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [7.0.0] — 2026-07-04
+
+**Plug-and-play rulebooks.** The engine/rulebook split of 6.0.0 becomes physical:
+a rulebook is now a **self-contained folder** — copy it user-to-user and it works
+(after the receiving user's own trust prompt, as it should be).
+
+### Breaking
+
+- **Layout:** rule content moved out of `skills/kerby/resources/` into
+  `skills/kerby/rulebooks/{base,code}/` (BOOTSTRAP, references, workflows,
+  enforcer hooks, templates travel with their rulebook). `resources/` keeps only
+  engine machinery. Pointer stubs sit at every old `.md` path and 2-line exec
+  shims at the old enforcer hook paths — **both removed in v8**. Pre-v7
+  registered hooks keep firing through the shims; `install` offers a one-confirm
+  re-point.
+- **Contract 2** (validator accepts 2 only): uniform folder confinement for
+  every origin (the builtin path exemption is gone), `[[command]]` + top-level
+  `description` + per-check `event`/`matcher` added, `[commands]` renamed
+  `[tooling]`. E13/E14 join the catalog.
+
+### Added
+
+- **Engine vs. rulebook commands.** Engine set (reserved): `load`, `unload`,
+  `reload`, `status`, `install`, `uninstall`, `rulebooks list|create`, `help`.
+  Rulebooks declare their own commands (`[[command]]`); `audit` and `prepare`
+  are now `code`-rulebook commands — `kerby audit` still works (inference),
+  `kerby code audit` is the qualified form. Cold dispatch loads the selection
+  first and never bypasses the trust prompt.
+- **Multi-rulebook load:** `load <id>` replaces, `load +<id>` adds, `unload <id>`
+  removes; `status` lists loaded rulebooks.
+- **Manifest-derived `install`:** the registration set = engine SessionStart trio
+  + every loaded rulebook's declared (event, matcher, enforcer) tuples — a second
+  rulebook's hooks register with zero engine change. Local/remote enforcers get
+  per-hook confirmation; order is validate → trust prompt → derive → register.
+- **`kerby rulebooks`** lists builtins + loaded externals (`base` marked
+  `floor — always loaded`); **`kerby rulebooks create`** is an interactive,
+  validating authoring flow.
+- Per-rulebook `README.md`s; authoring guide rewritten for self-contained
+  folders.
+
+### Migration
+
+- **No action needed for `load` users** — `kerby load` behaves identically
+  (verbatim confirmations preserved; parity-tested against the 6.0.0 baseline).
+- **`install` users:** existing registrations keep working via shims; accept the
+  re-point nudge on next `install` (or re-run `install`) before v8.
+- External rulebook authors: bump `contract = 2`, rename `[commands]` →
+  `[tooling]`; E03 walks you through it.
+
 ## [6.0.0] — 2026-07-03
 
 The gate no longer memorizes its own rulebook. kerby is now a domain-blind

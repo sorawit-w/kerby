@@ -2,7 +2,7 @@
 # (severity block, floor = true) out of the DENY path.
 id = "fixture-e06"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["*"]
 extends = ["base"]
 

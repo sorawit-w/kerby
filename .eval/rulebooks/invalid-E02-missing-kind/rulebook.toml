@@ -1,7 +1,7 @@
 # E02: check is missing the required 'kind' field.
 id = "fixture-e02"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["*"]
 
 [[check]]

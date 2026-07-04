@@ -1,19 +1,20 @@
 # code — the coding rulebook, kerby's first domain rulebook and the silent
 # default for `kerby load` (D17). Extends base (implicit-mandatory; listed
-# for clarity). Declares the existing corpus IN PLACE: builtin origin may
-# use resources-relative paths (D6) — references/ and hooks/ are not moved.
-# Contract: docs/rulebook-contract.md.
+# for clarity). Self-contained (v7): every declared path resolves inside
+# this folder — uniform confinement, no builtin exemption.
+# Contract: docs/rulebook-contract.md (contract 2).
 id = "code"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["git_change"]
 extends = ["base"]
+description = "Coding guardrails: clarity over cleverness, safety over speed, never leave the repo broken — nothing unproven passes the gate."
 
 [gate]
 block_on = ["block"]
 hold_on = ["warn"]
 
-[commands]                    # domain facts core's tier ladder consumes (D14);
+[tooling]                     # domain facts core's tier ladder consumes (D14);
 build = "{build_command}"     # resolved per-project (agent-context.yaml / manifests)
 lint = "{lint_command}"
 test = "{test_command}"
@@ -68,6 +69,8 @@ kind = "code"
 needs = ["branch"]
 enforcement = "hard"
 enforcer = "hooks/protect-git.sh"
+event = "PreToolUse"
+matcher = "Bash"
 severity = "block"
 floor = true                              # no escape hatch — data loss (guardrails.md)
 
@@ -77,6 +80,8 @@ kind = "code"
 needs = ["branch", "install_state"]
 enforcement = "hard"
 enforcer = "hooks/protect-git.sh"
+event = "PreToolUse"
+matcher = "Bash"
 severity = "block"
 override = "authorized-scoped"            # CODING_RULES_ALLOW_PROTECTED_COMMIT=1, user-authorized only
 
@@ -86,6 +91,8 @@ kind = "code"
 needs = ["changed_files"]
 enforcement = "hard"
 enforcer = "hooks/protect-env.sh"
+event = "PreToolUse"
+matcher = "Edit|Write"
 severity = "block"
 
 [[check]]
@@ -94,6 +101,8 @@ kind = "code"
 needs = ["changed_files"]
 enforcement = "partial"
 enforcer = "hooks/warn-env-read.sh"
+event = "PreToolUse"
+matcher = "Read"
 gap = "Bash cat .env not caught; Read-tool only"
 severity = "warn"
 
@@ -103,6 +112,8 @@ kind = "code"
 needs = ["changed_files"]
 enforcement = "partial"
 enforcer = "hooks/route-high-stakes.sh"
+event = "PreToolUse"
+matcher = "Edit|Write"
 gap = "prose-only production-traffic-shaping category un-globbable"
 severity = "warn"
 
@@ -112,5 +123,19 @@ kind = "code"
 needs = ["added_lines"]
 enforcement = "partial"
 enforcer = "hooks/pre-commit-check.sh"
+event = "PreToolUse"
+matcher = "Bash"
 gap = "runtime fakes (0-match runs, gates over stubs) stay agent-judged"
 severity = "warn"
+
+# --- commands: user-invocable flows this rulebook provides (V2/V3) ----------
+
+[[command]]
+name = "audit"
+body = "commands/audit.md"
+description = "Static conformance audit of the project against the loaded corpus; writes a report under .ai/audits/."
+
+[[command]]
+name = "prepare"
+body = "commands/prepare.md"
+description = "Onboard an existing repo: populate kerby's context artifacts from code and git history, diff-and-confirm on every write."

@@ -1,7 +1,7 @@
 # E08: kind 'prose' does not take 'needs'.
 id = "fixture-e08"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["git_change"]
 
 [[check]]
