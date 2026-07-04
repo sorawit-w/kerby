@@ -42,7 +42,7 @@ The rules are packaged as **rulebooks** — folders with a `rulebook.toml` manif
 3. **Detection** — reserved; at contract v1 the detection step always returns *undetermined*.
 4. **Default** — `code`.
 
-The first successful load **writes the pin** to `rulebooks.lock` (JSON: `selected` + per-rulebook `{id, version, origin, path_or_url, sha256}`; builtin entries carry `sha256: null` — they are repo-versioned). **`selected` records only what was explicitly chosen or defaulted to** — for a default `code` load that is `["code"]`, never `["base", "code"]`: `base` is always composed in per merge rule 1 (`docs/rulebook-contract.md`), so it is never itself a member of `selected`. Every later load reads the pin. Changing rulebooks is an explicit act (`args: load <id>` re-pins); it never drifts with workspace content. Auto-selection is builtin-only: an external rulebook loads by explicit invocation *only*, regardless of any `[detect]` table it declares.
+The first successful load **writes the pin** to `rulebooks.lock` (JSON: `selected` + per-rulebook `{id, version, origin, path_or_url, sha256}`; builtin entries carry `sha256: null` — they are repo-versioned). **`selected` records only what was explicitly chosen or defaulted to** — for a default `code` load that is `["code"]`, never `["base", "code"]`: `base` is always composed in per merge rule 1 (`docs/rulebook-contract.md`), so it is never itself a member of `selected`. Every later load reads the pin. Changing rulebooks is an explicit act, never drift: **`load <id>` replaces** the selection (re-pins), **`load +<id>` adds** to it, and **`unload <id>` removes** it. Multi-rulebook selection is ordinary — `selected` lists every explicitly chosen rulebook; `base` is still never a member (implicit merge). Auto-selection is builtin-only: an external rulebook loads by explicit invocation *only*, regardless of any `[detect]` table it declares.
 
 **The lockfile's `origin` field is untrusted — builtin-ness is *re-derived from the install*, never read from the pin.** `rulebooks.lock` is workspace content; a cloned repo can set any entry's `origin` to `"builtin"` with a `path_or_url` inside the workspace. If the loader believed that field it would skip the approval prompt and treat workspace content as install-trusted — loading untrusted prose as builtin. So the loader **determines origin by resolution, not by the pin's claim**: a rulebook is `builtin` **iff** its `id` names a directory that actually ships in this install at `<install-root>/rulebooks/<id>`. Builtins are always loaded and validated from that install path — a builtin pin's `path_or_url` is ignored. A pin whose `origin` is `"builtin"` but whose `id` is not an installed builtin (or whose `path_or_url` points into the workspace) is invalid: do not load it as a builtin and do not silently fall back — treat it as the fail-closed **HELD** case (§ below), since the workspace is asserting trusted status for content the install does not vouch for.
 
@@ -68,7 +68,8 @@ For a `local` rulebook, compute its current hash (`python3 <install-root>/resour
 
 > **External rulebook: `<id>@<version>` (local, first load or changed since last approval).**
 > Loading this **replaces the default gate** for this session.
-> Checks it declares: `<id> (kind)` per line. Validator warnings: `<E11/E09/E12 lines, or "none">`.
+> Checks it declares: `<id> (kind)` per line. Commands it provides: `<name — description>` per line, or "none".
+> Validator warnings: `<E11/E09/E12 lines, or "none">`.
 > *(When the rulebook carries `prose` or `code` checks, add:)* For an LLM-bound engine, prose is instructions — approving admits this text into your session's rules.
 > Approve and pin? [y/n]
 
@@ -100,9 +101,26 @@ This skill's job is the **loading** step — getting BOOTSTRAP into context reli
 
 ---
 
-## Sub-command routing
+## Command model & dispatch
 
-Determine the sub-command from the `args` parameter passed when the skill was invoked. If `args` is empty or unset, default to `load`. The user may also express intent in natural language (e.g., "install kerby in this project" → `install`; "onboard/adopt this repo into kerby", "make this repo kerby-ready" → `prepare`).
+Two kinds of commands (V2):
+
+- **Engine commands** (fixed, **reserved** — a rulebook may never declare or shadow them): `load`, `unload`, `reload`, `status`, `install`, `uninstall`, `rulebooks` (and the grammar tokens `list`, `create`, plus `help`).
+- **Rulebook commands**, declared by the loaded rulebooks via `[[command]]` in their manifests (e.g. the `code` rulebook provides `audit` and `prepare`). Invoked as `kerby [rulebook] <command>`; the rulebook may be omitted.
+
+**Position-1 resolution of `args`** (first hit wins):
+
+1. **Engine command** — the reserved set above.
+2. **Rulebook id** (`kerby code audit`) — a loaded or builtin rulebook id; the next token is that rulebook's command. Rulebook ids shadow command names in this position; a shadowed command stays reachable in qualified form from another rulebook.
+3. **Unique command inference** — a command name declared by exactly **one** loaded rulebook (`kerby audit` → code's `audit`).
+4. **Ambiguous** (two or more loaded rulebooks declare it) — prompt: list each as `<rulebook-id> <command> (<origin>) — <description>` and ask which to run. Never guess.
+5. **Unknown** — say so and list what IS available: engine commands + each loaded rulebook's commands with descriptions. `help` maps to this listing too (reserved-only at v7).
+
+If `args` is empty or unset, default to `load`. Natural language still routes (e.g., "install kerby in this project" → `install`; "onboard this repo" → `prepare` via inference).
+
+**Cold dispatch (V15).** Invoking a rulebook command when nothing is loaded is not an error: first run the selection order exactly like `load` (pin → default `code`), announce it, load the selection, then dispatch. A `local`/`remote` rulebook's command **never** dispatches before that rulebook has cleared the trust prompt — dispatch is not a path around TOFU.
+
+**Command bodies are read at invocation** — dispatch Reads the declared `body` file in full and follows it; it is rulebook content, covered by the trust hash like every declared file.
 
 ---
 
@@ -155,6 +173,12 @@ Same procedure as `load` — the pin in `rulebooks.lock` is read, never re-resol
 
 ---
 
+## `unload`
+
+Remove a rulebook from the selection: drop `<id>` from `selected` in the lockfile and confirm in one line (`unloaded <id>; selection is now <list>`). `base` is not in `selected` and cannot be unloaded — say so if asked. Unloading does not delete any files, approval records, or registered hooks (that is `uninstall`'s job); a later `load +<id>` re-selects it without a fresh trust prompt while its hash still matches the user-local approval.
+
+---
+
 ## `status`
 
 Check whether the rules are currently loaded.
@@ -181,18 +205,7 @@ Check whether the rules are currently loaded.
 
 ## `prepare`
 
-Onboard an **existing repo** into kerby — populate (and refresh) the artifacts BOOTSTRAP's `detect_project` step reads (`agent-context.yaml`, `CONTEXT.md`, `.ai/knowledge/`, `.ai/STATUS.md`, `.ai/memory.log`) from the repo's real code and git history. This is the existing-code counterpart to `new-project.md` (greenfield) and to the resume flow in `references/project-entry.md` (read-and-continue).
-
-1. Resolve the install root the same way `load` does (Glob `**/skills/kerby/SKILL.md`, else `${KERBY_DIR}`, else ask). The workflow file lives at `<install-root>/rulebooks/code/workflows/adopt-existing.md`.
-2. **Read `rulebooks/code/workflows/adopt-existing.md` in full** with the `Read` tool, then follow it. It carries the procedure: tiered population by inferability, diff-and-confirm on every write, and per-tier refresh rules that never clobber human-curated content.
-3. The workflow modifies user files — but **only ever behind a per-artifact diff-and-confirm**, exactly like `install`. Never write any artifact silently. Honor the out-of-scope ring-fence in the workflow (no quality gates, no tooling install — including SAST provisioning, which is an audit-time `--sast` concern, not onboarding — no `ROADMAP.md`, no commits/merge, no secret contents).
-
-`prepare` is safe to re-run: per the workflow's refresh rules it re-derives only agent-owned content and is a diffs-only near-no-op on an already-onboarded repo.
-
-**Forcing the knowledge pass.** The `.ai/knowledge/` decision/lesson pass runs automatically only on first onboarding (empty `.ai/knowledge/`); once entries exist it is opt-in. To force it without the opt-in prompt, pass a knowledge-force signal with `prepare` — `args: prepare:knowledge`, `args: prepare --knowledge`, or natural language ("force the knowledge pass", "prepare and draft knowledge candidates"). The workflow runs the pass regardless of existing entries. Forcing only controls whether the pass runs — drafts are still `confidence: low`, still per-entry diff-and-confirm, and `confidence: high` entries stay frozen.
-
-Edge case:
-- **No git repo** → populate the code-derived artifacts only (`agent-context.yaml`, `CONTEXT.md`, `.ai/memory.log` stub); skip the git-history knowledge scan and record the branch as `n/a (no git)`; never `git init` to satisfy a step. Detail: `adopt-existing.md` § Core principles.
+A **`code`-rulebook command** (declared in its manifest; see Command model). Dispatch reads `<install-root>/rulebooks/code/commands/prepare.md` in full and follows it — onboarding an existing repo into kerby with diff-and-confirm on every write. Reachable as `kerby prepare` (inference) or `kerby code prepare`.
 
 ---
 
@@ -369,21 +382,7 @@ If `y`:
 
 ## `audit`
 
-Run a **static conformance audit** of the current project against the kerby corpus and write a self-contained HTML report. **Read `rulebooks/code/references/audit.md` in full and follow it** — it holds the untrusted-input doctrine, the auditability classifier, the checks, scoping, and the report contract. The audit is **read-only**: it never edits code, commits, or merges. It is NOT a bug/security review (`/code-review`) and NOT a SKILL.md audit (`skill-evaluator`).
-
-Invocation via the args parameter: `audit [--full] [--sast] [<dimension> ...]` (dimensions: `security` `quality` `data` `git-hygiene` `docs`; omitted = all). `--sast` is **opt-in** (off by default): it adds deterministic code-static security checks — semgrep (OWASP/CWE) + a pinned dependency-advisory scan — to the `security` dimension. Default-on is deferred to Phase 2, gated on the byte-identity check in `references/sast-normalization.md`; `--no-sast` is reserved for when that flip lands.
-
-1. **Preflight (`audit.md` § 2).** If the repo root is a skill-authoring surface, do NOT run — say *"This looks like a skill-authoring repo — run `skill-evaluator` instead; `audit` is for real coding projects"* and stop (overridable if the user re-runs). A monorepo with a real app proceeds, excluding `skills/**` + `.claude-plugin/**`.
-2. **Resolve scope.** Default incremental (changes since `.ai/audits/.last-audit`); `--full` sweeps the repo. Positional dimensions filter which checks run; an unknown/ambiguous dimension → list the available ones and ask, don't guess.
-3. **Read the live corpus, classify, check.** Walk `BOOTSTRAP.md` + its references; classify each rule auditable/partial/process-only; run the auditable + partial checks in the two bands (mechanical=`observed`, inference=`inferred`). When `--sast` is passed **and the `security` dimension is in scope** (dimensions omitted = all, which includes security), also resolve the project's pinned SAST toolchain from `agent-context.yaml` `stack.tools.sast` and provision it if needed (`references/sast-provisioning.md`; network at setup only, into the git-ignored `.ai/sast/` cache — not repo source, so step 5's *No source files changed* still holds). If the toolchain or advisory snapshot can't be provisioned, the SAST/deps checks are **`not-run`** (banner + a `notrun` callout in the security section) — never silent, never folded into the checked count, and the audit still completes. If `--sast` is passed but `security` is **not** in scope (e.g. `audit --sast quality`), `--sast` is a **no-op**: do not provision, scan, or write the cache — note in the completion message that `--sast` was ignored because `security` wasn't in scope.
-4. **Write the report.** `.ai/audits/audit-<dims>-<mode>-<YYYYMMDD-HHMMSS>.md`, render to `.html` (degrade to md-only if no converter), with the three-way coverage banner. If `.ai/audits/` isn't git-excluded, **recommend** the `.gitignore` line in the completion message — do NOT edit `.gitignore` yourself (the audit is read-only).
-5. Confirm: *"**Audit complete.** Checked `<C>`, partial `<P>`, process-only `<Q>`. Report: `<path>`. No source files changed."* (plus the `.gitignore` tip if applicable)
-
-Edge cases:
-- **No git repo** → audit the working tree only (file-level checks); skip history-based checks (commit-type, schema-migration) and say so in the banner.
-- **Empty incremental scope, valid baseline** → report *"no changes since last audit"*, not an empty findings list.
-- **`--sast` requested but toolchain/snapshot unresolvable** → SAST + deps reported `not-run` (banner + `notrun` callout); the security section must not read as a clean pass; the audit does not error.
-- **First `--sast` run on a baseline that didn't cover SAST** (`.last-audit` is pre-`--sast` or `sast:no`) → force `--full` (`audit.md` §9); the SAST/dependency checks have no valid incremental baseline, so a delta-only scan would miss pre-existing findings.
+A **`code`-rulebook command** (declared in its manifest; see Command model). Dispatch reads `<install-root>/rulebooks/code/commands/audit.md` in full and follows it — the read-only static conformance audit with its report contract. Invocation flags (`--full`, `--sast`, dimensions) are documented in the command body. Reachable as `kerby audit` (inference) or `kerby code audit`.
 
 ---
 

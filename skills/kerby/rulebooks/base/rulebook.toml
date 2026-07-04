@@ -6,6 +6,7 @@ id = "base"
 version = "1.0.0"
 contract = 2
 accepts = ["*"]
+description = "The universal floor: secrets, untrusted-artifact, verification-claim, and irreversibility rules every rulebook inherits."
 
 [gate]
 block_on = ["block"]

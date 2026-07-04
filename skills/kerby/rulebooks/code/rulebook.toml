@@ -8,6 +8,7 @@ version = "1.0.0"
 contract = 2
 accepts = ["git_change"]
 extends = ["base"]
+description = "Coding guardrails: clarity over cleverness, safety over speed, never leave the repo broken — nothing unproven passes the gate."
 
 [gate]
 block_on = ["block"]
@@ -114,3 +115,15 @@ enforcement = "partial"
 enforcer = "hooks/pre-commit-check.sh"
 gap = "runtime fakes (0-match runs, gates over stubs) stay agent-judged"
 severity = "warn"
+
+# --- commands: user-invocable flows this rulebook provides (V2/V3) ----------
+
+[[command]]
+name = "audit"
+body = "commands/audit.md"
+description = "Static conformance audit of the project against the loaded corpus; writes a report under .ai/audits/."
+
+[[command]]
+name = "prepare"
+body = "commands/prepare.md"
+description = "Onboard an existing repo: populate kerby's context artifacts from code and git history, diff-and-confirm on every write."
