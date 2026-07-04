@@ -21,15 +21,20 @@ arrange — the manifest declares it by relative path:
 ```
 my-rulebook/
 ├── rulebook.toml        # the only fixed name — the manifest
+├── README.md            # what this rulebook is for, its checks + commands
 ├── rules/               # prose bodies (markdown)
 │   └── cite-sources.md
+├── commands/            # bodies of user-invocable commands, if you provide any
+│   └── review.md
 └── hooks/               # enforcer scripts, if you ship any
     └── check-citations.sh
 ```
 
-A non-builtin rulebook is **path-confined**: every declared path must resolve
-inside the folder. No `..`, no absolute paths, no symlinks that point out
-(E04). If a file matters, it lives in the folder.
+Every rulebook is **path-confined** (contract 2 — builtins too): every declared
+path must resolve inside the folder. No `..`, no absolute paths, no symlinks
+that point out (E04). If a file matters, it lives in the folder. That is what
+makes a rulebook **plug-and-play**: copy the folder, and the receiving kerby
+has everything — it will still ask its own user for approval before loading.
 
 ## The manifest, walked through
 
@@ -50,13 +55,23 @@ body = "rules/cite-sources.md"
 enforcement = "behavioral"
 severity = "block"
 token_cost = "low"
+
+[[command]]                  # optional: a flow users invoke as `kerby [your-id] review`
+name = "review"              # slug; must not collide with engine commands or builtin ids (E13)
+body = "commands/review.md"  # read in full at invocation — write it as instructions to the agent
+description = "Run the review flow."   # shown in listings + the trust prompt (E14)
 ```
+
+Add `description = "one line"` at the top level too — `kerby rulebooks list`
+shows it. If you ship a `hard`/`partial` enforcer, also declare its trigger so
+`install` can register it: `event = "PreToolUse"`, `matcher = "Bash"` (an
+enforcer without an `event` cannot be auto-registered; the validator warns).
 
 Validate while you work (advisory; the load flow re-runs the same logic
 authoritatively):
 
 ```
-python3 skills/kerby/resources/scripts/validate-rulebook.py ./my-rulebook
+python3 <install-root>/resources/scripts/validate-rulebook.py ./my-rulebook
 ```
 
 ### Choosing `kind`
@@ -146,6 +161,24 @@ rulebook the way it treats any external input:
    injection lint (E11) and shown to the user in the prompt. Write rules,
    not payloads.
 
+## Creating a rulebook interactively — `kerby rulebooks create`
+
+You don't have to hand-write any of this. `kerby rulebooks create` runs the
+authoring interview and builds the folder with you:
+
+1. **Interview** — domain, purpose, `id` (slug-checked), one-line
+   `description`, subject types.
+2. **Checks, one at a time** — kind, enforcement (with an honest `gap` for
+   `partial`), severity, `token_cost`; prose bodies are drafted *with* you.
+3. **Commands** (optional) — name (E13-checked live), body, description.
+4. **Continuous validation** — the validator runs after every addition;
+   E-codes surface fix-forward; the E11 injection lint runs on each prose
+   body and shows hits.
+5. **Emit** — `rulebook.toml`, `README.md`, `rules/` (+ `hooks/`,
+   `commands/` as declared).
+6. **Test load** — through the normal trust prompt. Creating a rulebook is
+   not pre-approval; your own gate still gates you.
+
 ## Error catalog — what the validator will tell you
 
 Each code is the mechanical face of an authoring rule above. Messages are
@@ -165,6 +198,8 @@ literal and name the fix.
 | E10 | unknown view name, or `needs` unsatisfiable by any accepted subject | `needs` and subject types |
 | E11 | *(warning)* prose body contains an instruction-override pattern | write rules, not payloads (Trust model) |
 | E12 | `[detect].markers` malformed; warns when a non-builtin declares it | `[detect]` is reserved, auto-selection is builtin-only |
+| E13 | a command name collides with a reserved engine command, a builtin rulebook id, or a sibling command | Commands (the manifest walkthrough) — dispatch tokens must be unambiguous |
+| E14 | a command is malformed (name not a slug, `body` missing/not a path, empty `description`) | Commands — every command is a named, described, folder-confined instruction file |
 
 ## Checklist before you ship
 

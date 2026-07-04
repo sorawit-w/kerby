@@ -33,6 +33,7 @@ id = "code"                 # unique rulebook id (required)
 version = "1.0.0"           # the rulebook's own semver (required)
 contract = 2                # manifest contract version (required; engine rejects unsupported, E03)
 accepts = ["git_change"]    # subject types this rulebook can judge (required, non-empty; "*" = any)
+description = "…"           # one line for `rulebooks list` (optional string)
 extends = ["base"]          # packs composed in — see Merge rules
 
 [gate]                      # severity → verdict mapping; defaults shown
@@ -43,6 +44,11 @@ hold_on  = ["warn"]         # severities that HOLD
 build = "{build_command}"    # (renamed from v1 [commands] to disambiguate from [[command]],
 lint  = "{lint_command}"     #  the user-invocable rulebook commands added in Phase B of the
 test  = "{test_command}"     #  v7 PR)
+
+[[command]]                 # user-invocable commands this rulebook provides (V2)
+name = "audit"              # dispatch token: slug, non-reserved, no builtin-id collision (E13)
+body = "commands/audit.md"  # instruction file read at invocation; folder-confined, trust-hashed
+description = "…"           # shown in dispatch listings + the trust prompt (E14)
 
 [detect]                    # RESERVED at contract v2 (D17–D19)
 markers = ["package.json"]  # shape-validated only (E12); the loader never matches on it
@@ -63,6 +69,7 @@ markers = ["package.json"]  # shape-validated only (E12); the loader never match
 | `floor` | bool | non-overridable (D9); no config or extending rulebook may loosen it. Only meaningful in `base` at contract v2 |
 | `override` | string | escape-hatch policy for non-floor checks, e.g. `"authorized-scoped"` (the `CODING_RULES_ALLOW_PROTECTED_COMMIT=1` pattern) |
 | `gap` | string | for `partial`: the named enforcement gap (warn if absent, E09); surfaces in `status` |
+| `event` / `matcher` | strings | how `install` derives the hook registration for this check's enforcer: a Claude Code lifecycle event (unknown events warn) + tool-name pattern (empty = all). An enforcer without `event` cannot be auto-registered (E09 warns). Dedup at registration = (event, matcher, enforcer filename) |
 | `token_cost` | `low \| medium \| high` | prose only: recurring context cost; drives progressive loading order (low loads eagerly) |
 
 Kind/field coherence (E08): `data` → `runner` required (`config` optional);
@@ -114,18 +121,15 @@ Extended packs contribute their own low-cost bodies but no root.
 4. User config sits above the merged result: tighten freely; loosen only to
    the floor; never through it (E06).
 
-### Added in the v7 PR (forward-marks)
+### Still landing in this PR (forward-mark)
 
-- `[[command]]` — user-invocable rulebook commands (name/body/description) + top-level
-  `description`: **Phase B** (E13 reserved/duplicate name, E14 command shape/path).
-- Per-check `event`/`matcher` — hook-trigger declaration for enforcer derivation: **Phase C**.
-- `remote` origin mechanics + `.kerby/rulebooks.lock`: **Phase E**.
+- `remote` origin mechanics + the `.kerby/rulebooks.lock` relocation: **Phase E**.
 
-## Error catalog (E01–E12)
+## Error catalog (E01–E14)
 
 Messages are fix-forward and literal (VOICE.md zoning: error strings carry no
 persona). E09-gap, E11, and E12-non-builtin emit as warnings (exit 0);
-everything else is an error (exit 1).
+everything else is an error (exit 1). E02-unknown-event also warns.
 
 | Code | Invariant |
 |---|---|
@@ -141,6 +145,8 @@ everything else is an error (exit 1).
 | E10 | `accepts` non-empty; every `needs` entry known and satisfiable (see View vocabulary) |
 | E11 | prose-injection lint, non-builtin origins, **warn-only**: flags `ignore previous`, `you must now`, `disregard the above` in prose bodies |
 | E12 | `[detect]` shape: `markers` = non-empty array of strings (error if malformed); declared by a non-builtin rulebook → warning (ignored at load, D19) |
+| E13 | no `[[command]]` name collides with a reserved engine command, a builtin rulebook id, or another command in the same rulebook |
+| E14 | `[[command]]` shape: `name` a slug, `body` a folder-confined path string, `description` non-empty |
 
 **Fail-closed:** a validator crash or an unreadable declared file is an
 invalid result, never a pass. Anything gated while the loader is failed is

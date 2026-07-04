@@ -106,7 +106,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `6.0.0` — the **engine/rulebook split**. kerby is now a domain-blind engine
+Current release: `7.0.0` — **plug-and-play rulebooks**: self-contained rulebook folders, engine vs. rulebook commands, multi-rulebook load, `rulebooks list|create`.
 (loader, validator, lockfile, verdicts) and the rules are manifest-declared **rulebooks**:
 `base` (the universal, non-overridable floor) composed under `code` (everything kerby has
 always enforced, now declared in `rulebook.toml` instead of hardcoded in the load flow).

@@ -4,15 +4,17 @@ description: >
   Load, install, reload, check status of, uninstall, prepare, or audit an
   existing repo for the kerby guardrails system. Invoke ONLY when the
   user explicitly mentions
-  "kerby", "/kerby", or asks to load/install/uninstall/check/
-  prepare (onboard an existing repo into) or audit-a-repo-against the
-  kerby guardrails. Do NOT
+  "kerby", "/kerby", or asks to load/unload/install/uninstall/check/
+  list-or-create-rulebooks/prepare (onboard an existing repo into) or
+  audit-a-repo-against the kerby guardrails. Do NOT
   invoke on general coding tasks (fixing
   bugs, implementing features, refactoring) — kerby is a meta-system
   that itself governs how those tasks are done; `audit` checks a repo's
-  conformance to the rules, it is NOT a general bug/security review. Sub-commands
-  via the args parameter: `load` (default), `reload`, `status`, `install`,
-  `uninstall`, `prepare`, `audit`.
+  conformance to the rules, it is NOT a general bug/security review.
+  Engine sub-commands via the args parameter: `load` (default), `unload`,
+  `reload`, `status`, `install`, `uninstall`, `rulebooks [list]|create`;
+  loaded rulebooks add their own commands (the `code` rulebook provides
+  `prepare` and `audit`).
 ---
 
 # kerby — session loader
@@ -200,6 +202,33 @@ Check whether the rules are currently loaded.
    - Per check, one row: `<id> — <kind> — declared: <enforcement> — effective: <enforcement>` plus the `gap` text for `partial` checks. **Effective enforcement**: for `hard`/`partial` checks, the declared level holds only if the check's enforcer is actually registered — detect it exactly like `install` Phase 2 does (a hook entry whose command ends in the enforcer's filename AND whose path contains `/skills/kerby/rulebooks/` — or the legacy `/skills/kerby/resources/hooks/`, where v7 migration shims live — in any of the three settings files). Unregistered → effective is `behavioral` (degraded); mark it `degraded — run install to bind`. `behavioral` checks show `behavioral (by design)`. An enforcer entry registered at a legacy pre-v7 shim path still counts as bound, but flag it: `(via v7 shim — run install to re-point)`.
    - A check whose `needs` the current subject type cannot satisfy is listed as `skipped (needs: <views>)` — visible, never silent.
    - If the last load failed (invalid manifest, declined trust prompt), say which rulebook and why, and that gated work in the meantime is **HELD**.
+
+---
+
+## `rulebooks` — list & create
+
+### `rulebooks` / `rulebooks list`
+
+List every rulebook this install can see, one row each: `id`, `version`, `origin`, `description`, and a `loaded` marker.
+
+- **Builtins:** every directory under `<install-root>/rulebooks/` with a `rulebook.toml` (read id/version/description from the manifest). `base` is listed with the marker **`floor — always loaded`** — it is merged into every session and is not a selectable row.
+- **External:** every `local`/`remote` entry in the lockfile (path/URL shown as provenance).
+- **`loaded`** marks each rulebook in the current `selected` pin.
+
+Output is literal (VOICE.md zoning) — a plain table, no persona.
+
+### `rulebooks create`
+
+Interactive, skill-creator-style authoring flow (V6). Read `docs/AUTHORING-RULEBOOKS.md`'s "Creating a rulebook interactively" walkthrough and follow it end-to-end:
+
+1. **Interview:** domain, purpose, id (must match the slug rule), one-line description, subject types.
+2. **Per-check walkthrough:** for each rule the user wants — kind (`prose`/`data`/`code`), enforcement (+ honest `gap` for `partial`), severity, `token_cost` for prose; draft the prose body *with* the user, not for them.
+3. **Commands (optional):** name (validator rejects reserved/builtin collisions, E13), body, description.
+4. **Validate continuously:** run `validate-rulebook.py` after each addition; surface E-codes fix-forward; run the E11 injection lint on every prose body and show any hits.
+5. **Emit:** the folder — `rulebook.toml` + `README.md` (purpose, checks, commands, provenance) + `rules/` (+ `hooks/`, `commands/` as declared).
+6. **Offer a test load** — which runs the normal trust prompt. The creator's own rulebook still goes through the gate; creation is not pre-approval.
+
+`create` writes only inside the new rulebook folder (location confirmed with the user first; default `./<id>/`).
 
 ---
 
