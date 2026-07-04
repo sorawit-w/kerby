@@ -108,6 +108,9 @@ def check_top_level(data: dict, res: Result):
 
 def check_fields(check: dict, idx: int, res: Result) -> str:
     cid = check.get("id", f"<check #{idx + 1}>")
+    if "id" in check and not isinstance(check["id"], str):
+        res.error("E02", f"check #{idx + 1}: 'id' must be a string, got {type(check['id']).__name__}")
+        cid = f"<check #{idx + 1}>"  # don't propagate a non-string id into later id-uniqueness/status logic
     for field in CHECK_REQUIRED:
         if field not in check:
             res.error("E02", f"check '{cid}': missing required field '{field}'")

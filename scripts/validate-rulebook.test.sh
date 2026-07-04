@@ -52,7 +52,7 @@ else
 fi
 
 # [detect] on a local rulebook warns (builtin-only auto-selection, D19)
-TMP_DETECT="$(mktemp -d)"; trap 'rm -rf "$TMP_DETECT" "$TMP_UNREADABLE" 2>/dev/null' EXIT
+TMP_DETECT="$(mktemp -d)"; trap 'rm -rf "$TMP_DETECT" "$TMP_UNREADABLE" "$TMP_PERM" 2>/dev/null' EXIT
 cp -R "$FIXTURES/valid-minimal/." "$TMP_DETECT/"
 printf '\n[detect]\nmarkers = ["package.json"]\n' >> "$TMP_DETECT/rulebook.toml"
 run "$TMP_DETECT"
@@ -79,15 +79,35 @@ else
 fi
 
 # --- Fail-closed: unreadable declared file -> invalid (generated, not stored) -
+# A directory in place of the declared file is unreadable-as-a-file regardless
+# of UID (unlike chmod 000, which root can still open) — portable under
+# root-run CI/Docker.
 TMP_UNREADABLE="$(mktemp -d)"
 cp -R "$FIXTURES/valid-minimal/." "$TMP_UNREADABLE/"
-chmod 000 "$TMP_UNREADABLE/rules/one-rule.md"
+rm "$TMP_UNREADABLE/rules/one-rule.md"
+mkdir "$TMP_UNREADABLE/rules/one-rule.md"
 run "$TMP_UNREADABLE"
-chmod 644 "$TMP_UNREADABLE/rules/one-rule.md"
 if [[ "$RC" -eq 1 ]] && echo "$OUT" | grep -q "E04:"; then
   pass "fail-closed: unreadable declared file is invalid (E04)"
 else
   fail "fail-closed — expected exit 1 + E04 on unreadable body, got exit $RC: $OUT"
+fi
+
+# Same invariant, permission-denied flavor — best-effort, skipped under root
+# (chmod 000 is not unreadable to uid 0) so the suite still passes in CI.
+if [[ "$(id -u)" -ne 0 ]]; then
+  TMP_PERM="$(mktemp -d)"
+  cp -R "$FIXTURES/valid-minimal/." "$TMP_PERM/"
+  chmod 000 "$TMP_PERM/rules/one-rule.md"
+  run "$TMP_PERM"
+  chmod 644 "$TMP_PERM/rules/one-rule.md"
+  if [[ "$RC" -eq 1 ]] && echo "$OUT" | grep -q "E04:"; then
+    pass "fail-closed: permission-denied declared file is invalid (E04)"
+  else
+    fail "fail-closed — expected exit 1 + E04 on chmod-000 body, got exit $RC: $OUT"
+  fi
+else
+  pass "fail-closed: chmod-000 variant skipped under root (uid 0 bypasses it) — directory-based test above covers this uid-agnostically"
 fi
 
 # --- Hashing: 64-hex, sensitive to declared-file content ----------------------
