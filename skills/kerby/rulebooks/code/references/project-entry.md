@@ -255,7 +255,7 @@ Notes: State=[new|existing], Stack=[runtime, framework, tools], Build=[pass|fail
 - **`.ai/memory.log`** — at session start (first entry: project name, stack, current state)
 - **`.ai/STATUS.md`** — before multi-phase work (implementation planning)
 - **`.ai/BLOCKERS.md`** — when a task fails after retry budget exhausted
-- **`.ai/knowledge/KNOWLEDGE.md`** — bootstrapped automatically by the `knowledge-bootstrap` hook at session start (default on). If hooks aren't wired for this project, copy `templates/KNOWLEDGE.md.template` manually when the first entry is approved. See `references/knowledge-management.md` and `references/hooks.md`.
+- **`.ai/knowledge/KNOWLEDGE.md`** — bootstrapped automatically by the `knowledge-bootstrap` hook at session start (default on). If hooks aren't wired for this project, copy the engine template `<install-root>/resources/templates/KNOWLEDGE.md.template` manually when the first entry is approved. See `references/knowledge-management.md` and `references/hooks.md`.
 
 ### When to Update
 
