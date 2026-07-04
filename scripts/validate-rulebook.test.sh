@@ -52,7 +52,7 @@ else
 fi
 
 # [detect] on a local rulebook warns (builtin-only auto-selection, D19)
-TMP_DETECT="$(mktemp -d)"; trap 'rm -rf "$TMP_DETECT" "$TMP_UNREADABLE" "$TMP_PERM" 2>/dev/null' EXIT
+TMP_DETECT="$(mktemp -d)"; trap 'rm -rf "$TMP_DETECT" "${TMP_UNREADABLE:-}" "${TMP_PERM:-}" 2>/dev/null' EXIT
 cp -R "$FIXTURES/valid-minimal/." "$TMP_DETECT/"
 printf '\n[detect]\nmarkers = ["package.json"]\n' >> "$TMP_DETECT/rulebook.toml"
 run "$TMP_DETECT"
