@@ -20,7 +20,7 @@ pinned (D10).
 | Origin | Where it lives | Path rules | Trust |
 |---|---|---|---|
 | `builtin` | `skills/kerby/resources/rulebooks/<id>/`, ships inside kerby | may declare repo-relative paths — resolved against the rulebook root first, then against `resources/` (so `references/quality-gates.md` and `hooks/protect-git.sh` declare existing files in place) | repo-versioned; no hash pin required |
-| `local` | anywhere on disk, loaded by explicit path | confined: every declared path must resolve **inside** the rulebook root — no `..`, no absolute paths, no symlink escapes (E04) | one-time review + hash pin (TOFU) on first load when the rulebook carries `prose` or `code` checks; silent re-load while the hash matches |
+| `local` | anywhere on disk, loaded by explicit path | confined: every declared path must resolve **inside** the rulebook root — no `..`, no absolute paths, no symlink escapes (E04) | one-time review + hash pin (TOFU) on first load when the rulebook carries `prose` or `code` checks; silent re-load only while the hash matches **and** the hash is in the per-machine `~/.claude/kerby/approved-rulebooks.json` — a committed project `rulebooks.lock` is untrusted content and can never by itself pre-approve external prose/code |
 | `remote` | — | — | **reserved**; no fetching at v1 |
 
 Auto-selection is builtin-only (D19): external rulebooks load by explicit

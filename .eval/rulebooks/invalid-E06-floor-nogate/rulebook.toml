@@ -1,0 +1,17 @@
+# E06 regression: a floor check at severity="warn" with NO [gate] table.
+# The contract default block_on = ["block"] still applies, so this floor maps
+# to HELD not DENIED and must fail E06 — the validator must apply the default
+# gate, not skip the check when [gate] is absent.
+id = "floor-nogate"
+version = "1.0.0"
+contract = 1
+accepts = ["*"]
+
+[[check]]
+id = "soft-floor"
+kind = "prose"
+body = "rules/soft-floor.md"
+enforcement = "behavioral"
+severity = "warn"
+floor = true
+token_cost = "low"

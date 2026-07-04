@@ -46,6 +46,7 @@ KINDS = {"data", "code", "prose"}
 ENFORCEMENTS = {"hard", "partial", "behavioral"}
 SEVERITIES = {"block", "warn", "info"}
 RUNNERS = {"gitleaks", "semgrep", "regex-floor"}  # built-in data-runner ids (docs/rulebook-contract.md)
+DEFAULT_BLOCK_ON = ["block"]  # contract default when a manifest omits [gate].block_on
 TOKEN_COSTS = {"low", "medium", "high"}
 VIEWS_BY_SUBJECT = {
     "git_change": {
@@ -316,24 +317,33 @@ def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, res
                         lint_prose(resolved, cid, res)
         merged[cid] = check
 
-    # E06 — gate floors: every floor check's severity must stay blocking
-    for gate_name, gate in (("[gate]", data.get("gate")), ("config", config_gate)):
-        if gate is None:
+    # E06 — gate floors: every floor check's severity must stay blocking under
+    # the EFFECTIVE gate. Precedence: user config overrides the rulebook [gate]
+    # overrides the contract default block_on = ["block"]. A missing [gate] or a
+    # missing block_on key does NOT skip this check — the default still applies,
+    # so a floor='warn' check with no [gate] must still fail (it would otherwise
+    # validate yet map to HELD, not DENIED — a floor that doesn't block isn't a
+    # floor). The old code both special-cased severity=='block' and skipped when
+    # the key was absent.
+    eff_block_on = None
+    eff_src = "default gate (block_on = ['block'])"
+    for src_name, src in (("config", config_gate), ("[gate]", data.get("gate"))):
+        if src is None:
             continue
-        block_on = gate.get("block_on")
-        if block_on is None:
+        bo = src.get("block_on")
+        if bo is None:
             continue
-        if not isinstance(block_on, list):
-            res.error("E02", f"{gate_name}: 'block_on' must be an array of severities")
+        if not isinstance(bo, list):
+            res.error("E02", f"{src_name}: 'block_on' must be an array of severities")
             continue
-        for c in merged.values():
-            # Every floor check's severity must stay in block_on (contract § merge
-            # rule / E06). The old check only caught a block-severity floor when
-            # block_on dropped 'block'; it skipped a floor authored with
-            # severity='warn'/'info', which passes yet maps to HELD, not DENIED —
-            # a floor that doesn't block isn't a floor.
-            if c.get("floor") is True and c.get("severity") not in block_on:
-                res.error("E06", f"{gate_name}: floor check '{c.get('id')}' has severity '{c.get('severity')}' not in block_on {block_on}; floors must stay blocking and are non-overridable")
+        eff_block_on = bo
+        eff_src = src_name
+        break
+    if eff_block_on is None:
+        eff_block_on = DEFAULT_BLOCK_ON
+    for c in merged.values():
+        if c.get("floor") is True and c.get("severity") not in eff_block_on:
+            res.error("E06", f"floor check '{c.get('id')}' has severity '{c.get('severity')}' not in the effective block_on {eff_block_on} ({eff_src}); floors must stay blocking and are non-overridable")
     return declared_files
 
 

@@ -131,8 +131,14 @@ rulebook the way it treats any external input:
 1. **First load** (or any content change): the validator runs, then the user
    sees a trust prompt — your id/version/origin, every check with its kind,
    and any lint warnings. They approve or decline.
-2. **Approval pins a hash** over the manifest *and every declared file*.
-   While the hash matches, later loads are silent.
+2. **Approval pins a hash** over the manifest *and every declared file* — in
+   two places: the project `rulebooks.lock` (for selection + drift detection)
+   and a **per-machine** `~/.claude/kerby/approved-rulebooks.json` (the record
+   that *this user* approved *this content*). Later loads are silent only while
+   the hash matches **and** it's in that per-machine store. A `rulebooks.lock`
+   you ship inside your rulebook cannot pre-approve it for someone who clones
+   it — they still get the prompt on first load. (Don't commit a
+   `rulebooks.lock` expecting it to skip the prompt; it won't, by design.)
 3. **Any edit re-opens the gate.** One changed character → re-validation and
    a fresh prompt. Version fields are courtesy; the hash is the truth.
 4. Your prose enters context framed as rules-not-instructions (`DATA>`
