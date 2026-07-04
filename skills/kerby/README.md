@@ -104,7 +104,7 @@ The skill is invoked via `Skill` tool with `args: <sub-command>`. Defaults to `l
 
 | Sub-command | What it does |
 |---|---|
-| `load` (default) | Select a rulebook (explicit arg → `rulebooks.lock` pin → default `code`), announce it in one line, then read its eager prose — `rulebooks/code/BOOTSTRAP.md` plus the base floor rules — via `Read` so it enters context as a tool result, confirm to user. External (`local`) rulebooks pass a one-time trust review with a hash pin first. |
+| `load` (default) | Select rulebooks (explicit arg — id, path, URL, or `owner/repo` → `.kerby/rulebooks.lock` pin → default `code`), announce it in one line, then read its eager prose — `rulebooks/code/BOOTSTRAP.md` plus the base floor rules — via `Read` so it enters context as a tool result, confirm to user. External (`local`) rulebooks pass a one-time trust review with a hash pin first. |
 | `reload` | Same as `load`, but with a "BOOTSTRAP refreshed" confirmation. Useful after Claude Code compacts the conversation. |
 | `status` | Scan recent context for BOOTSTRAP signatures (e.g., `Prime Directive`, `<hard_rules>`, distinctive headers); report loaded / not loaded, plus the rulebook panel — each check's declared vs. *effective* enforcement, with degrades and named gaps visible. |
 | `install` | **Phase 1** — append the session-start instruction to your vendor agent-instruction files (`CLAUDE.md` / `AGENTS.md` / `AI-CONTEXT.md` / `.cursorrules`), per-file confirmation. **Phase 2 (optional)** — register `kerby`' Claude Code lifecycle hooks (`PreToolUse` + `SessionStart`) in your chosen settings file. Both phases are independently skippable; both show a diff and require explicit confirmation. |

@@ -19,9 +19,9 @@ pinned (D10).
 
 | Origin | Where it lives | Path rules | Trust |
 |---|---|---|---|
-| `builtin` | `skills/kerby/rulebooks/<id>/`, ships inside kerby | **folder-confined like every origin** (contract 2 — the v1 resources-relative exemption is gone; builtins are self-contained) | repo-versioned; no hash pin required. **Builtin-ness is anchored to the install location, never asserted by a lockfile**: a rulebook is builtin *iff* it resolves to `<install-root>/rulebooks/<id>`. The validator rejects `--origin builtin` for any path outside `--builtin-root` (E04); a `rulebooks.lock` entry claiming `origin: builtin` for a workspace path is invalid, not trusted |
-| `local` | anywhere on disk, loaded by explicit path | confined: every declared path must resolve **inside** the rulebook root — no `..`, no absolute paths, no symlink escapes (E04) | one-time review + hash pin (TOFU) on first load — for **any** local rulebook, including a `data`-only one (loading it replaces the default gate; a prose/code rulebook *additionally* admits external instructions/scripts). Silent re-load only while the hash matches **and** the hash is in the per-machine `~/.claude/kerby/approved-rulebooks.json` — a committed project `rulebooks.lock` is untrusted content and can never by itself pre-approve an external rulebook |
-| `remote` | — | — | **reserved**; made real in Phase E of the v7 PR (clone → confined + TOFU like `local`, provenance = URL) |
+| `builtin` | `skills/kerby/rulebooks/<id>/`, ships inside kerby | **folder-confined like every origin** (contract 2 — the v1 resources-relative exemption is gone; builtins are self-contained) | repo-versioned; no hash pin required. **Builtin-ness is anchored to the install location, never asserted by a lockfile**: a rulebook is builtin *iff* it resolves to `<install-root>/rulebooks/<id>`. The validator rejects `--origin builtin` for any path outside `--builtin-root` (E04); a lockfile entry claiming `origin: builtin` for a workspace path is invalid, not trusted |
+| `local` | anywhere on disk, loaded by explicit path | confined: every declared path must resolve **inside** the rulebook root — no `..`, no absolute paths, no symlink escapes (E04) | one-time review + hash pin (TOFU) on first load — for **any** local rulebook, including a `data`-only one (loading it replaces the default gate; a prose/code rulebook *additionally* admits external instructions/scripts). Silent re-load only while the hash matches **and** the hash is in the per-machine `~/.claude/kerby/approved-rulebooks.json` — a committed project lockfile is untrusted content and can never by itself pre-approve an external rulebook |
+| `remote` | fetched by explicit `load <git-URL \| owner/repo>`, materialized at `.kerby/rulebooks/<id>/` (session temp dir when the workspace is read-only) | confined exactly like `local`; clone's `.git/` deleted after fetch; manifest `id` must be a slug (it becomes the path component) | TOFU exactly like `local`, plus `Source: <url>` provenance in the prompt. **No silent network** (plain `load`/`reload` use the existing clone) and **no silent updates** (re-running `load <source>` re-clones; a changed hash re-prompts). Lockfile entry adds `local_path` — untrusted like every lockfile field: the loader re-derives it from the id; a mismatch or out-of-root path is fail-closed HELD |
 
 Auto-selection is builtin-only (D19): external rulebooks load by explicit
 invocation only, whatever they declare.
@@ -121,10 +121,6 @@ Extended packs contribute their own low-cost bodies but no root.
 4. User config sits above the merged result: tighten freely; loosen only to
    the floor; never through it (E06).
 
-### Still landing in this PR (forward-mark)
-
-- `remote` origin mechanics + the `.kerby/rulebooks.lock` relocation: **Phase E**.
-
 ## Error catalog (E01–E14)
 
 Messages are fix-forward and literal (VOICE.md zoning: error strings carry no
@@ -153,7 +149,7 @@ invalid result, never a pass. Anything gated while the loader is failed is
 **HELD** (D11) — "the gate couldn't run" escalates to a human; it is not
 DENIED and it is never PASS.
 
-## Lockfile (`rulebooks.lock`)
+## Lockfile (`.kerby/rulebooks.lock`)
 
 JSON, at the consuming project's root (same tier as `.ai/`). Written by the
 first successful load; read by every later load.
@@ -168,14 +164,20 @@ first successful load; read by every later load.
 }
 ```
 
+- Location: `.kerby/rulebooks.lock` (v7). A pre-v7 root `rulebooks.lock` is read
+  as fallback for one major version and auto-migrated on the next pin write.
 - `selected` is the D17 pin: which rulebooks this project loads. Changing
-  rulebooks is an explicit act (`kerby load <id>`), never drift.
+  rulebooks is an explicit act (`load <x>` replaces, `load +<x>` adds,
+  `unload <x>` removes), never drift.
+- `remote` entries carry `path_or_url` = the source URL (identity) and
+  `local_path` = the clone dir — re-derived from the id at load, never trusted
+  from the file.
 - `sha256` covers the manifest **plus every declared file** (a manifest-only
   hash would let a declared body mutate silently). `builtin` entries may set
   it `null` — they are repo-versioned.
 - Validation is hash-keyed, not operation-keyed (D10): unknown/changed hash →
   validate (and re-prompt for non-builtin trust); matching pinned hash → skip
-  **for builtins only**. For a `local` rulebook the project `rulebooks.lock` is
+  **for builtins only**. For a `local` rulebook the project lockfile is
   untrusted workspace content — a matching pin proves the files agree with each
   other, not that *this user* approved them. A committed lockfile must never be
   a pre-approval token for external prose/code (indirect prompt injection). The
