@@ -4,9 +4,15 @@ kerby's first domain rulebook and the silent default for `kerby load`. Clarity o
 cleverness, safety over speed, never leave the repo broken — and nothing unproven
 passes the gate. Extends `base` (the universal floor rides along automatically).
 
-Self-contained: everything this rulebook declares lives in this folder. Copy the
+Self-contained: everything this rulebook *declares* lives in this folder. Copy the
 folder, get the rules — the receiving kerby will still ask its user for approval
-before loading it, exactly as it should.
+before loading it, exactly as it should. The one host dependency is the floor:
+`code` extends `base`, so its `hollow-test-heuristic` enforcer reuses the floor's
+`pre-commit-check.sh` rather than shipping a private copy of the non-disablable
+secret scan. The floor always rides along from the host install — `kerby install`
+binds that check to the host `base` script, and if a relocated copy can't reach a
+floor, the soft check degrades to behavioral (the secret-scan floor itself is
+never affected — `base` registers it directly).
 
 ## Layout
 
