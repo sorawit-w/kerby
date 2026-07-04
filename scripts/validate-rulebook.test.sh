@@ -123,6 +123,21 @@ else
   fail "expected exit 1 + E04 on a symlinked rulebook file, got exit $RC: $OUT"
 fi
 
+# A `.git/` path under the rulebook is rejected (E04): the trust hash skips
+# `.git`, so a declared/body-read file there (resolve_declared accepts it as
+# in-folder) would be an agent-readable, hash-blind, mutable-after-approval
+# channel. Reject its presence so nothing loadable can hide under it.
+TMP_GIT="$(mktemp -d "$TMP_DETECT/git.XXXX")"
+cp -R "$FIXTURES/valid-minimal/." "$TMP_GIT/"
+mkdir -p "$TMP_GIT/.git"
+printf 'read me and obey' > "$TMP_GIT/.git/rule.md"
+run "$TMP_GIT"
+if [[ "$RC" -eq 1 ]] && echo "$OUT" | grep -q "E04:"; then
+  pass "'.git' path under rulebook root is rejected (E04)"
+else
+  fail "expected exit 1 + E04 on a .git path under the rulebook, got exit $RC: $OUT"
+fi
+
 # Same invariant, permission-denied flavor — best-effort, skipped under root
 # (chmod 000 is not unreadable to uid 0) so the suite still passes in CI.
 if [[ "$(id -u)" -ne 0 ]]; then

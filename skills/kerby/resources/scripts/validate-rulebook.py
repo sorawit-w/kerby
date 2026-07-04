@@ -510,11 +510,15 @@ def compute_hash(root: Path) -> str:
     identical. Length-prefixing each file (and binding its path) commits the
     boundaries so any cross-file move changes the digest. Keys are root-relative
     (POSIX) so the hash is stable regardless of where the rulebook sits on disk.
-    `.git/` metadata is skipped (a clone has its `.git/` removed at fetch).
-    Symlinks are skipped here only defensively: `validate()` already **rejects**
-    any rulebook containing one (E04, `check_no_symlinks`) and `--hash` is
-    fail-closed on validation errors, so a valid rulebook reaching this point has
-    none — the skip just stops the walk from following a symlinked directory."""
+    Symlinks and `.git/` are skipped here only defensively: `validate()` already
+    **rejects** any rulebook that contains either (E04, `check_tree_confinement`)
+    and `--hash` is fail-closed on validation errors, so a valid rulebook
+    reaching this point has neither. The skips just stop the walk from following
+    a symlinked directory or hashing stray VCS metadata if the hash is ever
+    computed outside the validated path — they are not the security boundary
+    (rejection is); a body-readable file under a *skipped* path would otherwise
+    be a hash-blind channel, which is exactly why the skip must be paired with
+    rejection, never left standing alone."""
     root_r = root.resolve()
     entries: list[tuple[str, Path]] = []
     for f in root_r.rglob("*"):
@@ -532,24 +536,42 @@ def compute_hash(root: Path) -> str:
     return h.hexdigest()
 
 
-def check_no_symlinks(root: Path, res: Result) -> None:
-    """Reject any symlink anywhere under the rulebook folder (E04 — confinement).
+def check_tree_confinement(root: Path, res: Result) -> None:
+    """Reject symlinks and `.git/` anywhere under the rulebook folder (E04).
 
-    A rulebook must be self-contained plain files. A symlink is either an escape
-    (its target lives outside the folder — uncontrolled and mutable *without
-    touching anything the trust hash frames*, so command bodies / BOOTSTRAP that
-    read it become a mutable-after-approval instruction channel) or a redundant
-    internal alias. `resolve_declared` already blocks symlink escapes for
-    *declared* paths, but an *undeclared* symlink a body reads (e.g.
-    `references/extra.md`) would slip past that — and hashing it can't help: an
-    outside target changes with the folder's bytes unchanged, and framing
-    outside-root bytes would break confinement. So reject symlinks as content
-    rather than trying to hash them. Builtins ship none, so this is uniform."""
+    A rulebook must be self-contained plain files, and every file under it must
+    be covered by the trust hash. Two things break that if allowed:
+
+    - **Symlinks.** A symlink either escapes (its target lives outside the
+      folder — uncontrolled and mutable *without touching anything the hash
+      frames*, so a body / BOOTSTRAP that reads it becomes a
+      mutable-after-approval instruction channel) or is a redundant internal
+      alias. Hashing it can't help: an outside target changes with the folder's
+      bytes unchanged, and framing outside-root bytes would break confinement.
+
+    - **`.git/`.** VCS metadata is not rulebook content, and `compute_hash`
+      skips it — so a declared *or* body-referenced path under `.git/` (which
+      `resolve_declared` otherwise accepts as in-folder) would be agent-readable
+      yet dropped from the digest: edit `.git/rule.md` after approval and the
+      SHA is unchanged. Remote clones already strip `.git/` at fetch; a local
+      rulebook must be a clean content dir, not a live repo working tree.
+
+    Rejecting both (rather than trying to hash them) is the only way to keep the
+    hash's whole-folder guarantee honest. Builtins ship neither, so this is
+    uniform across origins. Cheap top-level `.git` check first, so a large
+    working-tree `.git` isn't walked before we reject it."""
     root_r = root.resolve()
+    top_git = root_r / ".git"
+    if top_git.exists() or top_git.is_symlink():
+        res.error("E04", "'.git' present under the rulebook root — a rulebook must be a clean content folder, not a git working tree. VCS metadata is skipped by the trust hash, so content under it would be a hash-blind instruction channel. Remote clones strip .git at fetch; for a local rulebook, load a copy without .git.")
+        return
     for f in root_r.rglob("*"):
+        rel = f.relative_to(root_r)
+        if ".git" in rel.parts:
+            res.error("E04", f"'.git' path '{rel.as_posix()}' under the rulebook root — VCS metadata is not rulebook content and is hash-blind; remove it.")
+            return
         if f.is_symlink():
-            rel = f.relative_to(root_r).as_posix()
-            res.error("E04", f"symlink '{rel}' under the rulebook root — rulebooks must be self-contained plain files; a symlink escapes confinement or is a mutable-target instruction channel. Replace it with the real file.")
+            res.error("E04", f"symlink '{rel.as_posix()}' under the rulebook root — rulebooks must be self-contained plain files; a symlink escapes confinement or is a mutable-target instruction channel. Replace it with the real file.")
 
 
 def validate(root: Path, origin: str, builtin_root: Path, config_path: Path | None) -> tuple[Result, list[Path]]:
@@ -571,8 +593,8 @@ def validate(root: Path, origin: str, builtin_root: Path, config_path: Path | No
         if not inside:
             res.error("E04", f"origin 'builtin' claimed for '{root}', which is not inside the installed builtin root '{builtin_root}' — builtins load only from the install, never a workspace path")
             return res, []
-    check_no_symlinks(root, res)
-    if res.errors:  # a symlinked rulebook is fail-closed — never hash/load it
+    check_tree_confinement(root, res)
+    if res.errors:  # a symlink or `.git/` under the root is fail-closed — never hash/load it
         return res, []
     data = load_manifest(root, res)
     if data is None:
