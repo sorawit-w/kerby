@@ -1,0 +1,16 @@
+# E02: 'event' must be a non-empty string when present.
+id = "bad-event"
+version = "1.0.0"
+contract = 2
+accepts = ["git_change"]
+description = "Fixture with a malformed event field."
+
+[[check]]
+id = "hooked"
+kind = "code"
+needs = ["branch"]
+enforcement = "hard"
+enforcer = "hooks/x.sh"
+event = ""
+matcher = "Bash"
+severity = "block"

@@ -60,6 +60,10 @@ TOP_REQUIRED = ("id", "version", "contract", "accepts")
 # grammar tokens (`list`, `create`) and `help` (reserved-only at v7).
 RESERVED_COMMANDS = {"load", "unload", "reload", "status", "install", "uninstall",
                      "rulebooks", "list", "create", "help"}
+# Claude Code lifecycle events install can register hooks for. Unknown events
+# warn rather than fail — the harness may add events faster than this list.
+KNOWN_EVENTS = {"PreToolUse", "PostToolUse", "SessionStart", "SessionEnd", "Stop",
+                "UserPromptSubmit", "Notification", "SubagentStop", "PreCompact"}
 
 
 def default_builtin_root() -> Path:
@@ -215,6 +219,19 @@ def check_fields(check: dict, idx: int, res: Result) -> str:
         res.error("E09", f"check '{cid}': enforcement '{enf}' is not one of hard, partial, behavioral")
     if enf in ("hard", "partial") and "enforcer" not in check:
         res.error("E09", f"check '{cid}': enforcement '{enf}' requires an enforcer")
+    # event/matcher: how install derives the hook registration for this
+    # check's enforcer (Phase C derivation). Optional; required only to be
+    # well-shaped when present, and an enforcer without them cannot be
+    # auto-registered (E09 warns so authors find out at validate time).
+    ev, ma = check.get("event"), check.get("matcher")
+    if ev is not None and (not isinstance(ev, str) or not ev.strip()):
+        res.error("E02", f"check '{cid}': 'event' must be a non-empty string (a Claude Code lifecycle event)")
+    elif isinstance(ev, str) and ev not in KNOWN_EVENTS:
+        res.warn("E02", f"check '{cid}': event '{ev}' is not a known lifecycle event ({', '.join(sorted(KNOWN_EVENTS))}) — registered as declared")
+    if ma is not None and not isinstance(ma, str):
+        res.error("E02", f"check '{cid}': 'matcher' must be a string (tool-name pattern; empty = all)")
+    if "enforcer" in check and ev is None:
+        res.warn("E09", f"check '{cid}': enforcer declared without 'event' — install cannot auto-register this hook until the manifest declares its trigger")
     if enf == "partial" and "gap" not in check:
         res.warn("E09", f"check '{cid}': enforcement 'partial' should name its 'gap'")
     return cid

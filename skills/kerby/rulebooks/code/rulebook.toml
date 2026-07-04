@@ -69,6 +69,8 @@ kind = "code"
 needs = ["branch"]
 enforcement = "hard"
 enforcer = "hooks/protect-git.sh"
+event = "PreToolUse"
+matcher = "Bash"
 severity = "block"
 floor = true                              # no escape hatch — data loss (guardrails.md)
 
@@ -78,6 +80,8 @@ kind = "code"
 needs = ["branch", "install_state"]
 enforcement = "hard"
 enforcer = "hooks/protect-git.sh"
+event = "PreToolUse"
+matcher = "Bash"
 severity = "block"
 override = "authorized-scoped"            # CODING_RULES_ALLOW_PROTECTED_COMMIT=1, user-authorized only
 
@@ -87,6 +91,8 @@ kind = "code"
 needs = ["changed_files"]
 enforcement = "hard"
 enforcer = "hooks/protect-env.sh"
+event = "PreToolUse"
+matcher = "Edit|Write"
 severity = "block"
 
 [[check]]
@@ -95,6 +101,8 @@ kind = "code"
 needs = ["changed_files"]
 enforcement = "partial"
 enforcer = "hooks/warn-env-read.sh"
+event = "PreToolUse"
+matcher = "Read"
 gap = "Bash cat .env not caught; Read-tool only"
 severity = "warn"
 
@@ -104,6 +112,8 @@ kind = "code"
 needs = ["changed_files"]
 enforcement = "partial"
 enforcer = "hooks/route-high-stakes.sh"
+event = "PreToolUse"
+matcher = "Edit|Write"
 gap = "prose-only production-traffic-shaping category un-globbable"
 severity = "warn"
 
@@ -113,6 +123,8 @@ kind = "code"
 needs = ["added_lines"]
 enforcement = "partial"
 enforcer = "hooks/pre-commit-check.sh"
+event = "PreToolUse"
+matcher = "Bash"
 gap = "runtime fakes (0-match runs, gates over stubs) stay agent-judged"
 severity = "warn"
 

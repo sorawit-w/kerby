@@ -194,10 +194,10 @@ Check whether the rules are currently loaded.
 
    > **kerby: not loaded.** Invoke `kerby` with `args: load` to load them.
 
-4. **Rulebook panel.** After the loaded/not-loaded verdict, report the rulebook state so degrade is visible, never assumed:
+4. **Rulebook panel.** After the loaded/not-loaded verdict, print a `Loaded rulebooks:` header line listing each selected rulebook as `<id>@<version> (<origin>)` (plus `base (floor — always loaded)`), then report the rulebook state so degrade is visible, never assumed:
 
    - Read `rulebooks.lock` (if present) and each selected rulebook's manifest, **merging in `base` first exactly like `load` does** — `selected` deliberately omits `base` (it's implicit per merge rule 1), so reading only the selected manifests would silently drop the floor's own checks (`secrets-staged`, `no-print-secret`, …) from the panel. Header line: the same literal announcement format as `load`, with `source: pinned` (or "no pin — next load selects per the default order").
-   - Per check, one row: `<id> — <kind> — declared: <enforcement> — effective: <enforcement>` plus the `gap` text for `partial` checks. **Effective enforcement**: for `hard`/`partial` checks, the declared level holds only if the check's enforcer is actually registered — detect it exactly like `install` Phase 2 does (a hook entry whose command ends in the enforcer's filename AND whose path contains `/skills/kerby/rulebooks/` — or the legacy `/skills/kerby/resources/hooks/`, where v7 migration shims live — in any of the three settings files). Unregistered → effective is `behavioral` (degraded); mark it `degraded — run install to bind`. `behavioral` checks show `behavioral (by design)`.
+   - Per check, one row: `<id> — <kind> — declared: <enforcement> — effective: <enforcement>` plus the `gap` text for `partial` checks. **Effective enforcement**: for `hard`/`partial` checks, the declared level holds only if the check's enforcer is actually registered — detect it exactly like `install` Phase 2 does (a hook entry whose command ends in the enforcer's filename AND whose path contains `/skills/kerby/rulebooks/` — or the legacy `/skills/kerby/resources/hooks/`, where v7 migration shims live — in any of the three settings files). Unregistered → effective is `behavioral` (degraded); mark it `degraded — run install to bind`. `behavioral` checks show `behavioral (by design)`. An enforcer entry registered at a legacy pre-v7 shim path still counts as bound, but flag it: `(via v7 shim — run install to re-point)`.
    - A check whose `needs` the current subject type cannot satisfy is listed as `skipped (needs: <views>)` — visible, never silent.
    - If the last load failed (invalid manifest, declined trust prompt), say which rulebook and why, and that gated work in the meantime is **HELD**.
 
@@ -266,7 +266,14 @@ If `n`, end the install — Phase 2 is skipped, the skill is still fully usable.
 
 If `y`:
 
-1. **Resolve the install root** (same locator as `load`: Glob `**/skills/kerby/SKILL.md` → parent dir, else `${KERBY_DIR}`, else ask). Hook scripts live in three directories under it: `<install-root>/rulebooks/code/hooks/` (coding enforcers), `<install-root>/rulebooks/base/hooks/` (the floor's secret scan), and `<install-root>/resources/hooks/` (the engine SessionStart trio).
+1. **Resolve the install root** (same locator as `load`: Glob `**/skills/kerby/SKILL.md` → parent dir, else `${KERBY_DIR}`, else ask).
+
+   **The registration set is derived, not hardcoded (V4):**
+
+   - **Engine services (fixed, never manifest-sourced):** the SessionStart trio — `<install-root>/resources/hooks/{session-start-context,knowledge-bootstrap,context-bootstrap}.sh`, each `SessionStart` with matcher `""`. These are state-preservation machinery, not rulebook checks.
+   - **Derived enforcers:** for each rulebook in scope (a named `[rulebook]` argument, else every loaded rulebook), take its **merged, validated** manifest and collect every check's `(event, matcher, enforcer)`. Resolution is install-anchored, exactly like the validator's: a builtin's enforcer resolves under `<install-root>/rulebooks/<id>/`, an approved local/remote rulebook's under its own folder — never a path a lockfile merely claims. **Order of operations: validate → TOFU → derive → register.** A rulebook that hasn't cleared the trust prompt contributes nothing; registration is never a path around TOFU.
+   - **Dedup key = (event, matcher, enforcer *filename*)** (V14): two checks sharing a script produce one entry; the registered path is the first in merged order (base first). An enforcer whose check declares no `event` cannot be auto-registered (the validator warns E09) — skip it and say so.
+   - **Origin-tiered confirmation:** builtin enforcers ride the single Phase-2 y/n below. A `local`/`remote` rulebook's enforcers are executable trust — confirm **each hook individually**, showing the resolved absolute path and its trigger: `Register <path> to run on every <event>(<matcher>) tool call? [y/n]`.
 
 2. **Pick the settings file**. Ask:
 
@@ -278,18 +285,20 @@ If `y`:
 
 3. **Read or create the settings file.** If missing, create with `{}`. Read existing JSON. **If the JSON is malformed, STOP** and ask the user to fix it before re-running — never overwrite a file we couldn't parse.
 
-4. **Build the hook entries** with absolute paths to the resolved hook scripts. The exact set, in this order:
+4. **Build the hook entries** from the derived set, with absolute paths. For the default `code` selection the derived set is exactly:
 
-   | Event | Matcher | Script |
+   | Event | Matcher | Script (dedup: filename; registered path = first in merged order) |
    |---|---|---|
+   | `PreToolUse` | `"Bash"` | `<install-root>/rulebooks/base/hooks/pre-commit-check.sh` |
+   | `PreToolUse` | `"Bash"` | `<install-root>/rulebooks/code/hooks/protect-git.sh` |
    | `PreToolUse` | `"Edit\|Write"` | `<install-root>/rulebooks/code/hooks/protect-env.sh` |
    | `PreToolUse` | `"Read"` | `<install-root>/rulebooks/code/hooks/warn-env-read.sh` |
-   | `PreToolUse` | `"Bash"` | `<install-root>/rulebooks/code/hooks/protect-git.sh` |
-   | `PreToolUse` | `"Bash"` | `<install-root>/rulebooks/base/hooks/pre-commit-check.sh` |
    | `PreToolUse` | `"Edit\|Write"` | `<install-root>/rulebooks/code/hooks/route-high-stakes.sh` |
    | `SessionStart` | `""` | `<install-root>/resources/hooks/session-start-context.sh` |
    | `SessionStart` | `""` | `<install-root>/resources/hooks/knowledge-bootstrap.sh` |
    | `SessionStart` | `""` | `<install-root>/resources/hooks/context-bootstrap.sh` |
+
+   (Same eight-entry *set* as pre-v7 — the table is now the derivation's worked example, not the source of truth; a second rulebook's enforcers join it with zero engine change.)
 
    Each entry uses the standard Claude Code hook shape:
 
@@ -302,7 +311,7 @@ If `y`:
    }
    ```
 
-5. **Detect already-managed entries.** A hook entry is *kerby-managed* iff its `command` ends in one of the eight script filenames above AND its path contains `/skills/kerby/rulebooks/` or the legacy `/skills/kerby/resources/hooks/` (v7 migration shims). Skip already-present entries — Phase 2 is idempotent.
+5. **Detect already-managed entries.** A hook entry is *kerby-managed* iff its `command` ends in one of the derived filenames AND its path contains `/skills/kerby/rulebooks/` or the legacy `/skills/kerby/resources/hooks/` (v7 migration shims). Skip already-present entries — Phase 2 is idempotent. A legacy entry and its new-path equivalent are the **same** entry (filename dedup). **Shim re-point nudge:** when a kerby-managed *enforcer* entry points at the legacy `resources/hooks/` path, offer once: `<N> registered hooks point at pre-v7 shim paths; re-point them to the new locations in this diff? [y/n]` — on `y`, the diff rewrites those entries to the derived paths; on `n`, they keep working through the shims until v8 removes them.
 
 6. **Show the full diff** — print a unified diff of what will be added to the chosen settings file. Include the resolved absolute paths so the user can verify them.
 
