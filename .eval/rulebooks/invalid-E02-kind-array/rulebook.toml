@@ -1,0 +1,17 @@
+# E02 regression: an enum field (kind) given a TOML array. A bare `kind not in
+# KINDS` raised TypeError (unhashable list) and — since load treats a validator
+# crash as HELD — turned an author typo into a generic fail-closed crash
+# instead of the actionable catalog message. Enum fields now isinstance-guard
+# before the membership test.
+id = "kind-array"
+version = "1.0.0"
+contract = 1
+accepts = ["*"]
+
+[[check]]
+id = "x"
+kind = ["prose"]
+body = "rules/x.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"

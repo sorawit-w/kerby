@@ -120,14 +120,20 @@ def check_fields(check: dict, idx: int, res: Result) -> str:
     for field in CHECK_REQUIRED:
         if field not in check:
             res.error("E02", f"check '{cid}': missing required field '{field}'")
+    # Enum fields: guard with isinstance BEFORE the set-membership test. A TOML
+    # array/table value is an unhashable list/dict, so a bare `x not in SET`
+    # raises TypeError and — because load treats a validator crash as HELD —
+    # turns an author typo into a generic fail-closed crash instead of the
+    # actionable E02 message. `not isinstance(x, str)` short-circuits the `or`,
+    # so the membership test never sees a non-string.
     kind = check.get("kind")
-    if kind is not None and kind not in KINDS:
+    if kind is not None and (not isinstance(kind, str) or kind not in KINDS):
         res.error("E02", f"check '{cid}': kind '{kind}' is not one of data, code, prose")
     sev = check.get("severity")
-    if sev is not None and sev not in SEVERITIES:
+    if sev is not None and (not isinstance(sev, str) or sev not in SEVERITIES):
         res.error("E02", f"check '{cid}': severity '{sev}' is not one of block, warn, info")
     tc = check.get("token_cost")
-    if tc is not None and tc not in TOKEN_COSTS:
+    if tc is not None and (not isinstance(tc, str) or tc not in TOKEN_COSTS):
         res.error("E02", f"check '{cid}': token_cost '{tc}' is not one of low, medium, high")
 
     # 'floor' must be a real TOML boolean. Everything downstream tests
@@ -157,7 +163,7 @@ def check_fields(check: dict, idx: int, res: Result) -> str:
 
     # E09 enforcement coherence
     enf = check.get("enforcement")
-    if enf is not None and enf not in ENFORCEMENTS:
+    if enf is not None and (not isinstance(enf, str) or enf not in ENFORCEMENTS):
         res.error("E09", f"check '{cid}': enforcement '{enf}' is not one of hard, partial, behavioral")
     if enf in ("hard", "partial") and "enforcer" not in check:
         res.error("E09", f"check '{cid}': enforcement '{enf}' requires an enforcer")
