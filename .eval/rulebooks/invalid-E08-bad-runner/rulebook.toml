@@ -1,0 +1,16 @@
+# E08 regression: a data check's runner must be a string built-in runner id.
+# Before the fix, runner = 123 (or a typo'd name) passed because the check
+# only tested presence — the load flow could then approve/pin a rulebook whose
+# data check fails or is silently skipped at runtime dispatch.
+id = "bad-runner"
+version = "1.0.0"
+contract = 1
+accepts = ["git_change"]
+
+[[check]]
+id = "bogus-scan"
+kind = "data"
+needs = ["staged_content"]
+runner = "not-a-real-runner"
+enforcement = "behavioral"
+severity = "warn"

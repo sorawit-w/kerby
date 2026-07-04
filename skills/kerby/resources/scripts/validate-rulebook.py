@@ -45,6 +45,7 @@ RULEBOOK_ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 KINDS = {"data", "code", "prose"}
 ENFORCEMENTS = {"hard", "partial", "behavioral"}
 SEVERITIES = {"block", "warn", "info"}
+RUNNERS = {"gitleaks", "semgrep", "regex-floor"}  # built-in data-runner ids (docs/rulebook-contract.md)
 TOKEN_COSTS = {"low", "medium", "high"}
 VIEWS_BY_SUBJECT = {
     "git_change": {
@@ -129,8 +130,14 @@ def check_fields(check: dict, idx: int, res: Result) -> str:
         res.error("E02", f"check '{cid}': token_cost '{tc}' is not one of low, medium, high")
 
     # E08 kind/field coherence
-    if kind == "data" and "runner" not in check:
-        res.error("E08", f"check '{cid}': kind 'data' requires a 'runner'")
+    if kind == "data":
+        runner = check.get("runner")
+        if runner is None:
+            res.error("E08", f"check '{cid}': kind 'data' requires a 'runner'")
+        elif not isinstance(runner, str):
+            res.error("E08", f"check '{cid}': 'runner' must be a string built-in runner id, one of {sorted(RUNNERS)}")
+        elif runner not in RUNNERS:
+            res.error("E08", f"check '{cid}': unknown runner '{runner}'; must be one of {sorted(RUNNERS)}")
     if kind == "code" and not ("entry" in check or "enforcer" in check):
         res.error("E08", f"check '{cid}': kind 'code' requires 'entry' or 'enforcer'")
     if kind == "prose":
