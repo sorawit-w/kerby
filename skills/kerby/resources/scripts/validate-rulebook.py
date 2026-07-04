@@ -235,6 +235,25 @@ def check_detect(data: dict, origin: str, res: Result):
         res.warn("E12", f"[detect]: declared by a {origin} rulebook — ignored; auto-selection is builtin-only")
 
 
+def resolve_check_files(check: dict, cid: str, root: Path, origin: str, resources_root: Path, res: Result, out: list[Path]) -> None:
+    """Resolve a check's declared files (config/entry/body/enforcer), append each
+    resolved path to `out` (so it enters the hash and E04 covers its existence /
+    readability), and lint external prose bodies. Shared by a rulebook's own
+    checks and the checks it composes from an extended pack — the composed floor
+    must be file-validated too, or a damaged install could pass through a
+    selected rulebook that merely extends it."""
+    for field in ("config", "entry", "body", "enforcer"):
+        if field in check:
+            if not isinstance(check[field], str):
+                res.error("E02", f"check '{cid}': '{field}' must be a path string")
+                continue
+            resolved = resolve_declared(check[field], root, origin, resources_root, cid, res)
+            if resolved is not None:
+                out.append(resolved)
+                if field == "body" and origin != "builtin":
+                    lint_prose(resolved, cid, res)
+
+
 def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, resources_root: Path, config_gate: dict | None, res: Result) -> list[Path]:
     """Merge with extended packs (base implicit), run E04-E07, E10, E11.
 
@@ -255,6 +274,7 @@ def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, res
 
     merged: dict[str, dict] = {}  # id -> check (extended packs first)
     merged_src: dict[str, str] = {}  # check id -> pack it came from
+    declared_files: list[Path] = []
     builtin_root_resolved = builtin_root.resolve()
     for pack_id in extends:
         # An `extends` entry must be a bare builtin id, never a path. Without
@@ -279,19 +299,25 @@ def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, res
         if pack_data is None:
             res.error("E04", f"extends '{pack_id}': cannot load {pack_root / 'rulebook.toml'} — fail-closed")
             continue
-        for c in pack_data.get("check", []):
+        for pidx, c in enumerate(pack_data.get("check", [])):
             if isinstance(c, dict) and "id" in c:
                 prior = merged_src.get(c["id"])
                 if prior is not None and prior != pack_id:
                     res.error("E07", f"check id '{c['id']}' declared by two extended packs ('{prior}', '{pack_id}'); a pack cannot silently overwrite another pack's check")
                     continue
+                # Validate the composed pack check and resolve its files too. For
+                # a default `code` pin the implicit `base` is only ever validated
+                # through this merge, so a damaged install — a missing or
+                # unreadable base floor body — must fail here (E04), not pass as
+                # a valid `code`. Packs are builtins (repo-relative resolution).
+                pcid = check_fields(c, pidx, res)
+                resolve_check_files(c, pcid, pack_root, "builtin", resources_root, res, declared_files)
                 merged[c["id"]] = c
                 merged_src[c["id"]] = pack_id
 
     accepts = data.get("accepts", ["*"])
     if not isinstance(accepts, list):
         accepts = ["*"]
-    declared_files: list[Path] = []
     own_ids: set[str] = set()
     checks = data.get("check", [])
     if not isinstance(checks, list):
@@ -334,16 +360,7 @@ def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, res
             elif target.get("floor") is True:
                 res.error("E05", f"check '{cid}': cannot override a floor check ('{override_of}')")
 
-        for field in ("config", "entry", "body", "enforcer"):
-            if field in check:
-                if not isinstance(check[field], str):
-                    res.error("E02", f"check '{cid}': '{field}' must be a path string")
-                    continue
-                resolved = resolve_declared(check[field], root, origin, resources_root, cid, res)
-                if resolved is not None:
-                    declared_files.append(resolved)
-                    if field == "body" and origin != "builtin":
-                        lint_prose(resolved, cid, res)
+        resolve_check_files(check, cid, root, origin, resources_root, res, declared_files)
         merged[cid] = check
 
     # Gate value types: in every gate source, block_on and hold_on must each be
