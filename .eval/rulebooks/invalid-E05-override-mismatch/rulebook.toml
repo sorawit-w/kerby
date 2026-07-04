@@ -1,0 +1,18 @@
+# E05 regression: override_of names a different check than this one's id. The
+# author meant to replace 'tunable-rule' but gave the new check a different id,
+# so the target is never removed and BOTH survive. override_of must equal the
+# redeclaring check's own id.
+id = "override-mismatch"
+version = "1.0.0"
+contract = 1
+accepts = ["*"]
+extends = ["base"]
+
+[[check]]
+id = "replacement"
+override_of = "tunable-rule"
+kind = "prose"
+body = "rules/replacement.md"
+enforcement = "behavioral"
+severity = "info"
+token_cost = "low"

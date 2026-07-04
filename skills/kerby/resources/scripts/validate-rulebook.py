@@ -320,6 +320,14 @@ def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, res
         if cid in merged and override_of != cid:
             res.error("E07", f"duplicate check id '{cid}' (also in an extended pack); use override_of or rename")
         if override_of is not None:
+            # override_of is how a same-id redeclaration is blessed (merge rule
+            # 2): it must name THIS check's own id. If it names a different id,
+            # the target is never removed — the new check is stored under its
+            # own id and BOTH survive, so an author who typo'd the new id
+            # (id="replacement", override_of="tunable-rule") silently keeps the
+            # rule they meant to replace. Reject the mismatch.
+            if override_of != cid:
+                res.error("E05", f"check '{cid}': override_of '{override_of}' must equal this check's own id — override_of blesses a same-id replacement, it cannot rename or remove a different check")
             target = merged.get(override_of)
             if target is None:
                 res.error("E05", f"check '{cid}': override_of targets unknown check '{override_of}'")
@@ -338,6 +346,26 @@ def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, res
                         lint_prose(resolved, cid, res)
         merged[cid] = check
 
+    # Gate value types: in every gate source, block_on and hold_on must each be
+    # an array of valid severity strings. hold_on drives the warn→HELD mapping;
+    # the contract requires a severity array, but an unvalidated hold_on = "warn"
+    # (string) or hold_on = [1] would be accepted and pinned, then misapplied by
+    # gate/status consumers. block_on is additionally relied on by the E06
+    # computation below.
+    for src_name, src in (("[gate]", data.get("gate")), ("config", config_gate)):
+        if src is None:
+            continue
+        for key in ("block_on", "hold_on"):
+            vals = src.get(key)
+            if vals is None:
+                continue
+            if not isinstance(vals, list) or not all(isinstance(v, str) for v in vals):
+                res.error("E02", f"{src_name}: '{key}' must be an array of severity strings")
+                continue
+            bad = [v for v in vals if v not in SEVERITIES]
+            if bad:
+                res.error("E02", f"{src_name}: '{key}' has unknown severities {bad}; must be from block, warn, info")
+
     # E06 — gate floors: every floor check's severity must stay blocking under
     # the EFFECTIVE gate. Precedence: user config overrides the rulebook [gate]
     # overrides the contract default block_on = ["block"]. A missing [gate] or a
@@ -355,8 +383,7 @@ def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, res
         if bo is None:
             continue
         if not isinstance(bo, list):
-            res.error("E02", f"{src_name}: 'block_on' must be an array of severities")
-            continue
+            continue  # already reported by the gate-value validation above
         eff_block_on = bo
         eff_src = src_name
         break
