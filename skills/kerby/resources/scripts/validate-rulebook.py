@@ -304,6 +304,13 @@ def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, res
         own_ids.add(cid)
 
         override_of = check.get("override_of")
+        if override_of is not None and not isinstance(override_of, str):
+            # override_of is matched against check ids (all strings) and used as
+            # a dict key. A non-string fails closed (never matches → E05), but
+            # flag the type explicitly rather than emit a confusing
+            # "targets unknown check" for what is really an author type error.
+            res.error("E02", f"check '{cid}': 'override_of' must be a check-id string, not {type(override_of).__name__}")
+            override_of = None
         if cid in merged and override_of != cid:
             res.error("E07", f"duplicate check id '{cid}' (also in an extended pack); use override_of or rename")
         if override_of is not None:
