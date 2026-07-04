@@ -1,0 +1,21 @@
+# E06 regression: a floor check declared with a non-block severity. Before the
+# fix the E06 check only fired when a block-severity floor had 'block' dropped
+# from block_on; a floor authored as severity="warn" slipped through, passing
+# validation while mapping to HELD not DENIED — a floor that doesn't block.
+id = "floor-nonblock"
+version = "1.0.0"
+contract = 1
+accepts = ["*"]
+
+[gate]
+block_on = ["block"]
+hold_on = ["warn"]
+
+[[check]]
+id = "soft-floor"
+kind = "prose"
+body = "rules/soft-floor.md"
+enforcement = "behavioral"
+severity = "warn"
+floor = true
+token_cost = "low"

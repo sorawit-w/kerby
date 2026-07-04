@@ -100,16 +100,18 @@ Load the kerby into the current session.
 
 1. Locate the install per the section above, then **select rulebooks** per the selection order (explicit arg → `rulebooks.lock` pin → detection stub → default `code`) and emit the one-line announcement. If this is the first successful load in this project, write the pin to `rulebooks.lock` and say so in one short line.
 2. Resolve each selected rulebook's `rulebook.toml` and validate per the trust section (hash-keyed; trust prompt for first-load/changed local rulebooks; fail-closed → HELD). Merge `base` first.
-3. Read the merged rulebook's **eager prose in full using the `Read` tool**: the selected rulebook's root body — for `code` that is `operating-rules` → `BOOTSTRAP.md` — plus every prose body that is **`floor = true` OR `token_cost = "low"`**. **All `floor = true` prose loads eagerly regardless of `token_cost`** — a floor is the non-negotiable, always-on baseline (prompt-injection defense, the Iron Law, secret-handling), so a floor rule that isn't in context isn't a floor; `token_cost` governs progressive disclosure only for *non-floor* prose. **Do not paraphrase or summarize** — the full content must enter context as a tool result. Summarizing into your response does not load the rules the same way. Heavier *non-floor* bodies (`references/*.md`) stay on demand, exactly as BOOTSTRAP's reference index directs.
+3. Read the merged rulebook's **eager prose in full using the `Read` tool**: the selected rulebook's root body (its first-declared prose check) — for `code` that is `operating-rules` → `BOOTSTRAP.md` — plus every prose body that is **`floor = true` OR `token_cost = "low"`**. **All `floor = true` prose loads eagerly regardless of `token_cost`** — a floor is the non-negotiable, always-on baseline (prompt-injection defense, the Iron Law, secret-handling), so a floor rule that isn't in context isn't a floor; `token_cost` governs progressive disclosure only for *non-floor* prose. **A rulebook may legitimately declare no prose at all** (an all-mechanical rulebook of only `data`/`code` checks) — it then has **no root body**, and eager load is just the base floor prose; do not invent one. **Do not paraphrase or summarize** — the full content must enter context as a tool result. Summarizing into your response does not load the rules the same way. Heavier *non-floor* bodies (`references/*.md`) stay on demand, exactly as BOOTSTRAP's reference index directs.
 4. Confirm to the user. The confirmation is **rulebook-aware** — name what actually loaded, never a rulebook that wasn't selected:
 
    - **Default `code` load** (the common path — keep this wording verbatim for parity with pre-v6 behavior):
 
      > **kerby loaded.** BOOTSTRAP is in context for this session — I will follow its rules until the session ends or context is compacted. If rules seem to stop applying mid-session, invoke `kerby` with `args: reload`.
 
-   - **Any other selected rulebook** (e.g. `kerby load ./my-rulebook`): name the rulebook and its root body instead of BOOTSTRAP — do not claim BOOTSTRAP is in context when a non-`code` rulebook was loaded:
+   - **Any other selected rulebook** (e.g. `kerby load ./my-rulebook`): name the rulebook and its root body instead of BOOTSTRAP — do not claim BOOTSTRAP is in context when a non-`code` rulebook was loaded. If the rulebook declares no prose (no root body), name its checks and the base floor instead of a root body:
 
      > **kerby loaded `<id>@<version>`.** Its rules (`<root-body>` + the base floor) are in context for this session — I will follow them until the session ends or context is compacted. If rules seem to stop applying mid-session, invoke `kerby` with `args: reload`.
+
+     (No-root-body variant: `**kerby loaded `<id>@<version>`.** Its checks (`<data/code check ids>`) and the base floor are active for this session — …`)
 
 5. The rules are now active. Apply the loaded rulebook's rules (for `code`, that is BOOTSTRAP) plus the base floor rules for all subsequent work in this session.
 
@@ -147,7 +149,7 @@ Check whether the rules are currently loaded.
 
 1. **Determine which rulebook to check for first** — read the `selected` pin in `rulebooks.lock` (if present) and resolve its root body. The verdict must scan for *that* rulebook's markers, not BOOTSTRAP unconditionally: a session that loaded `./my-rulebook` never read BOOTSTRAP, so a BOOTSTRAP-only scan would falsely report "not loaded" and tell the user to reload rules already in context.
    - **Pinned to `code` (or no pin — `code` is the default):** scan recent context for BOOTSTRAP signatures — distinctive phrases like "Prime Directive", "Clarity over cleverness. Safety over speed.", "implement → check → commit → log → repeat", or BOOTSTRAP.md section headers (`<prime_directive>`, `<hard_rules>`, `<reference_index>`).
-   - **Pinned to another rulebook:** scan for distinctive phrases/headers from *that* rulebook's root body instead (plus the shared base-floor rule text, which loads for every rulebook).
+   - **Pinned to another rulebook:** scan for distinctive phrases/headers from *that* rulebook's root body instead (plus the shared base-floor rule text, which loads for every rulebook). If the rulebook declares **no root body** (all-mechanical), there is no rulebook-specific prose to detect — scan for the base-floor rule text alone, which loads for every rulebook, and report loaded on that basis.
 2. If the selected rulebook's markers are found, report (name the rulebook when it isn't `code`):
 
    > **kerby: loaded.** Detected `<id>` markers in current context.

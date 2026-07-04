@@ -327,8 +327,13 @@ def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, res
             res.error("E02", f"{gate_name}: 'block_on' must be an array of severities")
             continue
         for c in merged.values():
-            if c.get("floor") is True and c.get("severity") == "block" and "block" not in block_on:
-                res.error("E06", f"{gate_name} lowers '{c.get('id')}' below the base floor; floors are non-overridable")
+            # Every floor check's severity must stay in block_on (contract § merge
+            # rule / E06). The old check only caught a block-severity floor when
+            # block_on dropped 'block'; it skipped a floor authored with
+            # severity='warn'/'info', which passes yet maps to HELD, not DENIED —
+            # a floor that doesn't block isn't a floor.
+            if c.get("floor") is True and c.get("severity") not in block_on:
+                res.error("E06", f"{gate_name}: floor check '{c.get('id')}' has severity '{c.get('severity')}' not in block_on {block_on}; floors must stay blocking and are non-overridable")
     return declared_files
 
 
