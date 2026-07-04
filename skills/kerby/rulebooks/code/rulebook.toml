@@ -1,11 +1,11 @@
 # code — the coding rulebook, kerby's first domain rulebook and the silent
 # default for `kerby load` (D17). Extends base (implicit-mandatory; listed
-# for clarity). Declares the existing corpus IN PLACE: builtin origin may
-# use resources-relative paths (D6) — references/ and hooks/ are not moved.
-# Contract: docs/rulebook-contract.md.
+# for clarity). Self-contained (v7): every declared path resolves inside
+# this folder — uniform confinement, no builtin exemption.
+# Contract: docs/rulebook-contract.md (contract 2).
 id = "code"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["git_change"]
 extends = ["base"]
 
@@ -13,7 +13,7 @@ extends = ["base"]
 block_on = ["block"]
 hold_on = ["warn"]
 
-[commands]                    # domain facts core's tier ladder consumes (D14);
+[tooling]                     # domain facts core's tier ladder consumes (D14);
 build = "{build_command}"     # resolved per-project (agent-context.yaml / manifests)
 lint = "{lint_command}"
 test = "{test_command}"

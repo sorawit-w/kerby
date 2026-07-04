@@ -1,7 +1,7 @@
 # E04: declared path escapes the rulebook root (non-builtin confinement).
 id = "fixture-e04"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["*"]
 
 [[check]]

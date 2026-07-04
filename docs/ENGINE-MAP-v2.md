@@ -138,6 +138,7 @@ line where sections left the engine file.
 | Lockfile path mentions | `.kerby/rulebooks.lock` (+ one-line migration announcement, V13) |
 | Cold dispatch (`audit`/`prepare`, nothing loaded) | + selection announcement + load confirmation *preceding* the baseline output; command output itself byte-matches (baseline captures these cold) |
 | New commands (`rulebooks`, `unload`, `load +`) | no baseline exists — spec-tested, not parity-tested |
+| Flow-internal mechanics prose (Phase A) | path re-roots (`resources/rulebooks/`→`rulebooks/`, hooks-dir table, workflow/audit doc pointers, locator rewrite) + the contract-2 corrections the reorg makes mandatory (`--origin builtin` no longer grants special resolution; detection signature gains the legacy-shim root). **User-facing verbatim strings — confirmations, announcement format, TOFU prompt block, compaction caveat — are NOT covered by this row and must stay byte-identical** (verified: scenarios 3 & 7 IDENTICAL at Phase A replay; prompt/announcement blocks untouched in 1/2/4/5/6). |
 
 Replay rule: byte-match everything except these enumerated deltas. A mismatch outside
 the table = stop, classify, BLOCKED if unexplained — never "explain away".

@@ -4,7 +4,7 @@
 # data check fails or is silently skipped at runtime dispatch.
 id = "bad-runner"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["git_change"]
 
 [[check]]

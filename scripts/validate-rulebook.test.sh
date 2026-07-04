@@ -152,7 +152,7 @@ mkdir -p "$TMP_BND/rules"
 cat > "$TMP_BND/rulebook.toml" <<'RB'
 id = "two-body"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["*"]
 [[check]]
 id = "a"
@@ -180,7 +180,7 @@ else
 fi
 
 # --- Real builtin rulebooks validate and cover the ENGINE-MAP declared set ----
-REAL_ROOT="$REPO_ROOT/skills/kerby/resources/rulebooks"
+REAL_ROOT="$REPO_ROOT/skills/kerby/rulebooks"
 if [[ -d "$REAL_ROOT/base" ]]; then
   for rb in base code; do
     OUT="$(python3 "$VALIDATOR" "$REAL_ROOT/$rb" --origin builtin 2>&1)"; RC=$?

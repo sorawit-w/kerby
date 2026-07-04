@@ -1,4 +1,4 @@
-# Rulebook contract — v1
+# Rulebook contract — v2
 
 The manifest contract between the kerby engine (loader/validator) and a
 **rulebook** — a folder of rules the engine can load, weigh, and enforce
@@ -19,9 +19,9 @@ pinned (D10).
 
 | Origin | Where it lives | Path rules | Trust |
 |---|---|---|---|
-| `builtin` | `skills/kerby/resources/rulebooks/<id>/`, ships inside kerby | may declare repo-relative paths — resolved against the rulebook root first, then against `resources/` (so `references/quality-gates.md` and `hooks/protect-git.sh` declare existing files in place) | repo-versioned; no hash pin required. **Builtin-ness is anchored to the install location, never asserted by a lockfile**: a rulebook is builtin *iff* it resolves to `<install-root>/resources/rulebooks/<id>`. The validator rejects `--origin builtin` for any path outside `--builtin-root` (E04); a `rulebooks.lock` entry claiming `origin: builtin` for a workspace path is invalid, not trusted |
+| `builtin` | `skills/kerby/rulebooks/<id>/`, ships inside kerby | **folder-confined like every origin** (contract 2 — the v1 resources-relative exemption is gone; builtins are self-contained) | repo-versioned; no hash pin required. **Builtin-ness is anchored to the install location, never asserted by a lockfile**: a rulebook is builtin *iff* it resolves to `<install-root>/rulebooks/<id>`. The validator rejects `--origin builtin` for any path outside `--builtin-root` (E04); a `rulebooks.lock` entry claiming `origin: builtin` for a workspace path is invalid, not trusted |
 | `local` | anywhere on disk, loaded by explicit path | confined: every declared path must resolve **inside** the rulebook root — no `..`, no absolute paths, no symlink escapes (E04) | one-time review + hash pin (TOFU) on first load — for **any** local rulebook, including a `data`-only one (loading it replaces the default gate; a prose/code rulebook *additionally* admits external instructions/scripts). Silent re-load only while the hash matches **and** the hash is in the per-machine `~/.claude/kerby/approved-rulebooks.json` — a committed project `rulebooks.lock` is untrusted content and can never by itself pre-approve an external rulebook |
-| `remote` | — | — | **reserved**; no fetching at v1 |
+| `remote` | — | — | **reserved**; made real in Phase E of the v7 PR (clone → confined + TOFU like `local`, provenance = URL) |
 
 Auto-selection is builtin-only (D19): external rulebooks load by explicit
 invocation only, whatever they declare.
@@ -31,7 +31,7 @@ invocation only, whatever they declare.
 ```toml
 id = "code"                 # unique rulebook id (required)
 version = "1.0.0"           # the rulebook's own semver (required)
-contract = 1                # manifest contract version (required; engine rejects unsupported, E03)
+contract = 2                # manifest contract version (required; engine rejects unsupported, E03)
 accepts = ["git_change"]    # subject types this rulebook can judge (required, non-empty; "*" = any)
 extends = ["base"]          # packs composed in — see Merge rules
 
@@ -39,12 +39,12 @@ extends = ["base"]          # packs composed in — see Merge rules
 block_on = ["block"]        # severities that DENY
 hold_on  = ["warn"]         # severities that HOLD
 
-[commands]                  # optional; domain facts the core tier ladder consumes (D14)
-build = "{build_command}"
-lint  = "{lint_command}"
-test  = "{test_command}"
+[tooling]                   # optional; domain facts the core tier ladder consumes (D14)
+build = "{build_command}"    # (renamed from v1 [commands] to disambiguate from [[command]],
+lint  = "{lint_command}"     #  the user-invocable rulebook commands added in Phase B of the
+test  = "{test_command}"     #  v7 PR)
 
-[detect]                    # RESERVED at contract v1 (D17–D19)
+[detect]                    # RESERVED at contract v2 (D17–D19)
 markers = ["package.json"]  # shape-validated only (E12); the loader never matches on it
 ```
 
@@ -60,7 +60,7 @@ markers = ["package.json"]  # shape-validated only (E12); the loader never match
 | `runner` | string | for `data`: built-in runner id (`gitleaks`, `semgrep`, `regex-floor`) |
 | `config` / `entry` / `body` | path | the declared file: ruleset (`data`, optional when the runner carries defaults), script (`code`), markdown (`prose`) |
 | `severity` | `block \| warn \| info` | feeds `[gate]` mapping to DENIED / HELD |
-| `floor` | bool | non-overridable (D9); no config or extending rulebook may loosen it. Only meaningful in `base` at contract v1 |
+| `floor` | bool | non-overridable (D9); no config or extending rulebook may loosen it. Only meaningful in `base` at contract v2 |
 | `override` | string | escape-hatch policy for non-floor checks, e.g. `"authorized-scoped"` (the `CODING_RULES_ALLOW_PROTECTED_COMMIT=1` pattern) |
 | `gap` | string | for `partial`: the named enforcement gap (warn if absent, E09); surfaces in `status` |
 | `token_cost` | `low \| medium \| high` | prose only: recurring context cost; drives progressive loading order (low loads eagerly) |
@@ -113,6 +113,13 @@ Extended packs contribute their own low-cost bodies but no root.
    merged `block_on` (E06).
 4. User config sits above the merged result: tighten freely; loosen only to
    the floor; never through it (E06).
+
+### Added in the v7 PR (forward-marks)
+
+- `[[command]]` — user-invocable rulebook commands (name/body/description) + top-level
+  `description`: **Phase B** (E13 reserved/duplicate name, E14 command shape/path).
+- Per-check `event`/`matcher` — hook-trigger declaration for enforcer derivation: **Phase C**.
+- `remote` origin mechanics + `.kerby/rulebooks.lock`: **Phase E**.
 
 ## Error catalog (E01–E12)
 

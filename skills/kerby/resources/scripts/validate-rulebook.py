@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate a kerby rulebook against manifest contract v1.
+"""Validate a kerby rulebook against manifest contract v2.
 
 Ships inside the skill bundle (resources/scripts/) so the load flow can
 invoke it wherever the skill is installed — the repo-level scripts/ dir
@@ -12,9 +12,7 @@ Options:
     --origin {builtin,local}   Trust origin (default: local)
     --builtin-root PATH        Directory holding builtin rulebooks, for
                                resolving `extends` (default: the repo's
-                               skills/kerby/resources/rulebooks)
-    --resources-root PATH      Root builtin declared paths may resolve
-                               against (default: parent of --builtin-root)
+                               skills/kerby/rulebooks)
     --config PATH              Optional user-config TOML ([gate] table) to
                                check against the floor (E06)
     --hash                     Print the sha256 over manifest + declared
@@ -27,7 +25,7 @@ Stdlib only (tomllib requires Python >= 3.11). Two modes, one logic: run
 standalone this is advisory; invoked by the `load` flow it is authoritative —
 an advisory pass is never a trust grant.
 
-Error catalog E01-E12: docs/rulebook-contract.md. Messages are literal and
+Error catalog E01-E14: docs/rulebook-contract.md. Messages are literal and
 fix-forward (VOICE.md zoning).
 """
 
@@ -38,7 +36,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-CONTRACT_SUPPORTED = (1,)
+CONTRACT_SUPPORTED = (2,)
 # A rulebook id is a bare slug — never a path. This is the gate that keeps an
 # `extends` entry from resolving outside builtin_root (e.g. "/tmp/evil", "../x").
 RULEBOOK_ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
@@ -61,8 +59,9 @@ TOP_REQUIRED = ("id", "version", "contract", "accepts")
 
 
 def default_builtin_root() -> Path:
-    # this script lives at <resources>/scripts/; builtins at <resources>/rulebooks/
-    return Path(__file__).resolve().parent.parent / "rulebooks"
+    # this script lives at <install-root>/resources/scripts/; builtins at
+    # <install-root>/rulebooks/ (v7 self-contained layout)
+    return Path(__file__).resolve().parent.parent.parent / "rulebooks"
 
 
 class Result:
@@ -191,34 +190,31 @@ def check_needs(check: dict, accepts: list, res: Result):
         res.error("E10", f"check '{cid}' needs views {needs} but rulebook accepts only {accepts}")
 
 
-def resolve_declared(path_str: str, root: Path, origin: str, resources_root: Path | None, cid: str, res: Result) -> Path | None:
+def resolve_declared(path_str: str, root: Path, cid: str, res: Result) -> Path | None:
+    """Uniform folder confinement (contract 2): every rulebook's declared paths
+    resolve inside its own folder, regardless of origin. The v6 builtin
+    resources-root exemption is gone — self-contained rulebooks made it
+    unnecessary, and it was the special case the trust model had to defend."""
     p = Path(path_str)
-    if origin != "builtin":
-        if p.is_absolute() or ".." in p.parts:
-            res.error("E04", f"check '{cid}': declared path '{path_str}' escapes the rulebook root; move the file inside the folder")
-            return None
-        resolved = (root / p).resolve()
+    if p.is_absolute() or ".." in p.parts:
+        res.error("E04", f"check '{cid}': declared path '{path_str}' escapes the rulebook root; move the file inside the folder")
+        return None
+    resolved = (root / p).resolve()
+    try:
+        inside = resolved.is_relative_to(root.resolve())
+    except AttributeError:  # < py3.9, unreachable given tomllib gate
+        inside = str(resolved).startswith(str(root.resolve()))
+    if not inside:  # symlink escape
+        res.error("E04", f"check '{cid}': declared path '{path_str}' escapes the rulebook root via a symlink; move the file inside the folder")
+        return None
+    if resolved.is_file():
         try:
-            inside = resolved.is_relative_to(root.resolve())
-        except AttributeError:  # < py3.9, unreachable given tomllib gate
-            inside = str(resolved).startswith(str(root.resolve()))
-        if not inside:  # symlink escape
-            res.error("E04", f"check '{cid}': declared path '{path_str}' escapes the rulebook root via a symlink; move the file inside the folder")
+            with open(resolved, "rb"):
+                pass
+        except OSError:
+            res.error("E04", f"check '{cid}': declared path '{path_str}' exists but is unreadable — fix its permissions")
             return None
-        candidates = [resolved]
-    else:
-        candidates = [(root / p).resolve()]
-        if resources_root is not None:
-            candidates.append((resources_root / p).resolve())
-    for c in candidates:
-        if c.is_file():
-            try:
-                with open(c, "rb"):
-                    pass
-            except OSError:
-                res.error("E04", f"check '{cid}': declared path '{path_str}' exists but is unreadable — fix its permissions")
-                return None
-            return c
+        return resolved
     res.error("E04", f"check '{cid}': declared path '{path_str}' does not exist")
     return None
 
@@ -235,7 +231,7 @@ def check_detect(data: dict, origin: str, res: Result):
         res.warn("E12", f"[detect]: declared by a {origin} rulebook — ignored; auto-selection is builtin-only")
 
 
-def resolve_check_files(check: dict, cid: str, root: Path, origin: str, resources_root: Path, res: Result, out: list[Path]) -> None:
+def resolve_check_files(check: dict, cid: str, root: Path, origin: str, res: Result, out: list[Path]) -> None:
     """Resolve a check's declared files (config/entry/body/enforcer), append each
     resolved path to `out` (so it enters the hash and E04 covers its existence /
     readability), and lint external prose bodies. Shared by a rulebook's own
@@ -247,14 +243,14 @@ def resolve_check_files(check: dict, cid: str, root: Path, origin: str, resource
             if not isinstance(check[field], str):
                 res.error("E02", f"check '{cid}': '{field}' must be a path string")
                 continue
-            resolved = resolve_declared(check[field], root, origin, resources_root, cid, res)
+            resolved = resolve_declared(check[field], root, cid, res)
             if resolved is not None:
                 out.append(resolved)
                 if field == "body" and origin != "builtin":
                     lint_prose(resolved, cid, res)
 
 
-def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, resources_root: Path, config_gate: dict | None, res: Result) -> list[Path]:
+def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, config_gate: dict | None, res: Result) -> list[Path]:
     """Merge with extended packs (base implicit), run E04-E07, E10, E11.
 
     Returns the list of resolved declared files (for hashing)."""
@@ -311,7 +307,7 @@ def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, res
                 # unreadable base floor body — must fail here (E04), not pass as
                 # a valid `code`. Packs are builtins (repo-relative resolution).
                 pcid = check_fields(c, pidx, res)
-                resolve_check_files(c, pcid, pack_root, "builtin", resources_root, res, declared_files)
+                resolve_check_files(c, pcid, pack_root, "builtin", res, declared_files)
                 merged[c["id"]] = c
                 merged_src[c["id"]] = pack_id
 
@@ -360,7 +356,7 @@ def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, res
             elif target.get("floor") is True:
                 res.error("E05", f"check '{cid}': cannot override a floor check ('{override_of}')")
 
-        resolve_check_files(check, cid, root, origin, resources_root, res, declared_files)
+        resolve_check_files(check, cid, root, origin, res, declared_files)
         merged[cid] = check
 
     # Gate value types: in every gate source, block_on and hold_on must each be
@@ -455,7 +451,7 @@ def compute_hash(root: Path, declared: list[Path]) -> str:
     return h.hexdigest()
 
 
-def validate(root: Path, origin: str, builtin_root: Path, resources_root: Path, config_path: Path | None) -> tuple[Result, list[Path]]:
+def validate(root: Path, origin: str, builtin_root: Path, config_path: Path | None) -> tuple[Result, list[Path]]:
     res = Result()
     # `origin` is a trust CLAIM, not a fact — in a cloned repo the lockfile that
     # supplies it is untrusted workspace content. `origin = "builtin"` grants
@@ -486,7 +482,7 @@ def validate(root: Path, origin: str, builtin_root: Path, resources_root: Path, 
                 config_gate = tomllib.load(f).get("gate")
         except (OSError, tomllib.TOMLDecodeError) as e:
             res.error("E01", f"config {config_path}: unreadable or unparseable: {e}")
-    declared = merge_and_check(data, root, origin, builtin_root, resources_root, config_gate, res)
+    declared = merge_and_check(data, root, origin, builtin_root, config_gate, res)
     return res, declared
 
 
@@ -495,16 +491,14 @@ def main() -> int:
     ap.add_argument("rulebook_dir", type=Path)
     ap.add_argument("--origin", choices=("builtin", "local"), default="local")
     ap.add_argument("--builtin-root", type=Path, default=None)
-    ap.add_argument("--resources-root", type=Path, default=None)
     ap.add_argument("--config", type=Path, default=None)
     ap.add_argument("--hash", action="store_true")
     args = ap.parse_args()
 
     root = args.rulebook_dir
     builtin_root = args.builtin_root or default_builtin_root()
-    resources_root = args.resources_root or builtin_root.parent
 
-    res, declared = validate(root, args.origin, builtin_root, resources_root, args.config)
+    res, declared = validate(root, args.origin, builtin_root, args.config)
 
     if args.hash:
         if res.errors:

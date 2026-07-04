@@ -100,7 +100,7 @@ These are not decoration. They are what every verdict comes back to:
   when to use it, the loader behavior, and the per-project install.
 - **[`skills/kerby/SKILL.md`](skills/kerby/SKILL.md)** — the skill body (sub-command
   routing, install/uninstall mechanics).
-- **[`skills/kerby/resources/BOOTSTRAP.md`](skills/kerby/resources/BOOTSTRAP.md)** — the
+- **[`skills/kerby/rulebooks/code/BOOTSTRAP.md`](skills/kerby/rulebooks/code/BOOTSTRAP.md)** — the
   rules themselves.
 - **[`CLAUDE.md`](CLAUDE.md)** — the harness-engineering vocabulary kerby implements.
 
@@ -128,7 +128,7 @@ lines of staged test files it statically flags focused/disabled markers and alwa
 assertions, as a soft advisory (counts only, never echoing a test line).
 
 **Opinionated — read first.** These are one author's rules. Read
-[`skills/kerby/resources/BOOTSTRAP.md`](skills/kerby/resources/BOOTSTRAP.md) end-to-end
+[`skills/kerby/rulebooks/code/BOOTSTRAP.md`](skills/kerby/rulebooks/code/BOOTSTRAP.md) end-to-end
 before adopting, and fork-and-edit rather than file feature requests on rule content.
 
 ## License

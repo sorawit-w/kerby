@@ -2,7 +2,7 @@
 # pattern — E11 is warn-only at contract v1, so this validates with exit 0.
 id = "fixture-e11"
 version = "1.0.0"
-contract = 1
+contract = 2
 accepts = ["*"]
 
 [[check]]

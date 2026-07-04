@@ -4,8 +4,8 @@ kerby's engine is domain-blind: it loads, weighs, and enforces whatever a
 manifest declares. A rulebook is how you tell it what your domain's rules
 are. This guide is everything an external author needs; the normative schema
 lives in [`rulebook-contract.md`](rulebook-contract.md), and the shipped
-[`base`](../skills/kerby/resources/rulebooks/base/rulebook.toml) and
-[`code`](../skills/kerby/resources/rulebooks/code/rulebook.toml) rulebooks
+[`base`](../skills/kerby/rulebooks/base/rulebook.toml) and
+[`code`](../skills/kerby/rulebooks/code/rulebook.toml) rulebooks
 are the worked examples.
 
 kerby will read your manifest, validate it, show the user exactly what your
@@ -36,7 +36,7 @@ inside the folder. No `..`, no absolute paths, no symlinks that point out
 ```toml
 id = "prose-review"          # unique id; how users load you: kerby load ./my-rulebook
 version = "1.0.0"            # your semver — bump it when rules change; the hash pin will notice anyway
-contract = 1                 # the manifest contract this targets (E03)
+contract = 2                 # the manifest contract this targets (E03)
 accepts = ["document"]       # subject types you can judge; "*" = anything
 
 [gate]                       # how severities become verdicts
@@ -90,7 +90,7 @@ being enforced.
 - `severity` maps through `[gate]`: `block` → DENIED, `warn` → HELD, `info`
   → advisory.
 - `floor = true` marks a check nothing may loosen — not user config, not an
-  extending rulebook (E05/E06). Floors belong in `base`; at contract v1
+  extending rulebook (E05/E06). Floors belong in `base`; at contract v2
   declaring your own floors outside base is legal but pointless, since only
   base is implicitly composed into everyone else.
 - Non-floor checks may declare an `override` policy naming a scoped,
@@ -117,7 +117,7 @@ undeclared collision is an error, not a merge (E07).
 
 ### `[detect]` — reserved
 
-You may declare workspace fingerprints, but at contract v1 the engine never
+You may declare workspace fingerprints, but at contract v2 the engine never
 matches on them, and for non-builtin rulebooks it never will (E12 warns):
 auto-selection is builtin-only, because untrusted workspace content must
 never steer which gate governs. Users load your rulebook by name or path,
