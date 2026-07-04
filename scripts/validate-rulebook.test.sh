@@ -33,10 +33,13 @@ run "$BUILTIN_ROOT/base" --origin builtin
 
 # origin=builtin is only honored inside builtin_root: a workspace path claimed
 # as builtin must be rejected (E04), or untrusted content would validate as
-# trusted builtin (path-escape allowed, prompt skipped).
-TMP_FAKEBI="$(mktemp -d "$TMP_DETECT/fakebi.XXXX")"
+# trusted builtin (path-escape allowed, prompt skipped). Self-contained temp dir
+# (TMP_DETECT is not defined until later in this script; under `set -u` deriving
+# from it here would leave the path empty and target the cp at /).
+TMP_FAKEBI="$(mktemp -d)"
 cp -R "$FIXTURES/valid-minimal/." "$TMP_FAKEBI/"
 OUT="$(python3 "$VALIDATOR" "$TMP_FAKEBI" --origin builtin --builtin-root "$BUILTIN_ROOT" 2>&1)"; RC=$?
+rm -rf "$TMP_FAKEBI"
 if [[ "$RC" -eq 1 ]] && echo "$OUT" | grep -q "E04:"; then
   pass "origin=builtin rejected for a path outside builtin_root"
 else
