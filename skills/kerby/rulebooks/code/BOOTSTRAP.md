@@ -43,7 +43,7 @@ Read these files now:
 5. `.ai/knowledge/KNOWLEDGE.md` — knowledge base index (skip if missing, scan for relevant entries)
 6. `CONTEXT.md` — project domain glossary at project root; use these terms in code, plans, and prose. Scaffolded by the `context-bootstrap` hook if missing. See `references/domain-glossary.md`.
 7. `DESIGN.md` — design-token authority at project root. If present, the YAML front matter IS the canonical design contract for UI/styling work — do not invent alternative tokens. See `references/design-md.md`.
-8. Agent context — read whichever files are present at project root: `CLAUDE.md` (Claude Code), `AGENTS.md` (Codex), `AI-CONTEXT.md` (vendor-independent fallback), `.cursorrules` (Cursor). See `references/multi-tool.md` for the recommended symlink convention that keeps these in sync.
+8. Agent context — read whichever files are present at project root: `CLAUDE.md` (Claude Code), `AGENTS.md` (Codex), `AI-CONTEXT.md` (vendor-independent fallback), `.cursorrules` (Cursor). See `<install-root>/resources/references/multi-tool.md` (an engine-level reference — the vendor convention is shared infrastructure) for the recommended symlink convention that keeps these in sync.
 9. `git log --oneline -20` — recent commit history
 </detect_project>
 
@@ -313,7 +313,7 @@ All paths in this index are relative to the `resources/` directory where this `B
 | Unified project workflows (new + existing) | `references/project-entry.md` |
 | Multi-session implementation planning | `references/implementation-planning.md` |
 | Automated hooks (enforcement, customization) | `references/hooks.md` |
-| Cross-tool support (Claude Code, Codex, Copilot advisory-mode, fallbacks) | `references/multi-tool.md` |
+| Cross-tool support (Claude Code, Codex, Copilot advisory-mode, fallbacks) | `<install-root>/resources/references/multi-tool.md` (engine-level) |
 | Safety mindset, decision filters, engineering ethics | `references/safety-mindset.md` |
 | Project knowledge base — decisions, context, conventions, lessons | `references/knowledge-management.md` |
 | Living feature inventory — `ROADMAP.md` shape, status legends, bootstrap, update discipline | `references/roadmap.md` |

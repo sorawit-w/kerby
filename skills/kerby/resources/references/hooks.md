@@ -52,7 +52,7 @@ Defaults to enabled when the section is missing. Override the staleness window w
 
 The `KNOWLEDGE.md` written by this hook contains `<!-- AUTO-INDEX:START -->` / `<!-- AUTO-INDEX:END -->` markers — only the lines between those markers are rewritten. Custom intro text or extra sections elsewhere in the file are preserved. If markers are missing, the hook prints a warning and skips index regen.
 
-**Mid-session updates.** When an agent writes a new knowledge entry during a session (after the proposal-then-approval flow in `references/knowledge-management.md`), it should run `bash "${KERBY_DIR}/resources/hooks/knowledge-reindex.sh" --force` to refresh the index immediately rather than waiting for the next session. The script is safe to call ad-hoc — idempotent and side-effect-free if nothing changed.
+**Mid-session updates.** When an agent writes a new knowledge entry during a session (after the code rulebook's proposal-then-approval knowledge flow), it should run `bash "${KERBY_DIR}/resources/hooks/knowledge-reindex.sh" --force` to refresh the index immediately rather than waiting for the next session. The script is safe to call ad-hoc — idempotent and side-effect-free if nothing changed.
 
 ---
 

@@ -41,7 +41,7 @@ Destinations: `engine` (stays under `resources/`) · `base` / `code` (move into
 | 26 | `resources/hooks/warn-env-read.test.sh` | code | `rulebooks/code/hooks/warn-env-read.test.sh` |
 | 27 | `resources/references/audit.md` | code | `rulebooks/code/references/audit.md` |
 | 28 | `resources/references/communication.md` | code | `rulebooks/code/references/communication.md` |
-| 29 | `resources/references/context-management.md` | engine | — |
+| 29 | `resources/references/context-management.md` | code | `rulebooks/code/references/context-management.md` (v7 correction: cited only by code's BOOTSTRAP/refs) |
 | 30 | `resources/references/debugging.md` | code | `rulebooks/code/references/debugging.md` |
 | 31 | `resources/references/design-md.md` | code | `rulebooks/code/references/design-md.md` |
 | 32 | `resources/references/domain-glossary.md` | code | `rulebooks/code/references/domain-glossary.md` |
@@ -53,7 +53,7 @@ Destinations: `engine` (stays under `resources/`) · `base` / `code` (move into
 | 38 | `resources/references/hooks.md` | **split** | engine keeps + `rulebooks/code/references/hooks.md` (section list below) |
 | 39 | `resources/references/html-export.md` | code | `rulebooks/code/references/html-export.md` |
 | 40 | `resources/references/implementation-planning.md` | code | `rulebooks/code/references/implementation-planning.md` |
-| 41 | `resources/references/knowledge-management.md` | engine | — |
+| 41 | `resources/references/knowledge-management.md` | code | `rulebooks/code/references/knowledge-management.md` (v7 correction: 8 code cites vs 1 engine, de-deep-linked) |
 | 42 | `resources/references/multi-tool.md` | engine | — |
 | 43 | `resources/references/project-entry.md` | code | `rulebooks/code/references/project-entry.md` |
 | 44 | `resources/references/quality-gates.md` | code | `rulebooks/code/references/quality-gates.md` |
