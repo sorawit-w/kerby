@@ -108,6 +108,21 @@ else
   fail "fail-closed — expected exit 1 + E04 on unreadable body, got exit $RC: $OUT"
 fi
 
+# Symlink anywhere under the rulebook is rejected (E04): an undeclared symlink a
+# body/BOOTSTRAP reads would be a mutable-after-approval instruction channel the
+# trust hash can't cover (outside target changes with folder bytes unchanged).
+TMP_SYM="$(mktemp -d "$TMP_DETECT/sym.XXXX")"
+cp -R "$FIXTURES/valid-minimal/." "$TMP_SYM/"
+mkdir -p "$TMP_SYM/references"
+printf 'outside instructions' > "$TMP_DETECT/outside-target.md"
+ln -s ../outside-target.md "$TMP_SYM/references/extra.md"
+run "$TMP_SYM"
+if [[ "$RC" -eq 1 ]] && echo "$OUT" | grep -q "E04:"; then
+  pass "symlink under rulebook root is rejected (E04)"
+else
+  fail "expected exit 1 + E04 on a symlinked rulebook file, got exit $RC: $OUT"
+fi
+
 # Same invariant, permission-denied flavor — best-effort, skipped under root
 # (chmod 000 is not unreadable to uid 0) so the suite still passes in CI.
 if [[ "$(id -u)" -ne 0 ]]; then

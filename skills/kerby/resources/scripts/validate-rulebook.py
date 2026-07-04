@@ -510,8 +510,11 @@ def compute_hash(root: Path) -> str:
     identical. Length-prefixing each file (and binding its path) commits the
     boundaries so any cross-file move changes the digest. Keys are root-relative
     (POSIX) so the hash is stable regardless of where the rulebook sits on disk.
-    Symlinks and any `.git/` metadata are skipped — a clone has its `.git/`
-    removed at fetch, and a symlink is not first-class rulebook content."""
+    `.git/` metadata is skipped (a clone has its `.git/` removed at fetch).
+    Symlinks are skipped here only defensively: `validate()` already **rejects**
+    any rulebook containing one (E04, `check_no_symlinks`) and `--hash` is
+    fail-closed on validation errors, so a valid rulebook reaching this point has
+    none — the skip just stops the walk from following a symlinked directory."""
     root_r = root.resolve()
     entries: list[tuple[str, Path]] = []
     for f in root_r.rglob("*"):
@@ -527,6 +530,26 @@ def compute_hash(root: Path) -> str:
         h.update(f"{key}\0{len(data)}\0".encode("utf-8"))
         h.update(data)
     return h.hexdigest()
+
+
+def check_no_symlinks(root: Path, res: Result) -> None:
+    """Reject any symlink anywhere under the rulebook folder (E04 — confinement).
+
+    A rulebook must be self-contained plain files. A symlink is either an escape
+    (its target lives outside the folder — uncontrolled and mutable *without
+    touching anything the trust hash frames*, so command bodies / BOOTSTRAP that
+    read it become a mutable-after-approval instruction channel) or a redundant
+    internal alias. `resolve_declared` already blocks symlink escapes for
+    *declared* paths, but an *undeclared* symlink a body reads (e.g.
+    `references/extra.md`) would slip past that — and hashing it can't help: an
+    outside target changes with the folder's bytes unchanged, and framing
+    outside-root bytes would break confinement. So reject symlinks as content
+    rather than trying to hash them. Builtins ship none, so this is uniform."""
+    root_r = root.resolve()
+    for f in root_r.rglob("*"):
+        if f.is_symlink():
+            rel = f.relative_to(root_r).as_posix()
+            res.error("E04", f"symlink '{rel}' under the rulebook root — rulebooks must be self-contained plain files; a symlink escapes confinement or is a mutable-target instruction channel. Replace it with the real file.")
 
 
 def validate(root: Path, origin: str, builtin_root: Path, config_path: Path | None) -> tuple[Result, list[Path]]:
@@ -548,6 +571,9 @@ def validate(root: Path, origin: str, builtin_root: Path, config_path: Path | No
         if not inside:
             res.error("E04", f"origin 'builtin' claimed for '{root}', which is not inside the installed builtin root '{builtin_root}' — builtins load only from the install, never a workspace path")
             return res, []
+    check_no_symlinks(root, res)
+    if res.errors:  # a symlinked rulebook is fail-closed — never hash/load it
+        return res, []
     data = load_manifest(root, res)
     if data is None:
         return res, []
