@@ -1,0 +1,16 @@
+# E02 regression: floor mistyped as a string. Everything downstream tests
+# `floor is True`, so floor = "true" (string) would silently read as non-floor,
+# disabling E05/E06 and eager floor-loading for a rule meant to be a floor.
+id = "floor-not-bool"
+version = "1.0.0"
+contract = 1
+accepts = ["*"]
+
+[[check]]
+id = "typo-floor"
+kind = "prose"
+body = "rules/typo-floor.md"
+enforcement = "behavioral"
+severity = "block"
+floor = "true"
+token_cost = "low"

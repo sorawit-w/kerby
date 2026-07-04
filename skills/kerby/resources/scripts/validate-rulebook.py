@@ -130,6 +130,14 @@ def check_fields(check: dict, idx: int, res: Result) -> str:
     if tc is not None and tc not in TOKEN_COSTS:
         res.error("E02", f"check '{cid}': token_cost '{tc}' is not one of low, medium, high")
 
+    # 'floor' must be a real TOML boolean. Everything downstream tests
+    # `floor is True`, so a mistyped `floor = "true"` (string) or `floor = 1`
+    # would silently read as non-floor — E05 (no override), E06 (must block)
+    # and eager floor-loading would all stop protecting it, quietly making a
+    # non-overridable base/code rule overridable. Reject the bad type here.
+    if "floor" in check and not isinstance(check["floor"], bool):
+        res.error("E02", f"check '{cid}': 'floor' must be a boolean (true/false), not {type(check['floor']).__name__}")
+
     # E08 kind/field coherence
     if kind == "data":
         runner = check.get("runner")
