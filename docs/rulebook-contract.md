@@ -168,7 +168,11 @@ first successful load; read by every later load.
   as fallback for one major version and auto-migrated on the next pin write.
 - `selected` is the D17 pin: which rulebooks this project loads. Changing
   rulebooks is an explicit act (`load <x>` replaces, `load +<x>` adds,
-  `unload <x>` removes), never drift.
+  `unload <x>` removes), never drift. **Ids are unique within `selected`** —
+  since it keys on `id` and every user-facing op dispatches by id, `load +`
+  refuses a rulebook whose id already names an active selection (e.g. the
+  builtin `code` plus a local fork also named `code`); the user unloads the
+  incumbent or `load`-replaces instead.
 - `remote` entries carry `path_or_url` = the source URL (identity) and
   `local_path` = the clone dir — re-derived from the id at load, never trusted
   from the file.
