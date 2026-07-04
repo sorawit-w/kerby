@@ -666,6 +666,13 @@ def check_tree_confinement(root: Path, res: Result) -> None:
             return
         if f.is_symlink():
             res.error("E04", f"symlink '{rel.as_posix()}' under the rulebook root — rulebooks must be self-contained plain files; a symlink escapes confinement or is a mutable-target instruction channel. Replace it with the real file.")
+        elif not f.is_dir() and not f.is_file():
+            # FIFO / socket / device / other non-regular entry. `compute_hash`
+            # hashes only regular files (`is_file()`), so a special file is
+            # silently skipped — same hash-blind, mutable-after-approval channel
+            # as a symlink or `.git`. Reject it (a skip must always pair with a
+            # rejection). Only regular files and directories are allowed.
+            res.error("E04", f"non-regular entry '{rel.as_posix()}' under the rulebook root — only regular files and directories are allowed; a FIFO/socket/device is not covered by the trust hash, so what a body reads from it could change after approval. Replace it with a plain file.")
 
 
 def validate(root: Path, origin: str, builtin_root: Path, config_path: Path | None) -> tuple[Result, list[Path]]:

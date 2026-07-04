@@ -249,6 +249,24 @@ else
   fail "expected exit 1 + E04 on a traversal rulebook id, got exit $RC: $OUT"
 fi
 
+# A non-regular entry (FIFO/socket/device) under the rulebook is rejected (E04):
+# compute_hash hashes only regular files, so a special file would be skipped —
+# an unhashed, mutable-after-approval channel if a body reads it.
+if command -v mkfifo >/dev/null 2>&1; then
+  TMP_FIFO="$(mktemp -d)"
+  cp -R "$FIXTURES/valid-minimal/." "$TMP_FIFO/"
+  mkfifo "$TMP_FIFO/rules/pipe"
+  run "$TMP_FIFO"
+  rm -rf "$TMP_FIFO"
+  if [[ "$RC" -eq 1 ]] && echo "$OUT" | grep -q "E04:"; then
+    pass "non-regular entry (FIFO) under rulebook root is rejected (E04)"
+  else
+    fail "expected exit 1 + E04 on a FIFO under the rulebook, got exit $RC: $OUT"
+  fi
+else
+  pass "FIFO-rejection test skipped (mkfifo unavailable)"
+fi
+
 # A `.git/` path under the rulebook is rejected (E04): the trust hash skips
 # `.git`, so a declared/body-read file there (resolve_declared accepts it as
 # in-folder) would be an agent-readable, hash-blind, mutable-after-approval
