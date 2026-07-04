@@ -9,7 +9,10 @@ Usage:
     python3 <install-root>/resources/scripts/validate-rulebook.py <rulebook-dir> [options]
 
 Options:
-    --origin {builtin,local}   Trust origin (default: local)
+    --origin {builtin,local,remote}
+                               Trust origin (default: local). `remote` is the
+                               same untrusted tier as `local` (confined, TOFU);
+                               only `builtin` gets install-anchored treatment.
     --builtin-root PATH        Directory holding builtin rulebooks, for
                                resolving `extends` (default: the repo's
                                skills/kerby/rulebooks)
@@ -530,26 +533,50 @@ def lint_manifest_strings(data: dict, origin: str, res: Result) -> None:
                 lint_text(check["gap"], f"check '{check.get('id', '?')}' gap", res)
 
 
-def lint_tree_prose(root: Path, origin: str, res: Result) -> None:
-    """E11-lint EVERY markdown/text file under a non-builtin rulebook folder.
+def lint_tree_prose(data: dict, root: Path, origin: str, res: Result) -> None:
+    """E11-lint the union of (a) every declared instruction body — a check or
+    command `body`, regardless of file extension — and (b) every markdown/text
+    file under a non-builtin rulebook folder, deduped so each path lints once.
 
     The trust hash covers the whole folder, so the injection lint must span the
-    same set — one whole-folder pass, not per-declared-body. A per-body lint is
-    dodgeable by relocating an `ignore previous instructions` payload out of a
-    declared prose body: into a command body, a declared *non-body* file (a data
-    check's `config = "references/payload.md"`), or an undeclared reference a
-    root/command body reads. All are files an approved rulebook can cause the
-    agent to read as instructions, all are covered by the hash — so all are
-    linted here, with no per-field or declared/undeclared distinction to slip
-    through. Builtins are repo-trusted, so this is skipped there. The tree is
-    already confined (no symlinks / `.git`) when this runs."""
+    same set. The suffix scan (b) catches undeclared references/workflows and any
+    `.md`/`.txt` file — closing the relocate-the-payload dodge (into a command
+    body, a declared non-body file, or an undeclared reference). But a declared
+    `body` may have **no** prose suffix (e.g. `commands/review`) yet is still
+    dispatched as agent instructions and hashed — the suffix scan alone would
+    skip it — so (a) lints every declared body by resolved path irrespective of
+    extension. Declared bodies are added first, so a `.md` body keeps its precise
+    label and isn't linted twice. Builtins are repo-trusted, so this is skipped.
+    The tree is already confined (no symlinks / `.git`) when this runs."""
     if origin == "builtin":
         return
     root_r = root.resolve()
+    targets: dict[Path, str] = {}
+
+    def add_body(decl: str, label: str) -> None:
+        if not isinstance(decl, str):
+            return
+        p = (root_r / decl).resolve()
+        try:
+            inside = p.is_relative_to(root_r)
+        except AttributeError:  # < py3.9, unreachable given tomllib gate
+            inside = str(p).startswith(str(root_r))
+        if inside and p.is_file() and not p.is_symlink():
+            targets.setdefault(p, label)
+
+    for check in data.get("check") or []:
+        if isinstance(check, dict):
+            add_body(check.get("body"), f"check '{check.get('id', '?')}' body")
+    for cmd in data.get("command") or []:
+        if isinstance(cmd, dict):
+            add_body(cmd.get("body"), f"command '{cmd.get('name', '?')}' body")
     for f in root_r.rglob("*"):
         if (f.is_file() and not f.is_symlink()
                 and f.suffix.lower() in (".md", ".markdown", ".txt")):
-            lint_prose(f, f"file '{f.relative_to(root_r).as_posix()}'", res)
+            targets.setdefault(f.resolve(), f"file '{f.relative_to(root_r).as_posix()}'")
+
+    for p, label in targets.items():
+        lint_prose(p, label, res)
 
 
 def compute_hash(root: Path) -> str:
@@ -677,7 +704,7 @@ def validate(root: Path, origin: str, builtin_root: Path, config_path: Path | No
             res.error("E01", f"config {config_path}: unreadable or unparseable: {e}")
     declared = merge_and_check(data, root, origin, builtin_root, config_gate, res)
     check_commands(data, root, builtin_root, res, declared)
-    lint_tree_prose(root, origin, res)
+    lint_tree_prose(data, root, origin, res)
     lint_manifest_strings(data, origin, res)
     return res, declared
 
@@ -685,7 +712,7 @@ def validate(root: Path, origin: str, builtin_root: Path, config_path: Path | No
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("rulebook_dir", type=Path)
-    ap.add_argument("--origin", choices=("builtin", "local"), default="local")
+    ap.add_argument("--origin", choices=("builtin", "local", "remote"), default="local")
     ap.add_argument("--builtin-root", type=Path, default=None)
     ap.add_argument("--config", type=Path, default=None)
     ap.add_argument("--hash", action="store_true")
