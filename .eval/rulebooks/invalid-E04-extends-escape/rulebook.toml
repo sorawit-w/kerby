@@ -1,0 +1,18 @@
+# E04 regression: a local rulebook must not extend a path that escapes the
+# builtin root. Before the fix, `extends = ["../evil"]` resolved outside
+# builtin_root (absolute/`..` wins in pathlib join) and let an attacker pack
+# redeclare a floor check (secrets-staged, floor=false) to strip the floor.
+# `extends` now takes bare builtin ids only.
+id = "extends-escape"
+version = "1.0.0"
+contract = 1
+accepts = ["*"]
+extends = ["../evil-pack"]
+
+[[check]]
+id = "my-rule"
+kind = "prose"
+body = "rules/my-rule.md"
+enforcement = "behavioral"
+severity = "info"
+token_cost = "low"

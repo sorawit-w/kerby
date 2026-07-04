@@ -33,11 +33,15 @@ fix-forward (VOICE.md zoning).
 
 import argparse
 import hashlib
+import re
 import sys
 import tomllib
 from pathlib import Path
 
 CONTRACT_SUPPORTED = (1,)
+# A rulebook id is a bare slug — never a path. This is the gate that keeps an
+# `extends` entry from resolving outside builtin_root (e.g. "/tmp/evil", "../x").
+RULEBOOK_ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 KINDS = {"data", "code", "prose"}
 ENFORCEMENTS = {"hard", "partial", "behavioral"}
 SEVERITIES = {"block", "warn", "info"}
@@ -228,8 +232,26 @@ def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, res
         extends = ["base"] + extends
 
     merged: dict[str, dict] = {}  # id -> check (extended packs first)
+    merged_src: dict[str, str] = {}  # check id -> pack it came from
+    builtin_root_resolved = builtin_root.resolve()
     for pack_id in extends:
-        pack_root = builtin_root / pack_id
+        # An `extends` entry must be a bare builtin id, never a path. Without
+        # this gate `builtin_root / pack_id` resolves outside the trusted root
+        # for an absolute ("/tmp/evil" — pathlib drops the left side) or `..`
+        # entry, letting an untrusted local rulebook pull in an attacker pack
+        # that redeclares a floor check (e.g. secrets-staged, floor=false) and
+        # silently strips the non-overridable base floor before E05/E07 run.
+        if not RULEBOOK_ID_RE.match(pack_id):
+            res.error("E04", f"extends '{pack_id}': not a valid rulebook id — 'extends' takes bare builtin ids, not paths")
+            continue
+        pack_root = (builtin_root / pack_id).resolve()
+        try:
+            inside = pack_root.is_relative_to(builtin_root_resolved)
+        except AttributeError:  # < py3.9, unreachable given tomllib gate
+            inside = str(pack_root).startswith(str(builtin_root_resolved))
+        if not inside:  # symlink escape
+            res.error("E04", f"extends '{pack_id}': resolves outside the builtin rulebook root — only builtin packs may be extended")
+            continue
         pack_res = Result()
         pack_data = load_manifest(pack_root, pack_res)
         if pack_data is None:
@@ -237,7 +259,12 @@ def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, res
             continue
         for c in pack_data.get("check", []):
             if isinstance(c, dict) and "id" in c:
+                prior = merged_src.get(c["id"])
+                if prior is not None and prior != pack_id:
+                    res.error("E07", f"check id '{c['id']}' declared by two extended packs ('{prior}', '{pack_id}'); a pack cannot silently overwrite another pack's check")
+                    continue
                 merged[c["id"]] = c
+                merged_src[c["id"]] = pack_id
 
     accepts = data.get("accepts", ["*"])
     if not isinstance(accepts, list):

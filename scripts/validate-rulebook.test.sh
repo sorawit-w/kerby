@@ -146,7 +146,7 @@ if [[ -d "$REAL_ROOT/base" ]]; then
 fi
 
 # --- Validator stays stdlib-only ----------------------------------------------
-BAD_IMPORTS="$(grep -E '^(import|from) ' "$VALIDATOR" | grep -vE '^(import|from) (argparse|hashlib|sys|tomllib|pathlib)\b')"
+BAD_IMPORTS="$(grep -E '^(import|from) ' "$VALIDATOR" | grep -vE '^(import|from) (argparse|hashlib|re|sys|tomllib|pathlib)\b')"
 if [[ -z "$BAD_IMPORTS" ]]; then
   pass "validator imports are stdlib-only"
 else
