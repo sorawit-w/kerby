@@ -129,9 +129,15 @@ Load the kerby into the current session.
 
 Re-load the rules. Useful after Claude Code compacts the conversation and may have stripped earlier context.
 
-Same procedure as `load` — the pin in `rulebooks.lock` is read, never re-resolved (announcement source: `pinned`) — but the confirmation message is:
+Same procedure as `load` — the pin in `rulebooks.lock` is read, never re-resolved (announcement source: `pinned`) — but the confirmation message is **rulebook-aware**, mirroring step 4 of `load` (name what was actually refreshed, never BOOTSTRAP for a non-`code` rulebook):
 
-> **kerby reloaded.** BOOTSTRAP refreshed in context.
+- **Pinned to `code`** (verbatim, for parity):
+
+  > **kerby reloaded.** BOOTSTRAP refreshed in context.
+
+- **Pinned to any other rulebook:**
+
+  > **kerby reloaded `<id>@<version>`.** Its rules (`<root-body>` + the base floor) refreshed in context.
 
 ---
 
@@ -139,10 +145,12 @@ Same procedure as `load` — the pin in `rulebooks.lock` is read, never re-resol
 
 Check whether the rules are currently loaded.
 
-1. Scan recent conversation context for BOOTSTRAP signatures — distinctive phrases like "Prime Directive", "Clarity over cleverness. Safety over speed.", "implement → check → commit → log → repeat", or the section headers from BOOTSTRAP.md (e.g., `<prime_directive>`, `<hard_rules>`, `<reference_index>`).
-2. If found, report:
+1. **Determine which rulebook to check for first** — read the `selected` pin in `rulebooks.lock` (if present) and resolve its root body. The verdict must scan for *that* rulebook's markers, not BOOTSTRAP unconditionally: a session that loaded `./my-rulebook` never read BOOTSTRAP, so a BOOTSTRAP-only scan would falsely report "not loaded" and tell the user to reload rules already in context.
+   - **Pinned to `code` (or no pin — `code` is the default):** scan recent context for BOOTSTRAP signatures — distinctive phrases like "Prime Directive", "Clarity over cleverness. Safety over speed.", "implement → check → commit → log → repeat", or BOOTSTRAP.md section headers (`<prime_directive>`, `<hard_rules>`, `<reference_index>`).
+   - **Pinned to another rulebook:** scan for distinctive phrases/headers from *that* rulebook's root body instead (plus the shared base-floor rule text, which loads for every rulebook).
+2. If the selected rulebook's markers are found, report (name the rulebook when it isn't `code`):
 
-   > **kerby: loaded.** Detected BOOTSTRAP markers in current context.
+   > **kerby: loaded.** Detected `<id>` markers in current context.
 
 3. If not found, report:
 
