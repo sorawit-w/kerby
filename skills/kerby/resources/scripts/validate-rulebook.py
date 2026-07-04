@@ -122,16 +122,15 @@ def check_top_level(data: dict, res: Result):
         res.error("E02", "manifest: 'description' must be a string")
 
 
-def check_commands(data: dict, root: Path, builtin_root: Path, origin: str, res: Result, declared_files: list[Path]) -> None:
+def check_commands(data: dict, root: Path, builtin_root: Path, res: Result, declared_files: list[Path]) -> None:
     """[[command]] — user-invocable rulebook commands (contract 2, V2/V16).
     E13 = name collisions (reserved engine names, builtin rulebook ids,
     duplicates within this rulebook); E14 = command shape. Bodies are declared
-    files: they resolve folder-confined (E04) and enter the trust hash — and,
-    for a non-builtin rulebook, get the same E11 prose-injection lint a prose
-    check body gets. A command body is read as agent instructions at dispatch,
-    but the trust prompt shows only the command's name/description, so without
-    this lint an external rulebook could smuggle an injection phrase past the
-    approval the user relies on."""
+    files: they resolve folder-confined (E04) and enter the trust hash. Their
+    E11 prose-injection lint is handled by the whole-folder pass
+    (`lint_tree_prose`), so a command body — read as agent instructions at
+    dispatch while the trust prompt shows only name/description — is linted like
+    every other prose file, with no per-field special case to slip past."""
     commands = data.get("command")
     if commands is None:
         return
@@ -164,8 +163,6 @@ def check_commands(data: dict, root: Path, builtin_root: Path, origin: str, res:
             resolved = resolve_declared(body, root, label, res)
             if resolved is not None:
                 declared_files.append(resolved)
-                if origin != "builtin":
-                    lint_prose(resolved, f"{label} body", res)
         cdesc = cmd.get("description")
         if not isinstance(cdesc, str) or not cdesc.strip():
             res.error("E14", f"{label}: 'description' must be a non-empty string (shown in dispatch listings and the trust prompt)")
@@ -304,13 +301,15 @@ def check_detect(data: dict, origin: str, res: Result):
         res.warn("E12", f"[detect]: declared by a {origin} rulebook — ignored; auto-selection is builtin-only")
 
 
-def resolve_check_files(check: dict, cid: str, root: Path, origin: str, res: Result, out: list[Path]) -> None:
+def resolve_check_files(check: dict, cid: str, root: Path, res: Result, out: list[Path]) -> None:
     """Resolve a check's declared files (config/entry/body/enforcer), append each
     resolved path to `out` (so it enters the hash and E04 covers its existence /
-    readability), and lint external prose bodies. Shared by a rulebook's own
-    checks and the checks it composes from an extended pack — the composed floor
-    must be file-validated too, or a damaged install could pass through a
-    selected rulebook that merely extends it."""
+    readability). Shared by a rulebook's own checks and the checks it composes
+    from an extended pack — the composed floor must be file-validated too, or a
+    damaged install could pass through a selected rulebook that merely extends
+    it. Prose-injection (E11) linting is a separate whole-folder pass
+    (`lint_tree_prose`), not per-declared-body — so it can't be dodged by moving
+    a payload into a declared non-body file or an undeclared reference."""
     for field in ("config", "entry", "body", "enforcer"):
         if field in check:
             if not isinstance(check[field], str):
@@ -319,8 +318,6 @@ def resolve_check_files(check: dict, cid: str, root: Path, origin: str, res: Res
             resolved = resolve_declared(check[field], root, cid, res)
             if resolved is not None:
                 out.append(resolved)
-                if field == "body" and origin != "builtin":
-                    lint_prose(resolved, f"check '{cid}' body", res)
 
 
 def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, config_gate: dict | None, res: Result) -> list[Path]:
@@ -380,7 +377,7 @@ def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, con
                 # unreadable base floor body — must fail here (E04), not pass as
                 # a valid `code`. Packs are builtins (repo-relative resolution).
                 pcid = check_fields(c, pidx, res)
-                resolve_check_files(c, pcid, pack_root, "builtin", res, declared_files)
+                resolve_check_files(c, pcid, pack_root, res, declared_files)
                 merged[c["id"]] = c
                 merged_src[c["id"]] = pack_id
 
@@ -429,7 +426,7 @@ def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, con
             elif target.get("floor") is True:
                 res.error("E05", f"check '{cid}': cannot override a floor check ('{override_of}')")
 
-        resolve_check_files(check, cid, root, origin, res, declared_files)
+        resolve_check_files(check, cid, root, res, declared_files)
         merged[cid] = check
 
     # Gate value types: in every gate source, block_on and hold_on must each be
@@ -492,26 +489,26 @@ def lint_prose(path: Path, label: str, res: Result):
             res.warn("E11", f"{label}: prose contains an instruction-override pattern ('{pattern}'); review before trusting")
 
 
-def lint_undeclared_prose(root: Path, origin: str, declared: list[Path], res: Result) -> None:
-    """E11-lint the prose files the manifest never declares but a body can read.
+def lint_tree_prose(root: Path, origin: str, res: Result) -> None:
+    """E11-lint EVERY markdown/text file under a non-builtin rulebook folder.
 
-    The whole-folder trust hash covers undeclared references/workflows, but the
-    per-body lint only sees declared check/command bodies — so an injection
-    phrase moved into e.g. `references/payload.md` (read by an approved command
-    or the root body) would show 0 E11 warnings at the trust prompt. Lint every
-    non-builtin markdown/text file the hash covers that isn't already linted as a
-    declared body, so the warning can't be bypassed by relocating the payload
-    out of a declared file. Builtins are repo-trusted, so this is skipped there.
-    The tree is already confined (no symlinks / `.git`) when this runs."""
+    The trust hash covers the whole folder, so the injection lint must span the
+    same set — one whole-folder pass, not per-declared-body. A per-body lint is
+    dodgeable by relocating an `ignore previous instructions` payload out of a
+    declared prose body: into a command body, a declared *non-body* file (a data
+    check's `config = "references/payload.md"`), or an undeclared reference a
+    root/command body reads. All are files an approved rulebook can cause the
+    agent to read as instructions, all are covered by the hash — so all are
+    linted here, with no per-field or declared/undeclared distinction to slip
+    through. Builtins are repo-trusted, so this is skipped there. The tree is
+    already confined (no symlinks / `.git`) when this runs."""
     if origin == "builtin":
         return
-    declared_set = {p.resolve() for p in declared}
     root_r = root.resolve()
     for f in root_r.rglob("*"):
         if (f.is_file() and not f.is_symlink()
-                and f.suffix.lower() in (".md", ".markdown", ".txt")
-                and f.resolve() not in declared_set):
-            lint_prose(f, f"undeclared file '{f.relative_to(root_r).as_posix()}'", res)
+                and f.suffix.lower() in (".md", ".markdown", ".txt")):
+            lint_prose(f, f"file '{f.relative_to(root_r).as_posix()}'", res)
 
 
 def compute_hash(root: Path) -> str:
@@ -638,8 +635,8 @@ def validate(root: Path, origin: str, builtin_root: Path, config_path: Path | No
         except (OSError, tomllib.TOMLDecodeError) as e:
             res.error("E01", f"config {config_path}: unreadable or unparseable: {e}")
     declared = merge_and_check(data, root, origin, builtin_root, config_gate, res)
-    check_commands(data, root, builtin_root, origin, res, declared)
-    lint_undeclared_prose(root, origin, declared, res)
+    check_commands(data, root, builtin_root, res, declared)
+    lint_tree_prose(root, origin, res)
     return res, declared
 
 
