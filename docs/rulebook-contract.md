@@ -19,7 +19,7 @@ pinned (D10).
 
 | Origin | Where it lives | Path rules | Trust |
 |---|---|---|---|
-| `builtin` | `skills/kerby/resources/rulebooks/<id>/`, ships inside kerby | may declare repo-relative paths — resolved against the rulebook root first, then against `resources/` (so `references/quality-gates.md` and `hooks/protect-git.sh` declare existing files in place) | repo-versioned; no hash pin required |
+| `builtin` | `skills/kerby/resources/rulebooks/<id>/`, ships inside kerby | may declare repo-relative paths — resolved against the rulebook root first, then against `resources/` (so `references/quality-gates.md` and `hooks/protect-git.sh` declare existing files in place) | repo-versioned; no hash pin required. **Builtin-ness is anchored to the install location, never asserted by a lockfile**: a rulebook is builtin *iff* it resolves to `<install-root>/resources/rulebooks/<id>`. The validator rejects `--origin builtin` for any path outside `--builtin-root` (E04); a `rulebooks.lock` entry claiming `origin: builtin` for a workspace path is invalid, not trusted |
 | `local` | anywhere on disk, loaded by explicit path | confined: every declared path must resolve **inside** the rulebook root — no `..`, no absolute paths, no symlink escapes (E04) | one-time review + hash pin (TOFU) on first load — for **any** local rulebook, including a `data`-only one (loading it replaces the default gate; a prose/code rulebook *additionally* admits external instructions/scripts). Silent re-load only while the hash matches **and** the hash is in the per-machine `~/.claude/kerby/approved-rulebooks.json` — a committed project `rulebooks.lock` is untrusted content and can never by itself pre-approve an external rulebook |
 | `remote` | — | — | **reserved**; no fetching at v1 |
 

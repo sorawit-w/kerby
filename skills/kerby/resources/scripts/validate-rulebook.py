@@ -440,6 +440,23 @@ def compute_hash(root: Path, declared: list[Path]) -> str:
 
 def validate(root: Path, origin: str, builtin_root: Path, resources_root: Path, config_path: Path | None) -> tuple[Result, list[Path]]:
     res = Result()
+    # `origin` is a trust CLAIM, not a fact — in a cloned repo the lockfile that
+    # supplies it is untrusted workspace content. `origin = "builtin"` grants
+    # repo-relative path resolution (no confinement) and, in the load flow, skips
+    # the approval prompt. So a builtin must actually LIVE in the installed
+    # builtin root; otherwise an attacker could mark a workspace-local rulebook
+    # `origin: "builtin"` and have untrusted prose validated as trusted builtin.
+    # Anchor builtin-ness to the install location here as defense-in-depth (the
+    # loader must also resolve builtins only from the install, never a lockfile
+    # path — see SKILL.md).
+    if origin == "builtin":
+        try:
+            inside = root.resolve().is_relative_to(builtin_root.resolve())
+        except AttributeError:  # < py3.9, unreachable given tomllib gate
+            inside = str(root.resolve()).startswith(str(builtin_root.resolve()))
+        if not inside:
+            res.error("E04", f"origin 'builtin' claimed for '{root}', which is not inside the installed builtin root '{builtin_root}' — builtins load only from the install, never a workspace path")
+            return res, []
     data = load_manifest(root, res)
     if data is None:
         return res, []

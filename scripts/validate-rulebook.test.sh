@@ -31,6 +31,18 @@ done
 run "$BUILTIN_ROOT/base" --origin builtin
 [[ "$RC" -eq 0 ]] && pass "builtin base fixture accepted" || fail "builtin base fixture rejected — $OUT"
 
+# origin=builtin is only honored inside builtin_root: a workspace path claimed
+# as builtin must be rejected (E04), or untrusted content would validate as
+# trusted builtin (path-escape allowed, prompt skipped).
+TMP_FAKEBI="$(mktemp -d "$TMP_DETECT/fakebi.XXXX")"
+cp -R "$FIXTURES/valid-minimal/." "$TMP_FAKEBI/"
+OUT="$(python3 "$VALIDATOR" "$TMP_FAKEBI" --origin builtin --builtin-root "$BUILTIN_ROOT" 2>&1)"; RC=$?
+if [[ "$RC" -eq 1 ]] && echo "$OUT" | grep -q "E04:"; then
+  pass "origin=builtin rejected for a path outside builtin_root"
+else
+  fail "origin=builtin accepted a workspace path (RC=$RC): $OUT"
+fi
+
 # --- Invalid fixtures rejected with their exact catalog code -----------------
 for dir in "$FIXTURES"/invalid-E*/; do
   name="$(basename "$dir")"
