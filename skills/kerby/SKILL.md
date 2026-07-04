@@ -407,7 +407,7 @@ If `y`:
 
 1. Ask which settings file to clean (same three options as `install` Phase 2; default: 2 — project `.claude/settings.local.json`).
 
-2. Read the settings file. Find every hook entry whose `command` ends in one of the eight kerby script filenames (`protect-env.sh`, `warn-env-read.sh`, `protect-git.sh`, `pre-commit-check.sh`, `route-high-stakes.sh`, `session-start-context.sh`, `knowledge-bootstrap.sh`, `context-bootstrap.sh`) AND whose path contains `/skills/kerby/resources/hooks/`. Show the full list of matched entries.
+2. Read the settings file. **Path-signature sweep** — find every kerby-managed hook entry, using the **same signature as `install`/`status`**: its `command` path contains a kerby hook root (`/skills/kerby/rulebooks/` — the v7 enforcer + floor locations — **or** the legacy `/skills/kerby/resources/hooks/` where the engine SessionStart trio lives and pre-v7 shims sit) AND its filename is a kerby hook script. The filename set is **derived, not hardcoded**: the engine trio (`session-start-context.sh`, `knowledge-bootstrap.sh`, `context-bootstrap.sh`) plus every enforcer filename declared by any installed rulebook's manifest — so a second rulebook's enforcers are removable too. With a named `[rulebook]` argument, restrict the sweep to that rulebook's signatures (its hook dir + its declared enforcer filenames) plus, only on a bare `uninstall`, the engine trio. Show the full list of matched entries. This is deliberately robust to rulebook churn: an enforcer left behind by a since-removed rulebook still matches its filename+path signature and is swept.
 
 3. Single final confirmation — `Remove these entries? [y/n]`. On `n`, abort.
 

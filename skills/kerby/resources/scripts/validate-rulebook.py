@@ -505,8 +505,10 @@ def compute_hash(root: Path, declared: list[Path]) -> str:
         try:
             key = fr.relative_to(root_r).as_posix()
         except ValueError:
-            # builtin declared files may resolve outside the rulebook root
-            # (resources-relative); builtins are repo-versioned, not trust-hashed
+            # Defensive only: under contract 2 every declared file is
+            # folder-confined (resolve_declared rejects any escape, E04), so a
+            # declared path cannot resolve outside root and this branch is
+            # unreachable in practice. Kept as a non-crashing fallback.
             key = fr.name
         entries.append((key, fr))
     h = hashlib.sha256()

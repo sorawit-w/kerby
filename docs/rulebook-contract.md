@@ -131,7 +131,7 @@ everything else is an error (exit 1). E02-unknown-event also warns.
 |---|---|
 | E01 | manifest parses as TOML |
 | E02 | required fields present, types correct (`id`, `version`, `contract`, `accepts`; per check: `id`, `kind`, `enforcement`, `severity`) |
-| E03 | `contract` supported by this engine (currently: 1) |
+| E03 | `contract` supported by this engine (currently: 2) |
 | E04 | declared paths exist and are readable; non-builtin paths resolve inside the rulebook root (no `..` / absolute / symlink escape) |
 | E05 | no base check removed or shadowed; `override_of` never targets `floor = true` |
 | E06 | `[gate]` + config only tighten; never below the floor |
