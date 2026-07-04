@@ -69,7 +69,7 @@ markers = ["package.json"]  # shape-validated only (E12); the loader never match
 | `floor` | bool | non-overridable (D9); no config or extending rulebook may loosen it. Only meaningful in `base` at contract v2 |
 | `override` | string | escape-hatch policy for non-floor checks, e.g. `"authorized-scoped"` (the `CODING_RULES_ALLOW_PROTECTED_COMMIT=1` pattern) |
 | `gap` | string | for `partial`: the named enforcement gap (warn if absent, E09); surfaces in `status` |
-| `event` / `matcher` | strings | how `install` derives the hook registration for this check's enforcer: a Claude Code lifecycle event (unknown events warn) + tool-name pattern (empty = all). An enforcer without `event` cannot be auto-registered (E09 warns). Dedup at registration = (event, matcher, enforcer filename) |
+| `event` / `matcher` | strings | how `install` derives the hook registration for this check's enforcer: a Claude Code lifecycle event (unknown events warn) + tool-name pattern (empty = all). An enforcer without `event` cannot be auto-registered (E09 warns). Dedup at registration = **(event, matcher, resolved script path)** — following a one-line `exec` shim to its target, so a builtin's shared script coalesces to one entry while two unrelated rulebooks that share a hook *basename* at different paths each register. Never dedup on filename alone (it would let one rulebook's hook mask another's). `status`/`uninstall` compare the same resolved-path identity |
 | `token_cost` | `low \| medium \| high` | prose only: recurring context cost; drives progressive loading order (low loads eagerly) |
 
 Kind/field coherence (E08): `data` → `runner` required (`config` optional);
