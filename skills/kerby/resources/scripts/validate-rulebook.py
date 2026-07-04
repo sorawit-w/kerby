@@ -165,7 +165,7 @@ def check_commands(data: dict, root: Path, builtin_root: Path, origin: str, res:
             if resolved is not None:
                 declared_files.append(resolved)
                 if origin != "builtin":
-                    lint_prose(resolved, label, res)
+                    lint_prose(resolved, f"{label} body", res)
         cdesc = cmd.get("description")
         if not isinstance(cdesc, str) or not cdesc.strip():
             res.error("E14", f"{label}: 'description' must be a non-empty string (shown in dispatch listings and the trust prompt)")
@@ -320,7 +320,7 @@ def resolve_check_files(check: dict, cid: str, root: Path, origin: str, res: Res
             if resolved is not None:
                 out.append(resolved)
                 if field == "body" and origin != "builtin":
-                    lint_prose(resolved, cid, res)
+                    lint_prose(resolved, f"check '{cid}' body", res)
 
 
 def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, config_gate: dict | None, res: Result) -> list[Path]:
@@ -481,15 +481,37 @@ def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, con
     return declared_files
 
 
-def lint_prose(path: Path, cid: str, res: Result):
+def lint_prose(path: Path, label: str, res: Result):
     try:
         text = path.read_text(encoding="utf-8", errors="replace").lower()
     except OSError:
-        res.error("E04", f"check '{cid}': prose body '{path.name}' is unreadable — fix its permissions")
+        res.error("E04", f"{label}: prose file '{path.name}' is unreadable — fix its permissions")
         return
     for pattern in INJECTION_PATTERNS:
         if pattern in text:
-            res.warn("E11", f"check '{cid}': prose body contains instruction-override pattern ('{pattern}'); review before trusting")
+            res.warn("E11", f"{label}: prose contains an instruction-override pattern ('{pattern}'); review before trusting")
+
+
+def lint_undeclared_prose(root: Path, origin: str, declared: list[Path], res: Result) -> None:
+    """E11-lint the prose files the manifest never declares but a body can read.
+
+    The whole-folder trust hash covers undeclared references/workflows, but the
+    per-body lint only sees declared check/command bodies — so an injection
+    phrase moved into e.g. `references/payload.md` (read by an approved command
+    or the root body) would show 0 E11 warnings at the trust prompt. Lint every
+    non-builtin markdown/text file the hash covers that isn't already linted as a
+    declared body, so the warning can't be bypassed by relocating the payload
+    out of a declared file. Builtins are repo-trusted, so this is skipped there.
+    The tree is already confined (no symlinks / `.git`) when this runs."""
+    if origin == "builtin":
+        return
+    declared_set = {p.resolve() for p in declared}
+    root_r = root.resolve()
+    for f in root_r.rglob("*"):
+        if (f.is_file() and not f.is_symlink()
+                and f.suffix.lower() in (".md", ".markdown", ".txt")
+                and f.resolve() not in declared_set):
+            lint_prose(f, f"undeclared file '{f.relative_to(root_r).as_posix()}'", res)
 
 
 def compute_hash(root: Path) -> str:
@@ -617,6 +639,7 @@ def validate(root: Path, origin: str, builtin_root: Path, config_path: Path | No
             res.error("E01", f"config {config_path}: unreadable or unparseable: {e}")
     declared = merge_and_check(data, root, origin, builtin_root, config_gate, res)
     check_commands(data, root, builtin_root, origin, res, declared)
+    lint_undeclared_prose(root, origin, declared, res)
     return res, declared
 
 

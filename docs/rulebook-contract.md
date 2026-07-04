@@ -139,7 +139,7 @@ everything else is an error (exit 1). E02-unknown-event also warns.
 | E08 | kind/field coherence (see table above) |
 | E09 | `enforcement ∈ {hard, partial, behavioral}`; `hard`/`partial` require `enforcer`; `partial` without `gap` → warning |
 | E10 | `accepts` non-empty; every `needs` entry known and satisfiable (see View vocabulary) |
-| E11 | prose-injection lint, non-builtin origins, **warn-only**: flags `ignore previous`, `you must now`, `disregard the above` in prose bodies |
+| E11 | prose-injection lint, non-builtin origins, **warn-only**: flags `ignore previous`, `you must now`, `disregard the above` in **every prose/text file the trust hash covers** — declared check + command bodies *and* undeclared `references/`/`workflows/` markdown a body can read — so the payload can't be hidden by moving it out of a declared body |
 | E12 | `[detect]` shape: `markers` = non-empty array of strings (error if malformed); declared by a non-builtin rulebook → warning (ignored at load, D19) |
 | E13 | no `[[command]]` name collides with a reserved engine command, a builtin rulebook id, or another command in the same rulebook |
 | E14 | `[[command]]` shape: `name` a slug, `body` a folder-confined path string, `description` non-empty |
