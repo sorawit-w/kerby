@@ -87,10 +87,14 @@ Subject type `git_change` provides: `changed_files`, `changed_content`,
 ## Loading order
 
 Manifest declaration order is significance order. At load, the engine reads
-eagerly: every prose body with `token_cost = "low"`, plus the **selected**
-rulebook's first-declared prose check — its *root body* (for the builtin
-`code` rulebook that is `operating-rules` → `BOOTSTRAP.md`, preserving the
-classic BOOTSTRAP → references pattern). All other prose loads on demand.
+eagerly: every prose body that is **`floor = true` or `token_cost = "low"`**,
+plus the **selected** rulebook's first-declared prose check — its *root body*
+(for the builtin `code` rulebook that is `operating-rules` → `BOOTSTRAP.md`,
+preserving the classic BOOTSTRAP → references pattern). All `floor = true`
+prose loads eagerly regardless of `token_cost` — a floor is the always-on
+baseline, so it must be in context, not deferred; `token_cost` governs
+progressive disclosure only for non-floor prose. All other (non-floor) prose
+loads on demand.
 Extended packs contribute their own low-cost bodies but no root.
 
 ## Merge rules (`extends`)
