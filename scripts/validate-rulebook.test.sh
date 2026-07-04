@@ -129,6 +129,41 @@ fi
 python3 "$VALIDATOR" "$FIXTURES/invalid-E03-contract" --builtin-root "$BUILTIN_ROOT" --hash >/dev/null 2>&1
 [[ $? -eq 1 ]] && pass "--hash refuses an invalid rulebook (fail-closed)" || fail "--hash hashed an invalid rulebook"
 
+# Hash frames file boundaries: moving bytes from one declared file to another
+# (concatenated stream identical) must still change the digest, or the trust
+# prompt could be skipped after a content-changing edit.
+TMP_BND="$(mktemp -d "$TMP_DETECT/bnd.XXXX")"
+mkdir -p "$TMP_BND/rules"
+cat > "$TMP_BND/rulebook.toml" <<'RB'
+id = "two-body"
+version = "1.0.0"
+contract = 1
+accepts = ["*"]
+[[check]]
+id = "a"
+kind = "prose"
+body = "rules/a.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"
+[[check]]
+id = "b"
+kind = "prose"
+body = "rules/b.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "high"
+RB
+printf 'alpha XYZ' > "$TMP_BND/rules/a.md"; printf 'beta' > "$TMP_BND/rules/b.md"
+HB1="$(python3 "$VALIDATOR" "$TMP_BND" --builtin-root "$BUILTIN_ROOT" --hash)"
+printf 'alpha ' > "$TMP_BND/rules/a.md"; printf 'XYZbeta' > "$TMP_BND/rules/b.md"
+HB2="$(python3 "$VALIDATOR" "$TMP_BND" --builtin-root "$BUILTIN_ROOT" --hash)"
+if [[ -n "$HB1" && "$HB1" != "$HB2" ]]; then
+  pass "hash frames file boundaries (cross-file byte move changes the digest)"
+else
+  fail "hash unchanged after moving bytes across a file boundary ($HB1 vs $HB2)"
+fi
+
 # --- Real builtin rulebooks validate and cover the ENGINE-MAP declared set ----
 REAL_ROOT="$REPO_ROOT/skills/kerby/resources/rulebooks"
 if [[ -d "$REAL_ROOT/base" ]]; then

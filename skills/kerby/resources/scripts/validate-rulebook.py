@@ -380,11 +380,34 @@ def lint_prose(path: Path, cid: str, res: Result):
 
 
 def compute_hash(root: Path, declared: list[Path]) -> str:
-    """sha256 over the manifest plus every declared file, in declared-path
-    order — a manifest-only hash would let a declared body mutate silently."""
+    """sha256 over the manifest plus every declared file, each **framed** by its
+    root-relative path and byte length.
+
+    A bare byte-concatenation is ambiguous: with two or more declared files, an
+    edit can move bytes across a file boundary — e.g. from an on-demand body
+    into the eagerly-loaded root body, changing what actually enters context —
+    while keeping the concatenated stream, and thus the hash, identical. That
+    would let the loader skip the re-approval the hash-keyed trust prompt is
+    meant to force. Length-prefixing each file (and binding its path) commits
+    the boundaries so any cross-file move changes the digest. Keys are
+    root-relative (POSIX) so the hash is stable regardless of where the rulebook
+    sits on disk; files are ordered by that key for determinism."""
+    root_r = root.resolve()
+    entries: list[tuple[str, Path]] = []
+    for f in [root / "rulebook.toml"] + list(set(declared)):
+        fr = f.resolve()
+        try:
+            key = fr.relative_to(root_r).as_posix()
+        except ValueError:
+            # builtin declared files may resolve outside the rulebook root
+            # (resources-relative); builtins are repo-versioned, not trust-hashed
+            key = fr.name
+        entries.append((key, fr))
     h = hashlib.sha256()
-    for f in [root / "rulebook.toml"] + sorted(set(declared)):
-        h.update(f.read_bytes())
+    for key, fr in sorted(entries):
+        data = fr.read_bytes()
+        h.update(f"{key}\0{len(data)}\0".encode("utf-8"))
+        h.update(data)
     return h.hexdigest()
 
 
