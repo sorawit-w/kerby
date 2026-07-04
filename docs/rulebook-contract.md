@@ -99,8 +99,12 @@ Extended packs contribute their own low-cost bodies but no root.
 
 ## Merge rules (`extends`)
 
-1. `base` is always merged first, whether or not listed (a rulebook whose
-   `id` is `base` is itself the floor and merges nothing). A rulebook cannot
+1. `base` is always merged first, whether or not listed. **Only the real
+   builtin base rulebook** (`origin == builtin` **and** `id == base`) is
+   exempt from merging itself; for any non-builtin origin the `id` is
+   attacker-controlled, so a `local`/`remote` rulebook that sets `id = "base"`
+   still gets the real floor force-merged in — it cannot dodge the
+   non-overridable checks by naming itself `base` (E04/E07). A rulebook cannot
    subtract a base check.
 2. Duplicate `id` across packs → E07, unless the extending check sets
    `override_of = "<id>"` **and** the target is not `floor = true` (E05).
@@ -157,7 +161,14 @@ first successful load; read by every later load.
   hash would let a declared body mutate silently). `builtin` entries may set
   it `null` — they are repo-versioned.
 - Validation is hash-keyed, not operation-keyed (D10): unknown/changed hash →
-  validate (and re-prompt for non-builtin trust); matching pinned hash → skip.
+  validate (and re-prompt for non-builtin trust); matching pinned hash → skip
+  **for builtins only**. For a `local` rulebook the project `rulebooks.lock` is
+  untrusted workspace content — a matching pin proves the files agree with each
+  other, not that *this user* approved them. A committed lockfile must never be
+  a pre-approval token for external prose/code (indirect prompt injection). The
+  skip is conditional on the hash **also** being present in the per-machine
+  `~/.claude/kerby/approved-rulebooks.json`; a matching project pin without a
+  user-local approval still re-validates and re-prompts.
 
 Compute the hash with
 `python3 skills/kerby/resources/scripts/validate-rulebook.py <dir> --hash`.
