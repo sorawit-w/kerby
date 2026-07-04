@@ -1,0 +1,17 @@
+# E02 regression: hold_on given as a bare string instead of a severity array.
+id = "hold-on-type"
+version = "1.0.0"
+contract = 1
+accepts = ["*"]
+
+[gate]
+block_on = ["block"]
+hold_on = "warn"
+
+[[check]]
+id = "x"
+kind = "prose"
+body = "rules/x.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"

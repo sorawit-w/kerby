@@ -1,0 +1,116 @@
+# code — the coding rulebook, kerby's first domain rulebook and the silent
+# default for `kerby load` (D17). Extends base (implicit-mandatory; listed
+# for clarity). Declares the existing corpus IN PLACE: builtin origin may
+# use resources-relative paths (D6) — references/ and hooks/ are not moved.
+# Contract: docs/rulebook-contract.md.
+id = "code"
+version = "1.0.0"
+contract = 1
+accepts = ["git_change"]
+extends = ["base"]
+
+[gate]
+block_on = ["block"]
+hold_on = ["warn"]
+
+[commands]                    # domain facts core's tier ladder consumes (D14);
+build = "{build_command}"     # resolved per-project (agent-context.yaml / manifests)
+lint = "{lint_command}"
+test = "{test_command}"
+
+# --- prose: the operating rules and gate-bearing references, in place -------
+
+[[check]]
+id = "operating-rules"
+kind = "prose"
+body = "BOOTSTRAP.md"                     # the parity spine: eager, read in full at load
+enforcement = "behavioral"
+severity = "block"
+token_cost = "medium"
+
+[[check]]
+id = "quality-gate-tiers"
+kind = "prose"
+body = "references/quality-gates.md"
+enforcement = "behavioral"
+severity = "block"
+token_cost = "medium"
+
+[[check]]
+id = "verification-before-completion"
+kind = "prose"
+body = "references/validation.md"
+enforcement = "behavioral"
+severity = "block"
+token_cost = "high"
+
+[[check]]
+id = "security-lens"
+kind = "prose"
+body = "references/validation.md"         # § Security Lens; loader dedups bodies by path.
+enforcement = "behavioral"                # Findings carry basis=targeted, never "certified" (D16)
+severity = "block"
+token_cost = "high"
+
+[[check]]
+id = "guardrails-scope-security"
+kind = "prose"
+body = "references/guardrails.md"
+enforcement = "behavioral"
+severity = "block"
+token_cost = "high"
+
+# --- code: the hook-backed checks (install remains the trust opt-in, D13) ---
+
+[[check]]
+id = "destructive-git"
+kind = "code"
+needs = ["branch"]
+enforcement = "hard"
+enforcer = "hooks/protect-git.sh"
+severity = "block"
+floor = true                              # no escape hatch — data loss (guardrails.md)
+
+[[check]]
+id = "protected-branch-commit"
+kind = "code"
+needs = ["branch", "install_state"]
+enforcement = "hard"
+enforcer = "hooks/protect-git.sh"
+severity = "block"
+override = "authorized-scoped"            # CODING_RULES_ALLOW_PROTECTED_COMMIT=1, user-authorized only
+
+[[check]]
+id = "protect-env"
+kind = "code"
+needs = ["changed_files"]
+enforcement = "hard"
+enforcer = "hooks/protect-env.sh"
+severity = "block"
+
+[[check]]
+id = "env-read-warning"
+kind = "code"
+needs = ["changed_files"]
+enforcement = "partial"
+enforcer = "hooks/warn-env-read.sh"
+gap = "Bash cat .env not caught; Read-tool only"
+severity = "warn"
+
+[[check]]
+id = "high-stakes-routing"
+kind = "code"
+needs = ["changed_files"]
+enforcement = "partial"
+enforcer = "hooks/route-high-stakes.sh"
+gap = "prose-only production-traffic-shaping category un-globbable"
+severity = "warn"
+
+[[check]]
+id = "hollow-test-heuristic"
+kind = "code"
+needs = ["added_lines"]
+enforcement = "partial"
+enforcer = "hooks/pre-commit-check.sh"
+gap = "runtime fakes (0-match runs, gates over stubs) stay agent-judged"
+severity = "warn"

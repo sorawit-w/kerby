@@ -192,6 +192,12 @@ playground.xcworkspace
 # when the SKILL.md description changes. No gate auto-runs it.
 .eval/*
 !.eval/triggers/
+# … and the committed v6 rulebook corpora: validator fixtures (one per
+# catalog error + happy paths, run by scripts/validate-rulebook.test.sh)
+# and the recorded v5.8.0 behavior baseline the loader refactor is
+# replayed against (Iron Law: Expected vs Realized).
+!.eval/rulebooks/
+!.eval/parity/
 
 # Skill-creator iteration workspaces (per-skill eval traces, grader scripts,
 # benchmark JSON, viewer HTML, run logs, packaged .skill bundles). Useful

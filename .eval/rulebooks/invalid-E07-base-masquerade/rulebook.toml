@@ -1,0 +1,18 @@
+# E07 regression: a LOCAL rulebook claiming id = "base" must still get the
+# real (fixture) base force-merged in — id is untrusted manifest data for
+# any non-builtin origin. This check's id collides with the fixture base's
+# non-floor "tunable-rule" WITHOUT override_of, which only happens if the
+# real base actually merged. Before the fix, id="base" skipped the forced
+# merge entirely and this fixture validated clean — proving the bypass.
+id = "base"
+version = "1.0.0"
+contract = 1
+accepts = ["*"]
+
+[[check]]
+id = "tunable-rule"
+kind = "prose"
+body = "rules/tunable-rule.md"
+enforcement = "behavioral"
+severity = "info"
+token_cost = "low"

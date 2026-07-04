@@ -1,31 +1,8 @@
 # Validation Before Completion
 
-**Iron Law: No completion claims without fresh verification evidence.**
-
-Never say "done," "should work," "probably passes," or "seems correct." These words are red flags that you haven't verified. Run the verification, read the output, confirm it passes, *then* state the claim with evidence.
+**The Iron Law, the Verification Gate, and the Red Flag Phrases moved to the base rulebook:** `rulebooks/base/rules/iron-law-claims.md` (`iron-law-claims`, floor). This file carries the coding-specific layers on top of that floor: outcome verification, what counts as evidence for code, the tiered verification ladder, and the Security Lens.
 
 **Iron Law extension — outcome verification.** When a plan declared **Expected Outcomes**, the finish step captures **Realized Outcomes** from a real run — or a dry-run transcript where no runnable surface exists. Realized evidence is recorded as-observed and is **never edited to match the prediction**; a doctored result is the one failure this whole discipline exists to prevent. Judge `match` vs `mismatch` on **material intent** — does the behavior do what was predicted — not byte-exact comparison. Mismatch routing lives in `workflows/feature.md` § 7.
-
----
-
-## The Verification Gate
-
-Before declaring ANY task complete, regardless of complexity:
-
-1. **Identify the verification command** — What proves this works? (test suite, build, manual check)
-2. **Run it fresh** — Don't rely on cached results or earlier runs. Run it now.
-3. **Read the full output** — Check exit code AND output content. A zero exit code with warning messages is not "passing."
-4. **State the claim with evidence** — "Tests pass: 47 passed, 0 failed" not "tests should pass."
-
-### Red Flag Phrases (Never Use These)
-
-| Phrase | Why It's a Red Flag | Replace With |
-|---|---|---|
-| "Should work" | No evidence | "Tests pass: [output]" |
-| "Probably passes" | Didn't run it | "Build succeeded: [output]" |
-| "Seems correct" | Visual scan, no verification | "Verified by [specific check]" |
-| "I believe this fixes it" | Hypothesis, not evidence | "Reproduced bug, applied fix, confirmed fix: [output]" |
-| "Looks good" | Subjective | "Reviewed diff, ran quality gates: [results]" |
 
 ---
 

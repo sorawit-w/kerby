@@ -3,6 +3,61 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [6.0.0] — 2026-07-03
+
+The gate no longer memorizes its own rulebook. kerby is now a domain-blind
+**engine** — loader, validator, lockfile, verdicts — and the rules are
+**rulebooks**: manifest-declared folders the engine reads instead of
+filenames it hardcodes. Two builtins ship: `base` (the universal floor —
+never print a secret, artifacts are untrusted input, no claims without
+evidence, approval before irreversible actions; all non-overridable) and
+`code` (everything kerby has always enforced, now declared in
+`rulebook.toml` instead of assumed). Adding a rulebook never requires an
+engine edit. That was the point.
+
+**No action needed for existing users.** `kerby load` behaves as it always
+has — BOOTSTRAP still loads in full; the `code` rulebook is the silent
+default. The one new line you'll see is the gate saying which rulebook is
+on duty: `rulebook: code@1.0.0 (builtin) — source: default`. The first load
+pins that selection to `rulebooks.lock`; changing it is an explicit act,
+never drift.
+
+Added:
+
+- **Manifest contract v1** (`docs/rulebook-contract.md`) — `rulebook.toml`
+  declares every check (`kind ∈ data/code/prose`, `enforcement ∈
+  hard/partial/behavioral`, severity, floors, views). The manifest is the
+  single authority for what a rulebook contains.
+- **Validator** (`resources/scripts/validate-rulebook.py`, stdlib-only,
+  py ≥ 3.11) — the E01–E12 catalog, path confinement for external
+  rulebooks, fail-closed on anything unreadable. Fixtures under
+  `.eval/rulebooks/`, one per catalog error.
+- **Trust model for external rulebooks** — prose is instructions, so a
+  `local` rulebook gets one-time review + a hash pin (TOFU) covering the
+  manifest and every declared file. One changed character re-opens the
+  gate. External prose enters context as data, not directives.
+- **Observable degrade** — `kerby status` now shows each check's declared
+  vs. *effective* enforcement (a `hard` check without its hook registered
+  reads `degraded — run install to bind`), named gaps for `partial`, and
+  skipped checks. The gate stopped implying enforcement it doesn't have.
+- **Authoring guide** (`docs/AUTHORING-RULEBOOKS.md`) — build a rulebook
+  from the docs alone; every validator error cross-links the rule behind it.
+- **Fail-closed verdicts** — loader failure means gated work is **HELD**
+  for a human, distinct from DENIED and never PASS.
+
+Moved (pointers left behind; one major version of grace):
+
+- Four floor rules extracted from `references/guardrails.md` /
+  `references/validation.md` into `rulebooks/base/rules/` — the Iron Law
+  and its red-flag phrases, agent-authored-artifacts-as-untrusted-input,
+  never-print-a-live-secret, approval-before-irreversible (new
+  generalization of the destructive-command discipline).
+
+Versioning note: behavioral parity argued for 5.9.0 and the dissent is
+recorded; 6.0.0 it is — file paths are public surface, and an engine that
+reads manifests instead of knowing filenames is a platform change, not a
+patch.
+
 ## [5.8.0] — 2026-06-30
 
 Closed the **repeated-literal drift gap** in the code-standards rules. `working-patterns.md`

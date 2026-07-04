@@ -1,0 +1,27 @@
+# Fixture builtin base — a tiny stand-in for the real base rulebook so the
+# validator's implicit-base merge (merge rule 1) resolves during tests.
+id = "base"
+version = "0.0.1"
+contract = 1
+accepts = ["*"]
+
+[gate]
+block_on = ["block"]
+hold_on = ["warn"]
+
+[[check]]
+id = "floor-rule"
+kind = "prose"
+body = "rules/floor-rule.md"
+enforcement = "behavioral"
+severity = "block"
+floor = true
+token_cost = "low"
+
+[[check]]
+id = "tunable-rule"
+kind = "prose"
+body = "rules/tunable-rule.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"

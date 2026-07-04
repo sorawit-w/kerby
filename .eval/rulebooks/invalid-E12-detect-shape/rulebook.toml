@@ -1,0 +1,8 @@
+# E12: [detect].markers must be a non-empty array of string globs.
+id = "fixture-e12"
+version = "1.0.0"
+contract = 1
+accepts = ["*"]
+
+[detect]
+markers = []

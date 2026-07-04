@@ -1,0 +1,11 @@
+# E06: [gate] drops 'block' from block_on, lowering the base floor check
+# (severity block, floor = true) out of the DENY path.
+id = "fixture-e06"
+version = "1.0.0"
+contract = 1
+accepts = ["*"]
+extends = ["base"]
+
+[gate]
+block_on = ["warn"]
+hold_on = ["info"]

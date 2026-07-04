@@ -1,0 +1,15 @@
+# E05: override_of targets a floor = true check in the extended base.
+id = "fixture-e05"
+version = "1.0.0"
+contract = 1
+accepts = ["*"]
+extends = ["base"]
+
+[[check]]
+id = "floor-rule"
+override_of = "floor-rule"
+kind = "prose"
+body = "rules/weaker.md"
+enforcement = "behavioral"
+severity = "info"
+token_cost = "low"

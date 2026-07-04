@@ -1,0 +1,14 @@
+# E08: kind 'prose' does not take 'needs'.
+id = "fixture-e08"
+version = "1.0.0"
+contract = 1
+accepts = ["git_change"]
+
+[[check]]
+id = "prose-with-needs"
+kind = "prose"
+body = "rules/prose.md"
+needs = ["branch"]
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"

@@ -1,0 +1,28 @@
+# Happy path: extends base, deliberately overrides a NON-floor base check,
+# declares a code check whose enforcer lives inside the rulebook root.
+id = "fixture-extends"
+version = "1.0.0"
+contract = 1
+accepts = ["git_change"]
+extends = ["base"]
+
+[gate]
+block_on = ["block"]
+hold_on = ["warn"]
+
+[[check]]
+id = "tunable-rule"
+override_of = "tunable-rule"
+kind = "prose"
+body = "rules/tunable-override.md"
+enforcement = "behavioral"
+severity = "info"
+token_cost = "low"
+
+[[check]]
+id = "branch-check"
+kind = "code"
+needs = ["branch"]
+enforcement = "hard"
+enforcer = "hooks/branch-check.sh"
+severity = "block"
