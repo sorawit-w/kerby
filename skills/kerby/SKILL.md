@@ -42,7 +42,7 @@ The rules are packaged as **rulebooks** — folders with a `rulebook.toml` manif
 3. **Detection** — reserved; at contract v1 the detection step always returns *undetermined*.
 4. **Default** — `code`.
 
-The first successful load **writes the pin** to `rulebooks.lock` (JSON: `selected` + per-rulebook `{id, version, origin, path_or_url, sha256}`; builtin entries carry `sha256: null` — they are repo-versioned). Every later load reads the pin. Changing rulebooks is an explicit act (`args: load <id>` re-pins); it never drifts with workspace content. Auto-selection is builtin-only: an external rulebook loads by explicit invocation *only*, regardless of any `[detect]` table it declares.
+The first successful load **writes the pin** to `rulebooks.lock` (JSON: `selected` + per-rulebook `{id, version, origin, path_or_url, sha256}`; builtin entries carry `sha256: null` — they are repo-versioned). **`selected` records only what was explicitly chosen or defaulted to** — for a default `code` load that is `["code"]`, never `["base", "code"]`: `base` is always composed in per merge rule 1 (`docs/rulebook-contract.md`), so it is never itself a member of `selected`. Every later load reads the pin. Changing rulebooks is an explicit act (`args: load <id>` re-pins); it never drifts with workspace content. Auto-selection is builtin-only: an external rulebook loads by explicit invocation *only*, regardless of any `[detect]` table it declares.
 
 **Every load announces the decision in one literal line:**
 
@@ -51,6 +51,8 @@ rulebook: <id>@<version> (<origin>) — source: explicit | pinned | detected | d
 ```
 
 On a first-time default, append the hint: `(detection inconclusive; 'kerby load <id>' to override)`.
+
+**Hash-changed re-approval gets its own source value, never a bare `pinned`.** If a previously-pinned `local` rulebook's hash no longer matches (§ below), its announcement line must say so plainly — `source: pinned (content changed — reapproval required)` — never the unqualified `pinned`, which would read as a clean success sitting directly above a trust prompt asking the user to approve it again. The two must not contradict each other.
 
 **Validation is hash-keyed.** For a `local` rulebook, compare its current hash (`python3 <install-root>/resources/scripts/validate-rulebook.py <dir> --hash`) to the lockfile entry: match → load silently; unknown or changed → run the validator (authoritative) and, because the rulebook carries `prose` or `code` checks, show the **trust prompt** before loading:
 
