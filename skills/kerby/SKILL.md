@@ -44,6 +44,8 @@ The rules are packaged as **rulebooks** — folders with a `rulebook.toml` manif
 
 The first successful load **writes the pin** to `rulebooks.lock` (JSON: `selected` + per-rulebook `{id, version, origin, path_or_url, sha256}`; builtin entries carry `sha256: null` — they are repo-versioned). **`selected` records only what was explicitly chosen or defaulted to** — for a default `code` load that is `["code"]`, never `["base", "code"]`: `base` is always composed in per merge rule 1 (`docs/rulebook-contract.md`), so it is never itself a member of `selected`. Every later load reads the pin. Changing rulebooks is an explicit act (`args: load <id>` re-pins); it never drifts with workspace content. Auto-selection is builtin-only: an external rulebook loads by explicit invocation *only*, regardless of any `[detect]` table it declares.
 
+**"The builtin `code`" always means `origin == builtin` AND `id == "code"`, never the id alone.** A `local` rulebook may legitimately declare `id = "code"` (the id is untrusted manifest data for a non-builtin origin), so every branch that gives `code` its BOOTSTRAP-specific treatment — the verbatim load/reload confirmation, the `status` BOOTSTRAP-marker scan — must key on the *pinned entry's origin being `builtin`*, not on the id. A local rulebook named `code` is treated like any other local rulebook (its own root body, its own markers), not as the builtin.
+
 **Every load announces the decision in one literal line:**
 
 ```
@@ -107,11 +109,11 @@ Load the kerby into the current session.
 3. Read the merged rulebook's **eager prose in full using the `Read` tool**: the selected rulebook's root body (its first-declared prose check) — for `code` that is `operating-rules` → `BOOTSTRAP.md` — plus every prose body that is **`floor = true` OR `token_cost = "low"`**. **All `floor = true` prose loads eagerly regardless of `token_cost`** — a floor is the non-negotiable, always-on baseline (prompt-injection defense, the Iron Law, secret-handling), so a floor rule that isn't in context isn't a floor; `token_cost` governs progressive disclosure only for *non-floor* prose. **A rulebook may legitimately declare no prose at all** (an all-mechanical rulebook of only `data`/`code` checks) — it then has **no root body**, and eager load is just the base floor prose; do not invent one. **Do not paraphrase or summarize** — the full content must enter context as a tool result. Summarizing into your response does not load the rules the same way. Heavier *non-floor* bodies (`references/*.md`) stay on demand, exactly as BOOTSTRAP's reference index directs.
 4. Confirm to the user. The confirmation is **rulebook-aware** — name what actually loaded, never a rulebook that wasn't selected:
 
-   - **Default `code` load** (the common path — keep this wording verbatim for parity with pre-v6 behavior):
+   - **The builtin `code`** (origin `builtin` + id `code` — the common path, whether by default, pin, or explicit `load code`; keep this wording verbatim for parity with pre-v6 behavior):
 
      > **kerby loaded.** BOOTSTRAP is in context for this session — I will follow its rules until the session ends or context is compacted. If rules seem to stop applying mid-session, invoke `kerby` with `args: reload`.
 
-   - **Any other selected rulebook** (e.g. `kerby load ./my-rulebook`): name the rulebook and its root body instead of BOOTSTRAP — do not claim BOOTSTRAP is in context when a non-`code` rulebook was loaded. If the rulebook declares no prose (no root body), name its checks and the base floor instead of a root body:
+   - **Any other selected rulebook** (a `local` rulebook, or any rulebook that isn't the builtin `code` — including a local rulebook that happens to be named `code`): name the rulebook and its root body instead of BOOTSTRAP — do not claim BOOTSTRAP is in context when the builtin `code` wasn't the one loaded. If the rulebook declares no prose (no root body), name its checks and the base floor instead of a root body:
 
      > **kerby loaded `<id>@<version>`.** Its rules (`<root-body>` + the base floor) are in context for this session — I will follow them until the session ends or context is compacted. If rules seem to stop applying mid-session, invoke `kerby` with `args: reload`.
 
@@ -137,11 +139,11 @@ Re-load the rules. Useful after Claude Code compacts the conversation and may ha
 
 Same procedure as `load` — the pin in `rulebooks.lock` is read, never re-resolved (announcement source: `pinned`) — but the confirmation message is **rulebook-aware**, mirroring step 4 of `load` (name what was actually refreshed, never BOOTSTRAP for a non-`code` rulebook):
 
-- **Pinned to `code`** (verbatim, for parity):
+- **Pinned to the builtin `code`** (origin `builtin` + id `code`) (verbatim, for parity):
 
   > **kerby reloaded.** BOOTSTRAP refreshed in context.
 
-- **Pinned to any other rulebook:**
+- **Pinned to any other rulebook** (including a `local` rulebook named `code`):
 
   > **kerby reloaded `<id>@<version>`.** Its rules (`<root-body>` + the base floor) refreshed in context.
 
@@ -152,9 +154,9 @@ Same procedure as `load` — the pin in `rulebooks.lock` is read, never re-resol
 Check whether the rules are currently loaded.
 
 1. **Determine which rulebook to check for first** — read the `selected` pin in `rulebooks.lock` (if present) and resolve its root body. The verdict must scan for *that* rulebook's markers, not BOOTSTRAP unconditionally: a session that loaded `./my-rulebook` never read BOOTSTRAP, so a BOOTSTRAP-only scan would falsely report "not loaded" and tell the user to reload rules already in context.
-   - **Pinned to `code` (or no pin — `code` is the default):** scan recent context for BOOTSTRAP signatures — distinctive phrases like "Prime Directive", "Clarity over cleverness. Safety over speed.", "implement → check → commit → log → repeat", or BOOTSTRAP.md section headers (`<prime_directive>`, `<hard_rules>`, `<reference_index>`).
-   - **Pinned to another rulebook:** scan for distinctive phrases/headers from *that* rulebook's root body instead (plus the shared base-floor rule text, which loads for every rulebook). If the rulebook declares **no root body** (all-mechanical), there is no rulebook-specific prose to detect — scan for the base-floor rule text alone, which loads for every rulebook, and report loaded on that basis.
-2. If the selected rulebook's markers are found, report (name the rulebook when it isn't `code`):
+   - **Pinned to the builtin `code`** (origin `builtin` + id `code`) **or no pin** (`code` is the default): scan recent context for BOOTSTRAP signatures — distinctive phrases like "Prime Directive", "Clarity over cleverness. Safety over speed.", "implement → check → commit → log → repeat", or BOOTSTRAP.md section headers (`<prime_directive>`, `<hard_rules>`, `<reference_index>`).
+   - **Pinned to any other rulebook** (including a `local` rulebook named `code`): scan for distinctive phrases/headers from *that* rulebook's root body instead (plus the shared base-floor rule text, which loads for every rulebook). If the rulebook declares **no root body** (all-mechanical), there is no rulebook-specific prose to detect — scan for the base-floor rule text alone, which loads for every rulebook, and report loaded on that basis.
+2. If the selected rulebook's markers are found, report (name the rulebook when it isn't the builtin `code`):
 
    > **kerby: loaded.** Detected `<id>` markers in current context.
 
