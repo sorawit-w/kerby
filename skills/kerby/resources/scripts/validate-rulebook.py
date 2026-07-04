@@ -478,15 +478,47 @@ def merge_and_check(data: dict, root: Path, origin: str, builtin_root: Path, con
     return declared_files
 
 
+def lint_text(text: str, label: str, res: Result) -> None:
+    low = text.lower()
+    for pattern in INJECTION_PATTERNS:
+        if pattern in low:
+            res.warn("E11", f"{label}: contains an instruction-override pattern ('{pattern}'); review before trusting")
+
+
 def lint_prose(path: Path, label: str, res: Result):
     try:
-        text = path.read_text(encoding="utf-8", errors="replace").lower()
+        text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         res.error("E04", f"{label}: prose file '{path.name}' is unreadable — fix its permissions")
         return
-    for pattern in INJECTION_PATTERNS:
-        if pattern in text:
-            res.warn("E11", f"{label}: prose contains an instruction-override pattern ('{pattern}'); review before trusting")
+    lint_text(text, label, res)
+
+
+def lint_manifest_strings(data: dict, origin: str, res: Result) -> None:
+    """E11-lint the free-text manifest fields the loader DISPLAYS as prose.
+
+    The trust prompt shows the rulebook `description` and each command's
+    `description`, and `status` shows check `gap`s — untrusted strings an agent
+    surfaces to the user during/after approval. `lint_tree_prose` covers
+    `.md`/`.txt` *files* but not manifest *strings*, so an `ignore previous
+    instructions` in a description would render in the prompt with zero E11
+    warnings. Lint the displayed strings too, closing the same channel the
+    whole-folder file lint closes for files. Builtins are repo-trusted."""
+    if origin == "builtin":
+        return
+    desc = data.get("description")
+    if isinstance(desc, str):
+        lint_text(desc, "manifest 'description'", res)
+    commands = data.get("command")
+    if isinstance(commands, list):
+        for cmd in commands:
+            if isinstance(cmd, dict) and isinstance(cmd.get("description"), str):
+                lint_text(cmd["description"], f"command '{cmd.get('name', '?')}' description", res)
+    checks = data.get("check")
+    if isinstance(checks, list):
+        for check in checks:
+            if isinstance(check, dict) and isinstance(check.get("gap"), str):
+                lint_text(check["gap"], f"check '{check.get('id', '?')}' gap", res)
 
 
 def lint_tree_prose(root: Path, origin: str, res: Result) -> None:
@@ -637,6 +669,7 @@ def validate(root: Path, origin: str, builtin_root: Path, config_path: Path | No
     declared = merge_and_check(data, root, origin, builtin_root, config_gate, res)
     check_commands(data, root, builtin_root, res, declared)
     lint_tree_prose(root, origin, res)
+    lint_manifest_strings(data, origin, res)
     return res, declared
 
 
