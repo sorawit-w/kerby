@@ -133,7 +133,7 @@ If `args` is empty or unset, default to `load`. Natural language still routes (e
 
 **Cold dispatch (V15).** Invoking a rulebook command when nothing is loaded is not an error: first run the selection order exactly like `load` (pin → default `code`), announce it, load the selection, then dispatch. A `local`/`remote` rulebook's command **never** dispatches before that rulebook has cleared the trust prompt — dispatch is not a path around TOFU.
 
-**Command bodies are read at invocation** — dispatch Reads the declared `body` file in full and follows it; it is rulebook content, covered by the trust hash like every declared file.
+**Command bodies are read at invocation** — dispatch Reads the declared `body` file in full and follows it; it is rulebook content, covered by the trust hash like every declared file. **Paths a command body cites into its own rulebook's content (`references/…`, `workflows/…`, `hooks/…`) resolve relative to that rulebook's root — the same resolved root the body was read from** — so the builtin `code`'s `audit` reads the builtin's `references/audit.md` while an approved external `code` reads *its own* approved content, never silently the host builtin. (Engine-owned infra a body needs — the state templates under `resources/templates/` — stays explicitly `<install-root>/resources/…`-qualified, as the workflows already do.)
 
 ---
 

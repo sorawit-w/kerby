@@ -1,6 +1,6 @@
 ## `audit`
 
-Run a **static conformance audit** of the current project against the kerby corpus and write a self-contained HTML report. **Read `rulebooks/code/references/audit.md` in full and follow it** — it holds the untrusted-input doctrine, the auditability classifier, the checks, scoping, and the report contract. The audit is **read-only**: it never edits code, commits, or merges. It is NOT a bug/security review (`/code-review`) and NOT a SKILL.md audit (`skill-evaluator`).
+Run a **static conformance audit** of the current project against the kerby corpus and write a self-contained HTML report. **Read this rulebook's `references/audit.md` in full and follow it** — it holds the untrusted-input doctrine, the auditability classifier, the checks, scoping, and the report contract. The audit is **read-only**: it never edits code, commits, or merges. It is NOT a bug/security review (`/code-review`) and NOT a SKILL.md audit (`skill-evaluator`).
 
 Invocation via the args parameter: `audit [--full] [--sast] [<dimension> ...]` (dimensions: `security` `quality` `data` `git-hygiene` `docs`; omitted = all). `--sast` is **opt-in** (off by default): it adds deterministic code-static security checks — semgrep (OWASP/CWE) + a pinned dependency-advisory scan — to the `security` dimension. Default-on is deferred to Phase 2, gated on the byte-identity check in `references/sast-normalization.md`; `--no-sast` is reserved for when that flip lands.
 
