@@ -17,11 +17,11 @@ fail() { echo "FAIL: $1"; FAILS=$((FAILS + 1)); }
 # --- Build fixture vault -----------------------------------------------------
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
-mkdir -p "$TMP/.ai/knowledge"
+mkdir -p "$TMP/.kerby/knowledge"
 cd "$TMP" || { echo "FAIL: could not cd to temp dir"; exit 1; }
 
 # Entry A: dangling related: target (points at a file that does not exist).
-cat > .ai/knowledge/decision-broken.md <<'EOF'
+cat > .kerby/knowledge/decision-broken.md <<'EOF'
 ---
 title: Entry with a broken related link
 type: decision
@@ -36,7 +36,7 @@ Points at a non-existent sibling.
 EOF
 
 # Entry B: ## Superseded section that names no replacement entry.
-cat > .ai/knowledge/decision-bad-supersede.md <<'EOF'
+cat > .kerby/knowledge/decision-bad-supersede.md <<'EOF'
 ---
 title: Entry superseded with no pointer
 type: decision
@@ -54,7 +54,7 @@ EOF
 
 # Entry C: clean — legitimately has NO related: field (the false-positive
 # guard). An optional empty field must NEVER be flagged.
-cat > .ai/knowledge/convention-clean.md <<'EOF'
+cat > .kerby/knowledge/convention-clean.md <<'EOF'
 ---
 title: Clean entry with no related field
 type: convention
@@ -69,7 +69,7 @@ EOF
 
 # Entry D: a good supersede that DOES name a replacement (.md token present)
 # — also must not be flagged.
-cat > .ai/knowledge/decision-good-supersede.md <<'EOF'
+cat > .kerby/knowledge/decision-good-supersede.md <<'EOF'
 ---
 title: Entry superseded with a proper pointer
 type: decision
@@ -116,7 +116,7 @@ bash "$LINT" --strict >/dev/null 2>&1; SRC=$?
 [[ "$SRC" -eq 1 ]] && pass "--strict exits 1 on findings" || fail "--strict should exit 1 on findings (got $SRC)"
 
 # 7. Clean vault: remove the two bad entries, expect silent exit 0 both modes.
-rm .ai/knowledge/decision-broken.md .ai/knowledge/decision-bad-supersede.md
+rm .kerby/knowledge/decision-broken.md .kerby/knowledge/decision-bad-supersede.md
 CLEAN_OUT=$(bash "$LINT"); CRC=$?
 [[ "$CRC" -eq 0 && -z "$CLEAN_OUT" ]] \
   && pass "clean vault prints nothing, exits 0" \

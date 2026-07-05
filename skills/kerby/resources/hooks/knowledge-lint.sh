@@ -1,11 +1,11 @@
 #!/bin/bash
-# Hook: Lint .ai/knowledge/ for mechanical integrity drift
+# Hook: Lint .kerby/knowledge/ for mechanical integrity drift
 # Type: manual + optional git post-commit
 # Name: knowledge-lint
 #
-# Two zero-dependency correctness checks over .ai/knowledge/ entries:
+# Two zero-dependency correctness checks over .kerby/knowledge/ entries:
 #   1. BROKEN-LINK     — a `related:` frontmatter target that names a file
-#                        which does not exist in .ai/knowledge/.
+#                        which does not exist in .kerby/knowledge/.
 #   2. SUPERSEDE-NO-POINTER — an entry with a `## Superseded` section whose
 #                        body names no replacement entry (no `.md` token).
 #
@@ -17,7 +17,7 @@
 #
 # Behavior:
 # - If agent-context.yaml has `knowledge.enabled: false`, exits silently.
-# - If `.ai/knowledge/` is missing, prints nothing and exits 0.
+# - If `.kerby/knowledge/` is missing, prints nothing and exits 0.
 # - Default (advisory): prints findings to stdout, always exits 0.
 # - `--strict`: exits 1 if any finding, else 0.
 #
@@ -51,12 +51,12 @@ if [[ -f "agent-context.yaml" ]]; then
 fi
 
 # Nothing to lint if the vault doesn't exist yet.
-[[ -d ".ai/knowledge" ]] || exit 0
+[[ -d ".kerby/knowledge" ]] || exit 0
 
 FINDINGS=""
 
 shopt -s nullglob
-for f in .ai/knowledge/*.md; do
+for f in .kerby/knowledge/*.md; do
   base=$(basename "$f")
   [[ "$base" == "KNOWLEDGE.md" ]] && continue
 
@@ -79,7 +79,7 @@ for f in .ai/knowledge/*.md; do
     # Filenames are recorded without path (schema: "filename only").
     while IFS= read -r target; do
       [[ -z "$target" ]] && continue
-      if [[ ! -f ".ai/knowledge/$target" ]]; then
+      if [[ ! -f ".kerby/knowledge/$target" ]]; then
         FINDINGS+="BROKEN-LINK: $base → related: $target (no such entry)"$'\n'
       fi
     done < <(echo "$REL_BLOB" | grep -oE '[A-Za-z0-9._-]+\.md' | sort -u)
@@ -105,7 +105,7 @@ shopt -u nullglob
 
 if [[ -n "$FINDINGS" ]]; then
   COUNT=$(printf "%s" "$FINDINGS" | grep -c .)
-  echo "=== knowledge-lint: $COUNT integrity finding(s) in .ai/knowledge/ ==="
+  echo "=== knowledge-lint: $COUNT integrity finding(s) in .kerby/knowledge/ ==="
   printf "%s" "$FINDINGS"
   echo "Advisory — fix the broken links or name the replacement entry. Run with --strict to fail on findings."
   [[ "$STRICT" == "1" ]] && exit 1

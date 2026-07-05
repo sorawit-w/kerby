@@ -34,7 +34,7 @@ stack:
   #     sast:
   #       enabled: true
   #       python: "3.12.7"                            # pinned interpreter
-  #       requirements: "sast/requirements.lock"      # COMMITTED hash-locked lockfile (pip --require-hashes) — NOT inside the .ai/sast cache
+  #       requirements: "sast/requirements.lock"      # COMMITTED hash-locked lockfile (pip --require-hashes) — NOT inside the .kerby/sast cache
   #       semgrep:
   #         version: "1.86.0"
   #         ruleset: "p/owasp-top-ten@<rev>"          # pinned ruleset (OWASP/CWE)
@@ -63,7 +63,7 @@ ai:
   usage: []
   notes: []
   memoryPolicy:
-    logTo: .ai/memory.log
+    logTo: .kerby/memory.log
     maxEntries: 200
   # Grade (1–7) at/above which a written plan is required before code (default 4 = beyond
   # trivial). Also gates routing: quick-task is reachable only when grade < this value.
@@ -72,7 +72,7 @@ ai:
   # work require approval with no plan to review. 7 means plan and approval coincide.
   planThreshold: 4
 
-# Project knowledge base (.ai/knowledge/) — managed by the knowledge-bootstrap
+# Project knowledge base (.kerby/knowledge/) — managed by the knowledge-bootstrap
 # (SessionStart) and knowledge-reindex (post-commit) hooks. Set enabled: false
 # to opt out; default is on whenever this section is missing.
 knowledge:

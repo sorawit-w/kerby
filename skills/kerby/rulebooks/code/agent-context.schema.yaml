@@ -32,7 +32,7 @@ $defs:
     properties:
       enabled: { type: boolean }
       python: { type: string }            # pinned interpreter, e.g. "3.12.7"
-      requirements: { type: string }      # committed hash-locked lockfile path (pip --require-hashes), outside the .ai/sast cache
+      requirements: { type: string }      # committed hash-locked lockfile path (pip --require-hashes), outside the .kerby/sast cache
       semgrep:
         type: object
         properties:
