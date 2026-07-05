@@ -102,13 +102,13 @@ mutates the repo.
 
 Self-contained: everything this rulebook *declares* lives in this folder. Copy the
 folder, get the rules — the receiving kerby will still ask its user for approval
-before loading it, exactly as it should. The one host dependency is the floor:
-`swe` extends `base`, so its `hollow-test-heuristic` enforcer reuses the floor's
-`pre-commit-check.sh` rather than shipping a private copy of the non-disablable
-secret scan. The floor always rides along from the host install — `kerby install`
-binds that check to the host `base` script, and if a relocated copy can't reach a
-floor, the soft check degrades to behavioral (the secret-scan floor itself is
-never affected — `base` registers it directly).
+before loading it, exactly as it should. Every enforcer `swe` declares is its own,
+inside this folder — including `hooks/hollow-test-check.sh`, the self-contained soft
+check (hollow-test heuristic + lint/test/build reminder). `swe` still *extends*
+`base`, so the non-disablable secret-scan floor rides along from the host install,
+but `swe` no longer borrows base's script for its own check: the two register as
+independent hooks, so a relocated copy of `swe` keeps its hollow-test check with no
+host dependency (and the secret-scan floor is `base`'s, registered directly by it).
 
 ## Checks
 

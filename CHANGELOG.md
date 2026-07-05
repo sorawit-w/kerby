@@ -3,6 +3,32 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.3.0] — 2026-07-05
+
+**The floor guards secrets and nothing else.** base's `pre-commit-check.sh`
+carried two jobs: the universal, non-disablable secret scan (correct for every
+selection) and a *coding* soft check — the hollow-test heuristic plus the
+lint/test/build reminder. Because `base` merges under every rulebook, that coding
+logic rode along into prose-only installs (`skill-authoring` alone, now reachable
+via v9.1 detection) where it had no business being.
+
+The coding advisories moved out. base's floor is now a **pure secret scan** —
+clean commit in, silence out. The hollow-test heuristic and the commit reminder
+live in `swe`'s own self-contained `hooks/hollow-test-check.sh`, registered as a
+**separate** `PreToolUse/Bash` hook only when `swe` is in the selection. Two
+independent hooks under `swe` (base's scan + swe's check); one under a prose-only
+install (the scan alone). The scan still runs exactly once per commit, every
+selection.
+
+The soft check keeps its disable token — `CODING_RULES_HOOK_DISABLED=hollow-test-check`
+— and still honors the legacy `pre-commit-check` token, so anyone who disabled the
+old bundle keeps their setting. The secret scan remains non-disablable.
+
+**Existing `swe` installs: re-run `kerby install`.** The relocated check binds to a
+new hook path; until you re-install, `swe`'s hollow-test check stops firing (the
+secret scan is unaffected — it's base's own registration). `kerby status` flags the
+gap as `hollow-test-heuristic … degraded — run install to bind`.
+
 ## [9.2.0] — 2026-07-05
 
 **Detection sees code, not just manifests.** v9.1 anchored `swe` detection on

@@ -57,7 +57,8 @@ pinned version.
    (`stack.tools.sast.advisoryDb.snapshot`) into `.kerby/sast/`. The dependency check
    runs against this snapshot **only** — never a live query (`audit.md` § 5). Record
    its `date` so the banner can state freshness.
-5. **gitleaks.** Already provisioned by `hooks/pre-commit-check.sh` (betterleaks /
+5. **gitleaks.** Already provisioned by base's floor scan
+   `<install-root>/rulebooks/base/hooks/pre-commit-check.sh` (betterleaks /
    gitleaks if present, else the regex floor). Referenced, never re-pinned here.
 
 All network fetches happen here, at setup. After this the scan is fully offline.
