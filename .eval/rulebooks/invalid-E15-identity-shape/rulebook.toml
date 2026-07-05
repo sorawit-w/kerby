@@ -1,0 +1,8 @@
+# E15: [identity].signature_phrases must be a non-empty array of non-empty strings.
+id = "fixture-e15"
+version = "1.0.0"
+contract = 2
+accepts = ["*"]
+
+[identity]
+signature_phrases = []

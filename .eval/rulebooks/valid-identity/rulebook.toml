@@ -1,0 +1,20 @@
+# Happy path: a local rulebook declaring the full optional [identity] table
+# (E15). The confirmations validate but are never rendered for a non-builtin —
+# the loader falls back to its generic template; phrases are scan-only.
+id = "fixture-identity"
+version = "1.0.0"
+contract = 2
+accepts = ["*"]
+
+[identity]
+signature_phrases = ["a distinctive rule phrase", "another marker line"]
+load_confirmation = "custom loaded line"
+reload_confirmation = "custom reloaded line"
+
+[[check]]
+id = "one-rule"
+kind = "prose"
+body = "rules/one-rule.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"

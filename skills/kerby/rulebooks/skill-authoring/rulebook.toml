@@ -4,7 +4,7 @@
 # skills/kerby/CLAUDE.md, not this rulebook.
 # Contract: docs/rulebook-contract.md (contract 2). Extends base (implicit).
 id = "skill-authoring"
-version = "1.1.0"
+version = "1.2.0"
 contract = 2
 accepts = ["*"]
 description = "Skill-authoring gate: no skill change ships as verified without a fresh skill-evaluator pass against the exact text being shipped."
@@ -30,6 +30,16 @@ hold_on = ["warn"]
                               # Only a skill repo with no manifest AND no root scripts/ dir
                               # matches skill-authoring alone.
 markers = ["SKILL.md", "skills/*/SKILL.md"]
+
+[identity]                    # optional presentation table (contract v2, E15).
+                              # signature_phrases: distinctive root-body text the engine's
+                              # `status` scans context for — scan-only, never echoed.
+                              # Exact substrings of rules/evaluator-gate.md; update together.
+signature_phrases = [
+  "The Evaluator Gate on Final Text",
+  "Verify the final text, not a draft of it.",
+  "when in doubt, the gate is open",
+]
 
 [[check]]
 id = "evaluator-gate-on-final-text"
