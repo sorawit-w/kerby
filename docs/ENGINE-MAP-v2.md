@@ -1,5 +1,9 @@
 # ENGINE-MAP v2 — the kerby v7 engine/rulebook file split
 
+> **Historical (v7-era).** Paths and migration machinery described here reflect the
+> v7.0.0 split; the stubs/shims and lockfile fallback it documents were removed in
+> v8.0.0. Kept as the decision record of the split.
+
 The executable companion to the v7.0.0 plan. Method: every file under `skills/kerby/`
 gets exactly one destination, decided by the *"would a sales rulebook want it?"* test.
 Target layout: `skills/kerby/resources/` = engine only; `skills/kerby/rulebooks/{base,code}/`
@@ -118,7 +122,7 @@ line where sections left the engine file.
 | `## Customizing Hooks` (all subsections: runtime toggles, disabling, adding your own, strictness levels) | engine |
 | `## How Hooks Map to the Playbook` | engine (system-level philosophy table) |
 
-## Migration: stubs + shims (removal at v8)
+## Migration: stubs + shims (v7-only machinery — removed in v8.0.0)
 
 | Class | Mechanism |
 |---|---|

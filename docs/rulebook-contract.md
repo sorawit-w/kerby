@@ -164,8 +164,7 @@ first successful load; read by every later load.
 }
 ```
 
-- Location: `.kerby/rulebooks.lock` (v7). A pre-v7 root `rulebooks.lock` is read
-  as fallback for one major version and auto-migrated on the next pin write.
+- Location: `.kerby/rulebooks.lock` — the only location the loader reads.
 - `selected` is the D17 pin: which rulebooks this project loads. Changing
   rulebooks is an explicit act (`load <x>` replaces, `load +<x>` adds,
   `unload <x>` removes), never drift. **Ids are unique within `selected`** —

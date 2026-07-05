@@ -1,5 +1,9 @@
 # ENGINE-MAP — v5.8.0 rule corpus → v6 engine/rulebook destinations
 
+> **Historical (v6-era).** Paths herein predate the v7 self-containment split and the
+> v8 `.ai/`→`.kerby/` move; see `ENGINE-MAP-v2.md` for the v7 layout. Kept as the
+> decision record of the v6 refactor.
+
 Phase-0 artifact of the v6 pluggable-rulebooks refactor. Every rule/section in
 the corpus gets a **destination**; silence is not a destination. Grounded at
 commit `fbf6085` (v5.8.0).
