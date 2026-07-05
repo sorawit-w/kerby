@@ -70,7 +70,12 @@ These are *proposals* — present them, let the human cut/correct, then write un
 
 ### Low inferability — `.kerby/knowledge/` (draft candidates)
 
-**Split-brain guard (before any branch).** If a legacy `.ai/knowledge/` exists and `.kerby/knowledge/` does not, the vault is **un-migrated, not empty** — do **not** run the pass (not even when forced). Drafting into `.kerby/knowledge/` beside the legacy `.ai/knowledge/` would split the knowledge base across two dirs. Nudge the user to run `kerby load` to migrate first, then re-run `prepare`; this mirrors the `knowledge-bootstrap` SessionStart guard, which skips scaffolding for the same reason.
+**Split-brain guard (before any branch).** If a legacy `.ai/knowledge/` holds entry files (real un-migrated content, not just a bare `KNOWLEDGE.md`), do **not** run the pass — **not even when forced**, and **whether or not `.kerby/knowledge/` also exists**. Drafting into `.kerby/knowledge/` while the legacy vault still holds entries splits the knowledge base across two dirs; an existing-but-entryless `.kerby/knowledge/` (a bare scaffold, or the surviving side of a migration collision) does **not** make it safe — branch 2 would still read that as "empty" and draft. Two remediations, by state:
+
+- **`.kerby/knowledge/` absent** → nudge the user to run `kerby load` to migrate the legacy vault, then re-run `prepare`.
+- **`.kerby/knowledge/` also present** (a migration collision, which `load` **named and skipped** rather than moved, or a prior scaffold) → `kerby load` will keep skipping the collided `.ai/knowledge/`, so it can't resolve this — nudge the user to manually reconcile the legacy `.ai/knowledge/` entries into `.kerby/knowledge/` (or delete the stale `.ai/` copy) first.
+
+This mirrors the `knowledge-bootstrap` SessionStart guard, which skips scaffolding for the same reason.
 
 **When the pass runs — three branches:**
 
