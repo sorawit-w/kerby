@@ -11,13 +11,17 @@ a session boundary.
 ## Which identifier — pick the one the home allows
 
 The evaluated tree is usually uncommitted when the pass runs, so name an
-identifier that exists at record time:
+identifier that exists at record time. Prefer a home that records the commit
+SHA after the fact:
 
 | Durable home | Identifier that works there |
 |---|---|
-| PR body | the branch HEAD commit SHA (recorded after the change is committed and pushed) |
+| PR body (preferred) | the branch HEAD commit SHA, recorded after the evaluated change is committed and pushed |
 | `.kerby/memory.log` | the committed SHA, once it exists |
-| Commit message | **not** its own SHA (impossible) — use a content hash of the evaluated tree: `git hash-object` on the file, or `git stash create` for a dirty worktree |
+| Commit message | it cannot hold its own SHA — carry the verdict here and the SHA in the PR body/`memory.log`, or, if the commit message must stand alone, a `git rev-parse HEAD:` tree hash of the evaluated instruction files |
+
+For a multi-file skill change, identify the *set* that was evaluated (the
+commit that lands it), not one file in isolation.
 
 One line. Shape:
 

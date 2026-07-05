@@ -64,8 +64,8 @@ kerby is two things, deliberately separated:
   no irreversible action without approval), **`code`**, the coding rulebook — the
   corpus kerby has always enforced, with its own commands (`kerby code audit`,
   `kerby code prepare`) — and **`skill-authoring`**, the verification gate for repos that
-  author agent skills: no skill change ships without a fresh `skill-evaluator` pass
-  against the exact text being shipped.
+  author agent skills: no skill change ships *as verified* without a fresh
+  `skill-evaluator` pass against the exact text being shipped.
 
 The rules shape how work gets done; they don't do the work. The hooks enforce the few
 rules that must never be left to memory — mechanically, every time. Rulebooks can also be
