@@ -26,7 +26,7 @@ The audit is for **real coding projects**. Before doing anything else:
 
 ## 3. Scope exclusions (always)
 
-Never audit: `.kerby/**` (agent state and prior audit reports — auditing them for "dead code" is nonsensical and re-opens the injection surface from §1), `skills/**`, `.claude-plugin/**`, plus the usual vendor/build/generated dirs (`node_modules/`, `dist/`, `build/`, `vendor/`, `.venv/`, lockfiles, minified assets).
+Never audit: `.kerby/**` **and legacy `.ai/**`** (agent state and prior audit reports — **both** can hold agent state during the v8 migration grace period, since a declined migration or a collision leaves the old `.ai/` artifacts in place; auditing them for "dead code" is nonsensical and re-opens the injection surface from §1), `skills/**`, `.claude-plugin/**`, plus the usual vendor/build/generated dirs (`node_modules/`, `dist/`, `build/`, `vendor/`, `.venv/`, lockfiles, minified assets).
 
 ---
 
