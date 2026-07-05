@@ -3,6 +3,36 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.0.0] — 2026-07-05
+
+**The coding rulebook is `swe` now.** "code" was a category, not a name — medical
+billing has codes too, and kerby's roadmap has rulebooks that aren't about software.
+The rulebook formerly known as `code` is renamed `swe` (directory
+`rulebooks/code/` → `rulebooks/swe/`, manifest `id = "swe"`, version `2.0.0`).
+Same rules, same gates, new name. **Breaking** — read the three migration notes:
+
+- **Pinned projects migrate themselves.** A lockfile pinned to the builtin `code`
+  is recognized on the next load, rewritten to `swe` entirely from the install
+  (never from the pin's own fields — a pin is workspace content and grants
+  nothing), and announced in one line:
+  `pin migrated: builtin 'code' → 'swe' (renamed in v9.0.0)`. External rulebooks
+  that happen to be named `code` are untouched — they key on `path_or_url`, and
+  `code` is an ordinary id from here on.
+- **⚠️ Registered hooks dangle until you re-run `kerby install`.** A pre-v9
+  Phase-2 install registered absolute paths under `rulebooks/code/hooks/` — those
+  scripts no longer exist, and a missing hook script does not block anything.
+  Until you re-run `kerby install`, `protect-env`, `protect-git`, `warn-env-read`,
+  `route-high-stakes`, and the pre-commit secret scan are **silently not
+  enforcing**. `kerby status` now flags each such entry:
+  `registered script missing — re-run kerby install`.
+- **Commands rename with the rulebook** — `kerby swe audit`, `kerby swe prepare`.
+  The bare `kerby audit` / `kerby prepare` inference still works; `kerby code …`
+  gets a one-line redirect to the new name.
+
+Also in this release: the root README is now purely the engine + rulebook
+references — each rulebook's commands and opinions live in its own README
+(`skills/kerby/rulebooks/swe/README.md` for the software-engineering rulebook).
+
 ## [8.1.0] — 2026-07-05
 
 **The `skill-authoring` rulebook.** A third builtin. Repos that author agent

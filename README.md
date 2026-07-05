@@ -178,7 +178,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `8.1.0` — the `skill-authoring` rulebook: a third builtin holding the gate between building a skill and shipping it. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.0.0` — the coding rulebook is `swe` now; "code" was a category, not a name. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests
