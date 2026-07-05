@@ -21,12 +21,14 @@ hold_on = ["warn"]
                               # INSTALL location (kerby itself installs there project-locally),
                               # so it would false-match every repo that merely HAS kerby
                               # installed, not repos that author skills. A repo that both
-                              # authors skills AND carries a build manifest (so `swe` also
-                              # matches) is the expected multi-match (swe + skill-authoring) —
-                              # the loader asks, never guesses. (A manifest-less skill repo —
-                              # scripts only, no package.json/pyproject.toml/etc., kerby's own
-                              # repo included — matches only skill-authoring; `swe`'s detect
-                              # comment explains why detection stays manifest-anchored.)
+                              # authors skills AND carries code — a build manifest OR a repo-root
+                              # scripts/ dir of .py/.sh (so `swe` also matches) — is the expected
+                              # multi-match (swe + skill-authoring); the loader asks, never
+                              # guesses. kerby's own repo is this case: `skills/kerby/SKILL.md`
+                              # matches here, its root `scripts/*.py|sh` matches swe. `swe`'s
+                              # detect comment explains why those markers stay root-anchored.
+                              # Only a skill repo with no manifest AND no root scripts/ dir
+                              # matches skill-authoring alone.
 markers = ["SKILL.md", "skills/*/SKILL.md"]
 
 [[check]]

@@ -3,6 +3,25 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.2.0] — 2026-07-05
+
+**Detection sees code, not just manifests.** v9.1 anchored `swe` detection on
+build/package manifests only. That left a blind spot: a repo that *authors
+skills* and carries tooling but no manifest — kerby's own repo — let
+`skill-authoring` single-match and silently drop swe's coding guardrails. No
+manifest, no swe.
+
+`swe` now also detects on repo-root `scripts/*.py` and `scripts/*.sh`. A skill
+repo with code under `scripts/` multi-matches `swe` + `skill-authoring` → kerby
+**asks**, never guesses. A repo whose only code is in `scripts/` matches `swe`
+and loads it.
+
+The new markers stay **root-anchored**, never recursive. `scripts/*.py` matches
+the repo's own `scripts/` and cannot reach kerby's installed hooks under
+`.claude/skills/kerby/` or external clones under `.kerby/rulebooks/` — so they
+never re-open the self-install trap that keeps detection off `**/*.py`. Safety
+is in where the pattern is *rooted*, not in a denylist that has to be maintained.
+
 ## [9.1.0] — 2026-07-05
 
 **The silent default is gone — kerby detects, or asks.** With two selectable
