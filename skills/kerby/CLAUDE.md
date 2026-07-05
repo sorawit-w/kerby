@@ -1,6 +1,6 @@
 # Coding-rule revisions
 
-**This CLAUDE.md is for *editing the rules*. It is not the rules themselves — those live in the self-contained rulebooks under `rulebooks/` (for coding: `rulebooks/code/BOOTSTRAP.md` plus its `workflows/` and `references/`), and apply to ordinary coding work. The skill entry point is `SKILL.md` at the repo root, which loads the selected rulebook (for coding, `rulebooks/code/BOOTSTRAP.md`) into a session.**
+**This CLAUDE.md is for *editing the rules*. It is not the rules themselves — those live in the self-contained rulebooks under `rulebooks/` (for coding: `rulebooks/swe/BOOTSTRAP.md` plus its `workflows/` and `references/`), and apply to ordinary coding work. The skill entry point is `SKILL.md` at the repo root, which loads the selected rulebook (for coding, `rulebooks/swe/BOOTSTRAP.md`) into a session.**
 
 ## Eval handoff
 
