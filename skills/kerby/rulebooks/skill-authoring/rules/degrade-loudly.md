@@ -29,8 +29,13 @@ one-time acknowledgment for that ship, not a standing repo designation.
 Suggested wording when degrading:
 
 > Verification gate: skill-evaluator is not available in this session — this
-> change is **unverified**. Install it (or name an equivalent split-role
-> audit) to run the gate, or say the word to ship unverified.
+> change is **unverified**. Install it (or designate an equivalent split-role
+> audit in a versioned repo file) so the gate can run and clear a *verified*
+> ship, or say the word to ship *unverified*.
+
+Naming an audit in chat does not designate it — only a versioned repo file
+does that. In-session, the only choices are: run the real verifier, or an
+acknowledged `unverified` ship.
 
 *Provenance: evidence-format sweep of the kerby record (2026-07-05) — no
 convention existed for distinguishing "passed" from "never ran"; fail-closed

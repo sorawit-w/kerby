@@ -41,7 +41,8 @@ None. The gate doesn't build skills; it decides when one may ship.
 ## Provenance
 
 Every check traces to a recorded failure in the kerby repo's own history:
-the v4.20.0 clean-pass-with-real-bugs incident (`a386277`), the v4.0.2
+the v4.20.0 clean-pass-with-real-bugs incident (`cb8f699`, documented by
+`a386277`), the v4.0.2
 external-absorb audit (`7b8b34a`), doc-layer adherence patches (`f7c04f2`),
 the v7 same-domain fix cluster, and the 2026-07-05 evidence-format sweep
 (no convention existed for recording an evaluator pass). Added in kerby
