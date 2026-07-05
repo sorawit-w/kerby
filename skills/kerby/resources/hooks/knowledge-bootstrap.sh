@@ -10,6 +10,10 @@
 #   scaffolding and nudges (`kerby load` performs the confirmed migration) —
 #   scaffolding a fresh .kerby/knowledge/ next to un-migrated legacy entries
 #   would split the knowledge base in two.
+# - If BOTH .ai/knowledge/ (still holding entries) and .kerby/knowledge/ exist
+#   — a migration collision `load` named-and-skipped — warns that the legacy
+#   entries are stranded (manual reconcile needed) but continues maintaining
+#   the active .kerby/ vault.
 # - Otherwise, if `.kerby/knowledge/` is missing, scaffolds the directory
 #   from templates/KNOWLEDGE.md.template (resolved via $KERBY_DIR
 #   or repo-relative fallback).
@@ -64,6 +68,17 @@ if [[ -d ".ai/knowledge" && ! -d ".kerby/knowledge" ]]; then
   echo "DATA> legacy .ai/knowledge/ found — run 'kerby load' to migrate it to .kerby/knowledge/"
   echo ""
   exit 0
+fi
+
+# Collision guard: both vaults present and the legacy one still holds entries.
+# `kerby load` named-and-skipped this collision rather than moving it, so plain
+# `load` can't resolve it — the legacy entries are stranded until reconciled by
+# hand. Don't stop (.kerby/ is the active vault and still needs its reindex),
+# but warn so the stranded entries aren't silently ignored.
+if [[ -d ".ai/knowledge" && -d ".kerby/knowledge" ]] \
+   && [[ -n "$(find .ai/knowledge -type f ! -name 'KNOWLEDGE.md' 2>/dev/null | head -n1)" ]]; then
+  echo "DATA> legacy .ai/knowledge/ still holds un-migrated entries beside .kerby/knowledge/ — 'kerby load' skips this collision; reconcile by hand (move the .ai/knowledge/ entries into .kerby/knowledge/, or delete the stale .ai/ copy)"
+  echo ""
 fi
 
 # Scaffold .kerby/knowledge/ if missing.
