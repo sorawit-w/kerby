@@ -1,6 +1,7 @@
 # swe — the software-engineering rulebook
 
-kerby's first domain rulebook and the silent default for `kerby load`. Clarity over
+kerby's first domain rulebook, auto-detected by an unpinned `kerby load` in a repo that
+carries a build manifest (v9.1; no longer a silent default). Clarity over
 cleverness, safety over speed, never leave the repo broken — and nothing unproven
 passes the gate. Extends `base` (the universal floor rides along automatically).
 
