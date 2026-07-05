@@ -3,6 +3,32 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.4.0] — 2026-07-05
+
+**The contract learns who you are; the engine stops needing to know.** First of
+a three-part decoupling: nothing in the engine should *behave* differently
+because a rulebook is named `swe` — that knowledge belongs in the rulebook's
+own manifest.
+
+- **New optional `[identity]` table** (contract stays 2 — optional fields are
+  contract-compatible, same precedent as v9.1): `signature_phrases` (distinctive
+  root-body text `status` will scan context for — scan-only, never echoed) and
+  `load_confirmation` / `reload_confirmation` (to be rendered verbatim **only** for an
+  install-resolved builtin; every other origin gets the engine's generic
+  template). New validator check **E15** shape-guards the table; **E11** lints
+  all three fields on non-builtin origins so they can't become a dormant
+  injection channel.
+- **All three builtins declare `[identity]`**: `swe` 2.3.0 carries its historic
+  BOOTSTRAP signature phrases and byte-identical confirmation wording;
+  `skill-authoring` 1.2.0 and `base` 1.1.0 carry signature phrases.
+- **The engine-independence zoning rule** is now written down
+  (`docs/rulebook-contract.md` § Engine independence): engine surfaces name
+  builtins only as worked examples or bundle contents, never as behavior —
+  with the delete-swe drill as a release-checklist item.
+
+The engine does not consume `[identity]` yet — this release is pure groundwork,
+zero behavior change. The SKILL.md mechanisms switch over in the next release.
+
 ## [9.3.0] — 2026-07-05
 
 **The floor guards secrets and nothing else.** base's `pre-commit-check.sh`

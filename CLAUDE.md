@@ -88,6 +88,12 @@ those constants drift across the files that restate them — BOOTSTRAP, the
 workflows, working-patterns, the schema, the template; the checked set is listed
 in the script). If you add a new restatement, add the file to that set.
 
+Engine edits (`skills/kerby/SKILL.md`, `resources/`, repo-root `scripts/`) are
+additionally bound by the **engine-independence zoning rule** in
+[`docs/rulebook-contract.md`](docs/rulebook-contract.md) § Engine independence:
+builtin rulebook names appear in engine surfaces only as worked examples or
+bundle contents, never as something behavior keys on.
+
 The product voice — how kerby *talks* in the README, verdict output, and CHANGELOG — is
 specified in [`VOICE.md`](VOICE.md). Read it before editing any persona-bearing copy; the
 rules and command references stay literal regardless (see its Zoning table).

@@ -66,6 +66,31 @@ else
   fail "E11 — expected exit 0 + 'warning E11:', got exit $RC: $OUT"
 fi
 
+# [identity] strings are E11-linted for a non-builtin even though they are
+# scan-only / never rendered for that origin — a dormant-channel guard.
+run "$FIXTURES/valid-e11-identity-warn"
+if [[ "$RC" -eq 0 ]] && echo "$OUT" | grep -q "warning E11: \[identity\]"; then
+  pass "E11 lints [identity] strings on a local rulebook, still valid"
+else
+  fail "E11 [identity] — expected exit 0 + 'warning E11: [identity]', got exit $RC: $OUT"
+fi
+
+# E15 unknown keys inside [identity] warn without failing. Built inline: an
+# appended key would join the file's last table, so the temp manifest ends on
+# [identity] to place the unknown key there.
+TMP_E15="$(mktemp -d)"
+cp -R "$FIXTURES/valid-identity/." "$TMP_E15/"
+printf '%s\n' 'id = "fixture-e15-warn"' 'version = "1.0.0"' 'contract = 2' \
+  'accepts = ["*"]' '[identity]' 'signature_phrases = ["a marker"]' \
+  'banner = "x"' > "$TMP_E15/rulebook.toml"
+OUT="$(python3 "$VALIDATOR" "$TMP_E15" --builtin-root "$BUILTIN_ROOT" 2>&1)"; RC=$?
+rm -rf "$TMP_E15"
+if [[ "$RC" -eq 0 ]] && echo "$OUT" | grep -q "warning E15:"; then
+  pass "E15 warns on an unknown [identity] key, still valid"
+else
+  fail "E15 unknown-key — expected exit 0 + 'warning E15:', got exit $RC: $OUT"
+fi
+
 # Command bodies get the same E11 lint as prose check bodies (non-builtin): a
 # [[command]] body is read as agent instructions at dispatch, but TOFU shows only
 # the command name/description — so an injection phrase there must still warn.

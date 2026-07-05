@@ -6,6 +6,11 @@ would force churn on external rulebooks for zero shape change. What v9.1 amends
 is *loader behavior*: `[detect]` moves from reserved to live for builtins, and
 the selection default (`code`) is replaced by marker detection with an
 ask-the-user fallback (`source: … | detected | chosen`, no `default`).
+kerby v9.4 follows the same precedent: it adds the **optional** `[identity]`
+table (E15) — a manifest without it is untouched, so the number still stays 2.
+That is the standing rule for contract evolution: *new optional fields are
+contract-2-compatible; requiring a field, reshaping an existing one, or
+removing one forces v3.*
 
 The manifest contract between the kerby engine (loader/validator) and a
 **rulebook** — a folder of rules the engine can load, weigh, and enforce
@@ -62,6 +67,11 @@ description = "…"           # shown in dispatch listings + the trust prompt (E
 
 [detect]                    # builtin auto-selection markers (D17–D19; live for builtins since v9.1)
 markers = ["package.json"]  # root-relative globs; loader matches among BUILTINS only (E12 warns + ignores for non-builtins)
+
+[identity]                  # optional presentation table (E15; defined in v9.4, consumed from v9.5 — still contract 2)
+signature_phrases = ["…"]   # distinctive root-body text `status` will scan context for (scan-only, never echoed)
+load_confirmation = "…"     # load/reload confirmation text; to be rendered verbatim for install-resolved
+reload_confirmation = "…"   #   builtins ONLY — every other origin gets the engine's generic template
 ```
 
 ## `[[check]]` fields
@@ -131,11 +141,43 @@ Extended packs contribute their own low-cost bodies but no root.
 4. User config sits above the merged result: tighten freely; loosen only to
    the floor; never through it (E06).
 
-## Error catalog (E01–E14)
+## `[identity]` — presentation fields (optional, kerby v9.4)
+
+How a rulebook *presents itself* to the engine's user-facing flows. The whole
+table and every field in it are optional — an existing manifest without it is
+untouched, which is why this lands at contract 2 (same precedent as v9.1: new
+behavior, no shape break for existing manifests).
+
+**Consumption timeline.** kerby v9.4 ships the field *definitions* and their
+validation (E15/E11) only — the loader validates `[identity]` but does not yet
+read it, so declaring the table changes nothing this release. The engine begins
+consuming it in v9.5, when SKILL.md's `load` / `reload` / `status` flows switch
+from their hardcoded builtin branches to the fields below. The semantics stated
+here are that **target** behavior; until v9.5 they are declared-but-inert.
+
+- **`signature_phrases`** — distinctive substrings of the rulebook's own prose
+  (root body / floor rules) that the engine's `status` will scan recent context
+  for to answer "are this rulebook's rules loaded?". **Scan-only for every
+  origin**: the status verdict names the rulebook id, never the matched text,
+  so the field cannot smuggle content into output. Absent → `status` falls
+  back to scanning for the root body's own text (or the base floor's when
+  there is no root body). Keep the phrases exact substrings of the shipped
+  prose — a reworded rule that orphans its phrase silently degrades detection.
+- **`load_confirmation` / `reload_confirmation`** — the confirmation line the
+  loader prints after reading this rulebook's eager prose. **Rendered verbatim
+  only when the rulebook is an install-resolved builtin** (the strict
+  re-derivation in Origins and trust — never the id string alone). Any other
+  origin — including a `local` fork that names itself after a builtin — always
+  gets the engine's generic template (`kerby loaded <id>@<version> …`), so an
+  external manifest string is never rendered by this field. E11 lints all
+  three fields anyway, so they cannot become a dormant channel when the engine
+  starts rendering them (v9.5) or if a future engine widens rendering.
+
+## Error catalog (E01–E15)
 
 Messages are fix-forward and literal (VOICE.md zoning: error strings carry no
-persona). E09-gap, E11, and E12-non-builtin emit as warnings (exit 0);
-everything else is an error (exit 1). E02-unknown-event also warns.
+persona). E09-gap, E11, E12-non-builtin, and E15-unknown-key emit as warnings
+(exit 0); everything else is an error (exit 1). E02-unknown-event also warns.
 
 | Code | Invariant |
 |---|---|
@@ -149,10 +191,11 @@ everything else is an error (exit 1). E02-unknown-event also warns.
 | E08 | kind/field coherence (see table above) |
 | E09 | `enforcement ∈ {hard, partial, behavioral}`; `hard`/`partial` require `enforcer`; `partial` without `gap` → warning |
 | E10 | `accepts` non-empty; every `needs` entry known and satisfiable (see View vocabulary) |
-| E11 | prose-injection lint, non-builtin origins, **warn-only**: flags `ignore previous`, `you must now`, `disregard the above` in **every prose/text file the trust hash covers** — declared check + command bodies (**regardless of file extension** — a body like `commands/review` with no `.md`/`.txt` suffix is still dispatched as instructions, so it is linted too) *and* undeclared `references/`/`workflows/` markdown a body can read — **and in the free-text manifest fields the loader displays** (the rulebook `description`, each `[[command]].description`, each `[[check]].gap`), so the payload can't be hidden by moving it out of a declared body or into a string shown at the trust prompt |
+| E11 | prose-injection lint, non-builtin origins, **warn-only**: flags `ignore previous`, `you must now`, `disregard the above` in **every prose/text file the trust hash covers** — declared check + command bodies (**regardless of file extension** — a body like `commands/review` with no `.md`/`.txt` suffix is still dispatched as instructions, so it is linted too) *and* undeclared `references/`/`workflows/` markdown a body can read — **and in the free-text manifest fields the loader displays or scans** (the rulebook `description`, each `[[command]].description`, each `[[check]].gap`, and the three `[identity]` fields `signature_phrases` / `load_confirmation` / `reload_confirmation` — the confirmations are never rendered for a non-builtin and the phrases are scan-only, but linting them keeps the fields from becoming a dormant channel), so the payload can't be hidden by moving it out of a declared body or into a string shown at the trust prompt |
 | E12 | `[detect]` shape: `markers` = non-empty array of strings (error if malformed); accepted for builtins (the loader matches them as root-relative globs among builtins, v9.1); declared by a non-builtin rulebook → warning (ignored at load, D19) |
 | E13 | no `[[command]]` name collides with a reserved engine command, a builtin rulebook id, or another command in the same rulebook |
 | E14 | `[[command]]` shape: `name` a slug, `body` a folder-confined path string, `description` non-empty |
+| E15 | `[identity]` shape: a table; `signature_phrases` = non-empty array of non-empty strings; `load_confirmation`/`reload_confirmation` = non-empty strings (error if malformed); unknown keys inside the table → warning (ignored) |
 
 **Fail-closed:** a validator crash or an unreadable declared file is an
 invalid result, never a pass. Anything gated while the loader is failed is
@@ -215,3 +258,37 @@ first successful load; read by every later load.
 
 Compute the hash with
 `python3 skills/kerby/resources/scripts/validate-rulebook.py <dir> --hash`.
+
+## Engine independence — the zoning rule
+
+This contract's opening promise — the engine loads, weighs, and enforces
+*without knowing the domain* — is enforceable in review with one rule:
+
+**Engine surfaces** (`skills/kerby/SKILL.md`, `skills/kerby/resources/**`, and
+the kerby repo's root `scripts/`) **may name a builtin rulebook only as (a) a
+worked example illustrating a generic mechanism, or (b) bundle contents**
+("what ships in the box"). They must never *key behavior* on a builtin's id,
+filenames, marker list, or prose text: every behavior-bearing branch consumes
+contract fields (`[detect]`, `[identity]`, `[[check]]`, `[[command]]`,
+`[tooling]`), so deleting any builtin folder leaves the engine mechanically
+intact. That deletion test — the **delete-swe drill** — is a release-checklist
+item (from v9.5, once the engine consumes the fields below): temporarily move
+`rulebooks/swe/` aside; `load` must fall to detection-among-remaining/ask,
+`status` must scan the remaining builtins' `signature_phrases`, `install` must
+derive only the remaining enforcers, and no engine text may point at a file
+that is gone. Restore afterwards.
+
+Two deliberate non-exceptions:
+
+- The **install-resolved builtin-identity doctrine** (Origins and trust) is
+  behavior about the *origin class* — builtin-vs-external trust — not about
+  any particular builtin. It stays, and it is what gates verbatim rendering
+  of `[identity]` confirmations.
+- **Migration residue** (the v9.0 `code` → `swe` rename shims) lives only in
+  SKILL.md's marked migration section with a sunset note, exempt until
+  removed.
+
+Corollary for contract evolution: a new manifest field that the loader
+*displays* joins E11's lint coverage in the same PR that ships it; a field the
+loader merely *scans for* or treats as a slug/filename is preferred over free
+text wherever it does the job.

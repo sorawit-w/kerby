@@ -28,7 +28,7 @@ Stdlib only (tomllib requires Python >= 3.11). Two modes, one logic: run
 standalone this is advisory; invoked by the `load` flow it is authoritative —
 an advisory pass is never a trust grant.
 
-Error catalog E01-E14: docs/rulebook-contract.md. Messages are literal and
+Error catalog E01-E15: docs/rulebook-contract.md. Messages are literal and
 fix-forward (VOICE.md zoning).
 """
 
@@ -313,6 +313,37 @@ def check_detect(data: dict, origin: str, res: Result):
         res.warn("E12", f"[detect]: declared by a {origin} rulebook — ignored; auto-selection is builtin-only")
 
 
+IDENTITY_KEYS = {"signature_phrases", "load_confirmation", "reload_confirmation"}
+
+
+def check_identity(data: dict, res: Result):
+    """E15: shape-check the optional [identity] table — how a rulebook presents
+    itself (status signature scan, load/reload confirmation text). The loader
+    starts consuming these fields in v9.5; v9.4 validates them only. Origin-blind
+    on purpose: the shape rules are the same for every origin; only *rendering*
+    is origin-tiered (the loader is to render confirmations verbatim for
+    install-resolved builtins only, and signature_phrases are scan-only for
+    everyone — see SKILL.md / docs/rulebook-contract.md)."""
+    identity = data.get("identity")
+    if identity is None:
+        return
+    if not isinstance(identity, dict):
+        res.error("E15", "[identity]: must be a table")
+        return
+    phrases = identity.get("signature_phrases")
+    if phrases is not None and (
+        not isinstance(phrases, list) or not phrases or not all(isinstance(p, str) and p.strip() for p in phrases)
+    ):
+        res.error("E15", "[identity]: 'signature_phrases' must be a non-empty array of non-empty strings")
+    for field in ("load_confirmation", "reload_confirmation"):
+        val = identity.get(field)
+        if val is not None and (not isinstance(val, str) or not val.strip()):
+            res.error("E15", f"[identity]: '{field}' must be a non-empty string")
+    for key in identity:
+        if key not in IDENTITY_KEYS:
+            res.warn("E15", f"[identity]: unknown key '{key}' — ignored by this engine")
+
+
 def resolve_check_files(check: dict, cid: str, root: Path, res: Result, out: list[Path]) -> None:
     """Resolve a check's declared files (config/entry/body/enforcer), append each
     resolved path to `out` (so it enters the hash and E04 covers its existence /
@@ -531,6 +562,20 @@ def lint_manifest_strings(data: dict, origin: str, res: Result) -> None:
         for check in checks:
             if isinstance(check, dict) and isinstance(check.get("gap"), str):
                 lint_text(check["gap"], f"check '{check.get('id', '?')}' gap", res)
+    # [identity] strings: signature_phrases are scan-only and confirmations are
+    # never rendered for a non-builtin (the loader falls back to the generic
+    # template) — but lint them anyway, so the fields can't become a dormant
+    # injection channel if a future engine version starts rendering them.
+    identity = data.get("identity")
+    if isinstance(identity, dict):
+        phrases = identity.get("signature_phrases")
+        if isinstance(phrases, list):
+            for i, p in enumerate(phrases):
+                if isinstance(p, str):
+                    lint_text(p, f"[identity] signature_phrases[{i}]", res)
+        for field in ("load_confirmation", "reload_confirmation"):
+            if isinstance(identity.get(field), str):
+                lint_text(identity[field], f"[identity] {field}", res)
 
 
 def lint_tree_prose(data: dict, root: Path, origin: str, res: Result) -> None:
@@ -702,6 +747,7 @@ def validate(root: Path, origin: str, builtin_root: Path, config_path: Path | No
         return res, []
     check_top_level(data, res)
     check_detect(data, origin, res)
+    check_identity(data, res)
     config_gate = None
     if config_path is not None:
         try:

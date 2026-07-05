@@ -91,6 +91,8 @@ The script version breaks the moment the project uses Bun, pnpm, Deno, or a cust
 
 Not absolute: when a rule genuinely requires a specific command (e.g., `git` invocations in the branching section), use it. The test is whether the command is load-bearing for the rule's meaning, or just the author's habit.
 
+**Engine surfaces have one extra constraint:** edits to `SKILL.md`, `resources/`, or the repo-root `scripts/` are bound by the engine-independence zoning rule (`docs/rulebook-contract.md` § Engine independence) — a builtin rulebook's name may appear there only as a worked example or bundle contents, never as something behavior keys on. Behavior branches consume contract fields (`[detect]`, `[identity]`, `[[check]]`, `[[command]]`) instead.
+
 ---
 
 ## Compression check against compact reference packs

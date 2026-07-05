@@ -6,7 +6,7 @@
 # uniform confinement, no builtin exemption.
 # Contract: docs/rulebook-contract.md (contract 2).
 id = "swe"
-version = "2.2.0"
+version = "2.3.0"
 contract = 2
 accepts = ["git_change"]
 extends = ["base"]
@@ -44,6 +44,25 @@ test = "{test_command}"
                               # grows (.claude/, .kerby/rulebooks/, node_modules/…) and is executed
                               # by an LLM following prose that will eventually skip the exclusion.
 markers = ["package.json", "deno.json", "pyproject.toml", "go.mod", "Cargo.toml", "scripts/*.py", "scripts/*.sh"]
+
+[identity]                    # how this rulebook presents itself (contract v2 optional
+                              # table, E15). signature_phrases: distinctive root-body text
+                              # the engine's `status` scans context for — scan-only, never
+                              # echoed. Confirmations: rendered verbatim at load/reload for
+                              # the install-resolved builtin only (an external rulebook —
+                              # even one named `swe` — always gets the engine's generic
+                              # template). Wording predates v6; kept byte-identical for
+                              # parity with the frozen .eval/parity baselines.
+signature_phrases = [
+  "Prime Directive",
+  "Clarity over cleverness. Safety over speed.",
+  "implement → check → commit → log → repeat",
+  "<prime_directive>",
+  "<hard_rules>",
+  "<reference_index>",
+]
+load_confirmation = "**kerby loaded.** BOOTSTRAP is in context for this session — I will follow its rules until the session ends or context is compacted. If rules seem to stop applying mid-session, invoke `kerby` with `args: reload`."
+reload_confirmation = "**kerby reloaded.** BOOTSTRAP refreshed in context."
 
 # --- prose: the operating rules and gate-bearing references, in place -------
 
