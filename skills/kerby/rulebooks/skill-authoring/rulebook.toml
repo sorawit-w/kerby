@@ -14,11 +14,16 @@ block_on = ["block"]
 hold_on = ["warn"]
 
 [detect]                      # builtin auto-selection markers (D17, v9.1). Root-relative
-                              # globs matched among BUILTINS only (D19). A repo that
-                              # authors agent skills carries a SKILL.md; a repo that both
+                              # globs matched among BUILTINS only (D19). Match a repo that
+                              # AUTHORS agent skills — a root SKILL.md (single-skill repo) or
+                              # skills/<name>/SKILL.md (a skills monorepo, kerby's own layout).
+                              # Deliberately NOT `.claude/skills/*/SKILL.md`: that is the
+                              # INSTALL location (kerby itself installs there project-locally),
+                              # so it would false-match every repo that merely HAS kerby
+                              # installed, not repos that author skills. A repo that both
                               # authors skills AND ships code is the expected multi-match
-                              # case (swe + skill-authoring) — the loader asks, never guesses.
-markers = ["SKILL.md", "skills/*/SKILL.md", ".claude/skills/*/SKILL.md"]
+                              # (swe + skill-authoring) — the loader asks, never guesses.
+markers = ["SKILL.md", "skills/*/SKILL.md"]
 
 [[check]]
 id = "evaluator-gate-on-final-text"
