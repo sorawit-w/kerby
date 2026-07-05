@@ -6,7 +6,7 @@
 # uniform confinement, no builtin exemption.
 # Contract: docs/rulebook-contract.md (contract 2).
 id = "swe"
-version = "2.1.0"
+version = "2.2.0"
 contract = 2
 accepts = ["git_change"]
 extends = ["base"]
@@ -23,19 +23,27 @@ test = "{test_command}"
 
 [detect]                      # builtin auto-selection markers (D17, v9.1). Root-relative
                               # globs; the loader matches these among BUILTINS only (D19).
-                              # Build/package manifests — the *manifest clause* of SKILL.md's
-                              # readiness-nudge has-real-code test (keep those in sync).
-                              # Deliberately NOT recursive source globs (**/*.py, **/*.sh):
-                              # kerby ships .py/.sh under a consuming project's
-                              # .claude/skills/kerby/ install, so a recursive code glob would
-                              # false-match every repo that merely HAS kerby installed — the
-                              # same self-install trap that pruned skill-authoring's install
-                              # glob. Manifests sit at the repo root, never in the install dir,
-                              # so they detect *the repo's own* build without that trap. A
-                              # manifest-less code repo (loose scripts only) therefore may not
-                              # match swe — it falls to whatever else matches or the ask;
-                              # `kerby load swe` / `load +swe` is the deterministic path.
-markers = ["package.json", "deno.json", "pyproject.toml", "go.mod", "Cargo.toml"]
+                              # Two kinds, both ROOT-ANCHORED — that is the whole safety story.
+                              #  (1) Build/package manifests — also the *manifest clause* of
+                              #      SKILL.md's readiness-nudge has-real-code test (keep in sync).
+                              #  (2) scripts/*.py, scripts/*.sh — non-recursive code signals that
+                              #      catch a manifest-less repo whose code lives in scripts/ (a
+                              #      skill-authoring repo with tooling but no build manifest —
+                              #      kerby's own repo — would otherwise let skill-authoring
+                              #      single-match and silently drop swe; now it multi-matches → ask).
+                              # Why root-anchored, never recursive (**/*.py, **/*.sh): kerby ships
+                              # .py/.sh under a consuming project's .claude/skills/kerby/ install
+                              # (and external rulebook clones under .kerby/rulebooks/), so a
+                              # recursive code glob would false-match every repo that merely HAS
+                              # kerby installed — the self-install trap that also pruned
+                              # skill-authoring's install glob. scripts/*.py matches repo-root
+                              # scripts/ ONLY; it cannot reach .claude/skills/kerby/rulebooks/swe/
+                              # scripts/ or .kerby/rulebooks/*/scripts/. Safety comes from where the
+                              # pattern is ROOTED, not from excluding install dirs: a recursive
+                              # glob + a .claude/ denylist (option c) was rejected — the denylist
+                              # grows (.claude/, .kerby/rulebooks/, node_modules/…) and is executed
+                              # by an LLM following prose that will eventually skip the exclusion.
+markers = ["package.json", "deno.json", "pyproject.toml", "go.mod", "Cargo.toml", "scripts/*.py", "scripts/*.sh"]
 
 # --- prose: the operating rules and gate-bearing references, in place -------
 
