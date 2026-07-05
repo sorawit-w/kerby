@@ -4,15 +4,17 @@
 
 # kerby
 
-A Claude Code skill that loads **one specific person's** operating system for agentic coding into your session — branching discipline, commit cadence, verification gates, sub-agent delegation triggers, ambiguity-before-cost rules, and a small amount of taste about how rules themselves should be written.
+A Claude Code skill in two parts: a **domain-blind engine** (loads rulebooks, validates them, pins trust, registers guardrail hooks, renders verdicts) and **pluggable rulebooks** that carry the actual judgment. The engine has no opinions; the rulebooks are nothing but.
 
-> ⚠️ **Read this before installing.** This skill is **deliberately, aggressively opinionated.** It captures *one author's* personal taste, accumulated from years of breaking and fixing things while pairing with agents. It is **not** a "best-practice" guide or a neutral default. The choices are personal, sometimes contrarian, and load on every session that uses them — there is a real input-token cost. **Read `rulebooks/code/BOOTSTRAP.md` end-to-end before adopting. Fork, edit, or skip rules that don't fit your taste.** The skill provides a frame; your judgment is what makes it useful.
+The bundled **`code` rulebook** — the default, and the origin of the whole project — loads **one specific person's** operating system for agentic coding: branching discipline, commit cadence, verification gates, sub-agent delegation triggers, ambiguity-before-cost rules, and a small amount of taste about how rules themselves should be written. Other rulebooks can be dropped in as folders, loaded from a path, or pulled from a GitHub repo — see [`docs/AUTHORING-RULEBOOKS.md`](../../docs/AUTHORING-RULEBOOKS.md).
+
+> ⚠️ **Read this before installing.** The `code` rulebook is **deliberately, aggressively opinionated.** It captures *one author's* personal taste, accumulated from years of breaking and fixing things while pairing with agents. It is **not** a "best-practice" guide or a neutral default. The choices are personal, sometimes contrarian, and load on every session that uses them — there is a real input-token cost. **Read `rulebooks/code/BOOTSTRAP.md` end-to-end before adopting. Fork, edit, or skip rules that don't fit your taste.** The skill provides a frame; your judgment is what makes it useful.
 
 ## Why this exists
 
 Most "agent coding" advice is either too vague to land (*"be careful with git"*) or too project-specific to travel (*"run `npm test && npm run lint`"*). What survives across projects, stacks, and teammates is **methodology** — the *shape* of how an agent should approach work.
 
-This skill packages one person's methodology as a loadable session preamble:
+The `code` rulebook packages one person's methodology as a loadable session preamble:
 
 - A **Prime Directive** — clarity over cleverness, safety over speed, never leave the repo broken.
 - **Hard rules** that apply on every task — branching, commit discipline, verification, resource cleanup, manual-verification instructions, sub-agent delegation, ambiguity-before-cost.
@@ -38,7 +40,9 @@ None are required — `kerby` works on its own. They sharpen the edges where it 
 
 ## Workflows
 
-kerby routes every task to one of **five task-shape playbooks** under [`rulebooks/code/workflows/`](rulebooks/code/workflows/) — the agent reads the matching file instead of improvising from memory. The files are the single source of truth; the table below names and links them.
+*(Everything in this section is `code`-rulebook content — the engine mandates none of it. A different rulebook brings its own routing, or none.)*
+
+The `code` rulebook routes every task to one of **five task-shape playbooks** under [`rulebooks/code/workflows/`](rulebooks/code/workflows/) — the agent reads the matching file instead of improvising from memory. The files are the single source of truth; the table below names and links them.
 
 | Task | Workflow | What it does |
 |---|---|---|
@@ -232,19 +236,25 @@ Disablable: `session-start-context`, `knowledge-bootstrap`, `context-bootstrap`,
 
 Hooks are never auto-registered at plugin install time. Specifically: the parent plugin's `plugin.json` carries no `hooks` field, and there is no `hooks/hooks.json` at the plugin root. This is by design — installing the plugin must never silently add guardrail hooks to your projects. Activation stays skill-scoped, opt-in via Phase 2 of `install`.
 
-## What's inside `resources/`
+## What's inside
 
-The rules themselves live under `resources/`, bundled with the skill:
+Two folders, two jobs — the v7 split made physical:
 
-- **`BOOTSTRAP.md`** — the loader entry point. Prime Directive, project-state detection, workflow routing, hard rules, when-stuck, context-save, reference index. ~230 lines.
-- **`workflows/`** — task-shape playbooks: `new-project.md`, `adopt-existing.md`, `feature.md`, `bugfix.md`, `quick-task.md`. Each wires the relevant references in the right order.
-- **`references/`** — long-tail topic guides (~25 files): working patterns, quality gates, error handling, debugging, communication, git worktrees, guardrails, validation, context management, sub-agent delegation, vendor adapters, knowledge management, roadmap, hooks, multi-tool support, safety mindset, design-token authority, domain glossary.
-- **`templates/`** — starter files: `agent-context.yaml`, `STATUS.md`, `KNOWLEDGE.md`, `CONTEXT.md`.
-- **`hooks/`** — optional shell hooks for projects that want enforcement at git/session boundaries: `pre-commit-check.sh`, `protect-env.sh`, `protect-git.sh`, `session-start-context.sh`, `knowledge-bootstrap.sh`, `knowledge-reindex.sh`, `knowledge-lint.sh` (advisory `.kerby/knowledge/` integrity check — manual or git post-commit, not SessionStart; `--strict` to fail on findings), `context-bootstrap.sh`. Not installed automatically — copy what you want into your project's `.git/hooks/` or session-start config.
-- **`scripts/validate-agent-context.ts`** — Bun/Node script to validate `agent-context.yaml` against the bundled JSON Schema. Optional.
-- **`agent-context.schema.yaml`** — JSON Schema for the per-project `agent-context.yaml` contract.
+**`rulebooks/`** — the rules, as self-contained folders (copy one, get a governed domain):
+
+- **`rulebooks/base/`** — the universal floor, merged under every rulebook: `secrets-staged` (+ its `pre-commit-check.sh` enforcer), `no-print-secret`, `untrusted-agent-artifacts`, `iron-law-claims`, `approval-for-irreversible`. Non-overridable.
+- **`rulebooks/code/`** — the coding rulebook and silent default: `BOOTSTRAP.md` (the root body: Prime Directive, routing, hard rules, reference index), `workflows/` (the five task-shape playbooks), `references/` (~26 long-tail topic guides), `hooks/` (the tool-boundary enforcers: `protect-env.sh`, `protect-git.sh`, `warn-env-read.sh`, `route-high-stakes.sh`, + the confinement shim into base's pre-commit check), `commands/` (`audit`, `prepare`), `templates/` + `scripts/` + `agent-context.schema.yaml` (the per-project `agent-context.yaml` contract and its validator).
+
+**`resources/`** — engine machinery only, rulebook-agnostic:
+
+- **`hooks/`** — the SessionStart services (`session-start-context.sh`, `knowledge-bootstrap.sh`, `context-bootstrap.sh`) plus knowledge tooling (`knowledge-reindex.sh`, `knowledge-lint.sh` — advisory `.kerby/knowledge/` integrity check; `--strict` to fail on findings).
+- **`templates/`** — the state templates (`STATUS.md`, `KNOWLEDGE.md`, `CONTEXT.md`) the services scaffold into a project's `.kerby/`.
+- **`scripts/validate-rulebook.py`** — the manifest/trust validator every `load` runs.
+- **`references/`** — engine docs: `hooks.md` (registration + lifecycle) and `multi-tool.md` (Claude Code / Codex / Cursor wiring).
 
 ## A note on opinionation
+
+*(These are `code`-rulebook choices. The engine carries no opinions — swap the rulebook, swap the taste.)*
 
 The rules in `BOOTSTRAP.md` reflect specific choices that may not match your judgment:
 
