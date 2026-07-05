@@ -1,10 +1,11 @@
-# code — the coding rulebook, kerby's first domain rulebook and the silent
-# default for `kerby load` (D17). Extends base (implicit-mandatory; listed
-# for clarity). Self-contained (v7): every declared path resolves inside
-# this folder — uniform confinement, no builtin exemption.
+# swe — the software-engineering rulebook, kerby's first domain rulebook and
+# the silent default for `kerby load` (D17). Named `code` through v8; renamed
+# in v9.0.0. Extends base (implicit-mandatory; listed for clarity).
+# Self-contained (v7): every declared path resolves inside this folder —
+# uniform confinement, no builtin exemption.
 # Contract: docs/rulebook-contract.md (contract 2).
-id = "code"
-version = "1.0.0"
+id = "swe"
+version = "2.0.0"
 contract = 2
 accepts = ["git_change"]
 extends = ["base"]

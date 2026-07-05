@@ -28,7 +28,7 @@ $defs:
 
   SastTools:
     type: object
-    description: "Project-owned pinned SAST toolchain for `kerby code audit --sast` (opt-in; see references/sast-provisioning.md). kerby resolves these pins, never tracks them upstream."
+    description: "Project-owned pinned SAST toolchain for `kerby swe audit --sast` (opt-in; see references/sast-provisioning.md). kerby resolves these pins, never tracks them upstream."
     properties:
       enabled: { type: boolean }
       python: { type: string }            # pinned interpreter, e.g. "3.12.7"

@@ -4,7 +4,7 @@
 // `agent-context.schema.yaml` bundled inside this kerby install.
 //
 // Usage (from repo root):
-//   bun run <plugin-install>/skills/kerby/rulebooks/code/scripts/validate-agent-context.ts
+//   bun run <plugin-install>/skills/kerby/rulebooks/swe/scripts/validate-agent-context.ts
 //
 // Requirements:
 //   pnpm add -D ajv ajv-formats js-yaml

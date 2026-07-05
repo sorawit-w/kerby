@@ -39,8 +39,8 @@ versus behavioral, per check.
 
 | Command | What it does |
 |---|---|
-| `kerby code audit` (`kerby audit` also works — inference) | read-only static conformance audit of the project against this corpus; report under `.kerby/audits/` |
-| `kerby code prepare` (`kerby prepare` also works — inference) | onboard an existing repo — populate kerby's context artifacts from code + git history, diff-and-confirm on every write |
+| `kerby swe audit` (`kerby audit` also works — inference) | read-only static conformance audit of the project against this corpus; report under `.kerby/audits/` |
+| `kerby swe prepare` (`kerby prepare` also works — inference) | onboard an existing repo — populate kerby's context artifacts from code + git history, diff-and-confirm on every write |
 
 ## Provenance
 
