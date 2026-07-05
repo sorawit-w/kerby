@@ -380,13 +380,15 @@ If `y`:
 
    This shared signature (the "managed?" predicate) is used by `install`, `status`, and `uninstall`; the exact-tuple test is what makes each specific enforcer recognizable as already-present (else re-run duplicates it), bindable (else `status` wrongly shows degraded/bound), and removable. Skip already-present entries — Phase 2 is idempotent.
 
-6. **Show the full diff** — print a unified diff of what will be added to the chosen settings file. Include the resolved absolute paths so the user can verify them.
+   **Prune stale managed entries in the same pass (so "re-run `kerby install`" self-heals).** While merging, also collect every settings entry that matches the "managed?" predicate (a kerby-managed root) **but whose resolved command path no longer exists on disk** — the state a builtin rename leaves behind (a v8 install's `rulebooks/code/hooks/*.sh` entries after `code` → `swe`). These go in a **remove** set alongside the **add** set: re-running `install` re-points the enforcers (adds the live `rulebooks/swe/hooks/*` tuples) **and** clears the dead `rulebooks/code/hooks/*` ones in one diff, so a subsequent `status` no longer reports `registered script missing`. Prune **only** dead-script entries under a kerby root — never a managed entry whose script still resolves (that's a live binding), and never a hook outside every kerby root (that's the user's own, per the predicate's out-of-root rule). This is what makes the `status` remediation ("re-run `kerby install`") terminate instead of looping.
+
+6. **Show the full diff** — print a unified diff of what will be added to *and removed from* the chosen settings file. Include the resolved absolute paths so the user can verify them; a stale-entry removal is shown as a deletion line so the prune is never silent.
 
 7. **Single final confirmation** — `Apply this diff? [y/n]`. On `n`, abort cleanly without modifying the file. On `y`, write the merged JSON back, preserving any unrelated keys exactly.
 
 8. **Summarize Phase 2**:
 
-   > Phase 2: registered `<N>` hook entries in `<settings-path>`. Already-present: `<list>`. Skipped (user declined): `<list>`.
+   > Phase 2: registered `<N>` hook entries in `<settings-path>`. Already-present: `<list>`. Pruned stale (script missing): `<list>`. Skipped (user declined): `<list>`.
 
 ### Phase 2 edge cases
 
