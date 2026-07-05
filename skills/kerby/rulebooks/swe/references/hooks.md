@@ -40,15 +40,25 @@ Makes BOOTSTRAP §3's high-stakes path override **[enforced-partial]** instead o
 
 ---
 
-### PreToolUse → Pre-Commit Check
+### PreToolUse → git commit (two independent hooks)
 
-**Script:** `hooks/pre-commit-check.sh`
-**Strictness:** Soft-warn (exit 0; reminder via stdout JSON `hookSpecificOutput.additionalContext`) + Hard-block on secrets (exit 2 + stderr)
-**Matcher:** `Bash` running `git commit`
+Two hooks register on `Bash` running `git commit`, and run independently — a
+hard floor from `base`, and swe's own soft advisory. Before v9.3 both lived in one
+bundled script; they are now cleanly separated.
 
-Two checks before every commit:
-1. **Secret scan (hard-block)** — Capability-gated on the binary: prefers `betterleaks`, then `gitleaks`, if either is on `PATH` (broader coverage, respects the scanner's repo-local allowlist), scanning the staged *added* lines via the version-stable `stdin` mode (`git diff --cached -U0 | <scanner> stdin --exit-code 7`). Falls back to a built-in regex (`sk_live_`, `AKIA`, private keys, hardcoded passwords) when no scanner is present or it errors. A *finding* (distinct exit code 7) blocks the commit; a *tool error* (any other nonzero — their default exit 1 means "leaks OR error") falls through to the regex rather than phantom-blocking. Cannot be disabled via env var. Self-tested by `hooks/pre-commit-check.test.sh`. *(betterleaks is the gitleaks author's feature-frozen-gitleaks successor; the `stdin` invocation is what survives gitleaks' 8.19 reorg that deprecated `protect`.)*
-2. **Quality gate reminder (soft-warn)** — Injects a reminder to run lint/test on changed files via `additionalContext`. Does NOT hard-block — this avoids trapping the agent on pre-existing lint errors from other developers. Because a PreToolUse `additionalContext` surfaces *with* the tool result (next turn), this reminder arrives as the commit completes — it is a **post-commit safety net** (run the gates, amend if your changes broke them), not a pre-commit veto. The veto in this hook is the secret scan above (exit 2, pre-execution). Turning the reminder into a true checkpoint would mean `permissionDecision: ask`/`deny` — a deliberate commit-discipline change, intentionally not made here.
+**a. Secret scan — the base floor (hard-block).**
+**Script:** `<install-root>/rulebooks/base/hooks/pre-commit-check.sh` (base's, not swe's)
+**Strictness:** Hard-block on secrets (exit 2 + stderr); silent exit 0 otherwise
+Capability-gated on the binary: prefers `betterleaks`, then `gitleaks`, if either is on `PATH` (broader coverage, respects the scanner's repo-local allowlist), scanning the staged *added* lines via the version-stable `stdin` mode (`git diff --cached -U0 | <scanner> stdin --exit-code 7`). Falls back to a built-in regex (`sk_live_`, `AKIA`, private keys, hardcoded passwords) when no scanner is present or it errors. A *finding* (distinct exit code 7) blocks the commit; a *tool error* (any other nonzero — their default exit 1 means "leaks OR error") falls through to the regex rather than phantom-blocking. **Cannot be disabled via env var.** It is `base`'s floor, registered for every selection (not swe-specific). Self-tested by base's `hooks/pre-commit-check.test.sh`. *(betterleaks is the gitleaks author's feature-frozen-gitleaks successor; the `stdin` invocation is what survives gitleaks' 8.19 reorg that deprecated `protect`.)*
+
+**b. Hollow-test + quality-gate reminder — swe's soft check.**
+**Script:** `hooks/hollow-test-check.sh`
+**Strictness:** Soft-warn only (always exit 0; advisory via stdout JSON `hookSpecificOutput.additionalContext`)
+Two soft advisories, never blocking:
+- **Hollow-test heuristic** — statically counts focused/disabled markers (`.only`/`.skip`/`fit`/`xit`) and always-true assertions in the *added* lines of staged test/spec files, and notes them (counts only, never the raw lines). Surfaces the "green run that proves nothing" fakes `validation.md` names.
+- **Quality gate reminder** — reminds the agent to run lint/test/build on changed files. Because a PreToolUse `additionalContext` surfaces *with* the tool result (next turn), it arrives as the commit completes — a **post-commit safety net** (run the gates, amend if your changes broke them), not a pre-commit veto. Turning it into a checkpoint would mean `permissionDecision: ask`/`deny` — a deliberate commit-discipline change, intentionally not made.
+
+Disable both with `CODING_RULES_HOOK_DISABLED=hollow-test-check` (the legacy `pre-commit-check` token is also honored). Self-tested by `hooks/hollow-test-check.test.sh`.
 
 ---
 

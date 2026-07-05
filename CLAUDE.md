@@ -69,8 +69,9 @@ framings: a self-verification loop with no circuit breaker burns its budget
 re-deriving the same wrong fix. The verification gate also leans behavioral by
 design — the methodology travels across toolchains where a hardcoded check would not
 (`skills/kerby/CLAUDE.md` § Authoring style). The one mechanical floor under it is
-`rulebooks/base/hooks/pre-commit-check.sh`: the non-disablable secret scan, plus a soft
-hollow-test heuristic that statically flags the green-but-empty fakes
+`rulebooks/base/hooks/pre-commit-check.sh`: a pure, non-disablable secret scan. Riding
+alongside it (only when `swe` is selected) is `rulebooks/swe/hooks/hollow-test-check.sh`,
+a soft heuristic that statically flags the green-but-empty fakes
 (`rulebooks/swe/references/validation.md` § What Counts as Evidence).
 
 ---

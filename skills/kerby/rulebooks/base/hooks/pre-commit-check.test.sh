@@ -61,51 +61,10 @@ stage_secret() {
 }
 reset_index() { git -C "$REPO" rm -r --cached -q -f . >/dev/null 2>&1 || true; rm -f "$REPO"/*.js "$REPO"/*.go; }
 
-# Hollow-test fixtures — staged test/spec files exercising the soft heuristic.
-stage_test_focus() { # focused test (.only) silently disables the rest of the suite
-  printf 'describe.only("x", () => { it("y", () => { expect(sum(1,1)).toBe(2); }); });\n' > "$REPO/widget.test.js"
-  git -C "$REPO" add widget.test.js
-}
-stage_test_true() { # always-true assertion verifies nothing
-  printf 'test("hollow", () => { expect(true).toBe(true); });\n' > "$REPO/hollow.spec.js"
-  git -C "$REPO" add hollow.spec.js
-}
-stage_test_clean() { # a real assertion in a test file — must NOT trip the heuristic
-  printf 'test("real", () => { expect(sum(2,2)).toBe(4); });\n' > "$REPO/real.test.js"
-  git -C "$REPO" add real.test.js
-}
-stage_nontest_only() { # .only outside a test/spec path — must NOT trip the heuristic
-  printf 'foo.only(bar);\n' > "$REPO/config.js"
-  git -C "$REPO" add config.js
-}
-stage_test_chained() { # chained focus marker (Jest/Vitest parameterized): test.only.each
-  printf 'test.only.each([[1,1]])("p", (a,b) => { expect(a).toBe(b); });\n' > "$REPO/chained.test.js"
-  git -C "$REPO" add chained.test.js
-}
-stage_test_subdir() { # focused test staged at repo root — committed FROM a subdirectory
-  mkdir -p "$REPO/src"
-  printf 'describe.only("x", () => { it("y", () => { expect(sum(1,1)).toBe(2); }); });\n' > "$REPO/pkg.test.js"
-  git -C "$REPO" add pkg.test.js
-}
-stage_test_focus_bsd() { # markers caught ONLY by the \b focus branches (no .only/.skip present)
-  printf 'fit("a", () => { expect(x).toBe(y); });\nxit("b", () => {});\nfdescribe("c", () => {});\n' > "$REPO/bsd_focus.test.js"
-  git -C "$REPO" add bsd_focus.test.js
-}
-stage_test_misc_bsd() { # \b-dependent markers across langs: t.Skip(, @Disabled, assert True\b
-  printf 'func TestX(t *testing.T) { t.Skip("wip") }\n@Disabled\nassert True\n' > "$REPO/bsd_misc_test.go"
-  git -C "$REPO" add bsd_misc_test.go
-}
-# additionalContext for a clean-secret commit on the current index (no scanner -> regex floor, clean).
-hook_ctx() {
-  local out
-  out=$( cd "$REPO" && echo "$COMMIT_INPUT" | PATH="$BIN_NO" SCANNER_ARGS_FILE="$ARGS_FILE" bash "$HOOK" 2>/dev/null )
-  printf '%s' "$out" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null
-}
-hook_ctx_from() { # $1 = subdir (under REPO) to run the hook from — proves pathspec is not cwd-relative
-  local out
-  out=$( cd "$REPO/$1" && echo "$COMMIT_INPUT" | PATH="$BIN_NO" SCANNER_ARGS_FILE="$ARGS_FILE" bash "$HOOK" 2>/dev/null )
-  printf '%s' "$out" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null
-}
+# The hollow-test heuristic and the lint/test/build reminder moved to swe's
+# hollow-test-check.sh in v9.3 — this floor script is now a PURE secret scan. Its
+# fixtures/assertions live in swe/hooks/hollow-test-check.test.sh. base's job here
+# is only the scan; the purity assertion below guards against re-bundling.
 
 run_hook() { # $1=PATH  $2=gitleaks_rc(opt)  $3=betterleaks_rc(opt)
   ( cd "$REPO" && echo "$COMMIT_INPUT" | PATH="$1" \
@@ -179,83 +138,30 @@ reset_index; stage_secret
 rc=0; ( cd "$REPO" && echo '{"tool_input":{"command":"git status"}}' | PATH="$BIN_NO" bash "$HOOK" >/dev/null 2>&1 ) || rc=$?
 [[ "$rc" -eq 0 ]] && pass "non-commit command exits 0 early" || fail "non-commit should exit 0 (got $rc)"
 
-# I. Soft reminder is emitted as JSON additionalContext on STDOUT (plain stdout on
-#    exit 0 is ignored for PreToolUse). Clean staged + no scanner -> reminder path.
-#    Capture stdout and stderr separately so a regression that adds stderr-on-exit-0
-#    or a permissionDecision is caught (mirrors the warn-env-read .env assertions).
+# I. PURITY: a clean commit through the floor emits NOTHING — no stdout, no stderr,
+#    exit 0. The hollow-test heuristic + lint/test/build reminder moved to swe in
+#    v9.3; this guards against re-bundling any coding advisory into the floor.
+#    Capture stdout and stderr separately (mirrors the warn-env-read assertions).
 reset_index; stage_clean
-ERRF="$TMP/reminder_err"
+ERRF="$TMP/purity_err"
 OUT=$( cd "$REPO" && echo "$COMMIT_INPUT" | PATH="$BIN_NO" SCANNER_ARGS_FILE="$ARGS_FILE" bash "$HOOK" 2>"$ERRF" ); rc=$?
-CTX=$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null)
-DEC=$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.permissionDecision // empty' 2>/dev/null)
 ERRTXT=$(cat "$ERRF")
-{ [[ "$rc" -eq 0 ]] && printf '%s' "$CTX" | grep -q "REMINDER (kerby)"; } \
-  && pass "soft reminder emitted as JSON additionalContext on stdout" \
-  || fail "soft reminder should be JSON additionalContext (rc=$rc, out='$OUT')"
-[[ -z "$DEC" ]] && pass "soft reminder sets no permissionDecision (no auto-approve)" \
-  || fail "soft reminder must not set permissionDecision (got '$DEC')"
-[[ -z "$ERRTXT" ]] && pass "soft reminder writes nothing to stderr (uses stdout JSON)" \
-  || fail "soft reminder should not write to stderr (got '$ERRTXT')"
+[[ "$rc" -eq 0 ]] && pass "clean commit -> exit 0" || fail "clean commit should exit 0 (got $rc)"
+[[ -z "$OUT" ]] && pass "floor emits nothing on stdout for a clean commit" \
+  || fail "floor must be silent on stdout (got '$OUT')"
+[[ -z "$ERRTXT" ]] && pass "floor emits nothing on stderr for a clean commit" \
+  || fail "floor must be silent on stderr (got '$ERRTXT')"
 
-# J. Focused test (.only) in a staged *test* file -> hollow-test advisory fires.
-reset_index; stage_test_focus
-CTX=$(hook_ctx)
-printf '%s' "$CTX" | grep -q "HOLLOW-TEST CHECK" \
-  && pass "focused test (.only) triggers hollow-test advisory" \
-  || fail "hollow-test advisory should fire on .only (ctx='$CTX')"
-
-# K. Always-true assertion in a staged *spec* file -> advisory fires.
-reset_index; stage_test_true
-CTX=$(hook_ctx)
-printf '%s' "$CTX" | grep -q "HOLLOW-TEST CHECK" \
-  && pass "always-true assertion triggers hollow-test advisory" \
-  || fail "hollow-test advisory should fire on expect(true).toBe(true) (ctx='$CTX')"
-
-# L. Clean test file with a real assertion -> NO hollow-test advisory (no false positive).
-reset_index; stage_test_clean
-CTX=$(hook_ctx)
-printf '%s' "$CTX" | grep -q "HOLLOW-TEST CHECK" \
-  && fail "hollow-test advisory should NOT fire on a real assertion" \
-  || pass "clean test file does not trigger hollow-test advisory"
-
-# M. .only in a NON-test file -> NO advisory (path filter scopes to *test*/*spec*).
-reset_index; stage_nontest_only
-CTX=$(hook_ctx)
-printf '%s' "$CTX" | grep -q "HOLLOW-TEST CHECK" \
-  && fail "hollow-test advisory should NOT fire outside test/spec files" \
-  || pass "non-test file with .only does not trigger advisory"
-
-# N. Chained focus marker (test.only.each / describe.skip.each) -> advisory fires.
-reset_index; stage_test_chained
-CTX=$(hook_ctx)
-printf '%s' "$CTX" | grep -q "HOLLOW-TEST CHECK" \
-  && pass "chained focus marker (.only.each) triggers advisory" \
-  || fail "advisory should fire on test.only.each (ctx='$CTX')"
-
-# O. Focused test staged at repo root, hook RUN FROM a subdirectory -> still
-#    detected. Regression guard for the :(top)-anchored pathspec (a cwd-relative
-#    '*test*' would return no diff from src/ and silently miss the file).
-reset_index; stage_test_subdir
-CTX=$(hook_ctx_from src)
-printf '%s' "$CTX" | grep -q "HOLLOW-TEST CHECK" \
-  && pass "advisory fires for root test file when committing from a subdir (:(top) pathspec)" \
-  || fail "top-anchored pathspec should catch test files regardless of cwd (ctx='$CTX')"
-
-# P. \b-boundary focus markers (fit(/xit(/fdescribe() are counted by the REAL grep the
-#    hook uses (/usr/bin/grep on macOS). These branches were previously untested; this
-#    guards the coverage the release notes claim, and proves \b works on stock BSD grep.
-reset_index; stage_test_focus_bsd
-CTX=$(hook_ctx)
-printf '%s' "$CTX" | grep -q "3 focused/disabled" \
-  && pass "BSD grep counts fit(/xit(/fdescribe( — 3 \\b focus markers" \
-  || fail "BSD grep should count 3 \\b focus markers (ctx='$CTX')"
-
-# Q. \b-dependent markers across languages (t.Skip(, @Disabled, assert True\\b) fire too.
-reset_index; stage_test_misc_bsd
-CTX=$(hook_ctx)
-printf '%s' "$CTX" | grep -q "HOLLOW-TEST CHECK" \
-  && pass "BSD grep fires on t.Skip(/@Disabled/assert True (\\b-dependent markers)" \
-  || fail "BSD grep should fire on \\b-dependent markers (ctx='$CTX')"
+# I2. The floor must NEVER emit coding advisories, even with test/spec files
+#     staged. Stage a focused test + an always-true assertion — a bundled
+#     heuristic WOULD fire here; the pure floor stays silent.
+reset_index
+printf 'describe.only("x", () => { it("y", () => { expect(true).toBe(true); }); });\n' > "$REPO/widget.test.js"
+git -C "$REPO" add widget.test.js
+OUT=$( cd "$REPO" && echo "$COMMIT_INPUT" | PATH="$BIN_NO" bash "$HOOK" 2>&1 ); rc=$?
+{ [[ "$rc" -eq 0 ]] && ! printf '%s' "$OUT" | grep -qE 'REMINDER \(kerby\)|HOLLOW-TEST CHECK'; } \
+  && pass "floor emits no REMINDER/HOLLOW-TEST even with staged test files (no re-bundling)" \
+  || fail "floor must not emit coding advisories (rc=$rc, out='$OUT')"
 
 # --- Summary -----------------------------------------------------------------
 echo "---"

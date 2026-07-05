@@ -20,8 +20,10 @@ anchored to the install, not to anything a workspace claims.
 | `iron-law-claims` | prose | no completion/success claim without fresh verification evidence |
 | `approval-for-irreversible` | prose | human sign-off before irreversible or externally visible actions |
 
-`hooks/pre-commit-check.sh` is the floor's one enforcer (the secret scan); the `code`
-rulebook's hollow-test heuristic rides the same script via a shim.
+`hooks/pre-commit-check.sh` is the floor's one enforcer: a pure, non-disablable
+secret scan, nothing else. The `swe` rulebook's hollow-test heuristic is its own
+self-contained hook (`swe/hooks/hollow-test-check.sh`), registered separately when
+`swe` is selected — it does not ride this floor script.
 
 ## Commands
 
