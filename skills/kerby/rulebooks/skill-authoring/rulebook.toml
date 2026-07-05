@@ -35,7 +35,7 @@ kind = "prose"
 body = "rules/classify-then-escalate.md"
 enforcement = "behavioral"
 severity = "warn"
-token_cost = "medium"
+token_cost = "low"  # eager-load: no index body references this, so a deferred cost would never load (all 4 bodies are short)
 
 [[check]]
 id = "record-evaluator-evidence"
