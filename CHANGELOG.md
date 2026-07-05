@@ -15,15 +15,16 @@ only cares what happens before the skill ships.
   v1.0.0) — the verification gate for the skill-authoring loop. Four prose
   checks, all behavioral, every one traced to a recorded failure in this
   repo's own history:
-  - `evaluator-gate-on-final-text` *(block)* — no skill change ships without
-    a fresh `skill-evaluator` pass (or the repo's designated split-role
-    audit) against the exact text being shipped; edits re-open the gate; a
-    clean score is evidence, not ship authorization (the v4.20.0 lesson).
-    Typo/formatting changes are exempt; a changed skill `description` also
-    re-opens the repo's trigger-boundary fixture, if one ships.
+  - `evaluator-gate-on-final-text` *(block)* — no skill change ships *as
+    verified* without a fresh `skill-evaluator` pass (or the repo's
+    designated split-role audit) against the exact text being shipped; edits
+    re-open the gate; a clean score is necessary, not sufficient (the
+    v4.20.0 lesson). Typo/formatting changes are exempt; any change to the
+    skill `description` re-opens the gate and the repo's trigger-boundary
+    fixture, if one ships.
   - `degrade-loudly-when-evaluator-missing` *(block)* — verifier absent →
     say so, label the change `unverified`, stop for acknowledgment. "The
-    gate couldn't run" is HELD, never PASS.
+    gate couldn't run" is BLOCKED, never PASS.
   - `classify-then-escalate` *(warn)* — classify the failure layer (skill
     text / rubric / brief / fixture) before rewriting rule text; the same
     failure class twice across fix rounds means escalate, not another patch.

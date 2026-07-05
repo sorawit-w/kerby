@@ -7,7 +7,7 @@ id = "skill-authoring"
 version = "1.0.0"
 contract = 2
 accepts = ["*"]
-description = "Skill-authoring gate: no skill change ships without a fresh skill-evaluator pass against the exact text being shipped."
+description = "Skill-authoring gate: no skill change ships as verified without a fresh skill-evaluator pass against the exact text being shipped."
 
 [gate]
 block_on = ["block"]

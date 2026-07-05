@@ -35,7 +35,7 @@ From the install root: rulebooks live at `<install-root>/rulebooks/<id>/`, engin
 
 ## Rulebooks, selection, and trust
 
-The rules are packaged as **rulebooks** — folders with a `rulebook.toml` manifest declaring every check and prose body the rulebook contains (contract: `docs/rulebook-contract.md` in the kerby repo). The manifest is the single authority for what a rulebook contains; never guess filenames beyond it. Two builtins ship under `<install-root>/rulebooks/`: `base` (the universal floor, always merged first) and `code` (the coding rulebook, extends base — the silent default).
+The rules are packaged as **rulebooks** — folders with a `rulebook.toml` manifest declaring every check and prose body the rulebook contains (contract: `docs/rulebook-contract.md` in the kerby repo). The manifest is the single authority for what a rulebook contains; never guess filenames beyond it. Three builtins ship under `<install-root>/rulebooks/`: `base` (the universal floor, always merged first), `code` (the coding rulebook, extends base — the silent default), and `skill-authoring` (the verification gate for repos that author agent skills — prose checks, no commands). Discovery is dynamic (every directory with a `rulebook.toml`), so this list is descriptive, not authoritative.
 
 **Selection order (first hit wins), resolved at `load`:**
 

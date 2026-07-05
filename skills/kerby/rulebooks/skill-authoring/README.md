@@ -1,10 +1,12 @@
 # skill-authoring — the verification gate for skills
 
 The gate between *building* a skill and *shipping* it: no skill change ships
-without a fresh pass from the `skill-evaluator` skill (or an equivalent
-split-role skill audit the repo designates) against the exact text being
-shipped. Build with whatever tool you like — the official `skill-creator`,
-your editor, an agent — this rulebook only governs the verification loop.
+*as verified* without a fresh pass from the `skill-evaluator` skill (or an
+equivalent split-role skill audit the repo designates) against the exact text
+being shipped. Build with whatever tool you like — the official `skill-creator`,
+your editor, an agent — this rulebook only governs the verification loop. ("Ship"
+= reaching the default branch or a publish step; the degrade path lets a change
+ship *unverified* only when explicitly labeled and acknowledged.)
 
 ## Scope
 
@@ -23,8 +25,8 @@ your editor, an agent — this rulebook only governs the verification loop.
 
 | Check | Kind | What it holds |
 |---|---|---|
-| `evaluator-gate-on-final-text` | prose | a fresh evaluator pass against the exact shipped text; edits re-open the gate; a clean score is evidence, not ship authorization |
-| `degrade-loudly-when-evaluator-missing` | prose | verifier absent → say so, label unverified, stop for acknowledgment — HELD, never PASS |
+| `evaluator-gate-on-final-text` | prose | a fresh evaluator pass against the exact shipped text; edits re-open the gate; a clean score is necessary, not sufficient |
+| `degrade-loudly-when-evaluator-missing` | prose | verifier absent → say so, label unverified, stop for acknowledgment — BLOCKED, never PASS |
 | `classify-then-escalate` | prose | classify the failure layer (skill text / rubric / brief / fixture) before rewriting; same failure class twice → escalate, not another patch |
 | `record-evaluator-evidence` | prose | every verdict recorded with date + evaluated SHA, so "fresh pass on exact text" stays checkable |
 

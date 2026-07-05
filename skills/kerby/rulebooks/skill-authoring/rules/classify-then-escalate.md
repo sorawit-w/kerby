@@ -26,8 +26,9 @@ have added tokens and fixed nothing.
 
 The evaluator is a probabilistic judge: re-running until green rewards
 noise, and piecemeal patches against a recurring failure class tend to chase
-symptoms. If the **same failure class** comes back after a fix round
-(twice is the signal), stop the patch loop. Escalate instead: a re-audit of
+symptoms. If the **same failure class** — the same finding about the same
+rule or section — comes back after a fix round (twice is the signal), stop
+the patch loop. Escalate instead: a re-audit of
 the whole subsystem, or the user. One review round finds the easy bugs; a
 recurring class means the subsystem needs fresh eyes, not another patch —
 kerby's own record shows 15+ same-domain findings landing across consecutive
