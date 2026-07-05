@@ -1,4 +1,11 @@
-# Rulebook contract — v2
+# Rulebook contract — v2 (selection semantics amended in kerby v9.1)
+
+The contract *number* stays **2**: the manifest shape is unchanged, E12 is
+unchanged, and every existing external manifest remains valid — a bump to 3
+would force churn on external rulebooks for zero shape change. What v9.1 amends
+is *loader behavior*: `[detect]` moves from reserved to live for builtins, and
+the selection default (`code`) is replaced by marker detection with an
+ask-the-user fallback (`source: … | detected | chosen`, no `default`).
 
 The manifest contract between the kerby engine (loader/validator) and a
 **rulebook** — a folder of rules the engine can load, weigh, and enforce
@@ -20,11 +27,14 @@ pinned (D10).
 | Origin | Where it lives | Path rules | Trust |
 |---|---|---|---|
 | `builtin` | `skills/kerby/rulebooks/<id>/`, ships inside kerby | **folder-confined like every origin** (contract 2 — the v1 resources-relative exemption is gone; builtins are self-contained) | repo-versioned; no hash pin required. **Builtin trust is anchored to the install location, never *granted* by a lockfile**: an entry claiming `origin: builtin` is the builtin *iff* its `id` resolves to `<install-root>/rulebooks/<id>` and its `path_or_url` is that install path. The validator rejects `--origin builtin` for any path outside `--builtin-root` (E04); a `builtin` claim for a workspace path is invalid HELD, not trusted. A pin claiming `origin: local`/`remote` — even one whose `id` collides with a builtin — is honored as that external rulebook (loaded from its `path_or_url` through TOFU, never silently swapped for the builtin), since it grants no trust; that keeps builtin-id forks reloadable |
-| `local` | anywhere on disk, loaded by explicit path | confined: every declared path must resolve **inside** the rulebook root — no `..`, no absolute paths (E04). **No symlinks and no `.git/` anywhere under the folder** (declared *or* undeclared): a rulebook must be self-contained plain files, since a symlink escapes confinement (a mutable-target instruction channel the trust hash can't cover) and `.git/` is skipped by the hash (so content under it would be a hash-blind channel) — both E04. Remote clones strip `.git/` at fetch; a local rulebook must be a clean content dir, not a git working tree | one-time review + hash pin (TOFU) on first load — for **any** local rulebook, including a `data`-only one (loading it replaces the default gate; a prose/code rulebook *additionally* admits external instructions/scripts). Silent re-load only while the hash matches **and** the hash is in the per-machine `~/.claude/kerby/approved-rulebooks.json` — a committed project lockfile is untrusted content and can never by itself pre-approve an external rulebook |
+| `local` | anywhere on disk, loaded by explicit path | confined: every declared path must resolve **inside** the rulebook root — no `..`, no absolute paths (E04). **No symlinks and no `.git/` anywhere under the folder** (declared *or* undeclared): a rulebook must be self-contained plain files, since a symlink escapes confinement (a mutable-target instruction channel the trust hash can't cover) and `.git/` is skipped by the hash (so content under it would be a hash-blind channel) — both E04. Remote clones strip `.git/` at fetch; a local rulebook must be a clean content dir, not a git working tree | one-time review + hash pin (TOFU) on first load — for **any** local rulebook, including a `data`-only one (loading it makes it the session's governing gate, in place of whatever builtin would otherwise be selected; a prose/code rulebook *additionally* admits external instructions/scripts). Silent re-load only while the hash matches **and** the hash is in the per-machine `~/.claude/kerby/approved-rulebooks.json` — a committed project lockfile is untrusted content and can never by itself pre-approve an external rulebook |
 | `remote` | fetched by explicit `load <git-URL \| owner/repo>`, materialized at `.kerby/rulebooks/<id>/` (session temp dir when the workspace is read-only) | confined exactly like `local`; clone's `.git/` deleted after fetch; manifest `id` must be a slug (it becomes the path component) | TOFU exactly like `local`, plus `Source: <url>` provenance in the prompt. **No silent network** (plain `load`/`reload` use the existing clone) and **no silent updates** (re-running `load <source>` re-clones; a changed hash re-prompts). Lockfile entry adds `local_path` — untrusted like every lockfile field: the loader re-derives it from the id; a mismatch or out-of-root path is fail-closed HELD |
 
 Auto-selection is builtin-only (D19): external rulebooks load by explicit
-invocation only, whatever they declare.
+invocation only, whatever they declare — `[detect]` steers selection only
+among builtins. For a builtin, the loader matches its `[detect].markers` as
+root-relative globs during selection (v9.1); for a non-builtin the markers are
+shape-checked and ignored (E12 warns).
 
 ## Top-level fields
 
@@ -50,8 +60,8 @@ name = "audit"              # dispatch token: slug, non-reserved, no builtin-id 
 body = "commands/audit.md"  # instruction file read at invocation; folder-confined, trust-hashed
 description = "…"           # shown in dispatch listings + the trust prompt (E14)
 
-[detect]                    # RESERVED at contract v2 (D17–D19)
-markers = ["package.json"]  # shape-validated only (E12); the loader never matches on it
+[detect]                    # builtin auto-selection markers (D17–D19; live for builtins since v9.1)
+markers = ["package.json"]  # root-relative globs; loader matches among BUILTINS only (E12 warns + ignores for non-builtins)
 ```
 
 ## `[[check]]` fields
@@ -140,7 +150,7 @@ everything else is an error (exit 1). E02-unknown-event also warns.
 | E09 | `enforcement ∈ {hard, partial, behavioral}`; `hard`/`partial` require `enforcer`; `partial` without `gap` → warning |
 | E10 | `accepts` non-empty; every `needs` entry known and satisfiable (see View vocabulary) |
 | E11 | prose-injection lint, non-builtin origins, **warn-only**: flags `ignore previous`, `you must now`, `disregard the above` in **every prose/text file the trust hash covers** — declared check + command bodies (**regardless of file extension** — a body like `commands/review` with no `.md`/`.txt` suffix is still dispatched as instructions, so it is linted too) *and* undeclared `references/`/`workflows/` markdown a body can read — **and in the free-text manifest fields the loader displays** (the rulebook `description`, each `[[command]].description`, each `[[check]].gap`), so the payload can't be hidden by moving it out of a declared body or into a string shown at the trust prompt |
-| E12 | `[detect]` shape: `markers` = non-empty array of strings (error if malformed); declared by a non-builtin rulebook → warning (ignored at load, D19) |
+| E12 | `[detect]` shape: `markers` = non-empty array of strings (error if malformed); accepted for builtins (the loader matches them as root-relative globs among builtins, v9.1); declared by a non-builtin rulebook → warning (ignored at load, D19) |
 | E13 | no `[[command]]` name collides with a reserved engine command, a builtin rulebook id, or another command in the same rulebook |
 | E14 | `[[command]]` shape: `name` a slug, `body` a folder-confined path string, `description` non-empty |
 
@@ -165,9 +175,12 @@ first successful load; read by every later load.
 ```
 
 - Location: `.kerby/rulebooks.lock` — the only location the loader reads.
-- `selected` is the D17 pin: which rulebooks this project loads. Changing
-  rulebooks is an explicit act (`load <x>` replaces, `load +<x>` adds,
-  `unload <x>` removes), never drift. **Ids are unique within `selected`** —
+- `selected` is the D17 pin: which rulebooks this project loads. The **first
+  successful load writes it** — whether the selection came from an explicit
+  arg, marker detection (`source: detected`), or the user's answer to the
+  ask-fallback (`source: chosen`) — so detection/ask happens once per project
+  and every later load reads the pin. Changing rulebooks is an explicit act
+  (`load <x>` replaces, `load +<x>` adds, `unload <x>` removes), never drift. **Ids are unique within `selected`** —
   since it keys on `id` and every user-facing op dispatches by id, `load +`
   refuses a rulebook whose id already names an active selection (e.g. the
   builtin `swe` plus a local fork also named `swe`); the user unloads the

@@ -6,7 +6,7 @@
 
 A Claude Code skill in two parts: a **domain-blind engine** (loads rulebooks, validates them, pins trust, registers guardrail hooks, renders verdicts) and **pluggable rulebooks** that carry the actual judgment. The engine has no opinions; the rulebooks are nothing but.
 
-The bundled **`swe` rulebook** — the default, and the origin of the whole project — loads **one specific person's** operating system for agentic coding: branching discipline, commit cadence, verification gates, sub-agent delegation triggers, ambiguity-before-cost rules, and a small amount of taste about how rules themselves should be written. Its workflows, commands (`prepare`, `audit`), and opinions are documented in [its own README](rulebooks/swe/README.md). Other rulebooks can be dropped in as folders, loaded from a path, or pulled from a GitHub repo — see [`docs/AUTHORING-RULEBOOKS.md`](../../docs/AUTHORING-RULEBOOKS.md).
+The bundled **`swe` rulebook** — the origin of the whole project, and what an unpinned load detects in a repo carrying a build manifest — loads **one specific person's** operating system for agentic coding: branching discipline, commit cadence, verification gates, sub-agent delegation triggers, ambiguity-before-cost rules, and a small amount of taste about how rules themselves should be written. Its workflows, commands (`prepare`, `audit`), and opinions are documented in [its own README](rulebooks/swe/README.md). Other rulebooks can be dropped in as folders, loaded from a path, or pulled from a GitHub repo — see [`docs/AUTHORING-RULEBOOKS.md`](../../docs/AUTHORING-RULEBOOKS.md).
 
 > ⚠️ **Read this before installing.** The `swe` rulebook is **deliberately, aggressively opinionated** — one author's personal taste, not a "best-practice" guide or a neutral default. Read [its README](rulebooks/swe/README.md) and `rulebooks/swe/BOOTSTRAP.md` end-to-end before adopting; fork, edit, or skip rules that don't fit your taste.
 
@@ -59,7 +59,7 @@ The skill is invoked via `Skill` tool with `args: <sub-command>`. Defaults to `l
 
 | Sub-command | What it does |
 |---|---|
-| `load` (default) | Select rulebooks (explicit arg — id, path, URL, or `owner/repo` → `.kerby/rulebooks.lock` pin → default `swe`), announce it in one line, then read its eager prose — `rulebooks/swe/BOOTSTRAP.md` plus the base floor rules — via `Read` so it enters context as a tool result, confirm to user. External (`local`) rulebooks pass a one-time trust review with a hash pin first. |
+| `load` (default) | Select rulebooks (explicit arg — id, path, URL, or `owner/repo` → `.kerby/rulebooks.lock` pin → builtin-marker detection → ask the user; no silent default), announce it in one line, then read its eager prose — e.g. `rulebooks/swe/BOOTSTRAP.md` plus the base floor rules — via `Read` so it enters context as a tool result, confirm to user. On an unpinned repo the first session may detect (one builtin's markers match) or ask (several match, or none), then writes the pin so later sessions load silently. External (`local`) rulebooks pass a one-time trust review with a hash pin first. |
 | `reload` | Same as `load`, but with a "BOOTSTRAP refreshed" confirmation. Useful after Claude Code compacts the conversation. |
 | `status` | Scan recent context for BOOTSTRAP signatures (e.g., `Prime Directive`, `<hard_rules>`, distinctive headers); report loaded / not loaded, plus the rulebook panel — each check's declared vs. *effective* enforcement, with degrades and named gaps visible. |
 | `install` | **Phase 1** — append the session-start instruction to your vendor agent-instruction files (`CLAUDE.md` / `AGENTS.md` / `AI-CONTEXT.md` / `.cursorrules`), per-file confirmation. **Phase 2 (optional)** — register `kerby`' Claude Code lifecycle hooks (`PreToolUse` + `SessionStart`) in your chosen settings file. Both phases are independently skippable; both show a diff and require explicit confirmation. |
@@ -165,7 +165,7 @@ If accepted, the skill:
    | `SessionStart` | `""` | `knowledge-bootstrap.sh` | `resources/hooks/` | Scaffold `.kerby/knowledge/KNOWLEDGE.md` if missing; reindex AUTO-INDEX block; flag entries older than 180 days |
    | `SessionStart` | `""` | `context-bootstrap.sh` | `resources/hooks/` | Scaffold `CONTEXT.md` (project domain glossary) if missing; never overwrites |
 
-   (`SKILL.md` is the source of truth for the full derivation — base-first dedup, shim-following to the resolved target. The table above is the default `swe`-on-`base` install.)
+   (`SKILL.md` is the source of truth for the full derivation — base-first dedup, shim-following to the resolved target. The table above is a `swe`-on-`base` install.)
 
 4. **Shows the full diff** of the merged settings.json. Single y/n confirmation. On `n`, nothing is written.
 5. **Idempotent** — re-running detects already-managed entries by their absolute-path signature (any script whose resolved path sits under a kerby hook root — `<install-root>/rulebooks/*/hooks/` or `<install-root>/resources/hooks/`) and skips them.
@@ -198,7 +198,7 @@ Two folders, two jobs — the v7 split made physical:
 **`rulebooks/`** — the rules, as self-contained folders (copy one, get a governed domain):
 
 - **`rulebooks/base/`** — the universal floor, merged under every rulebook: `secrets-staged` (+ its `pre-commit-check.sh` enforcer), `no-print-secret`, `untrusted-agent-artifacts`, `iron-law-claims`, `approval-for-irreversible`. Non-overridable.
-- **`rulebooks/swe/`** — the software-engineering rulebook and silent default: `BOOTSTRAP.md` (the root body: Prime Directive, routing, hard rules, reference index), `workflows/` (the five task-shape playbooks), `references/` (~26 long-tail topic guides), `hooks/` (the tool-boundary enforcers: `protect-env.sh`, `protect-git.sh`, `warn-env-read.sh`, `route-high-stakes.sh`, + the confinement shim into base's pre-commit check), `commands/` (`audit`, `prepare`), `templates/` + `scripts/` + `agent-context.schema.yaml` (the per-project `agent-context.yaml` contract and its validator).
+- **`rulebooks/swe/`** — the software-engineering rulebook (auto-detected on a repo with a build manifest, v9.1): `BOOTSTRAP.md` (the root body: Prime Directive, routing, hard rules, reference index), `workflows/` (the five task-shape playbooks), `references/` (~26 long-tail topic guides), `hooks/` (the tool-boundary enforcers: `protect-env.sh`, `protect-git.sh`, `warn-env-read.sh`, `route-high-stakes.sh`, + the confinement shim into base's pre-commit check), `commands/` (`audit`, `prepare`), `templates/` + `scripts/` + `agent-context.schema.yaml` (the per-project `agent-context.yaml` contract and its validator).
 
 **`resources/`** — engine machinery only, rulebook-agnostic:
 

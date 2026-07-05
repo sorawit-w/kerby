@@ -3,6 +3,44 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.1.0] — 2026-07-05
+
+**The silent default is gone — kerby detects, or asks.** With two selectable
+builtins (`swe` and `skill-authoring`) beside the floor, quietly defaulting to
+`swe` was the wrong call. An unpinned `kerby load` now:
+
+- **Detects** — each builtin declares `[detect]` markers (root-relative globs:
+  `swe` = language/build manifests, `skill-authoring` = `SKILL.md` globs). Exactly
+  one builtin matches → it auto-loads, announced `source: detected (matched: …)`.
+- **Asks** — several match (a skill repo that *also carries a build manifest* is
+  the expected case: `swe` + `skill-authoring`), or none match → kerby presents
+  the builtin list and asks; `source: chosen`. There is no silent default rulebook.
+- **Pins once** — the first successful load writes the pin, so detection/ask
+  happens once per project; every later session loads silently.
+
+Detection is manifest-anchored on purpose (a recursive source glob would match
+kerby's own hooks inside a project's `.claude/skills/kerby/` install and
+false-match every kerby-using repo). A manifest-less code repo — loose scripts,
+no build manifest — may therefore match only `skill-authoring` or nothing; use
+an explicit `kerby load swe` / `load +swe` (it writes the pin) when you want a
+specific gate.
+
+Detection stays **builtin-only** (D19) — an external rulebook's `[detect]` is
+shape-checked and ignored; workspace shape may steer *among install-trusted
+builtins*, never toward external content.
+
+**Behavior change to note:** on an unpinned repo, session start (via the
+installed `args: load` line) may now **ask** instead of silently loading `swe` —
+one time, then the pin persists. In a **non-interactive** session (CI, cron)
+where detection is inconclusive and nobody can answer, kerby **fails closed**:
+it loads nothing and holds, rather than guessing a rulebook. Pin a rulebook
+(`kerby load <id>` once, committed `.kerby/rulebooks.lock`) for deterministic
+headless loads.
+
+The rulebook contract number stays **2** (manifest shape and E12 unchanged);
+v9.1 amends loader behavior only — `[detect]` moves from reserved to live for
+builtins.
+
 ## [9.0.0] — 2026-07-05
 
 **The coding rulebook is `swe` now.** "code" was a category, not a name — medical
