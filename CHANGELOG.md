@@ -12,11 +12,18 @@ builtins (`swe` and `skill-authoring`) beside the floor, quietly defaulting to
 - **Detects** — each builtin declares `[detect]` markers (root-relative globs:
   `swe` = language/build manifests, `skill-authoring` = `SKILL.md` globs). Exactly
   one builtin matches → it auto-loads, announced `source: detected (matched: …)`.
-- **Asks** — several match (a skill repo that also ships code is the expected
-  case: `swe` + `skill-authoring`), or none match → kerby presents the builtin
-  list and asks; `source: chosen`. There is no silent default rulebook.
+- **Asks** — several match (a skill repo that *also carries a build manifest* is
+  the expected case: `swe` + `skill-authoring`), or none match → kerby presents
+  the builtin list and asks; `source: chosen`. There is no silent default rulebook.
 - **Pins once** — the first successful load writes the pin, so detection/ask
   happens once per project; every later session loads silently.
+
+Detection is manifest-anchored on purpose (a recursive source glob would match
+kerby's own hooks inside a project's `.claude/skills/kerby/` install and
+false-match every kerby-using repo). A manifest-less code repo — loose scripts,
+no build manifest — may therefore match only `skill-authoring` or nothing; use
+an explicit `kerby load swe` / `load +swe` (it writes the pin) when you want a
+specific gate.
 
 Detection stays **builtin-only** (D19) — an external rulebook's `[detect]` is
 shape-checked and ignored; workspace shape may steer *among install-trusted
