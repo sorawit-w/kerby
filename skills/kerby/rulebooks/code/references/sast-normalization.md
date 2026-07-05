@@ -1,9 +1,9 @@
-# SARIF Normalization (`kerby audit --sast`)
+# SARIF Normalization (`kerby code audit --sast`)
 
 semgrep output is **not byte-stable by default** — it carries absolute paths, scan
 timestamps, a tool-version stamp, and an unstable result order. Pinning the engine +
 ruleset fixes *what* is found, not *how it serializes*. This pass turns a pinned
-scan's SARIF into a byte-identical artifact, so two `kerby audit --sast` runs on the
+scan's SARIF into a byte-identical artifact, so two `kerby code audit --sast` runs on the
 same tree produce the same report. Run it on the raw SARIF **before** mapping to
 finding rows (`audit.md` § 6).
 

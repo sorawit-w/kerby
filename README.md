@@ -81,9 +81,11 @@ npx skills add sorawit-w/kerby
 /kerby status      # check whether the rules are still active
 /kerby install     # persistent per-project setup (guardrail hooks)
 /kerby uninstall   # mirror — removes the managed hooks
-/kerby prepare     # onboard an existing repo (populate .kerby/ context)
-/kerby audit       # conformance audit → HTML report
+/kerby code prepare  # onboard an existing repo (populate .kerby/ context)
+/kerby code audit    # conformance audit → HTML report
 ```
+
+`prepare` and `audit` belong to the `code` rulebook — the qualified form names it. The bare `/kerby prepare` / `/kerby audit` also work while only one loaded rulebook provides them (inference).
 
 ## What kerby holds
 

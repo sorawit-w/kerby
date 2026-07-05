@@ -1,7 +1,7 @@
-# SAST Provisioning (`kerby audit --sast`)
+# SAST Provisioning (`kerby code audit --sast`)
 
 How the pinned, offline SAST toolchain gets set up. **On-demand, agent-driven,
-cached per project** — triggered when `kerby audit --sast` is requested and the
+cached per project** — triggered when `kerby code audit --sast` is requested and the
 toolchain isn't already resolvable. It is **not** part of `prepare`: onboarding
 installs no tooling (`workflows/adopt-existing.md` ring-fence).
 

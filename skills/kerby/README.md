@@ -125,13 +125,13 @@ Slash command (recommended — unambiguous):
 /kerby status        # check whether rules are still loaded
 /kerby install       # persistent per-project setup
 /kerby uninstall     # mirror — both phases
-/kerby prepare       # onboard an existing repo (populate context)
-/kerby prepare:knowledge  # prepare + force the .kerby/knowledge candidate pass
-/kerby audit         # conformance audit → HTML report (incremental)
-/kerby audit --full security  # whole-repo, security dimension only
+/kerby code prepare  # onboard an existing repo (populate context)
+/kerby code prepare:knowledge  # prepare + force the .kerby/knowledge candidate pass
+/kerby code audit    # conformance audit → HTML report (incremental)
+/kerby code audit --full security  # whole-repo, security dimension only
 ```
 
-If no other installed plugin defines a `kerby` skill, the short form `/kerby` also resolves. The namespaced form is always unambiguous and recommended.
+If no other installed plugin defines a `kerby` skill, the short form `/kerby` also resolves. The namespaced form is always unambiguous and recommended. Rulebook commands (`prepare`, `audit` — provided by the `code` rulebook) are shown in their qualified `kerby <rulebook> <command>` form; the bare form (`/kerby audit`) also works while exactly one loaded rulebook provides that command (inference).
 
 Or in natural language — Claude will route correctly:
 
