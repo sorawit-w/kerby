@@ -27,7 +27,9 @@ Same rules, same gates, new name. **Breaking** — read the three migration note
   `registered script missing — re-run kerby install`.
 - **Commands rename with the rulebook** — `kerby swe audit`, `kerby swe prepare`.
   The bare `kerby audit` / `kerby prepare` inference still works; `kerby code …`
-  gets a one-line redirect to the new name.
+  gets a one-line hint pointing at the new name (`kerby swe …`) rather than an
+  auto-reroute — `code` is an ordinary id now, so the engine names the rename and
+  lets you re-issue, it never silently guesses a substitute.
 
 Also in this release: the root README is now purely the engine + rulebook
 references — each rulebook's commands and opinions live in its own README
