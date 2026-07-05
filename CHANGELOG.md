@@ -3,6 +3,38 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [8.1.0] — 2026-07-05
+
+**The `skill-authoring` rulebook.** A third builtin. Repos that author agent
+skills get a gate of their own: build with whatever tool you like — the gate
+only cares what happens before the skill ships.
+
+### Added
+
+- **`skill-authoring` rulebook** (`skills/kerby/rulebooks/skill-authoring/`,
+  v1.0.0) — the verification gate for the skill-authoring loop. Four prose
+  checks, all behavioral, every one traced to a recorded failure in this
+  repo's own history:
+  - `evaluator-gate-on-final-text` *(block)* — no skill change ships without
+    a fresh `skill-evaluator` pass (or the repo's designated split-role
+    audit) against the exact text being shipped; edits re-open the gate; a
+    clean score is evidence, not ship authorization (the v4.20.0 lesson).
+    Typo/formatting changes are exempt; a changed skill `description` also
+    re-opens the repo's trigger-boundary fixture, if one ships.
+  - `degrade-loudly-when-evaluator-missing` *(block)* — verifier absent →
+    say so, label the change `unverified`, stop for acknowledgment. "The
+    gate couldn't run" is HELD, never PASS.
+  - `classify-then-escalate` *(warn)* — classify the failure layer (skill
+    text / rubric / brief / fixture) before rewriting rule text; the same
+    failure class twice across fix rounds means escalate, not another patch.
+  - `record-evaluator-evidence` *(warn)* — every verdict recorded with date
+    and evaluated SHA, so "fresh pass on exact text" stays checkable after
+    the session ends.
+- Scope is deliberate: the rulebook governs the *host repo's* skills and
+  ships no commands and no hooks. Edits to kerby's own rules keep the
+  stricter gate in `skills/kerby/CLAUDE.md`. No engine changes — the third
+  builtin is discovered the same way the first two were.
+
 ## [8.0.0] — 2026-07-05
 
 **House cleaning.** The v7 grace period ends, kerby's project state consolidates

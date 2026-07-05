@@ -1,0 +1,46 @@
+# skill-authoring — the verification gate for the skill-authoring loop:
+# build a skill (with any tool) -> verify with skill-evaluator before it ships.
+# Governs the HOST repo's skills; kerby's own rule edits are governed by
+# skills/kerby/CLAUDE.md, not this rulebook.
+# Contract: docs/rulebook-contract.md (contract 2). Extends base (implicit).
+id = "skill-authoring"
+version = "1.0.0"
+contract = 2
+accepts = ["*"]
+description = "Skill-authoring gate: no skill change ships without a fresh skill-evaluator pass against the exact text being shipped."
+
+[gate]
+block_on = ["block"]
+hold_on = ["warn"]
+
+[[check]]
+id = "evaluator-gate-on-final-text"
+kind = "prose"
+body = "rules/evaluator-gate.md"
+enforcement = "behavioral"
+severity = "block"
+token_cost = "low"
+
+[[check]]
+id = "degrade-loudly-when-evaluator-missing"
+kind = "prose"
+body = "rules/degrade-loudly.md"
+enforcement = "behavioral"
+severity = "block"
+token_cost = "low"
+
+[[check]]
+id = "classify-then-escalate"
+kind = "prose"
+body = "rules/classify-then-escalate.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "medium"
+
+[[check]]
+id = "record-evaluator-evidence"
+kind = "prose"
+body = "rules/record-the-verdict.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"
