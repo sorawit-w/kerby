@@ -10,7 +10,7 @@ This doctrine targets **solo and small-team projects with AI agents in the loop.
 
 ## File Location
 
-`ROADMAP.md` at project root — not `.ai/`. Humans need it more visible than agents do.
+`ROADMAP.md` at project root — not `.kerby/`. Humans need it more visible than agents do.
 
 ---
 
@@ -75,7 +75,7 @@ The parent's status reflects the rollup: any sub-item `[~]` makes the parent `[~
 
 `ROADMAP.md` is for **features and major changes** — not every commit.
 
-| Goes in | Stays in `.ai/memory.log` / git history |
+| Goes in | Stays in `.kerby/memory.log` / git history |
 |---------|------------------------------------------|
 | New features (auth, billing, dashboard) | Bug fixes |
 | Major refactors that change capability | Chores (dep bumps, formatting) |
@@ -94,7 +94,7 @@ Recommended: `- [x] User auth (Clerk) — shipped 2026-04-15, [PR #42](url)`
 
 For blocked items, the blocker reason is required: `- [!] Tax calculation (blocked: legal review pending)`
 
-Don't over-prescribe — agents and humans can extend with their own annotations (target dates, owners, links to specs in `.ai/knowledge/`).
+Don't over-prescribe — agents and humans can extend with their own annotations (target dates, owners, links to specs in `.kerby/knowledge/`).
 
 ---
 
@@ -118,11 +118,11 @@ When a project doesn't yet have `ROADMAP.md`, **the agent proposes; the human co
 3. **Conventions & style** — naming patterns, file organization, test patterns, lint config, formatter config
 4. **Concerns & risks** — TODOs, FIXMEs, deprecation notices, recent bug-fix commits, areas with high churn
 
-Each sub-agent writes a short summary (~100 lines max) into `.ai/knowledge/` as a `bootstrap-{facet}.md` entry. The coordinating agent reads the four summaries to draft `## Shipped` entries — usually richer and more accurate than a serial scan because each sub-agent goes deeper on its facet without context dilution.
+Each sub-agent writes a short summary (~100 lines max) into `.kerby/knowledge/` as a `bootstrap-{facet}.md` entry. The coordinating agent reads the four summaries to draft `## Shipped` entries — usually richer and more accurate than a serial scan because each sub-agent goes deeper on its facet without context dilution.
 
 For small or familiar codebases, the serial scan in step 1 is sufficient — parallel mapping isn't worth the orchestration overhead.
 
-**Source:** absorbed from `gsd-build/get-shit-done` (2026-05-09); `/gsd-map-codebase` runs parallel agents per facet — the methodology absorbs cleanly; the `.planning/research/` artifact does not (use `.ai/knowledge/` instead).
+**Source:** absorbed from `gsd-build/get-shit-done` (2026-05-09); `/gsd-map-codebase` runs parallel agents per facet — the methodology absorbs cleanly; the `.planning/research/` artifact does not (use `.kerby/knowledge/` instead).
 
 For **new projects**, the agent populates `ROADMAP.md` from the requirements as part of `workflows/new-project.md` — features can be grouped by phase (`### Phase 1: MVP`, `### Phase 2`) inside the active list. No bootstrap note needed since the items aren't inferred from prior code.
 
@@ -130,7 +130,7 @@ For **new projects**, the agent populates `ROADMAP.md` from the requirements as 
 
 ## Update Discipline (Or the File Dies)
 
-`ROADMAP.md` only earns its keep if it stays current. The intended pattern is to wire updates into the feature-workflow commit loop alongside the existing `.ai/memory.log` discipline:
+`ROADMAP.md` only earns its keep if it stays current. The intended pattern is to wire updates into the feature-workflow commit loop alongside the existing `.kerby/memory.log` discipline:
 
 | Action | Update |
 |--------|--------|
@@ -138,7 +138,7 @@ For **new projects**, the agent populates `ROADMAP.md` from the requirements as 
 | Hitting a blocker | Flip to `[!]`, add a one-line reason |
 | Resuming after a block clears | Flip `[!]` back to `[~]`, remove the blocker note |
 | Completing | Flip to `[x]`, sweep to `## Shipped` (immediately or in batches when the active list gets crowded) |
-| Cancelling/descoping | Delete the line, note the decision in `.ai/memory.log` |
+| Cancelling/descoping | Delete the line, note the decision in `.kerby/memory.log` |
 
 A finishing-checklist self-check ("`ROADMAP.md` reflects the work just shipped") closes the loop. Without this, the file silently drifts and stops being trustworthy within a few sprints.
 
@@ -147,9 +147,9 @@ A finishing-checklist self-check ("`ROADMAP.md` reflects the work just shipped")
 ## Relationship to Other Docs
 
 - **`references/implementation-planning.md`** — when a `ROADMAP.md` item is complex enough to need a phased multi-session execution plan, spawn an implementation plan as a separate doc. The roadmap item stays as a single line; the plan doc handles the detail. Collapse back to `[x]` on the roadmap when the plan completes.
-- **`.ai/knowledge/`** — captures *why* a feature was built a certain way. Roadmap captures *what* is built or planned. Cross-reference from a roadmap item to a knowledge entry when the design rationale matters (e.g., `- [x] Auth (Clerk) — see [decision-auth.md](.ai/knowledge/decision-auth.md)`).
-- **`.ai/STATUS.md`** — ephemeral session state ("currently working on X, blocked on Y"). Roadmap is durable across sessions; STATUS.md is reset/overwritten as work moves.
-- **`.ai/memory.log`** — append-only session log. Roadmap is curated and edited.
+- **`.kerby/knowledge/`** — captures *why* a feature was built a certain way. Roadmap captures *what* is built or planned. Cross-reference from a roadmap item to a knowledge entry when the design rationale matters (e.g., `- [x] Auth (Clerk) — see [decision-auth.md](.kerby/knowledge/decision-auth.md)`).
+- **`.kerby/STATUS.md`** — ephemeral session state ("currently working on X, blocked on Y"). Roadmap is durable across sessions; STATUS.md is reset/overwritten as work moves.
+- **`.kerby/memory.log`** — append-only session log. Roadmap is curated and edited.
 
 ---
 

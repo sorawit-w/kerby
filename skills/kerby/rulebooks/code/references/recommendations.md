@@ -69,7 +69,7 @@ If the agent doesn't support registry search, fall back to naming the MCP catego
 | No framework chosen, new project, vague requirements | Skill | Tech stack recommendations | Decisions not yet made | Fast-track platform + runtime choice |
 | Auth config (Clerk, Auth0, Firebase, etc.) | MCP | Auth provider MCP (e.g., Clerk MCP, Auth0 MCP, Supabase Auth MCP) | Auth is integrated or planned | Connect to auth service for real-time user/org data |
 | Database config (Drizzle, Prisma, TypeORM, Mongo, etc.) | MCP | Database MCP (e.g., Postgres MCP, Supabase MCP, PlanetScale MCP, MongoDB MCP) | Schema or migrations exist | Query schema, inspect migrations, understand data model |
-| Figma file links in README or .ai/ files | MCP | Design tool MCP (e.g., Figma MCP) | Design system or components referenced | Extract design context, create Code Connect mappings |
+| Figma file links in README or .kerby/ files | MCP | Design tool MCP (e.g., Figma MCP) | Design system or components referenced | Extract design context, create Code Connect mappings |
 | .github/workflows, .gitlab-ci.yml, vercel.json present | MCP / Skill | Deployment MCP + CI strategy (e.g., Vercel MCP, Cloudflare MCP, Netlify MCP) | Pipelines exist or need work | Deploy, inspect logs, manage environments |
 | No test framework configured (jest, vitest, bun test absent) | Skill | Testing strategy | Tests not yet implemented | Design test plan before writing tests |
 | Linear, Jira, Asana URL in docs or git commits | MCP | Project tracker MCP (e.g., Linear MCP, Jira MCP, Asana MCP) | Work is tracked externally | Fetch issues, update status, link PRs |

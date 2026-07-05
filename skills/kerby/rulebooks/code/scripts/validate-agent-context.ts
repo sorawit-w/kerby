@@ -3,9 +3,8 @@
 // Validates `agent-context.yaml` (at project root) against the
 // `agent-context.schema.yaml` bundled inside this kerby install.
 //
-// Usage (from repo root) — pick whichever path matches your install:
-//   bun run .ai/kerby/resources/scripts/validate-agent-context.ts
-//   bun run <plugin-install>/skills/kerby/resources/scripts/validate-agent-context.ts
+// Usage (from repo root):
+//   bun run <plugin-install>/skills/kerby/rulebooks/code/scripts/validate-agent-context.ts
 //
 // Requirements:
 //   pnpm add -D ajv ajv-formats js-yaml

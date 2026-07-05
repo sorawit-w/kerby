@@ -34,7 +34,7 @@ Include the issue/ticket ID when the task is tracked in an external system (Line
 
 ## Session Logging
 
-**This is the canonical format for `.ai/memory.log`.** All other references point here. Append after every significant action (create if missing):
+**This is the canonical format for `.kerby/memory.log`.** All other references point here. Append after every significant action (create if missing):
 
 ```
 [YYYY-MM-DDTHH:MM:SSZ]
@@ -54,22 +54,22 @@ Observations: [optional — neutral facts noticed during the task, e.g. "Build t
 
 ## Status Tracking
 
-Maintain `.ai/STATUS.md` (create if missing) with:
+Maintain `.kerby/STATUS.md` (create if missing) with:
 - Current position (phase, milestone, branch)
 - Progress (Done / In Progress / Blocked / Ready counts)
 - Recent completions (task, commit, date)
 - Next up (prioritized task queue)
 - Blockers (what's stuck and why)
 
-Only create `.ai/BLOCKERS.md` when there is an actual blocker. Track using: project issue tracker > `.ai/` files > commit messages.
+Only create `.kerby/BLOCKERS.md` when there is an actual blocker. Track using: project issue tracker > `.kerby/` files > commit messages.
 
 ---
 
 ## Knowledge Base
 
-Maintain `.ai/knowledge/` for curated project knowledge — architecture decisions, domain context, conventions, and lessons learned. Unlike `memory.log` (append-only session logs) or `STATUS.md` (ephemeral state), the knowledge base is edited and organized like a wiki.
+Maintain `.kerby/knowledge/` for curated project knowledge — architecture decisions, domain context, conventions, and lessons learned. Unlike `memory.log` (append-only session logs) or `STATUS.md` (ephemeral state), the knowledge base is edited and organized like a wiki.
 
-- Index: `.ai/knowledge/KNOWLEDGE.md` — agents read this to find relevant context
+- Index: `.kerby/knowledge/KNOWLEDGE.md` — agents read this to find relevant context
 - Entries: markdown files with YAML frontmatter (`title`, `type`, `domain`, `confidence`, `created`)
 - Types: `decision`, `context`, `convention`, `reference`, `lesson`
 

@@ -44,7 +44,7 @@ Build the raw material for population. **Read-only — no writes in this step.**
 
 3. **Recurring vocabulary** (feeds `CONTEXT.md`): frequency-analyze domain identifiers across the source tree (class/module/function names), filtering framework noise. Pull recurring terms from `README.md`. Note top-level source dirs for the module map.
 
-4. **Decision/lesson signal** (feeds `.ai/knowledge/`): scan `git log` bodies for recurring rationale, look for `docs/adr/` or design docs, note major dependency choices and large refactors (decision candidates) and recurring fix patterns (lesson candidates). Capture *pointers*, not conclusions — you draft these in step 3.
+4. **Decision/lesson signal** (feeds `.kerby/knowledge/`): scan `git log` bodies for recurring rationale, look for `docs/adr/` or design docs, note major dependency choices and large refactors (decision candidates) and recurring fix patterns (lesson candidates). Capture *pointers*, not conclusions — you draft these in step 3.
 
 5. **Current branch** (feeds `STATUS.md` stub): `git branch --show-current`.
 </assess>
@@ -68,12 +68,12 @@ If `CONTEXT.md` is missing, start from the engine template `<install-root>/resou
 
 These are *proposals* — present them, let the human cut/correct, then write under the template's markers.
 
-### Low inferability — `.ai/knowledge/` (draft candidates)
+### Low inferability — `.kerby/knowledge/` (draft candidates)
 
 **When the pass runs — three branches:**
 
 1. **Forced (explicit request) → run, skip the prompt.** If the invocation carries a knowledge-force signal — `prepare:knowledge`, `prepare --knowledge`, or natural language like "force knowledge", "force the knowledge pass", "draft knowledge candidates/entries", "include the knowledge pass" — run the pass regardless of whether entries already exist. Do not ask the opt-in question; the request *is* the consent.
-2. **First run (empty) → run automatically.** If not forced and `.ai/knowledge/` has no entry files (only `KNOWLEDGE.md`, or the dir is absent) → run the pass automatically.
+2. **First run (empty) → run automatically.** If not forced and `.kerby/knowledge/` has no entry files (only `KNOWLEDGE.md`, or the dir is absent) → run the pass automatically.
 3. **Entries exist, not forced → opt-in.** Ask *"Draft candidate decision/lesson entries from your git history for review?"* and skip on no.
 
 The force signal only controls **whether the pass runs** — it does **not** relax any safety rule below. Every drafted entry is still `confidence: low` with hedged prose, still confirmed individually before writing, and the refresh rule still applies (re-draft only `confidence: low` entries; never clobber `confidence: high`).
@@ -88,11 +88,11 @@ bash "${KERBY_DIR}/resources/hooks/knowledge-reindex.sh" --force
 ```
 (or update the `AUTO-INDEX` block in `KNOWLEDGE.md` by hand if the hook isn't wired).
 
-### Stub only — `.ai/STATUS.md`
+### Stub only — `.kerby/STATUS.md`
 
 Create from the engine template `<install-root>/resources/templates/STATUS.md.template` as an **honest onboarding stub**: phase `Onboarded`, current branch, no active tasks ("freshly onboarded, no active work"). Do not invent progress, milestones, or a task queue for a repo you just met. Confirm; write.
 
-### Stub only — `.ai/memory.log`
+### Stub only — `.kerby/memory.log`
 
 Append one onboarding entry in the canonical `communication.md` format (Task: "Project onboarding via prepare", Action, Files, Status: DONE, Notes: stack summary + what was populated). Append-only; create if missing.
 </populate>
@@ -106,8 +106,8 @@ Append one onboarding entry in the canonical `communication.md` format (Task: "P
 
 - **`agent-context.yaml`** — re-derive mechanical fields only; show the diff; confirm. **Never touch `agentNotes`, `ai`, `preferences`, or any human-edited field.**
 - **`CONTEXT.md`** — **append only**. Propose newly-discovered terms under the existing markers. Never rewrite or reorder existing glossary entries.
-- **`.ai/knowledge/`** — re-draft **only entries still tagged `confidence: low`**. Any entry promoted to `confidence: high` (or `medium` after human review) is frozen — leave it untouched.
-- **`.ai/STATUS.md`** — leave an existing STATUS alone; it belongs to live work now, not onboarding.
+- **`.kerby/knowledge/`** — re-draft **only entries still tagged `confidence: low`**. Any entry promoted to `confidence: high` (or `medium` after human review) is frozen — leave it untouched.
+- **`.kerby/STATUS.md`** — leave an existing STATUS alone; it belongs to live work now, not onboarding.
 
 If nothing changed since the last run, say so and write nothing.
 </refresh>
@@ -121,9 +121,9 @@ Complete before declaring done:
 
 1. **`agent-context.yaml`** populated (mechanical fields), confirmed before write.
 2. **`CONTEXT.md`** has ≥3 real glossary terms + a module map, confirmed.
-3. **`.ai/knowledge/`** candidates drafted (auto on first run, opt-in after) as `confidence: low`, each confirmed; index regenerated.
-4. **`.ai/STATUS.md`** honest onboarding stub created.
-5. **`.ai/memory.log`** onboarding entry appended.
+3. **`.kerby/knowledge/`** candidates drafted (auto on first run, opt-in after) as `confidence: low`, each confirmed; index regenerated.
+4. **`.kerby/STATUS.md`** honest onboarding stub created.
+5. **`.kerby/memory.log`** onboarding entry appended.
 6. **Tell the human what's now agent-drafted and needs review** — especially the `confidence: low` knowledge entries and proposed glossary terms.
 </finish>
 

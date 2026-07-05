@@ -55,7 +55,7 @@ Follow the systematic debugging process:
 
 Do NOT apply trial-and-error fixes. If 3 hypotheses fail, document what you tried, mark BLOCKED, and ask for help.
 
-Check the knowledge base (`.ai/knowledge/`) — a similar bug or lesson may already be documented.
+Check the knowledge base (`.kerby/knowledge/`) — a similar bug or lesson may already be documented.
 </diagnose>
 
 <delegate_check>
@@ -82,7 +82,7 @@ Execute these steps in order. Do NOT skip the commit.
    git add <specific-files>
    git commit -m "fix(<scope>): <description>"
    ```
-7. Append to `.ai/memory.log`
+7. Append to `.kerby/memory.log`
 
 If the fix requires multiple changes, repeat steps 1–7 for each change. Each completed fix gets its own commit. See `references/quality-gates.md` for gate tier details.
 </fix>
@@ -103,12 +103,12 @@ Complete ALL of these before declaring done:
 5. **Manual verification instructions provided** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions). For a bug fix, include: steps to reproduce the original bug (should no longer occur), steps confirming the fix, and related areas to spot-check for regressions.
 6. **Realized Outcomes captured (grade ≥ `plan_threshold`)** — per `BOOTSTRAP.md` § 4 / `workflows/feature.md` § 7: place the actual run result next to the § 3 Expected Outcome, emit `outcome: match | mismatch`, and on mismatch route code-wrong (fix via this workflow's loop, bounded by the circuit breaker) / prediction-wrong (update + log) / ambiguous (STOP). Skip only when the plan was waived by a logged user opt-out (§ 2.5).
 7. **Project knowledge artifacts** — propose additions before writing; skip if nothing applies:
-   - **`.ai/knowledge/` lesson** if this bug reveals an operational lesson worth keeping
+   - **`.kerby/knowledge/` lesson** if this bug reveals an operational lesson worth keeping
    - **`CONTEXT.md` update** if a new domain term was introduced or renamed. See `references/domain-glossary.md`.
 8. **Branch finalization — pick one of four options** (same as feature workflow):
    - **Open PR** (default) — push branch; open PR; keep worktree until PR is merged
    - **Merge locally** (solo project / approved hotfix) — merge, then `git worktree remove .worktrees/<name>`
-   - **Preserve branch** (more work expected) — keep worktree; note reason in `.ai/memory.log`
+   - **Preserve branch** (more work expected) — keep worktree; note reason in `.kerby/memory.log`
    - **Discard** (requires explicit user confirmation) — `git worktree remove --force .worktrees/<name>`
    
    If using an in-place branch (npm fallback), only options 1 or 2 apply.

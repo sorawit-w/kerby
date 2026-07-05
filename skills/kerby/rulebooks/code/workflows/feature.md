@@ -38,7 +38,7 @@ You MUST complete these before writing any code:
 
 If the request is ambiguous, ask 1–2 targeted questions. State your assumptions explicitly. Don't silently guess.
 
-Check the knowledge base (`.ai/knowledge/`) for relevant decisions, conventions, or lessons that apply to this task. If the knowledge base answers a "why" question, use it instead of guessing or asking.
+Check the knowledge base (`.kerby/knowledge/`) for relevant decisions, conventions, or lessons that apply to this task. If the knowledge base answers a "why" question, use it instead of guessing or asking.
 
 **Better-approach check (propose once, then defer).** If the user specified an approach, hasn't planned, and you see a *materially* better one for the *requested task*: surface it once — the option, why it's better, the cost of their choice, and a one-line "so you learn" note — in ≤3 lines. Then build what they asked unless they pivot. Do not relitigate after they choose; skip entirely for trivial tasks. This concerns the *requested task's* approach only — out-of-scope improvements stay logged-not-suggested (`BOOTSTRAP.md` §4 Guardrails).
 </clarify>
@@ -112,7 +112,7 @@ Whether you implement yourself or coordinate sub-agents, repeat this loop for ea
 │              git commit -m "<type>(<scope>): <description>"
 │              If commit completes a ROADMAP feature, flip [~] → [x]
 │              and sweep to ## Shipped (immediately or in batches)
-│   5. LOG    — Append to .ai/memory.log (see BOOTSTRAP.md section 4 for format)
+│   5. LOG    — Append to .kerby/memory.log (see BOOTSTRAP.md section 4 for format)
 │   6. PUSH   — In multi-session work: git push
 └─── 7. REPEAT — Go to step 1 for the next task
 ```
@@ -181,8 +181,8 @@ Complete ALL of these before declaring done:
    git status  # must show clean working tree
    git worktree list  # verify no other worktrees have uncommitted work
    ```
-3. **Memory log updated** — session summary appended to `.ai/memory.log`
-4. **STATUS.md updated** — `.ai/STATUS.md` reflects current state
+3. **Memory log updated** — session summary appended to `.kerby/memory.log`
+4. **STATUS.md updated** — `.kerby/STATUS.md` reflects current state
 5. **`ROADMAP.md` self-check** — completed features flipped to `[x]` and swept to `## Shipped`; new in-scope items added if scope expanded mid-task. The flips should already have happened in the COMMIT step of the loop; this is the verification
 6. **Manual verification instructions provided** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions): steps to test, what to look for, edge cases, env setup.
 7. **Realized Outcomes captured (grade ≥ `plan_threshold`)** — distinct from "How to Verify" above (that's instructions for the human; this is *your* check against the § 3 prediction). *Skip this step only when the plan was waived by a logged user opt-out (`BOOTSTRAP.md` § 2.5) — there is no Expected Outcome to compare against; standard Verification (§ 6) still applies.* After implementing:
@@ -190,13 +190,13 @@ Complete ALL of these before declaring done:
    2. Emit `outcome: match | mismatch`.
    3. On `mismatch`, classify the cause and route — **only one branch changes code**:
       - **Code wrong** (real bug) → fix via the § 5 task loop, bounded by the existing circuit breaker (`references/working-patterns.md`: 3 no-progress / same error 3×; `references/error-handling.md`: build 5 / test 3 / lint 5 → BLOCKED). No new loop.
-      - **Prediction wrong** (system is fine) → update the § 3 Expected Outcome with a one-line reason and log it to `.ai/memory.log` (recurring wrong predictions signal mis-calibrated planning). No code change.
+      - **Prediction wrong** (system is fine) → update the § 3 Expected Outcome with a one-line reason and log it to `.kerby/memory.log` (recurring wrong predictions signal mis-calibrated planning). No code change.
       - **Ambiguous** → STOP. Surface both artifacts + your hypothesis. The human adjudicates.
 
    Realized evidence is recorded as-observed — never edited to match the prediction (`references/validation.md` Iron Law).
 8. **DEVELOPER_TODO.md created** if any human actions are needed (API keys, cloud resources, etc.)
 9. **Project knowledge artifacts** — propose additions before writing; skip if nothing applies:
-   - **`.ai/knowledge/` entry** for a new decision, convention, or lesson
+   - **`.kerby/knowledge/` entry** for a new decision, convention, or lesson
    - **`CONTEXT.md` update** for new domain terms used 2+ times. See `references/domain-glossary.md`.
 10. **Branch finalization — pick one of four options** (ask the user if unclear):
 
@@ -204,7 +204,7 @@ Complete ALL of these before declaring done:
    |--------|-------------|--------|
    | **Open PR** (default) | Work is ready for human review | Push branch; open PR; keep worktree until PR is merged |
    | **Merge locally** | Solo project, fast-path, or approved | `git checkout <base>`, merge, then `git worktree remove .worktrees/<name>` |
-   | **Preserve branch** | More work expected later | Keep worktree; note branch + reason in `.ai/memory.log` |
+   | **Preserve branch** | More work expected later | Keep worktree; note branch + reason in `.kerby/memory.log` |
    | **Discard** | Work is a dead-end or spike | Requires explicit "discard" confirmation from user; then `git worktree remove --force .worktrees/<name>` |
 
    If using an in-place branch (npm fallback), skip worktree cleanup — only option 1 or 2 applies.

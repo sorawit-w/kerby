@@ -81,7 +81,7 @@ npx skills add sorawit-w/kerby
 /kerby status      # check whether the rules are still active
 /kerby install     # persistent per-project setup (guardrail hooks)
 /kerby uninstall   # mirror — removes the managed hooks
-/kerby prepare     # onboard an existing repo (populate .ai/ context)
+/kerby prepare     # onboard an existing repo (populate .kerby/ context)
 /kerby audit       # conformance audit → HTML report
 ```
 

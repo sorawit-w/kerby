@@ -67,7 +67,7 @@ In both loops the legend is the same — **agent acts** (gray) / **kerby rule** 
 
 - A **rule** shapes every step (how to plan, how to check, what "done" means).
 - **Hooks hard-block wherever the agent reaches for something irreversible** — not only at commit: `.env` edits (`protect-env`, during `Do`), destructive git (`protect-git`), secrets in staged files (`pre-commit-check`, at the commit gate).
-- **Failure branch:** a failing gate spends a per-error-type retry budget (build 5 / test 3 / lint 5 / deps 5), then "cheapen the loop before grinding"; if the budget is exhausted → **revert and mark `BLOCKED` in `.ai/BLOCKERS.md`**. The iron rule is *never leave the repo broken.*
+- **Failure branch:** a failing gate spends a per-error-type retry budget (build 5 / test 3 / lint 5 / deps 5), then "cheapen the loop before grinding"; if the budget is exhausted → **revert and mark `BLOCKED` in `.kerby/BLOCKERS.md`**. The iron rule is *never leave the repo broken.*
 
 ## What it does
 
@@ -109,8 +109,8 @@ The skill is invoked via `Skill` tool with `args: <sub-command>`. Defaults to `l
 | `status` | Scan recent context for BOOTSTRAP signatures (e.g., `Prime Directive`, `<hard_rules>`, distinctive headers); report loaded / not loaded, plus the rulebook panel — each check's declared vs. *effective* enforcement, with degrades and named gaps visible. |
 | `install` | **Phase 1** — append the session-start instruction to your vendor agent-instruction files (`CLAUDE.md` / `AGENTS.md` / `AI-CONTEXT.md` / `.cursorrules`), per-file confirmation. **Phase 2 (optional)** — register `kerby`' Claude Code lifecycle hooks (`PreToolUse` + `SessionStart`) in your chosen settings file. Both phases are independently skippable; both show a diff and require explicit confirmation. |
 | `uninstall` | Mirror — Phase 1 removes the install line from vendor files; Phase 2 removes kerby-managed hook entries from your chosen settings file. Both phases optional, both confirmed. |
-| `prepare` | Onboard an **existing repo**: populate (and refresh) the artifacts BOOTSTRAP reads at session start — `agent-context.yaml`, `CONTEXT.md`, `.ai/knowledge/`, `.ai/STATUS.md`, `.ai/memory.log` — from your real code and git history. Tiered by inferability; **diff-and-confirm on every write**; refresh never clobbers human-curated content. The existing-code counterpart to greenfield `new-project` setup. The `.ai/knowledge/` candidate pass auto-runs on first onboarding (empty knowledge dir) and is opt-in once entries exist — force it with `args: prepare:knowledge` / `prepare --knowledge` (or "force the knowledge pass"). Forcing only controls whether the pass runs; drafts stay `confidence: low` with per-entry diff-and-confirm, and `confidence: high` entries stay frozen. |
-| `audit` | **Read-only** static conformance audit of a real-coding project against the *current* rule corpus → self-contained HTML report under `.ai/audits/` (git-excluded). `audit [--full] [<dimension> ...]` — incremental by default, dimensions `security`/`quality`/`data`/`git-hygiene`/`docs`. Derived + classifier-anchored: only checks rules that leave durable artifacts, names what it can't statically see in a coverage banner. Never edits/commits/merges. NOT a bug review (`/code-review`) or a SKILL.md audit (`skill-evaluator`); redirects to the latter on a skill repo. |
+| `prepare` | Onboard an **existing repo**: populate (and refresh) the artifacts BOOTSTRAP reads at session start — `agent-context.yaml`, `CONTEXT.md`, `.kerby/knowledge/`, `.kerby/STATUS.md`, `.kerby/memory.log` — from your real code and git history. Tiered by inferability; **diff-and-confirm on every write**; refresh never clobbers human-curated content. The existing-code counterpart to greenfield `new-project` setup. The `.kerby/knowledge/` candidate pass auto-runs on first onboarding (empty knowledge dir) and is opt-in once entries exist — force it with `args: prepare:knowledge` / `prepare --knowledge` (or "force the knowledge pass"). Forcing only controls whether the pass runs; drafts stay `confidence: low` with per-entry diff-and-confirm, and `confidence: high` entries stay frozen. |
+| `audit` | **Read-only** static conformance audit of a real-coding project against the *current* rule corpus → self-contained HTML report under `.kerby/audits/` (git-excluded). `audit [--full] [<dimension> ...]` — incremental by default, dimensions `security`/`quality`/`data`/`git-hygiene`/`docs`. Derived + classifier-anchored: only checks rules that leave durable artifacts, names what it can't statically see in a coverage banner. Never edits/commits/merges. NOT a bug review (`/code-review`) or a SKILL.md audit (`skill-evaluator`); redirects to the latter on a skill repo. |
 
 `install`, `uninstall`, and `prepare` are idempotent — re-running is safe. (`prepare` re-derives only agent-owned content and is a diffs-only near-no-op on an already-onboarded repo.) `audit` is read-only and re-runnable — it writes a timestamped report and never mutates the repo.
 
@@ -126,7 +126,7 @@ Slash command (recommended — unambiguous):
 /kerby install       # persistent per-project setup
 /kerby uninstall     # mirror — both phases
 /kerby prepare       # onboard an existing repo (populate context)
-/kerby prepare:knowledge  # prepare + force the .ai/knowledge candidate pass
+/kerby prepare:knowledge  # prepare + force the .kerby/knowledge candidate pass
 /kerby audit         # conformance audit → HTML report (incremental)
 /kerby audit --full security  # whole-repo, security dimension only
 ```
@@ -141,7 +141,7 @@ Or in natural language — Claude will route correctly:
 - "reload kerby — they seem to have stopped applying"
 - "uninstall kerby"
 - "onboard this repo into kerby" / "make this repo kerby-ready" / "prepare this repo"
-- "prepare this repo and force the knowledge pass" (forces the opt-in `.ai/knowledge/` candidate pass)
+- "prepare this repo and force the knowledge pass" (forces the opt-in `.kerby/knowledge/` candidate pass)
 - "audit this repo against kerby" / "run a kerby conformance audit" / "audit the security dimension"
 
 ### `load` vs `install` — they're independent
@@ -204,8 +204,8 @@ If accepted, the skill:
    | `PreToolUse` | `"Edit\|Write"` | `protect-env.sh` | Hard-block edits to `.env` files (security — not env-var disablable) |
    | `PreToolUse` | `"Bash"` | `protect-git.sh` | Hard-block destructive git (`reset --hard`, `push --force` to protected branches, `clean -f`, etc.) — security, not env-var disablable |
    | `PreToolUse` | `"Bash"` | `pre-commit-check.sh` | Soft-warn on missing quality gates before `git commit`; hard-block on detected secrets in staged files |
-   | `SessionStart` | `""` | `session-start-context.sh` | Inject `.ai/STATUS.md` head + recent `.ai/memory.log` so the agent resumes with state |
-   | `SessionStart` | `""` | `knowledge-bootstrap.sh` | Scaffold `.ai/knowledge/KNOWLEDGE.md` if missing; reindex AUTO-INDEX block; flag entries older than 180 days |
+   | `SessionStart` | `""` | `session-start-context.sh` | Inject `.kerby/STATUS.md` head + recent `.kerby/memory.log` so the agent resumes with state |
+   | `SessionStart` | `""` | `knowledge-bootstrap.sh` | Scaffold `.kerby/knowledge/KNOWLEDGE.md` if missing; reindex AUTO-INDEX block; flag entries older than 180 days |
    | `SessionStart` | `""` | `context-bootstrap.sh` | Scaffold `CONTEXT.md` (project domain glossary) if missing; never overwrites |
 
 4. **Shows the full diff** of the merged settings.json. Single y/n confirmation. On `n`, nothing is written.
@@ -240,7 +240,7 @@ The rules themselves live under `resources/`, bundled with the skill:
 - **`workflows/`** — task-shape playbooks: `new-project.md`, `adopt-existing.md`, `feature.md`, `bugfix.md`, `quick-task.md`. Each wires the relevant references in the right order.
 - **`references/`** — long-tail topic guides (~25 files): working patterns, quality gates, error handling, debugging, communication, git worktrees, guardrails, validation, context management, sub-agent delegation, vendor adapters, knowledge management, roadmap, hooks, multi-tool support, safety mindset, design-token authority, domain glossary.
 - **`templates/`** — starter files: `agent-context.yaml`, `STATUS.md`, `KNOWLEDGE.md`, `CONTEXT.md`.
-- **`hooks/`** — optional shell hooks for projects that want enforcement at git/session boundaries: `pre-commit-check.sh`, `protect-env.sh`, `protect-git.sh`, `session-start-context.sh`, `knowledge-bootstrap.sh`, `knowledge-reindex.sh`, `knowledge-lint.sh` (advisory `.ai/knowledge/` integrity check — manual or git post-commit, not SessionStart; `--strict` to fail on findings), `context-bootstrap.sh`. Not installed automatically — copy what you want into your project's `.git/hooks/` or session-start config.
+- **`hooks/`** — optional shell hooks for projects that want enforcement at git/session boundaries: `pre-commit-check.sh`, `protect-env.sh`, `protect-git.sh`, `session-start-context.sh`, `knowledge-bootstrap.sh`, `knowledge-reindex.sh`, `knowledge-lint.sh` (advisory `.kerby/knowledge/` integrity check — manual or git post-commit, not SessionStart; `--strict` to fail on findings), `context-bootstrap.sh`. Not installed automatically — copy what you want into your project's `.git/hooks/` or session-start config.
 - **`scripts/validate-agent-context.ts`** — Bun/Node script to validate `agent-context.yaml` against the bundled JSON Schema. Optional.
 - **`agent-context.schema.yaml`** — JSON Schema for the per-project `agent-context.yaml` contract.
 

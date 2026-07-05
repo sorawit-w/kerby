@@ -86,7 +86,7 @@ After work is complete:
 |---------|--------|
 | Merged locally | `git worktree remove .worktrees/<name>` |
 | PR opened | Keep worktree until PR merged; then `git worktree remove .worktrees/<name>` |
-| Preserve for later | Keep worktree, note reason/branch in `.ai/memory.log` |
+| Preserve for later | Keep worktree, note reason/branch in `.kerby/memory.log` |
 | Explicit discard | `git worktree remove --force .worktrees/<name>` (requires intent) |
 
 **Before discarding:** Verify with `git branch -v` that all work is pushed or committed to a safe location.

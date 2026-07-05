@@ -133,7 +133,7 @@ severity = "warn"
 [[command]]
 name = "audit"
 body = "commands/audit.md"
-description = "Static conformance audit of the project against the loaded corpus; writes a report under .ai/audits/."
+description = "Static conformance audit of the project against the loaded corpus; writes a report under .kerby/audits/."
 
 [[command]]
 name = "prepare"

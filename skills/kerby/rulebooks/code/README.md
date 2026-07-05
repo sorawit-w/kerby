@@ -39,7 +39,7 @@ versus behavioral, per check.
 
 | Command | What it does |
 |---|---|
-| `kerby audit` (or `kerby code audit`) | read-only static conformance audit of the project against this corpus; report under `.ai/audits/` |
+| `kerby audit` (or `kerby code audit`) | read-only static conformance audit of the project against this corpus; report under `.kerby/audits/` |
 | `kerby prepare` (or `kerby code prepare`) | onboard an existing repo — populate kerby's context artifacts from code + git history, diff-and-confirm on every write |
 
 ## Provenance

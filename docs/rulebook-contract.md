@@ -151,7 +151,7 @@ DENIED and it is never PASS.
 
 ## Lockfile (`.kerby/rulebooks.lock`)
 
-JSON, at the consuming project's root (same tier as `.ai/`). Written by the
+JSON, under the consuming project's `.kerby/` state dir. Written by the
 first successful load; read by every later load.
 
 ```json

@@ -334,7 +334,7 @@ chore(setup): initialize monorepo structure
 
 ## Logging Progress
 
-After each task, update `.ai/memory.log` using the canonical format from `communication.md`. Example:
+After each task, update `.kerby/memory.log` using the canonical format from `communication.md`. Example:
 
 ```
 [2025-02-09T10:30:00Z]
@@ -383,8 +383,8 @@ If session may end, document state for resumption:
 
 | File | Record |
 |------|--------|
-| `.ai/STATUS.md` | Current phase, milestone, next task |
-| `.ai/memory.log` | Session summary, blockers |
+| `.kerby/STATUS.md` | Current phase, milestone, next task |
+| `.kerby/memory.log` | Session summary, blockers |
 | `implementation-plan.yaml` | Task states, progress |
 
 At session end:
@@ -392,7 +392,7 @@ At session end:
 2. Update `STATUS.md`
 3. Log session end in `memory.log`
 4. Ensure build passes
-5. Document blockers in `.ai/BLOCKERS.md`
+5. Document blockers in `.kerby/BLOCKERS.md`
 
 At session resume:
 1. Read `STATUS.md`
