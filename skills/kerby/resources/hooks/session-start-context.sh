@@ -17,18 +17,28 @@ echo "=== AI Playbook Active ==="
 echo "Follow the 9-step workflow: ASSESS → CLARIFY → PLAN → IMPLEMENT → DELEGATE → VALIDATE → LOG → CHECKPOINT → STOP"
 echo ""
 
-# v8: state lives under .kerby/. Detect un-migrated pre-v8 state (any of the six
-# known artifacts under .ai/ whose .kerby/ counterpart is absent) and nudge —
-# hooks never move files themselves; `kerby load` performs the confirmed migration.
-LEGACY_FOUND=""
+# v8: state lives under .kerby/. Detect un-migrated pre-v8 state among the six
+# known artifacts and nudge — hooks never move files themselves. Two cases:
+#   movable  — .ai/X present, .kerby/X absent → `kerby load` migrates it cleanly.
+#   collided — .ai/X and .kerby/X both present → `load` named-and-skipped it, so
+#              the legacy copy is stranded until reconciled by hand.
+LEGACY_MOVABLE=""
+LEGACY_COLLIDED=""
 for a in memory.log STATUS.md BLOCKERS.md knowledge audits sast; do
-  if [[ -e ".ai/$a" && ! -e ".kerby/$a" ]]; then
-    LEGACY_FOUND=1
-    break
+  if [[ -e ".ai/$a" ]]; then
+    if [[ -e ".kerby/$a" ]]; then
+      LEGACY_COLLIDED=1
+    else
+      LEGACY_MOVABLE=1
+    fi
   fi
 done
-if [[ -n "$LEGACY_FOUND" ]]; then
+if [[ -n "$LEGACY_MOVABLE" ]]; then
   echo "DATA> legacy .ai/ state found — run 'kerby load' to migrate it to .kerby/"
+  echo ""
+fi
+if [[ -n "$LEGACY_COLLIDED" ]]; then
+  echo "DATA> some legacy .ai/ state still sits beside an existing .kerby/ counterpart — 'kerby load' skips these collisions; reconcile by hand (merge the .ai/ copy into .kerby/, or delete the stale .ai/ copy)"
   echo ""
 fi
 

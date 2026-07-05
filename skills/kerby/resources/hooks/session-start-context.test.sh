@@ -86,13 +86,28 @@ echo "$OUT_LEGACY" | grep -q "legacy .ai/ state found — run 'kerby load' to mi
 echo "$OUT_LEGACY" | grep -q 'Status: legacy' \
   && fail "hook read legacy .ai/STATUS.md content (fallback must not exist)" \
   || pass "hook does not read legacy .ai/ content"
-# 8. Migrated counterpart present → nudge stops.
+# 8. Collision (both .ai/STATUS.md and .kerby/STATUS.md exist) → the movable
+#    "migrate" nudge stops, but a collision warning fires (the legacy copy is
+#    stranded; `kerby load` skips collisions).
 mkdir -p "$LEGACY_TMP/.kerby"
 printf 'Status: migrated\n' > "$LEGACY_TMP/.kerby/STATUS.md"
-OUT_MIGRATED=$(cd "$LEGACY_TMP" && bash "$HOOK")
-echo "$OUT_MIGRATED" | grep -q 'legacy .ai/ state found' \
-  && fail "nudge still fires after .kerby/ counterpart exists" \
-  || pass "nudge stops once the .kerby/ counterpart exists"
+OUT_COLLIDED=$(cd "$LEGACY_TMP" && bash "$HOOK")
+echo "$OUT_COLLIDED" | grep -q 'legacy .ai/ state found' \
+  && fail "movable migrate-nudge still fires on a collision" \
+  || pass "movable migrate-nudge stops on a collision"
+echo "$OUT_COLLIDED" | grep -q "still sits beside an existing .kerby/ counterpart" \
+  && pass "collision warning fires when .ai/ and .kerby/ counterparts coexist" \
+  || fail "collision warning missing when counterparts coexist"
+
+# 9. True migration (only .kerby/STATUS.md, no .ai/ at all) → no nudge, no warning.
+CLEAN_TMP=$(mktemp -d)
+mkdir -p "$CLEAN_TMP/.kerby"
+printf 'Status: migrated\n' > "$CLEAN_TMP/.kerby/STATUS.md"
+OUT_CLEAN=$(cd "$CLEAN_TMP" && bash "$HOOK")
+echo "$OUT_CLEAN" | grep -qE 'legacy .ai/ state found|still sits beside an existing' \
+  && fail "nudge/warning fired on a fully-migrated repo with no .ai/" \
+  || pass "no nudge or warning once .ai/ is gone (true migration)"
+rm -rf "$CLEAN_TMP"
 rm -rf "$LEGACY_TMP"
 
 echo "---"
