@@ -20,9 +20,9 @@ branch, no secret in the diff. It will not be the last.
 
 ![kerby's one motion: an action arrives, kerby weighs it against the evidence, and the verdict is binary — the action passes or it is BLOCKED and stops.](assets/gate-motion.svg)
 
-The same motion runs whatever the work is — the `code` rulebook routes coding work into
-task-shaped playbooks (feature, bugfix, and three more); the
-[skill README](skills/kerby/README.md#workflows) maps them.
+The same motion runs whatever the work is — the `swe` rulebook routes coding work into
+task-shaped playbooks (feature, bugfix, and three more); its
+[README](skills/kerby/rulebooks/swe/README.md#workflows) maps them.
 
 ## What it looks like when kerby says no
 
@@ -61,11 +61,11 @@ kerby is two things, deliberately separated:
   hooks + commands) that carry the actual judgment. Copy a folder, get a governed domain.
   Three ship built in: **`base`**, the universal floor that rides under every rulebook (no
   secrets staged, no untrusted artifact obeyed as instructions, no claim without evidence,
-  no irreversible action without approval), **`code`**, the coding rulebook — the
-  corpus kerby has always enforced, with its own commands (`kerby code audit`,
-  `kerby code prepare`) — and **`skill-authoring`**, the verification gate for repos that
-  author agent skills: no skill change ships *as verified* without a fresh
-  `skill-evaluator` pass against the exact text being shipped.
+  no irreversible action without approval), **`swe`**, the software-engineering rulebook —
+  the corpus kerby has always enforced, with its own commands (see
+  [its README](skills/kerby/rulebooks/swe/README.md)) — and **`skill-authoring`**, the
+  verification gate for repos that author agent skills: no skill change ships *as
+  verified* without a fresh `skill-evaluator` pass against the exact text being shipped.
 
 The rules shape how work gets done; they don't do the work. The hooks enforce the few
 rules that must never be left to memory — mechanically, every time. Rulebooks can also be
@@ -124,7 +124,8 @@ v1–v5 kerby *was* a coding playbook — one corpus, hardcoded. v6 split the en
 rules logically; v7 made the split physical — self-contained rulebook folders, rulebook
 commands, multi-rulebook load, remote sources. v8 finished the move: project state lives
 under `.kerby/`, the migration training wheels are gone, and the engine no longer knows
-what coding is. Coding is the first rulebook. It is not the identity.
+what coding is. Coding is the first rulebook. It is not the identity. v9 made the name
+say so: the coding rulebook is `swe` now — "code" is a category, not a name.
 
 ## Install
 
@@ -147,11 +148,12 @@ npx skills add sorawit-w/kerby
 /kerby status      # check whether the rules are still active
 /kerby install     # persistent per-project setup (guardrail hooks)
 /kerby uninstall   # mirror — removes the managed hooks
-/kerby code prepare  # onboard an existing repo (populate .kerby/ context)
-/kerby code audit    # conformance audit → HTML report
+/kerby rulebooks   # list every rulebook this install can see
 ```
 
-`prepare` and `audit` belong to the `code` rulebook — the qualified form names it. The bare `/kerby prepare` / `/kerby audit` also work while only one loaded rulebook provides them (inference).
+Rulebook commands (e.g. `kerby swe prepare`, `kerby swe audit`) are documented in each
+rulebook's own README — for the software-engineering rulebook, see
+[`skills/kerby/rulebooks/swe/README.md`](skills/kerby/rulebooks/swe/README.md).
 
 ## What kerby holds
 
@@ -169,18 +171,19 @@ These are not decoration. They are what every verdict comes back to:
 - **[`skills/kerby/SKILL.md`](skills/kerby/SKILL.md)** — the engine (command dispatch,
   selection + trust, install/uninstall mechanics).
 - **[`docs/AUTHORING-RULEBOOKS.md`](docs/AUTHORING-RULEBOOKS.md)** — write your own rulebook.
-- **[`skills/kerby/rulebooks/code/BOOTSTRAP.md`](skills/kerby/rulebooks/code/BOOTSTRAP.md)** — the
-  coding rules themselves.
+- **[`skills/kerby/rulebooks/swe/README.md`](skills/kerby/rulebooks/swe/README.md)** — the
+  software-engineering rulebook: workflows, commands (`prepare`, `audit`), and the rules
+  themselves ([`BOOTSTRAP.md`](skills/kerby/rulebooks/swe/BOOTSTRAP.md)).
 - **[`CLAUDE.md`](CLAUDE.md)** — the harness-engineering vocabulary kerby implements.
 
 ## Status
 
-Current release: `8.1.0` — the `skill-authoring` rulebook: a third builtin holding the gate between building a skill and shipping it. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.0.0` — the coding rulebook is `swe` now; "code" was a category, not a name. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
 
-**Opinionated — read first.** The `code` rulebook is one author's rules. Read
-[`skills/kerby/rulebooks/code/BOOTSTRAP.md`](skills/kerby/rulebooks/code/BOOTSTRAP.md) end-to-end
-before adopting, and fork-and-edit rather than file feature requests on rule content. The
-engine is domain-blind; the opinions live in the rulebooks, where you can replace them.
+**Opinionated — read first.** Each rulebook carries its author's opinions; read a
+rulebook's README before adopting it, and fork-and-edit rather than file feature requests
+on rule content. The engine is domain-blind; the opinions live in the rulebooks, where
+you can replace them.
 
 ## License
 

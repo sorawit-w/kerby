@@ -29,7 +29,7 @@ invocation only, whatever they declare.
 ## Top-level fields
 
 ```toml
-id = "code"                 # unique rulebook id (required)
+id = "swe"                 # unique rulebook id (required)
 version = "1.0.0"           # the rulebook's own semver (required)
 contract = 2                # manifest contract version (required; engine rejects unsupported, E03)
 accepts = ["git_change"]    # subject types this rulebook can judge (required, non-empty; "*" = any)
@@ -96,7 +96,7 @@ Subject type `git_change` provides: `changed_files`, `changed_content`,
 Manifest declaration order is significance order. At load, the engine reads
 eagerly: every prose body that is **`floor = true` or `token_cost = "low"`**,
 plus the **selected** rulebook's first-declared prose check — its *root body*
-(for the builtin `code` rulebook that is `operating-rules` → `BOOTSTRAP.md`,
+(for the builtin `swe` rulebook that is `operating-rules` → `BOOTSTRAP.md`,
 preserving the classic BOOTSTRAP → references pattern). All `floor = true`
 prose loads eagerly regardless of `token_cost` — a floor is the always-on
 baseline, so it must be in context, not deferred; `token_cost` governs
@@ -156,9 +156,9 @@ first successful load; read by every later load.
 
 ```json
 {
-  "selected": ["code"],
+  "selected": ["swe"],
   "rulebooks": [
-    { "id": "code", "version": "1.0.0", "origin": "builtin",
+    { "id": "swe", "version": "2.0.0", "origin": "builtin",
       "path_or_url": "<resolved path>", "sha256": null }
   ]
 }
@@ -170,7 +170,7 @@ first successful load; read by every later load.
   `unload <x>` removes), never drift. **Ids are unique within `selected`** —
   since it keys on `id` and every user-facing op dispatches by id, `load +`
   refuses a rulebook whose id already names an active selection (e.g. the
-  builtin `code` plus a local fork also named `code`); the user unloads the
+  builtin `swe` plus a local fork also named `swe`); the user unloads the
   incumbent or `load`-replaces instead.
 - `remote` entries carry `path_or_url` = the source URL (identity) and
   `local_path` = the clone dir — re-derived from the id at load, never trusted

@@ -289,7 +289,7 @@ Details: `references/context-management.md`
 <reference_index>
 ## Reference Index
 
-All paths in this index are relative to this rulebook's root — the folder where this `BOOTSTRAP.md` lives (`references/x.md` → `<rulebook-root>/references/x.md`). The same paths resolve correctly whether the rulebook was loaded via the `kerby` skill (bundled at `<install-root>/rulebooks/code/`) or copied into a project as a self-contained folder. Load these when the workflow file tells you to, or when you need details for a specific action.
+All paths in this index are relative to this rulebook's root — the folder where this `BOOTSTRAP.md` lives (`references/x.md` → `<rulebook-root>/references/x.md`). The same paths resolve correctly whether the rulebook was loaded via the `kerby` skill (bundled at `<install-root>/rulebooks/swe/`) or copied into a project as a self-contained folder. Load these when the workflow file tells you to, or when you need details for a specific action.
 
 | Topic | File |
 |-------|------|

@@ -5,7 +5,7 @@ manifest declares. A rulebook is how you tell it what your domain's rules
 are. This guide is everything an external author needs; the normative schema
 lives in [`rulebook-contract.md`](rulebook-contract.md), and the shipped
 [`base`](../skills/kerby/rulebooks/base/rulebook.toml) and
-[`code`](../skills/kerby/rulebooks/code/rulebook.toml) rulebooks
+[`swe`](../skills/kerby/rulebooks/swe/rulebook.toml) rulebooks
 are the worked examples.
 
 kerby will read your manifest, validate it, show the user exactly what your
@@ -46,7 +46,7 @@ the human.
 
 **Default: write project state under `.kerby/`** in the consuming repo — it is
 kerby's project-state dir (the engine already keeps `rulebooks.lock` and external
-clones there, and the `code` rulebook keeps `memory.log`, `STATUS.md`, `knowledge/`,
+clones there, and the `swe` rulebook keeps `memory.log`, `STATUS.md`, `knowledge/`,
 `audits/` there). One dir to gitignore-or-commit deliberately, one dir the user
 audits, one dir that never collides with their sources. Never write under
 `.kerby/rulebooks/` — that subtree is the engine's external-rulebook
@@ -153,7 +153,7 @@ being enforced.
   declaring your own floors outside base is legal but pointless, since only
   base is implicitly composed into everyone else.
 - Non-floor checks may declare an `override` policy naming a scoped,
-  user-authorized escape hatch (the code rulebook's
+  user-authorized escape hatch (the swe rulebook's
   `protected-branch-commit` → `CODING_RULES_ALLOW_PROTECTED_COMMIT=1` is the
   canonical shape).
 

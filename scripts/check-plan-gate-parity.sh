@@ -18,7 +18,7 @@
 set -u
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-RES="$SCRIPT_DIR/../skills/kerby/rulebooks/code"
+RES="$SCRIPT_DIR/../skills/kerby/rulebooks/swe"
 
 FAILS=0
 pass() { echo "PASS: $1"; }

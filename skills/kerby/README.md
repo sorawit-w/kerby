@@ -6,23 +6,9 @@
 
 A Claude Code skill in two parts: a **domain-blind engine** (loads rulebooks, validates them, pins trust, registers guardrail hooks, renders verdicts) and **pluggable rulebooks** that carry the actual judgment. The engine has no opinions; the rulebooks are nothing but.
 
-The bundled **`code` rulebook** — the default, and the origin of the whole project — loads **one specific person's** operating system for agentic coding: branching discipline, commit cadence, verification gates, sub-agent delegation triggers, ambiguity-before-cost rules, and a small amount of taste about how rules themselves should be written. Other rulebooks can be dropped in as folders, loaded from a path, or pulled from a GitHub repo — see [`docs/AUTHORING-RULEBOOKS.md`](../../docs/AUTHORING-RULEBOOKS.md).
+The bundled **`swe` rulebook** — the default, and the origin of the whole project — loads **one specific person's** operating system for agentic coding: branching discipline, commit cadence, verification gates, sub-agent delegation triggers, ambiguity-before-cost rules, and a small amount of taste about how rules themselves should be written. Its workflows, commands (`prepare`, `audit`), and opinions are documented in [its own README](rulebooks/swe/README.md). Other rulebooks can be dropped in as folders, loaded from a path, or pulled from a GitHub repo — see [`docs/AUTHORING-RULEBOOKS.md`](../../docs/AUTHORING-RULEBOOKS.md).
 
-> ⚠️ **Read this before installing.** The `code` rulebook is **deliberately, aggressively opinionated.** It captures *one author's* personal taste, accumulated from years of breaking and fixing things while pairing with agents. It is **not** a "best-practice" guide or a neutral default. The choices are personal, sometimes contrarian, and load on every session that uses them — there is a real input-token cost. **Read `rulebooks/code/BOOTSTRAP.md` end-to-end before adopting. Fork, edit, or skip rules that don't fit your taste.** The skill provides a frame; your judgment is what makes it useful.
-
-## Why this exists
-
-Most "agent coding" advice is either too vague to land (*"be careful with git"*) or too project-specific to travel (*"run `npm test && npm run lint`"*). What survives across projects, stacks, and teammates is **methodology** — the *shape* of how an agent should approach work.
-
-The `code` rulebook packages one person's methodology as a loadable session preamble:
-
-- A **Prime Directive** — clarity over cleverness, safety over speed, never leave the repo broken.
-- **Hard rules** that apply on every task — branching, commit discipline, verification, resource cleanup, manual-verification instructions, sub-agent delegation, ambiguity-before-cost.
-- **Routed workflows** — the agent reads the right workflow file (`new-project`, `adopt-existing`, `feature`, `bugfix`, `quick-task`) instead of guessing from memory.
-- **A reference index** for the long tail of decisions — debugging, error handling, vendor adapters, knowledge-base maintenance, design tokens, multi-tool support across Claude Code / Codex / Cursor.
-- **A meta-rule** about adding rules — every proposed new rule passes a cost gate (line count, frequency, severity, coverage, testability) before it earns its place.
-
-If your taste matches, the skill will feel like an extension of how you already think. If it doesn't, please **fork and adapt** rather than installing as-is.
+> ⚠️ **Read this before installing.** The `swe` rulebook is **deliberately, aggressively opinionated** — one author's personal taste, not a "best-practice" guide or a neutral default. Read [its README](rulebooks/swe/README.md) and `rulebooks/swe/BOOTSTRAP.md` end-to-end before adopting; fork, edit, or skip rules that don't fit your taste.
 
 ## Companion skills
 
@@ -38,45 +24,10 @@ Skills you'll likely want alongside `kerby` — all ship in this same marketplac
 
 None are required — `kerby` works on its own. They sharpen the edges where it deliberately stays thin (multi-role planning, sub-agent coordination, rule evaluation, stack selection).
 
-## Workflows
-
-*(Everything in this section is `code`-rulebook content — the engine mandates none of it. A different rulebook brings its own routing, or none.)*
-
-The `code` rulebook routes every task to one of **five task-shape playbooks** under [`rulebooks/code/workflows/`](rulebooks/code/workflows/) — the agent reads the matching file instead of improvising from memory. The files are the single source of truth; the table below names and links them.
-
-| Task | Workflow | What it does |
-|---|---|---|
-| New project (no code) | [`new-project.md`](rulebooks/code/workflows/new-project.md) | Greenfield setup from requirements — branch, scaffold, fill `agent-context.yaml`, `ROADMAP.md`, verify. |
-| Existing code, no kerby artifacts yet | [`adopt-existing.md`](rulebooks/code/workflows/adopt-existing.md) | Onboard an existing repo (the `prepare` sub-command) — derive context artifacts from code + git history, tiered by inferability, diff-and-confirm on every write. |
-| Feature / enhancement / refactor / tech debt | [`feature.md`](rulebooks/code/workflows/feature.md) | Plan, then the task loop (do → check → commit gate → log → repeat), then validate + finish. |
-| Bug fix | [`bugfix.md`](rulebooks/code/workflows/bugfix.md) | Reproduce → diagnose root cause (≤3 hypotheses) → failing test + minimal fix → commit gate → finish. |
-| Docs / config / single-file edit (complexity 1–3) | [`quick-task.md`](rulebooks/code/workflows/quick-task.md) | Fit-check, in-place branch, do → check → commit. Escalates to `feature` if it outgrows the bounds. |
-| ⚠️ **High-stakes** — auth · payments · migrations · infra · CI · prod-traffic values | always [`feature.md`](rulebooks/code/workflows/feature.md) | Override: blast radius isn't bounded by LOC, so these route to `feature` even for one-line edits — **never `quick-task`**. |
-
-![How kerby routes a task to a workflow file: five task types map to five workflow files; feature/refactor/debt converge on feature.md, docs/config/one-file go to quick-task.md, and a high-stakes override reroutes quick-task work to feature.md.](rulebooks/code/assets/workflow-routing.svg)
-
-### Where kerby sits in the loop
-
-kerby is a **governor, not an actor** — it shapes how each step is done (rules) and hard-blocks a few irreversible actions (hooks); it never writes the test or implements the change. The diagrams below show *where it sits* inside the agent's own loop, keyed to task type.
-
-**Feature loop** — `Plan → Do → Check → Commit gate → Log → repeat → Validate + finish`. Test-first is a preference *inside* `Do`, not a leading phase; the commit gate runs the full `build · lint · test` on **every** iteration, not once at the end.
-
-![kerby's place in the agent's feature task loop: the agent runs plan, do, check, commit gate, log, repeat, then validate and finish; kerby shapes each step as a rule (teal) and hard-blocks at the amber commit gate via hooks; a failing gate triggers a retry budget then revert.](rulebooks/code/assets/feature-loop.svg)
-
-**Bugfix loop** — same commit gate and failure branch, different front half: `Reproduce → Diagnose (root cause) → Fix (failing test → minimal fix) → commit gate → finish`. It does **not** start by writing tests; the failing test comes after diagnosis, inside `Fix`.
-
-![kerby's place in the agent's bugfix task loop: reproduce, diagnose the root cause within bounded hypotheses, fix (failing test then minimal change), commit gate, validate and finish; same teal rules / amber gate legend as the feature loop, with the same retry-then-revert failure branch.](rulebooks/code/assets/bugfix-loop.svg)
-
-In both loops the legend is the same — **agent acts** (gray) / **kerby rule** (teal) / **kerby gate / hook** (amber):
-
-- A **rule** shapes every step (how to plan, how to check, what "done" means).
-- **Hooks hard-block wherever the agent reaches for something irreversible** — not only at commit: `.env` edits (`protect-env`, during `Do`), destructive git (`protect-git`), secrets in staged files (`pre-commit-check`, at the commit gate).
-- **Failure branch:** a failing gate spends a per-error-type retry budget (build 5 / test 3 / lint 5 / deps 5), then "cheapen the loop before grinding"; if the budget is exhausted → **revert and mark `BLOCKED` in `.kerby/BLOCKERS.md`**. The iron rule is *never leave the repo broken.*
-
 ## What it does
 
-- **Loads `rulebooks/code/BOOTSTRAP.md`** into the current session via the `Read` tool, so the rules enter conversation context as a tool result (not a paraphrase).
-- **Seven sub-commands** routed via the `args` parameter: `load` (default), `reload`, `status`, `install`, `uninstall`, `prepare`, `audit`.
+- **Loads the selected rulebook's root body** (for `swe`, `rulebooks/swe/BOOTSTRAP.md`) into the current session via the `Read` tool, so the rules enter conversation context as a tool result (not a paraphrase).
+- **Engine sub-commands** routed via the `args` parameter: `load` (default), `unload`, `reload`, `status`, `install`, `uninstall`, `rulebooks list|create`. Loaded rulebooks add their own commands — the `swe` rulebook provides `prepare` and `audit` ([its README](rulebooks/swe/README.md) documents them).
 - **Per-project install** appends a single instruction line to your `CLAUDE.md` / `AGENTS.md` / `AI-CONTEXT.md` / `.cursorrules` so future sessions auto-invoke `kerby` at start. **Per-file confirmation required — never silent.**
 - **Compaction-safe.** Long sessions can strip earlier context; `args: status` checks whether BOOTSTRAP markers are still present, `args: reload` re-injects them.
 
@@ -97,7 +48,7 @@ In both loops the legend is the same — **agent acts** (gray) / **kerby rule** 
 
 ## When not to use it
 
-- **You haven't read `rulebooks/code/BOOTSTRAP.md`.** Loading rules you haven't read defeats the purpose. The cost is paid in tokens on every session; the value is paid out only when the rules match your judgment.
+- **You haven't read `rulebooks/swe/BOOTSTRAP.md`.** Loading rules you haven't read defeats the purpose. The cost is paid in tokens on every session; the value is paid out only when the rules match your judgment.
 - **The rules conflict with your team's conventions.** Branching and commit discipline rules are not universal. If your team batches commits or works on `main`, this skill will fight you. Fork and adapt.
 - **You want a neutral, "best-practice" preamble.** This isn't that. Try a more general guide instead.
 - **You're trying to fix a specific bug.** The skill governs how tasks are done — it doesn't *do* the task. Use a debugging skill (e.g., [`engineering:debug`](https://github.com/anthropics/skills) or [`anthropic-skills:diagnose`](https://github.com/anthropics/skills)) for that.
@@ -108,15 +59,15 @@ The skill is invoked via `Skill` tool with `args: <sub-command>`. Defaults to `l
 
 | Sub-command | What it does |
 |---|---|
-| `load` (default) | Select rulebooks (explicit arg — id, path, URL, or `owner/repo` → `.kerby/rulebooks.lock` pin → default `code`), announce it in one line, then read its eager prose — `rulebooks/code/BOOTSTRAP.md` plus the base floor rules — via `Read` so it enters context as a tool result, confirm to user. External (`local`) rulebooks pass a one-time trust review with a hash pin first. |
+| `load` (default) | Select rulebooks (explicit arg — id, path, URL, or `owner/repo` → `.kerby/rulebooks.lock` pin → default `swe`), announce it in one line, then read its eager prose — `rulebooks/swe/BOOTSTRAP.md` plus the base floor rules — via `Read` so it enters context as a tool result, confirm to user. External (`local`) rulebooks pass a one-time trust review with a hash pin first. |
 | `reload` | Same as `load`, but with a "BOOTSTRAP refreshed" confirmation. Useful after Claude Code compacts the conversation. |
 | `status` | Scan recent context for BOOTSTRAP signatures (e.g., `Prime Directive`, `<hard_rules>`, distinctive headers); report loaded / not loaded, plus the rulebook panel — each check's declared vs. *effective* enforcement, with degrades and named gaps visible. |
 | `install` | **Phase 1** — append the session-start instruction to your vendor agent-instruction files (`CLAUDE.md` / `AGENTS.md` / `AI-CONTEXT.md` / `.cursorrules`), per-file confirmation. **Phase 2 (optional)** — register `kerby`' Claude Code lifecycle hooks (`PreToolUse` + `SessionStart`) in your chosen settings file. Both phases are independently skippable; both show a diff and require explicit confirmation. |
 | `uninstall` | Mirror — Phase 1 removes the install line from vendor files; Phase 2 removes kerby-managed hook entries from your chosen settings file. Both phases optional, both confirmed. |
-| `prepare` | Onboard an **existing repo**: populate (and refresh) the artifacts BOOTSTRAP reads at session start — `agent-context.yaml`, `CONTEXT.md`, `.kerby/knowledge/`, `.kerby/STATUS.md`, `.kerby/memory.log` — from your real code and git history. Tiered by inferability; **diff-and-confirm on every write**; refresh never clobbers human-curated content. The existing-code counterpart to greenfield `new-project` setup. The `.kerby/knowledge/` candidate pass auto-runs on first onboarding (empty knowledge dir) and is opt-in once entries exist — force it with `args: prepare:knowledge` / `prepare --knowledge` (or "force the knowledge pass"). Forcing only controls whether the pass runs; drafts stay `confidence: low` with per-entry diff-and-confirm, and `confidence: high` entries stay frozen. |
-| `audit` | **Read-only** static conformance audit of a real-coding project against the *current* rule corpus → self-contained HTML report under `.kerby/audits/` (git-excluded). `audit [--full] [<dimension> ...]` — incremental by default, dimensions `security`/`quality`/`data`/`git-hygiene`/`docs`. Derived + classifier-anchored: only checks rules that leave durable artifacts, names what it can't statically see in a coverage banner. Never edits/commits/merges. NOT a bug review (`/code-review`) or a SKILL.md audit (`skill-evaluator`); redirects to the latter on a skill repo. |
+| `kerby swe prepare` *(rulebook command)* | Onboard an existing repo — populate kerby's context artifacts from code + git history, diff-and-confirm on every write. Full docs in the [swe README](rulebooks/swe/README.md#commands). |
+| `kerby swe audit` *(rulebook command)* | Read-only static conformance audit → HTML report under `.kerby/audits/`. Full docs in the [swe README](rulebooks/swe/README.md#commands). |
 
-`install`, `uninstall`, and `prepare` are idempotent — re-running is safe. (`prepare` re-derives only agent-owned content and is a diffs-only near-no-op on an already-onboarded repo.) `audit` is read-only and re-runnable — it writes a timestamped report and never mutates the repo.
+`install` and `uninstall` are idempotent — re-running is safe. Rulebook commands are declared by each rulebook's manifest and dispatched by the engine; the bare form (`/kerby audit`) works while exactly one loaded rulebook provides that command (inference).
 
 ### How to invoke
 
@@ -129,13 +80,13 @@ Slash command (recommended — unambiguous):
 /kerby status        # check whether rules are still loaded
 /kerby install       # persistent per-project setup
 /kerby uninstall     # mirror — both phases
-/kerby code prepare  # onboard an existing repo (populate context)
-/kerby code prepare:knowledge  # prepare + force the .kerby/knowledge candidate pass
-/kerby code audit    # conformance audit → HTML report (incremental)
-/kerby code audit --full security  # whole-repo, security dimension only
+/kerby swe prepare  # onboard an existing repo (populate context)
+/kerby swe prepare:knowledge  # prepare + force the .kerby/knowledge candidate pass
+/kerby swe audit    # conformance audit → HTML report (incremental)
+/kerby swe audit --full security  # whole-repo, security dimension only
 ```
 
-If no other installed plugin defines a `kerby` skill, the short form `/kerby` also resolves. The namespaced form is always unambiguous and recommended. Rulebook commands (`prepare`, `audit` — provided by the `code` rulebook) are shown in their qualified `kerby <rulebook> <command>` form; the bare form (`/kerby audit`) also works while exactly one loaded rulebook provides that command (inference).
+If no other installed plugin defines a `kerby` skill, the short form `/kerby` also resolves. The namespaced form is always unambiguous and recommended. Rulebook commands (`prepare`, `audit` — provided by the `swe` rulebook) are shown in their qualified `kerby <rulebook> <command>` form; the bare form (`/kerby audit`) also works while exactly one loaded rulebook provides that command (inference).
 
 Or in natural language — Claude will route correctly:
 
@@ -205,16 +156,16 @@ If accepted, the skill:
 
    | Event | Matcher | Script | Resolved from | What it does |
    |---|---|---|---|---|
-   | `PreToolUse` | `"Edit\|Write"` | `protect-env.sh` | `rulebooks/code/hooks/` | Hard-block edits to `.env` files (security — not env-var disablable) |
-   | `PreToolUse` | `"Bash"` | `protect-git.sh` | `rulebooks/code/hooks/` | Hard-block destructive git (`reset --hard`, `push --force` to protected branches, `clean -f`, etc.) — security, not env-var disablable |
-   | `PreToolUse` | `"Bash"` | `pre-commit-check.sh` | `rulebooks/base/hooks/` | Soft-warn on missing quality gates before `git commit`; hard-block on detected secrets in staged files (the floor scan; `code` binds it via a confined shim — one registration) |
-   | `PreToolUse` | `"Read"` | `warn-env-read.sh` | `rulebooks/code/hooks/` | Soft-remind when reading `.env` files (env-var disablable) |
-   | `PreToolUse` | `"Edit\|Write"` | `route-high-stakes.sh` | `rulebooks/code/hooks/` | Remind when editing a §3 high-stakes path — advisory routing, not a block |
+   | `PreToolUse` | `"Edit\|Write"` | `protect-env.sh` | `rulebooks/swe/hooks/` | Hard-block edits to `.env` files (security — not env-var disablable) |
+   | `PreToolUse` | `"Bash"` | `protect-git.sh` | `rulebooks/swe/hooks/` | Hard-block destructive git (`reset --hard`, `push --force` to protected branches, `clean -f`, etc.) — security, not env-var disablable |
+   | `PreToolUse` | `"Bash"` | `pre-commit-check.sh` | `rulebooks/base/hooks/` | Soft-warn on missing quality gates before `git commit`; hard-block on detected secrets in staged files (the floor scan; `swe` binds it via a confined shim — one registration) |
+   | `PreToolUse` | `"Read"` | `warn-env-read.sh` | `rulebooks/swe/hooks/` | Soft-remind when reading `.env` files (env-var disablable) |
+   | `PreToolUse` | `"Edit\|Write"` | `route-high-stakes.sh` | `rulebooks/swe/hooks/` | Remind when editing a §3 high-stakes path — advisory routing, not a block |
    | `SessionStart` | `""` | `session-start-context.sh` | `resources/hooks/` | Inject `.kerby/STATUS.md` head + recent `.kerby/memory.log` so the agent resumes with state |
    | `SessionStart` | `""` | `knowledge-bootstrap.sh` | `resources/hooks/` | Scaffold `.kerby/knowledge/KNOWLEDGE.md` if missing; reindex AUTO-INDEX block; flag entries older than 180 days |
    | `SessionStart` | `""` | `context-bootstrap.sh` | `resources/hooks/` | Scaffold `CONTEXT.md` (project domain glossary) if missing; never overwrites |
 
-   (`SKILL.md` is the source of truth for the full derivation — base-first dedup, shim-following to the resolved target. The table above is the default `code`-on-`base` install.)
+   (`SKILL.md` is the source of truth for the full derivation — base-first dedup, shim-following to the resolved target. The table above is the default `swe`-on-`base` install.)
 
 4. **Shows the full diff** of the merged settings.json. Single y/n confirmation. On `n`, nothing is written.
 5. **Idempotent** — re-running detects already-managed entries by their absolute-path signature (any script whose resolved path sits under a kerby hook root — `<install-root>/rulebooks/*/hooks/` or `<install-root>/resources/hooks/`) and skips them.
@@ -247,7 +198,7 @@ Two folders, two jobs — the v7 split made physical:
 **`rulebooks/`** — the rules, as self-contained folders (copy one, get a governed domain):
 
 - **`rulebooks/base/`** — the universal floor, merged under every rulebook: `secrets-staged` (+ its `pre-commit-check.sh` enforcer), `no-print-secret`, `untrusted-agent-artifacts`, `iron-law-claims`, `approval-for-irreversible`. Non-overridable.
-- **`rulebooks/code/`** — the coding rulebook and silent default: `BOOTSTRAP.md` (the root body: Prime Directive, routing, hard rules, reference index), `workflows/` (the five task-shape playbooks), `references/` (~26 long-tail topic guides), `hooks/` (the tool-boundary enforcers: `protect-env.sh`, `protect-git.sh`, `warn-env-read.sh`, `route-high-stakes.sh`, + the confinement shim into base's pre-commit check), `commands/` (`audit`, `prepare`), `templates/` + `scripts/` + `agent-context.schema.yaml` (the per-project `agent-context.yaml` contract and its validator).
+- **`rulebooks/swe/`** — the software-engineering rulebook and silent default: `BOOTSTRAP.md` (the root body: Prime Directive, routing, hard rules, reference index), `workflows/` (the five task-shape playbooks), `references/` (~26 long-tail topic guides), `hooks/` (the tool-boundary enforcers: `protect-env.sh`, `protect-git.sh`, `warn-env-read.sh`, `route-high-stakes.sh`, + the confinement shim into base's pre-commit check), `commands/` (`audit`, `prepare`), `templates/` + `scripts/` + `agent-context.schema.yaml` (the per-project `agent-context.yaml` contract and its validator).
 
 **`resources/`** — engine machinery only, rulebook-agnostic:
 
@@ -256,26 +207,9 @@ Two folders, two jobs — the v7 split made physical:
 - **`scripts/validate-rulebook.py`** — the manifest/trust validator every `load` runs.
 - **`references/`** — engine docs: `hooks.md` (registration + lifecycle) and `multi-tool.md` (Claude Code / Codex / Cursor wiring).
 
-## A note on opinionation
-
-*(These are `code`-rulebook choices. The engine carries no opinions — swap the rulebook, swap the taste.)*
-
-The rules in `BOOTSTRAP.md` reflect specific choices that may not match your judgment:
-
-- **Worktree-default for feature work** (with a 3-question gate to skip when overhead isn't justified). If your repo is npm-heavy or tiny, you may want `git checkout -b` everywhere.
-- **Commit after every completed piece of work**, not at the end of the session. Some teams prefer squashed commits and a clean history; this rule fights that.
-- **No completion claims without fresh evidence.** Some workflows are exploratory and "should work" is fine. Not here.
-- **Manual verification instructions in every completion report.** Reasonable for shipped features; overkill for one-line typo fixes.
-- **`DESIGN.md` as design-token authority** when present. Opinionated wiring into the [Google Labs spec](https://github.com/google-labs-code/design.md), alpha.
-- **Methodology over scripts.** Hardcoded commands (`npm test`) lose to project-detected commands (`{test_command}`).
-
-These choices have stated reasons in the rule files. Read the reasons; keep the ones that match your work; **delete or rewrite the ones that don't.** The skill loads whatever is in `rulebooks/code/BOOTSTRAP.md` — the easiest way to make it yours is to fork the repo and edit BOOTSTRAP directly.
-
-## Editing the rules
-
-`CLAUDE.md` at the skill root (not the project's `CLAUDE.md`) governs **rule edits** — change-class table, rule-cost gate, authoring style notes. If you fork to adapt the rules, read it before adding rules; many proposed rules don't pay back their token cost.
-
-For rule **evaluation** (does this rule actually change agent behavior?), use the [`skill-evaluator`](https://github.com/sorawit-w/agent-skills/tree/main/skills/skill-evaluator) skill — split-context audit removes author bias.
+Rulebook-specific opinions (worktree-default, commit cadence, verification taste) and
+the rule-editing guide live with the rulebook — see the
+[swe README](rulebooks/swe/README.md#a-note-on-opinionation).
 
 ## Install
 
@@ -304,7 +238,7 @@ The skill will detect your vendor agent-instruction files and ask per-file befor
 
 ## Status
 
-`v4.21.0` — extracted and renamed from `coding-rules` ([sorawit-w/agent-skills](https://github.com/sorawit-w/agent-skills)), full git history preserved. The rules have been used and refined over time but the skill packaging in this marketplace is new. **Treat as alpha** — feedback on the loader behavior welcome via [issues](https://github.com/sorawit-w/kerby/issues). Rule-content feedback should generally take the shape of *fork-and-edit*, not feature-request.
+Extracted and renamed from `coding-rules` ([sorawit-w/agent-skills](https://github.com/sorawit-w/agent-skills)), full git history preserved — see [CHANGELOG.md](https://github.com/sorawit-w/kerby/blob/main/CHANGELOG.md) for the current release. The rules have been used and refined over time but the skill packaging in this marketplace is new. **Treat as alpha** — feedback on the loader behavior welcome via [issues](https://github.com/sorawit-w/kerby/issues). Rule-content feedback should generally take the shape of *fork-and-edit*, not feature-request.
 
 ## Contributions
 

@@ -27,7 +27,7 @@ runtime:
 stack:
   frameworks: {}
   tools: {}
-  # Expand `tools` like this to adopt `kerby code audit --sast` (opt-in). Pins are
+  # Expand `tools` like this to adopt `kerby swe audit --sast` (opt-in). Pins are
   # project-owned — kerby resolves them, never tracks upstream. All network at
   # setup, none at scan. See references/sast-provisioning.md.
   #   tools:

@@ -13,7 +13,7 @@
 # requires feature.md / bugfix.md + the §4 Plan Gate, NOT quick-task. It never
 # blocks — routing is a decision, not a destructive-action veto.
 #
-# GLOB SOURCE — canonical list is BOOTSTRAP §3 (rulebooks/code/BOOTSTRAP.md, the
+# GLOB SOURCE — canonical list is BOOTSTRAP §3 (rulebooks/swe/BOOTSTRAP.md, the
 # "High-stakes path override" bullets). The GLOBS array below embeds those exact
 # strings; route-high-stakes.test.sh asserts parity against §3 and FAILS if §3
 # gains a glob this array doesn't carry. Keep the strings byte-identical to §3.
