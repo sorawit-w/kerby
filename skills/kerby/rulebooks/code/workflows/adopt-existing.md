@@ -70,6 +70,8 @@ These are *proposals* — present them, let the human cut/correct, then write un
 
 ### Low inferability — `.kerby/knowledge/` (draft candidates)
 
+**Split-brain guard (before any branch).** If a legacy `.ai/knowledge/` exists and `.kerby/knowledge/` does not, the vault is **un-migrated, not empty** — do **not** run the pass (not even when forced). Drafting into `.kerby/knowledge/` beside the legacy `.ai/knowledge/` would split the knowledge base across two dirs. Nudge the user to run `kerby load` to migrate first, then re-run `prepare`; this mirrors the `knowledge-bootstrap` SessionStart guard, which skips scaffolding for the same reason.
+
 **When the pass runs — three branches:**
 
 1. **Forced (explicit request) → run, skip the prompt.** If the invocation carries a knowledge-force signal — `prepare:knowledge`, `prepare --knowledge`, or natural language like "force knowledge", "force the knowledge pass", "draft knowledge candidates/entries", "include the knowledge pass" — run the pass regardless of whether entries already exist. Do not ask the opt-in question; the request *is* the consent.
