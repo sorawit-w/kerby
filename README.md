@@ -173,7 +173,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `7.0.0` — see [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `8.0.0` — house cleaning: `.ai/` → `.kerby/` state migration, v7 stub/shim removal, qualified command form, multi-domain READMEs. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** The `code` rulebook is one author's rules. Read
 [`skills/kerby/rulebooks/code/BOOTSTRAP.md`](skills/kerby/rulebooks/code/BOOTSTRAP.md) end-to-end

@@ -3,6 +3,61 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [8.0.0] — 2026-07-05
+
+**House cleaning.** The v7 grace period ends, kerby's project state consolidates
+under `.kerby/`, and the docs finally say what kerby became: a domain-blind gate
+engine with pluggable rulebooks. Coding is the first rulebook, not the identity.
+
+### Breaking
+
+- **Project state moves from `.ai/` to `.kerby/`.** Everything kerby creates in a
+  consuming repo — `memory.log`, `STATUS.md`, `BLOCKERS.md`, `knowledge/`,
+  `audits/` (incl. the `.last-audit` baseline), `sast/` — now lives under
+  `.kerby/`, beside `rulebooks.lock`. The SessionStart hooks read `.kerby/`
+  **only** (no fallback).
+
+  **Migration — one command:** run `kerby load` in the repo and confirm the listed
+  moves. The agent migrates per-artifact (`git mv` for tracked files, `mv` for
+  untracked; collisions are named and skipped, never merged; files kerby didn't
+  create are left in place). Until you do, session start prints a one-line nudge —
+  nothing is read from `.ai/` and nothing is lost, just un-migrated.
+  Update `.gitignore` entries from `.ai/audits/` + `.ai/sast/` to
+  `.kerby/audits/` + `.kerby/sast/`.
+
+  **Mixed-version teams:** a teammate still on v7 keeps writing `.ai/` while v8
+  writes `.kerby/` — upgrade together, or state will split until everyone migrates.
+
+- **v7 migration machinery removed.** The pointer stubs at the old
+  `resources/**.md` paths, the five exec shims at the old `resources/hooks/`
+  enforcer paths, and the project-root `rulebooks.lock` fallback (+ its
+  auto-migration) are gone, as v7 promised. Pre-v7 hook registrations that still
+  point at old shim paths must **re-run `kerby install`** to re-register from the
+  rulebook folders. `.kerby/rulebooks.lock` is the only lockfile location read.
+
+### Changed
+
+- **Docs prefer the qualified command form** — `kerby code audit`,
+  `kerby code prepare` — naming the rulebook a command belongs to. The bare
+  inferred form (`kerby audit`) remains fully supported behavior.
+- **READMEs repositioned for multi-domain kerby**: the engine/rulebook split is
+  the story, with a "Rulebooks you could write" table (sales, support, ops,
+  editorial, compliance), a "when a rulebook makes sense" test, and the
+  v5→v7→v8 evolution in one paragraph. `AUTHORING-RULEBOOKS.md` gains the same
+  guidance plus the **artifact-location default**: rulebooks that create project
+  state write under `.kerby/` (opt-out allowed, but must be disclosed in the
+  rulebook's README and rule bodies).
+- `agent-context.yaml.template` defaults (`logging.logTo`, SAST cache notes) and
+  the state templates now point at `.kerby/`; freshly `prepare`d repos write
+  `.kerby/` from day one.
+
+### Migration notes
+
+- Existing `load`/session users: run `kerby load` once per repo, confirm the move. Done.
+- `install` users on pre-v7 hook paths: re-run `kerby install` (the old shim paths no longer exist).
+- Frozen `.eval/parity/` captures and the ENGINE-MAP docs keep their historical
+  `.ai/` paths by design — they are decision records, marked as such.
+
 ## [7.0.0] — 2026-07-04
 
 **Plug-and-play rulebooks.** The engine/rulebook split of 6.0.0 becomes physical:
