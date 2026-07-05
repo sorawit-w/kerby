@@ -1,4 +1,11 @@
-# Rulebook contract — v2
+# Rulebook contract — v2 (selection semantics amended in kerby v9.1)
+
+The contract *number* stays **2**: the manifest shape is unchanged, E12 is
+unchanged, and every existing external manifest remains valid — a bump to 3
+would force churn on external rulebooks for zero shape change. What v9.1 amends
+is *loader behavior*: `[detect]` moves from reserved to live for builtins, and
+the selection default (`code`) is replaced by marker detection with an
+ask-the-user fallback (`source: … | detected | chosen`, no `default`).
 
 The manifest contract between the kerby engine (loader/validator) and a
 **rulebook** — a folder of rules the engine can load, weigh, and enforce
@@ -24,7 +31,10 @@ pinned (D10).
 | `remote` | fetched by explicit `load <git-URL \| owner/repo>`, materialized at `.kerby/rulebooks/<id>/` (session temp dir when the workspace is read-only) | confined exactly like `local`; clone's `.git/` deleted after fetch; manifest `id` must be a slug (it becomes the path component) | TOFU exactly like `local`, plus `Source: <url>` provenance in the prompt. **No silent network** (plain `load`/`reload` use the existing clone) and **no silent updates** (re-running `load <source>` re-clones; a changed hash re-prompts). Lockfile entry adds `local_path` — untrusted like every lockfile field: the loader re-derives it from the id; a mismatch or out-of-root path is fail-closed HELD |
 
 Auto-selection is builtin-only (D19): external rulebooks load by explicit
-invocation only, whatever they declare.
+invocation only, whatever they declare — `[detect]` steers selection only
+among builtins. For a builtin, the loader matches its `[detect].markers` as
+root-relative globs during selection (v9.1); for a non-builtin the markers are
+shape-checked and ignored (E12 warns).
 
 ## Top-level fields
 
@@ -50,8 +60,8 @@ name = "audit"              # dispatch token: slug, non-reserved, no builtin-id 
 body = "commands/audit.md"  # instruction file read at invocation; folder-confined, trust-hashed
 description = "…"           # shown in dispatch listings + the trust prompt (E14)
 
-[detect]                    # RESERVED at contract v2 (D17–D19)
-markers = ["package.json"]  # shape-validated only (E12); the loader never matches on it
+[detect]                    # builtin auto-selection markers (D17–D19; live for builtins since v9.1)
+markers = ["package.json"]  # root-relative globs; loader matches among BUILTINS only (E12 warns + ignores for non-builtins)
 ```
 
 ## `[[check]]` fields
@@ -140,7 +150,7 @@ everything else is an error (exit 1). E02-unknown-event also warns.
 | E09 | `enforcement ∈ {hard, partial, behavioral}`; `hard`/`partial` require `enforcer`; `partial` without `gap` → warning |
 | E10 | `accepts` non-empty; every `needs` entry known and satisfiable (see View vocabulary) |
 | E11 | prose-injection lint, non-builtin origins, **warn-only**: flags `ignore previous`, `you must now`, `disregard the above` in **every prose/text file the trust hash covers** — declared check + command bodies (**regardless of file extension** — a body like `commands/review` with no `.md`/`.txt` suffix is still dispatched as instructions, so it is linted too) *and* undeclared `references/`/`workflows/` markdown a body can read — **and in the free-text manifest fields the loader displays** (the rulebook `description`, each `[[command]].description`, each `[[check]].gap`), so the payload can't be hidden by moving it out of a declared body or into a string shown at the trust prompt |
-| E12 | `[detect]` shape: `markers` = non-empty array of strings (error if malformed); declared by a non-builtin rulebook → warning (ignored at load, D19) |
+| E12 | `[detect]` shape: `markers` = non-empty array of strings (error if malformed); accepted for builtins (the loader matches them as root-relative globs among builtins, v9.1); declared by a non-builtin rulebook → warning (ignored at load, D19) |
 | E13 | no `[[command]]` name collides with a reserved engine command, a builtin rulebook id, or another command in the same rulebook |
 | E14 | `[[command]]` shape: `name` a slug, `body` a folder-confined path string, `description` non-empty |
 
@@ -165,9 +175,12 @@ first successful load; read by every later load.
 ```
 
 - Location: `.kerby/rulebooks.lock` — the only location the loader reads.
-- `selected` is the D17 pin: which rulebooks this project loads. Changing
-  rulebooks is an explicit act (`load <x>` replaces, `load +<x>` adds,
-  `unload <x>` removes), never drift. **Ids are unique within `selected`** —
+- `selected` is the D17 pin: which rulebooks this project loads. The **first
+  successful load writes it** — whether the selection came from an explicit
+  arg, marker detection (`source: detected`), or the user's answer to the
+  ask-fallback (`source: chosen`) — so detection/ask happens once per project
+  and every later load reads the pin. Changing rulebooks is an explicit act
+  (`load <x>` replaces, `load +<x>` adds, `unload <x>` removes), never drift. **Ids are unique within `selected`** —
   since it keys on `id` and every user-facing op dispatches by id, `load +`
   refuses a rulebook whose id already names an active selection (e.g. the
   builtin `swe` plus a local fork also named `swe`); the user unloads the

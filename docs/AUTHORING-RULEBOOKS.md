@@ -174,11 +174,13 @@ soften its checks (E05, E06). To deliberately replace another pack's
 non-floor check, redeclare its id with `override_of = "<id>"` — an
 undeclared collision is an error, not a merge (E07).
 
-### `[detect]` — reserved
+### `[detect]` — builtin-only
 
-You may declare workspace fingerprints, but at contract v2 the engine never
-matches on them, and for non-builtin rulebooks it never will (E12 warns):
-auto-selection is builtin-only, because untrusted workspace content must
+You may declare workspace fingerprints (`markers` — root-relative globs), but
+for **your** rulebook they are shape-checked and then ignored (E12 warns).
+Since kerby v9.1 the loader *does* match `[detect].markers` during selection —
+but **only among the builtins**. For a non-builtin rulebook it never will:
+auto-selection stays builtin-only, because untrusted workspace content must
 never steer which gate governs. Users load your rulebook by name or path,
 on purpose. That is the feature.
 
@@ -259,7 +261,7 @@ literal and name the fix.
 | E09 | `hard`/`partial` without an `enforcer`; warns when `partial` lacks a `gap` | declare what's true (Choosing enforcement) |
 | E10 | unknown view name, or `needs` unsatisfiable by any accepted subject | `needs` and subject types |
 | E11 | *(warning)* prose body contains an instruction-override pattern | write rules, not payloads (Trust model) |
-| E12 | `[detect].markers` malformed; warns when a non-builtin declares it | `[detect]` is reserved, auto-selection is builtin-only |
+| E12 | `[detect].markers` malformed; warns when a non-builtin declares it | `[detect]` is live for builtins (v9.1); auto-selection is builtin-only |
 | E13 | a command name collides with a reserved engine command, a builtin rulebook id, or a sibling command | Commands (the manifest walkthrough) — dispatch tokens must be unambiguous |
 | E14 | a command is malformed (name not a slug, `body` missing/not a path, empty `description`) | Commands — every command is a named, described, folder-confined instruction file |
 
