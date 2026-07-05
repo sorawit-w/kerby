@@ -23,8 +23,18 @@ test = "{test_command}"
 
 [detect]                      # builtin auto-selection markers (D17, v9.1). Root-relative
                               # globs; the loader matches these among BUILTINS only (D19).
-                              # Intentionally mirrors SKILL.md's readiness-nudge
-                              # has-real-code list — keep the two in sync.
+                              # Build/package manifests — the *manifest clause* of SKILL.md's
+                              # readiness-nudge has-real-code test (keep those in sync).
+                              # Deliberately NOT recursive source globs (**/*.py, **/*.sh):
+                              # kerby ships .py/.sh under a consuming project's
+                              # .claude/skills/kerby/ install, so a recursive code glob would
+                              # false-match every repo that merely HAS kerby installed — the
+                              # same self-install trap that pruned skill-authoring's install
+                              # glob. Manifests sit at the repo root, never in the install dir,
+                              # so they detect *the repo's own* build without that trap. A
+                              # manifest-less code repo (loose scripts only) therefore may not
+                              # match swe — it falls to whatever else matches or the ask;
+                              # `kerby load swe` / `load +swe` is the deterministic path.
 markers = ["package.json", "deno.json", "pyproject.toml", "go.mod", "Cargo.toml"]
 
 # --- prose: the operating rules and gate-bearing references, in place -------
