@@ -59,7 +59,7 @@ The skill is invoked via `Skill` tool with `args: <sub-command>`. Defaults to `l
 
 | Sub-command | What it does |
 |---|---|
-| `load` (default) | Select rulebooks (explicit arg — id, path, URL, or `owner/repo` → `.kerby/rulebooks.lock` pin → default `swe`), announce it in one line, then read its eager prose — `rulebooks/swe/BOOTSTRAP.md` plus the base floor rules — via `Read` so it enters context as a tool result, confirm to user. External (`local`) rulebooks pass a one-time trust review with a hash pin first. |
+| `load` (default) | Select rulebooks (explicit arg — id, path, URL, or `owner/repo` → `.kerby/rulebooks.lock` pin → builtin-marker detection → ask the user; no silent default), announce it in one line, then read its eager prose — e.g. `rulebooks/swe/BOOTSTRAP.md` plus the base floor rules — via `Read` so it enters context as a tool result, confirm to user. On an unpinned repo the first session may detect (one builtin's markers match) or ask (several match, or none), then writes the pin so later sessions load silently. External (`local`) rulebooks pass a one-time trust review with a hash pin first. |
 | `reload` | Same as `load`, but with a "BOOTSTRAP refreshed" confirmation. Useful after Claude Code compacts the conversation. |
 | `status` | Scan recent context for BOOTSTRAP signatures (e.g., `Prime Directive`, `<hard_rules>`, distinctive headers); report loaded / not loaded, plus the rulebook panel — each check's declared vs. *effective* enforcement, with degrades and named gaps visible. |
 | `install` | **Phase 1** — append the session-start instruction to your vendor agent-instruction files (`CLAUDE.md` / `AGENTS.md` / `AI-CONTEXT.md` / `.cursorrules`), per-file confirmation. **Phase 2 (optional)** — register `kerby`' Claude Code lifecycle hooks (`PreToolUse` + `SessionStart`) in your chosen settings file. Both phases are independently skippable; both show a diff and require explicit confirmation. |
@@ -165,7 +165,7 @@ If accepted, the skill:
    | `SessionStart` | `""` | `knowledge-bootstrap.sh` | `resources/hooks/` | Scaffold `.kerby/knowledge/KNOWLEDGE.md` if missing; reindex AUTO-INDEX block; flag entries older than 180 days |
    | `SessionStart` | `""` | `context-bootstrap.sh` | `resources/hooks/` | Scaffold `CONTEXT.md` (project domain glossary) if missing; never overwrites |
 
-   (`SKILL.md` is the source of truth for the full derivation — base-first dedup, shim-following to the resolved target. The table above is the default `swe`-on-`base` install.)
+   (`SKILL.md` is the source of truth for the full derivation — base-first dedup, shim-following to the resolved target. The table above is a `swe`-on-`base` install.)
 
 4. **Shows the full diff** of the merged settings.json. Single y/n confirmation. On `n`, nothing is written.
 5. **Idempotent** — re-running detects already-managed entries by their absolute-path signature (any script whose resolved path sits under a kerby hook root — `<install-root>/rulebooks/*/hooks/` or `<install-root>/resources/hooks/`) and skips them.

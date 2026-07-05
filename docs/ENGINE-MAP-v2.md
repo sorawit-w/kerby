@@ -146,6 +146,8 @@ line where sections left the engine file.
 | Rulebook id (v9.0.0 rename) | everywhere the baseline prints `code@1.0.0` / id `code` / `kerby code <cmd>`, the live output prints `swe@2.0.0` / `swe` / `kerby swe <cmd>` — id/version substitution only; the surrounding verbatim strings (confirmations, announcement format, TOFU prompt block) are otherwise unchanged |
 | Pin migration (v9.0.0) | + one-line announcement `pin migrated: builtin 'code' → 'swe' (renamed in v9.0.0)` preceding a pinned load of a pre-v9 lockfile |
 | `status` panel (v9.0.0) | + `registered script missing — re-run kerby install` row for a settings entry under a kerby-managed root whose script no longer exists (the state a pre-v9 hook install leaves after the rename) |
+| Selection source grammar (v9.1.0) | announcement gains `detected` / `chosen`, loses `default`; the first-time-default hint is replaced by a `(matched: <marker>; …)` hint on `detected` |
+| Ask-fallback flow (v9.1.0) | new surface — an unpinned load with a multi-match or no-match presents the builtin list and asks; spec-tested, not parity-tested (mirrors the "New commands" row) |
 
 Replay rule: byte-match everything except these enumerated deltas. A mismatch outside
 the table = stop, classify, BLOCKED if unexplained — never "explain away".
