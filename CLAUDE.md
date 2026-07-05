@@ -95,10 +95,30 @@ rules and command references stay literal regardless (see its Zoning table).
 
 ## PR Workflow
 
-Follows the **global PR workflow** in `~/.claude/CLAUDE.md` (local `/codex:review`
-loop-to-clean → squash-merge → merge on a local-clean review; GitHub `@codex review` poll
-as the no-local-Codex fallback). No repo-specific tiers — the same Codex reviews locally,
-so a second GitHub pass would only re-review identical bytes.
+Defined here in full — the gate must never depend on unversioned, user-local config
+(a maintainer's personal `~/.claude/CLAUDE.md` may mirror this as a cross-repo default,
+but this section is authoritative for kerby).
 
-One repo-specific note: merging via this workflow **overrides kerby's own "leave for human
-review" guardrail** for this repo — the owner has opted in.
+**Default path — local Codex available:**
+1. Branch, commit.
+2. Run a local Codex review against the branch diff
+   (`/codex:review --base main --scope branch`); loop review → fix → re-review until it
+   returns clean. The final review must run against the exact tree you push.
+3. Open the PR noting `Codex-reviewed locally at <sha>` (the reviewed branch HEAD), then
+   `gh pr merge --squash --delete-branch`. The local-clean review **authorizes the merge**
+   — it *is* the independent-model Codex review the rule-text gate in
+   `skills/kerby/CLAUDE.md` requires (Codex ≠ the authoring agent; venue doesn't matter,
+   so a second GitHub pass would only re-review identical bytes).
+
+**Fallback — no local Codex:** open the PR, trigger a GitHub `@codex review`, and poll.
+**Address every comment before merging** — fix it (a fix is a new push → new review
+cycle) or push back with reasoning; never merge with an open, unaddressed comment. Merge
+only on a green light **against the current head**: an approval / 👍 reaction dated after
+the latest push, or a reasonable silence window once ≥1 completed review of HEAD exists —
+never when Codex never reviewed HEAD at all. (Poll cadence is maintainer-personal tuning,
+not part of this gate.)
+
+**Merge conventions:** squash is the default — one commit per PR on `main`; don't use
+`--merge` / `--rebase` without being asked. Always pass `--delete-branch` (this repo's
+`deleteBranchOnMerge` is off). Merging via this workflow **overrides kerby's own "leave
+for human review" guardrail** for this repo — the owner has opted in.
