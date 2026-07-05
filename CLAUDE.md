@@ -22,7 +22,7 @@ state, evaluation. Naming the primitives lets edits be deliberate instead of acc
 
 | Primitive | What it means | Concrete artifact in `kerby` |
 |---|---|---|
-| **Context engineering** | Organize information so the agent can reason over it — repo-local, versioned, not in chat threads. | `CONTEXT.md` (project glossary) + `BOOTSTRAP.md` (operating rules) + vendor agent-context files kept in sync — see `rulebooks/swe/references/multi-tool.md`. |
+| **Context engineering** | Organize information so the agent can reason over it — repo-local, versioned, not in chat threads. | `CONTEXT.md` (project glossary) + `BOOTSTRAP.md` (operating rules) + vendor agent-context files kept in sync — see `skills/kerby/resources/references/multi-tool.md`. |
 | **Progressive disclosure** | Load detail on demand instead of front-loading everything. | `BOOTSTRAP.md` is the index; `rulebooks/swe/references/*.md` carry the long-tail, loaded only when cited. |
 | **Observable feedback loops** | Prefer machine-checkable signal over aspirational prose. | `rulebooks/base/hooks/pre-commit-check.sh`, `protect-env.sh`, `warn-env-read.sh`, `protect-git.sh` + gates in `references/quality-gates.md` and `references/validation.md`. |
 | **State preservation** | Carry useful context across session boundaries. | `.kerby/memory.log` (append-only history) + `.kerby/STATUS.md` (current state) + `.kerby/knowledge/` (curated wiki) + `.kerby/BLOCKERS.md`, bootstrapped by `session-start-context.sh` + `knowledge-bootstrap.sh`. |
