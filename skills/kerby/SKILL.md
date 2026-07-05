@@ -109,7 +109,7 @@ On `y`: record the approval in **two** places — pin `{id, version, origin, pat
 
 | Harness primitive | Concrete artifact in `kerby` |
 |---|---|
-| **Context engineering** | `CONTEXT.md` (project domain glossary at root) + `BOOTSTRAP.md` (operating rules) + vendor agent-context files (`CLAUDE.md`, `AGENTS.md`, `AI-CONTEXT.md`, `.cursorrules`) kept in sync — see `references/multi-tool.md` |
+| **Context engineering** | `CONTEXT.md` (project domain glossary at root) + `BOOTSTRAP.md` (operating rules) + vendor agent-context files (`CLAUDE.md`, `AGENTS.md`, `AI-CONTEXT.md`, `.cursorrules`) kept in sync — see `resources/references/multi-tool.md` |
 | **Progressive disclosure** | `BOOTSTRAP.md` is the index; `rulebooks/swe/references/*.md` carry the long-tail (debugging, knowledge-management, sub-agent-delegation, validation, etc.) loaded only when cited |
 | **Observable feedback loops** | `hooks/pre-commit-check.sh`, `hooks/protect-env.sh`, `hooks/warn-env-read.sh`, `hooks/protect-git.sh`, quality gates from `references/quality-gates.md`, verification gates from `references/validation.md` |
 | **State preservation** | `.kerby/memory.log` (append-only session history) + `.kerby/STATUS.md` (current ephemeral state) + `.kerby/knowledge/` (curated wiki of decisions/conventions/lessons) + `.kerby/BLOCKERS.md` (created only when blocked) — all bootstrapped by `hooks/session-start-context.sh` and `hooks/knowledge-bootstrap.sh` |
@@ -397,7 +397,7 @@ If `y`:
 
 - **User has hand-written hook entries pointing at the same script paths.** Treat them as already-installed; do not add a duplicate.
 - **User has unrelated `hooks` content in the same settings file.** Preserve it exactly. We only touch our own entries inside `hooks.PreToolUse[*]` and `hooks.SessionStart[*]`.
-- **`pre-commit-check.sh` overlap with a git-side `.git/hooks/post-commit` install of `knowledge-reindex.sh`.** They are independent — the former is a Claude Code PreToolUse hook on `Bash`, the latter is a git-side post-commit hook documented separately in `references/hooks.md`. Phase 2 only registers the Claude Code lifecycle hooks; the git-side post-commit hook stays a manual, opt-in install per the doc.
+- **`pre-commit-check.sh` overlap with a git-side `.git/hooks/post-commit` install of `knowledge-reindex.sh`.** They are independent — the former is a Claude Code PreToolUse hook on `Bash`, the latter is a git-side post-commit hook documented separately in `resources/references/hooks.md`. Phase 2 only registers the Claude Code lifecycle hooks; the git-side post-commit hook stays a manual, opt-in install per the doc.
 
 ### Idempotency and re-runs
 
