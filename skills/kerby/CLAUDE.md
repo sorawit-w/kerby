@@ -53,10 +53,10 @@ The checks below remove **different** biases and aren't equal strength, so they'
 |---|---|---|
 | `scripts/check-skill-compat.py` | — (mechanical) | **HARD, always** — the only mechanically-enforced gate |
 | In-session `skill-evaluator` (main loop, split executor/grader) | inner | **HARD for any rule-text change** — cheap, always doable in the authoring session |
-| Independent PR review (e.g. Codex) | author framing | **HARD for any rule-text change** — empirically catches internal contradictions both audits miss |
+| Independent-model Codex review (local `/codex:review` run to clean, or on the PR) | author framing | **HARD for any rule-text change** — empirically catches internal contradictions both audits miss |
 | Fresh-session `skill-evaluator` | outer | **HARD for the higher-bar class** (safety / secrets / commit-discipline / protected-branch / new behavioral surface such as a sub-command); **recommended** for adherence-only patches |
 
-**A clean in-session result does NOT authorize merge by itself.** A 34/34 in-session pass has shipped with real bugs the independent review then caught (v4.20.0: a read-only-claim-vs-edit contradiction + a Markdown-escape-ordering flaw — neither was an adherence failure, so the split-role harness couldn't see them). For any rule-text change, the independent review must also be in the loop before merge. Trust the second pair of eyes, not the green number.
+**A clean skill-evaluator result does NOT authorize merge by itself.** A 34/34 adherence pass has shipped with real bugs the Codex review then caught (v4.20.0: a read-only-claim-vs-edit contradiction + a Markdown-escape-ordering flaw — neither was an adherence failure, so the split-role harness couldn't see them). For any rule-text change, an independent-model Codex review must also be in the loop before merge — the venue doesn't matter (a local `/codex:review` run to clean satisfies this, per the root PR workflow); what matters is that Codex, not the authoring agent, cleared the diff. Trust the second pair of eyes, not the green number.
 
 ---
 
