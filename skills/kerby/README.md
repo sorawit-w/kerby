@@ -196,26 +196,28 @@ After Phase 1 completes, the skill asks once whether to register hooks. **Not re
 
 If accepted, the skill:
 
-1. **Resolves the absolute path** to the bundled hooks directory at `<install-root>/resources/hooks/`. Discovery order: BOOTSTRAP-relative path (from `load`) → Glob match → `${KERBY_DIR}` env var → ask the user.
+1. **Resolves the absolute paths** to the bundled hook scripts — the `PreToolUse` enforcers under `<install-root>/rulebooks/<rulebook>/hooks/` and the `SessionStart` services under `<install-root>/resources/hooks/` (the engine-services root). Discovery order: BOOTSTRAP-relative path (from `load`) → Glob match → `${KERBY_DIR}` env var → ask the user.
 2. **Asks where to register**:
    - `~/.claude/settings.json` (global — applies to every project)
    - `<project>/.claude/settings.local.json` (project, gitignored — your machine only) — **default**
    - `<project>/.claude/settings.json` (project, committed — teammates also inherit)
-3. **Builds six hook entries** with absolute paths to the resolved scripts:
+3. **Builds six hook entries** with absolute paths to the resolved scripts (the `Resolved from` column is the install-relative directory each script lives in):
 
-   | Event | Matcher | Script | What it does |
-   |---|---|---|---|
-   | `PreToolUse` | `"Edit\|Write"` | `protect-env.sh` | Hard-block edits to `.env` files (security — not env-var disablable) |
-   | `PreToolUse` | `"Bash"` | `protect-git.sh` | Hard-block destructive git (`reset --hard`, `push --force` to protected branches, `clean -f`, etc.) — security, not env-var disablable |
-   | `PreToolUse` | `"Bash"` | `pre-commit-check.sh` | Soft-warn on missing quality gates before `git commit`; hard-block on detected secrets in staged files |
-   | `SessionStart` | `""` | `session-start-context.sh` | Inject `.kerby/STATUS.md` head + recent `.kerby/memory.log` so the agent resumes with state |
-   | `SessionStart` | `""` | `knowledge-bootstrap.sh` | Scaffold `.kerby/knowledge/KNOWLEDGE.md` if missing; reindex AUTO-INDEX block; flag entries older than 180 days |
-   | `SessionStart` | `""` | `context-bootstrap.sh` | Scaffold `CONTEXT.md` (project domain glossary) if missing; never overwrites |
+   | Event | Matcher | Script | Resolved from | What it does |
+   |---|---|---|---|---|
+   | `PreToolUse` | `"Edit\|Write"` | `protect-env.sh` | `rulebooks/code/hooks/` | Hard-block edits to `.env` files (security — not env-var disablable) |
+   | `PreToolUse` | `"Bash"` | `protect-git.sh` | `rulebooks/code/hooks/` | Hard-block destructive git (`reset --hard`, `push --force` to protected branches, `clean -f`, etc.) — security, not env-var disablable |
+   | `PreToolUse` | `"Bash"` | `pre-commit-check.sh` | `rulebooks/base/hooks/` | Soft-warn on missing quality gates before `git commit`; hard-block on detected secrets in staged files (the floor scan; `code` binds it via a confined shim — one registration) |
+   | `SessionStart` | `""` | `session-start-context.sh` | `resources/hooks/` | Inject `.kerby/STATUS.md` head + recent `.kerby/memory.log` so the agent resumes with state |
+   | `SessionStart` | `""` | `knowledge-bootstrap.sh` | `resources/hooks/` | Scaffold `.kerby/knowledge/KNOWLEDGE.md` if missing; reindex AUTO-INDEX block; flag entries older than 180 days |
+   | `SessionStart` | `""` | `context-bootstrap.sh` | `resources/hooks/` | Scaffold `CONTEXT.md` (project domain glossary) if missing; never overwrites |
+
+   (`SKILL.md` is the source of truth for the full derivation — base-first dedup, shim-following to the resolved target. The table above is the default `code`-on-`base` install.)
 
 4. **Shows the full diff** of the merged settings.json. Single y/n confirmation. On `n`, nothing is written.
-5. **Idempotent** — re-running detects already-managed entries by their absolute path signature (`/skills/kerby/resources/hooks/<script>.sh`) and skips them.
+5. **Idempotent** — re-running detects already-managed entries by their absolute-path signature (any script whose resolved path sits under a kerby hook root — `<install-root>/rulebooks/*/hooks/` or `<install-root>/resources/hooks/`) and skips them.
 
-`uninstall` mirrors symmetrically, removing only entries that match the path signature. Hand-written hook entries with the same script names but different paths are left alone.
+`uninstall` mirrors symmetrically, removing only entries whose resolved path sits under a kerby hook root. Hand-written hook entries with the same script names but different paths are left alone.
 
 ### Disabling individual hooks at runtime
 
