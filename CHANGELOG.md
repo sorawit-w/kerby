@@ -32,8 +32,12 @@ engine with pluggable rulebooks. Coding is the first rulebook, not the identity.
   `resources/**.md` paths, the five exec shims at the old `resources/hooks/`
   enforcer paths, and the project-root `rulebooks.lock` fallback (+ its
   auto-migration) are gone, as v7 promised. Pre-v7 hook registrations that still
-  point at old shim paths must **re-run `kerby install`** to re-register from the
-  rulebook folders. `.kerby/rulebooks.lock` is the only lockfile location read.
+  point at old shim paths must **run `kerby uninstall` then `kerby install`** —
+  `uninstall` sweeps the dead `resources/hooks/` enforcer entries (the
+  engine-services root is matched by path alone), then `install` re-registers
+  from the rulebook folders. Re-running `install` alone is not enough: it only
+  adds the new entries and leaves the stale shim commands registered.
+  `.kerby/rulebooks.lock` is the only lockfile location read.
 
 ### Changed
 
@@ -54,7 +58,7 @@ engine with pluggable rulebooks. Coding is the first rulebook, not the identity.
 ### Migration notes
 
 - Existing `load`/session users: run `kerby load` once per repo, confirm the move. Done.
-- `install` users on pre-v7 hook paths: re-run `kerby install` (the old shim paths no longer exist).
+- `install` users on pre-v7 hook paths: run `kerby uninstall` then `kerby install` — `uninstall` clears the dead shim entries, `install` re-registers from the rulebook folders (re-running `install` alone leaves the stale entries behind).
 - Frozen `.eval/parity/` captures and the ENGINE-MAP docs keep their historical
   `.ai/` paths by design — they are decision records, marked as such.
 
