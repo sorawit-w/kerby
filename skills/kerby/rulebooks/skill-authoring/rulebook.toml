@@ -4,7 +4,7 @@
 # skills/kerby/CLAUDE.md, not this rulebook.
 # Contract: docs/rulebook-contract.md (contract 2). Extends base (implicit).
 id = "skill-authoring"
-version = "1.0.0"
+version = "1.1.0"
 contract = 2
 accepts = ["*"]
 description = "Skill-authoring gate: no skill change ships as verified without a fresh skill-evaluator pass against the exact text being shipped."
@@ -12,6 +12,13 @@ description = "Skill-authoring gate: no skill change ships as verified without a
 [gate]
 block_on = ["block"]
 hold_on = ["warn"]
+
+[detect]                      # builtin auto-selection markers (D17, v9.1). Root-relative
+                              # globs matched among BUILTINS only (D19). A repo that
+                              # authors agent skills carries a SKILL.md; a repo that both
+                              # authors skills AND ships code is the expected multi-match
+                              # case (swe + skill-authoring) — the loader asks, never guesses.
+markers = ["SKILL.md", "skills/*/SKILL.md", ".claude/skills/*/SKILL.md"]
 
 [[check]]
 id = "evaluator-gate-on-final-text"
