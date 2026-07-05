@@ -21,8 +21,8 @@ kerby ships with these hooks:
 
 Runs at the start of every session. Injects:
 - Reminder of the 9-step workflow
-- Contents of `.ai/STATUS.md` (if it exists) — so the agent knows where the previous session left off
-- Last entries from `.ai/memory.log` (if it exists) — recent decisions and context
+- Contents of `.kerby/STATUS.md` (if it exists) — so the agent knows where the previous session left off
+- Last entries from `.kerby/memory.log` (if it exists) — recent decisions and context
 
 This replaces the need for the agent to "remember" to read project state — it's surfaced automatically.
 
@@ -35,7 +35,7 @@ This replaces the need for the agent to "remember" to read project state — it'
 
 Runs at the start of every session. Three jobs:
 
-1. **Scaffold** `.ai/knowledge/KNOWLEDGE.md` from `templates/KNOWLEDGE.md.template` if the directory is missing. One-time, idempotent.
+1. **Scaffold** `.kerby/knowledge/KNOWLEDGE.md` from `templates/KNOWLEDGE.md.template` if the directory is missing. One-time, idempotent.
 2. **Reindex** the AUTO-INDEX block in `KNOWLEDGE.md` from the title (frontmatter) and first body line of each entry file. Idempotent — only writes if content actually changed. Internally calls `knowledge-reindex.sh --force`.
 3. **Stale scan** — scans entry files for `updated:` (or `created:` as fallback) and prints any older than 180 days, so the agent can flag them rather than treating them as authoritative.
 
@@ -86,7 +86,7 @@ Defaults to enabled when the section is missing.
 
 The script has two modes:
 
-- **Default (no args)** — git-gated. Only regenerates if the just-made commit touched a `.ai/knowledge/*.md` file other than `KNOWLEDGE.md`. Requires being in a git work tree. This is what the post-commit hook below uses.
+- **Default (no args)** — git-gated. Only regenerates if the just-made commit touched a `.kerby/knowledge/*.md` file other than `KNOWLEDGE.md`. Requires being in a git work tree. This is what the post-commit hook below uses.
 - **`--force`** — Always regenerates, no git checks. This is what `knowledge-bootstrap.sh` calls internally, and what the agent should call after writing a new entry mid-session.
 
 Either way:
@@ -119,12 +119,12 @@ If your project already has a `post-commit` hook, append the script call to it i
 **Strictness:** Advisory (exit 0; `--strict` exits non-zero)
 **Trigger:** Manual invocation, or git's native `post-commit` hook (not Claude Code lifecycle)
 
-Two zero-dependency mechanical checks over `.ai/knowledge/` entries:
+Two zero-dependency mechanical checks over `.kerby/knowledge/` entries:
 
-1. **Broken `related:` target** — an entry's `related:` frontmatter names a file that isn't in `.ai/knowledge/`. Fires only when a link is declared, so effectively no false positives.
+1. **Broken `related:` target** — an entry's `related:` frontmatter names a file that isn't in `.kerby/knowledge/`. Fires only when a link is declared, so effectively no false positives.
 2. **Supersede-without-pointer** — an entry has a `## Superseded` section whose body names no replacement entry (no `.md` token).
 
-**Advisory by default** — prints findings, always exits 0. Pass `--strict` to exit 1 on any finding (for a git pre-push or CI gate). Deliberately **not** a SessionStart hook: integrity drifts slowly and shouldn't be re-checked every session. There is **no orphan check** — `related:` is optional, so "no inbound link" is a curation opinion, not a correctness error; that's [OpenKB](external-resources.md)'s semantic-lint job, not this floor's.
+**Advisory by default** — prints findings, always exits 0. Pass `--strict` to exit 1 on any finding (for a git pre-push or CI gate). Deliberately **not** a SessionStart hook: integrity drifts slowly and shouldn't be re-checked every session. There is **no orphan check** — `related:` is optional, so "no inbound link" is a curation opinion, not a correctness error; that's [OpenKB](../../rulebooks/code/references/external-resources.md)'s semantic-lint job, not this floor's.
 
 Same opt-out as the other knowledge hooks — `agent-context.yaml: knowledge.enabled: false`, or `CODING_RULES_HOOK_DISABLED=knowledge-lint`. Run it directly any time (`bash "${KERBY_DIR}/resources/hooks/knowledge-lint.sh"`), or append the call to a project `post-commit` hook the same way as `knowledge-reindex.sh` above. Self-tested by `hooks/knowledge-lint.test.sh`.
 
@@ -137,7 +137,7 @@ Same opt-out as the other knowledge hooks — `agent-context.yaml: knowledge.ena
 
 When the session ends, a prompt hook verifies that:
 1. All code is committed (no uncommitted changes)
-2. `.ai/STATUS.md` or `.ai/memory.log` was updated during the session
+2. `.kerby/STATUS.md` or `.kerby/memory.log` was updated during the session
 
 If the checkpoint is missing, the agent is reminded. This is advisory — it flags the gap but doesn't prevent session exit.
 
@@ -221,7 +221,7 @@ You can extend kerby's hooks by adding to your project's `.claude/settings.json`
 | Playbook Rule | Enforcement Without Hooks | Enforcement With Hooks |
 |--------------|--------------------------|----------------------|
 | Read project state first | Agent must remember | SessionStart injects state automatically |
-| Bootstrap `.ai/knowledge/` on first use | Agent must remember (often forgets) | SessionStart scaffolds + flags stale entries |
+| Bootstrap `.kerby/knowledge/` on first use | Agent must remember (often forgets) | SessionStart scaffolds + flags stale entries |
 | Keep `KNOWLEDGE.md` index in sync with entries | Agent must remember on every entry change | SessionStart reindexes; agent calls `knowledge-reindex.sh --force` for mid-session updates |
 | Never commit secrets | Agent must self-check | Hard-blocked before commit happens |
 | Never edit .env files | Agent must self-check | Hard-blocked before edit happens |

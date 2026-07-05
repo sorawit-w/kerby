@@ -164,7 +164,7 @@ Don't loop forever. Stop and escalate when:
 
 ### Progress Tracking
 
-Use `.ai/STATUS.md` as your iteration state file. After each successful iteration:
+Use `.kerby/STATUS.md` as your iteration state file. After each successful iteration:
 
 1. Mark the completed task
 2. Note what's next
@@ -351,7 +351,7 @@ Checkpoints are your safety net. They let you (and the developer) recover from m
 |-------|--------------|-----|------|
 | **Agent-level** | File snapshots within the session | Automatic (e.g., Claude Code creates these before each edit) | Every edit — no action needed |
 | **Git-level** | Committed code on a branch | `git commit` + `git push` | After every logical milestone |
-| **Session-level** | Progress state, decisions, next steps | Update `.ai/STATUS.md` + `.ai/memory.log` | After significant progress or before context fills |
+| **Session-level** | Progress state, decisions, next steps | Update `.kerby/STATUS.md` + `.kerby/memory.log` | After significant progress or before context fills |
 
 All three layers work together. Agent-level checkpoints protect against mid-task mistakes (undo/rewind). Git-level checkpoints protect against session crashes and make work reviewable. Session-level checkpoints enable handoff between sessions — the next agent (or the same agent in a new session) picks up exactly where you left off.
 
@@ -372,8 +372,8 @@ Don't accumulate a session's worth of changes in a single commit at the end. **C
 When you've made significant progress or the conversation is getting long, create a session-level checkpoint:
 
 1. **Commit and push** all current work (git-level checkpoint)
-2. **Update `.ai/STATUS.md`** — current position, what's done, what's next, key decisions
-3. **Update `.ai/memory.log`** — detailed session summary with rationale and open questions
+2. **Update `.kerby/STATUS.md`** — current position, what's done, what's next, key decisions
+3. **Update `.kerby/memory.log`** — detailed session summary with rationale and open questions
 4. **Compact or hand off** — trigger conversation compaction if available, or tell the developer a fresh session can resume from this checkpoint
 
 See `context-management.md` for full session checkpoint and resumption workflow.

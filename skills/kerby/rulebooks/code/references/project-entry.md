@@ -170,7 +170,7 @@ git commit -m "chore: setup development environment"
 
 ## Existing Project Flow
 
-> **No kerby artifacts yet?** This flow assumes `agent-context.yaml`, `.ai/`, and `CONTEXT.md` already exist. If the repo has code but those are missing or empty, run the `prepare` sub-command first (`workflows/adopt-existing.md`) to populate them, then resume here.
+> **No kerby artifacts yet?** This flow assumes `agent-context.yaml`, `.kerby/`, and `CONTEXT.md` already exist. If the repo has code but those are missing or empty, run the `prepare` sub-command first (`workflows/adopt-existing.md`) to populate them, then resume here.
 
 ### 1. Load Project Context
 
@@ -178,8 +178,8 @@ Read in order:
 
 1. `agent-context.yaml` — runtime, framework, conventions, entry points
 2. `README.md` — project purpose, quick start
-3. `.ai/memory.log` — recent actions, blockers (last 20 entries)
-4. `.ai/knowledge/KNOWLEDGE.md` — knowledge base index (if it exists). Scan for relevant entries.
+3. `.kerby/memory.log` — recent actions, blockers (last 20 entries)
+4. `.kerby/knowledge/KNOWLEDGE.md` — knowledge base index (if it exists). Scan for relevant entries.
 5. Agent context file (`.cursorrules`, `CLAUDE.md`, etc.)
 6. `package.json` / `deno.json` — verify runtime and dependencies
 
@@ -187,7 +187,7 @@ Read in order:
 
 Check for:
 - Incomplete implementations (TODO comments, partial features)
-- Technical debt or blockers documented in `.ai/BLOCKERS.md`
+- Technical debt or blockers documented in `.kerby/BLOCKERS.md`
 - Failed tests or builds
 - Missing dependencies
 - Missing linter/formatter
@@ -234,13 +234,13 @@ bun run lint
 bun run test
 ```
 
-Document the results in `.ai/memory.log` (see `communication.md` for base format). For project entry, include:
+Document the results in `.kerby/memory.log` (see `communication.md` for base format). For project entry, include:
 
 ```
 [YYYY-MM-DDTHH:MM:SSZ]
 Task: Project entry — [project name]
 Action: Assessed project state and verified environment
-Files: agent-context.yaml, .ai/memory.log
+Files: agent-context.yaml, .kerby/memory.log
 Status: DONE
 Notes: State=[new|existing], Stack=[runtime, framework, tools], Build=[pass|fail], Next=[planning|execution|error handling]
 ```
@@ -252,10 +252,10 @@ Notes: State=[new|existing], Stack=[runtime, framework, tools], Build=[pass|fail
 ### When to Create
 
 - **`agent-context.yaml`** — at project start (new project workflow, step 3)
-- **`.ai/memory.log`** — at session start (first entry: project name, stack, current state)
-- **`.ai/STATUS.md`** — before multi-phase work (implementation planning)
-- **`.ai/BLOCKERS.md`** — when a task fails after retry budget exhausted
-- **`.ai/knowledge/KNOWLEDGE.md`** — bootstrapped automatically by the `knowledge-bootstrap` hook at session start (default on). If hooks aren't wired for this project, copy the engine template `<install-root>/resources/templates/KNOWLEDGE.md.template` manually when the first entry is approved. See `references/knowledge-management.md` and `references/hooks.md`.
+- **`.kerby/memory.log`** — at session start (first entry: project name, stack, current state)
+- **`.kerby/STATUS.md`** — before multi-phase work (implementation planning)
+- **`.kerby/BLOCKERS.md`** — when a task fails after retry budget exhausted
+- **`.kerby/knowledge/KNOWLEDGE.md`** — bootstrapped automatically by the `knowledge-bootstrap` hook at session start (default on). If hooks aren't wired for this project, copy the engine template `<install-root>/resources/templates/KNOWLEDGE.md.template` manually when the first entry is approved. See `references/knowledge-management.md` and `references/hooks.md`.
 
 ### When to Update
 
@@ -289,7 +289,7 @@ Use the canonical format from `communication.md`. All entries follow the same st
 ### Existing Project: Resume
 
 1. Read `agent-context.yaml`
-2. Read `.ai/memory.log` (last 20 lines)
+2. Read `.kerby/memory.log` (last 20 lines)
 3. Check build/lint/test status
 4. Route to appropriate workflow
 

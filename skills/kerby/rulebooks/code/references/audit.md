@@ -2,7 +2,7 @@
 
 The `audit` sub-command checks an **end-user project's accumulated state** against the *current* kerby corpus and emits a human-readable report. The rules evolve; a repo drifts from them. This is the periodic drift check.
 
-**Contract — the audit is read-only on your code and git state.** It never edits source, never commits, never merges, never opens a PR. It writes only generated artifacts under `.ai/` — the report and its baseline under `.ai/audits/`, plus (only when `--sast` triggers provisioning) the tool cache under `.ai/sast/` (`sast-provisioning.md`) — never repo source, then stops. Acting on findings is the developer's call.
+**Contract — the audit is read-only on your code and git state.** It never edits source, never commits, never merges, never opens a PR. It writes only generated artifacts under `.kerby/` — the report and its baseline under `.kerby/audits/`, plus (only when `--sast` triggers provisioning) the tool cache under `.kerby/sast/` (`sast-provisioning.md`) — never repo source, then stops. Acting on findings is the developer's call.
 
 **What it is NOT:** not a bug finder (use `/code-review`), not a minimality/bloat review, not a SKILL.md text audit (that's `skill-evaluator`). It checks *conformance to these rules* — nothing else.
 
@@ -26,7 +26,7 @@ The audit is for **real coding projects**. Before doing anything else:
 
 ## 3. Scope exclusions (always)
 
-Never audit: `.ai/**` (agent state and prior audit reports — auditing them for "dead code" is nonsensical and re-opens the injection surface from §1), `skills/**`, `.claude-plugin/**`, plus the usual vendor/build/generated dirs (`node_modules/`, `dist/`, `build/`, `vendor/`, `.venv/`, lockfiles, minified assets).
+Never audit: `.kerby/**` **and legacy `.ai/**`** (agent state and prior audit reports — **both** can hold agent state during the v8 migration grace period, since a declined migration or a collision leaves the old `.ai/` artifacts in place; auditing them for "dead code" is nonsensical and re-opens the injection surface from §1), `skills/**`, `.claude-plugin/**`, plus the usual vendor/build/generated dirs (`node_modules/`, `dist/`, `build/`, `vendor/`, `.venv/`, lockfiles, minified assets).
 
 ---
 
@@ -73,7 +73,7 @@ Agent judgment. Each finding must **name the heuristic it used** so a human can 
 | **Shortcut without upgrade-trigger** | a known smell (O(n²) over a collection, in-memory accumulation, inline-vs-extracted) with no adjacent comment naming the measurable flip condition. | `working-patterns.md` + `validation.md` gate |
 | **Hollow / stub tests** | tests asserting nothing, always-true assertions, `.skip`/`.only`, 0-match runs, stubs returning constants counted as coverage. | `validation.md` § What Counts as Evidence |
 
-**Partials** (`partial` — check the visible slice, declare the blind spot): protected-branch direct commits (git topology is lossy post-merge), `.ai/memory.log` cadence (presence/rough-cadence only — can't judge content), docs-not-updated-with-behavior (can't confirm behavior actually changed).
+**Partials** (`partial` — check the visible slice, declare the blind spot): protected-branch direct commits (git topology is lossy post-merge), `.kerby/memory.log` cadence (presence/rough-cadence only — can't judge content), docs-not-updated-with-behavior (can't confirm behavior actually changed).
 
 **Process-only** (never checked — listed in the banner): evidence-based verification, diagnosis-with-evidence, resource cleanup, manual-verify instructions, sub-agent delegation, ambiguity-before-cost, output discipline, don't-print-secrets-in-chat, install-approval, stay-on-task, don't-merge, worktree-gate reasoning.
 
@@ -120,11 +120,11 @@ Cell hooks (must match the template's class names exactly — `sev-blocker`, nev
 
 ## 7. Report output
 
-Draft the report as Markdown, then write it under `.ai/audits/` (HTML rendering: § Report rendering).
+Draft the report as Markdown, then write it under `.kerby/audits/` (HTML rendering: § Report rendering).
 
-**Git exclusion (recommend, never edit).** Audit reports are point-in-time and local — they don't belong in git. But the audit is **read-only**, so it must not edit `.gitignore` itself — doing so would write a file outside the report dir, falsify the "no source files changed" completion claim, and leave a dirty worktree. If `.ai/audits/` isn't already excluded in the target repo, **surface a one-line recommendation** in the completion message (*"Tip: add `.ai/audits/` — and `.ai/sast/` if you use `--sast` — to `.gitignore` so reports and the tool cache aren't tracked"*) and let the developer act. The only things the audit writes are the report and its `.last-audit` baseline under `.ai/audits/` — plus, **only when `--sast` triggers provisioning**, the generated SAST tool cache under `.ai/sast/` (`sast-provisioning.md`; never repo source). Nothing else, ever — and the same recommend-never-edit `.gitignore` rule covers `.ai/sast/` too.
+**Git exclusion (recommend, never edit).** Audit reports are point-in-time and local — they don't belong in git. But the audit is **read-only**, so it must not edit `.gitignore` itself — doing so would write a file outside the report dir, falsify the "no source files changed" completion claim, and leave a dirty worktree. If `.kerby/audits/` isn't already excluded in the target repo, **surface a one-line recommendation** in the completion message (*"Tip: add `.kerby/audits/` — and `.kerby/sast/` if you use `--sast` — to `.gitignore` so reports and the tool cache aren't tracked"*) and let the developer act. The only things the audit writes are the report and its `.last-audit` baseline under `.kerby/audits/` — plus, **only when `--sast` triggers provisioning**, the generated SAST tool cache under `.kerby/sast/` (`sast-provisioning.md`; never repo source). Nothing else, ever — and the same recommend-never-edit `.gitignore` rule covers `.kerby/sast/` too.
 
-**File name** — `.ai/audits/audit-<dims>-<mode>-<YYYYMMDD-HHMMSS>.{md,html}`:
+**File name** — `.kerby/audits/audit-<dims>-<mode>-<YYYYMMDD-HHMMSS>.{md,html}`:
 - `<dims>` = `all` (every dimension — the default) or an alphabetically-sorted proper subset joined by `+` (e.g. `security`, `quality+security`). All dimensions collapse to `all` — never enumerate the full set.
 - `<mode>` = `full` | `incr` (the history axis — orthogonal to `<dims>`; § Incremental scope).
 - On a same-second collision, append `-2`, `-3`.
@@ -173,7 +173,7 @@ Two audit-specific obligations on top of the shared machinery:
 
 The audit is **incremental by default** — it checks only what changed since the last audit. `--full` opts into a whole-repo sweep.
 
-**Baseline.** On successful completion, write `.ai/audits/.last-audit` with three lines: the `HEAD` SHA at completion, the dimension scope that ran (e.g. `all`, or `quality+security`), and whether the `--sast` checks ran for that scope (`sast:yes` / `sast:no`). The SAST line is what lets a later `--sast` run tell whether the static-analysis checks have ever covered this baseline. It lives under the git-excluded `.ai/audits/` because the baseline is **local working-copy state**, not shared history.
+**Baseline.** On successful completion, write `.kerby/audits/.last-audit` with three lines: the `HEAD` SHA at completion, the dimension scope that ran (e.g. `all`, or `quality+security`), and whether the `--sast` checks ran for that scope (`sast:yes` / `sast:no`). The SAST line is what lets a later `--sast` run tell whether the static-analysis checks have ever covered this baseline. It lives under the git-excluded `.kerby/audits/` because the baseline is **local working-copy state**, not shared history.
 
 **Incremental run** (`mode=incr`):
 - File-level checks scope to `git diff --name-only <baseline-sha>..HEAD` ∪ `git status --porcelain` (uncommitted changes), minus the § 3 exclusions.
@@ -207,7 +207,7 @@ audit --full security     security only, whole repo
 | `security` | committed secrets; SAST (semgrep) — `--sast`; vulnerable dependencies — `--sast` |
 | `quality` | dead code, abstraction-for-one-use, shortcut-without-upgrade-trigger, hollow/stub tests |
 | `data` | schema change without migration |
-| `git-hygiene` | commit-type discipline, protected-branch commits, `.ai/memory.log` cadence |
+| `git-hygiene` | commit-type discipline, protected-branch commits, `.kerby/memory.log` cadence |
 | `docs` | docs-not-updated-with-behavior |
 
 A **novel rule** (one not in this table) is assigned a dimension by live classification when the audit walks the corpus; the banner notes that tail is approximate (`inferred` dimensioning). Seed checks are never re-inferred.

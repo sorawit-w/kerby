@@ -35,9 +35,9 @@ Sources: first three bullets distilled from `drona23/claude-token-efficient` (20
 When the conversation is getting long, **proactively create a full checkpoint before it's too late**. A session checkpoint captures everything the next session needs to resume seamlessly:
 
 1. **Git checkpoint** — Commit and push all current work. Anything uncommitted will not survive a session boundary.
-2. **Update `.ai/STATUS.md`** — Record current position, what's done, what's next, and any decisions made
-3. **Update `.ai/memory.log`** — Write a detailed session summary covering: what was accomplished, key decisions and their rationale, open questions, and exact next steps
-4. **Compact or request a new session** — If the agent supports conversation compaction/summarization, trigger it. Otherwise, tell the developer: *"This session is getting long. I've created a checkpoint — committed all work and updated `.ai/STATUS.md` and `memory.log`. A fresh session can pick up from where I left off."*
+2. **Update `.kerby/STATUS.md`** — Record current position, what's done, what's next, and any decisions made
+3. **Update `.kerby/memory.log`** — Write a detailed session summary covering: what was accomplished, key decisions and their rationale, open questions, and exact next steps
+4. **Compact or request a new session** — If the agent supports conversation compaction/summarization, trigger it. Otherwise, tell the developer: *"This session is getting long. I've created a checkpoint — committed all work and updated `.kerby/STATUS.md` and `memory.log`. A fresh session can pick up from where I left off."*
 
 **Rule:** Never let a session expire without a checkpoint. The next agent (or the same agent in a new session) should be able to resume without guessing.
 
@@ -47,7 +47,7 @@ When the conversation is getting long, **proactively create a full checkpoint be
 
 When starting a new session that continues prior work:
 
-1. Read `.ai/STATUS.md` and `.ai/memory.log` first — this is your checkpoint
+1. Read `.kerby/STATUS.md` and `.kerby/memory.log` first — this is your checkpoint
 2. Check `git log --oneline -10` for recent commits
 3. Run quality gates to confirm the repo is in a clean state
 4. Pick up from the next task in the queue — don't re-do completed work
@@ -81,9 +81,9 @@ any single task, (b) a fresh-eyes pass catches drift a busy implementer missed, 
    warrants a one-line note ("session was cleanup only — no behavior to verify").
    Unconditional.
 4. **Checkpoint** — Commit and push. No uncommitted changes left behind.
-5. **Log** — Final session summary in `.ai/memory.log`
-6. **Update** — `.ai/STATUS.md` reflects current state
-7. **Document blockers** — If any, add to `.ai/BLOCKERS.md` and/or issue tracker
+5. **Log** — Final session summary in `.kerby/memory.log`
+6. **Update** — `.kerby/STATUS.md` reflects current state
+7. **Document blockers** — If any, add to `.kerby/BLOCKERS.md` and/or issue tracker
 8. **Document human actions** — If any, ensure `DEVELOPER_TODO.md` is complete
 9. **Do NOT merge** — Leave that for human review
 

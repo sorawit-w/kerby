@@ -1,7 +1,7 @@
-# SAST Provisioning (`kerby audit --sast`)
+# SAST Provisioning (`kerby code audit --sast`)
 
 How the pinned, offline SAST toolchain gets set up. **On-demand, agent-driven,
-cached per project** — triggered when `kerby audit --sast` is requested and the
+cached per project** — triggered when `kerby code audit --sast` is requested and the
 toolchain isn't already resolvable. It is **not** part of `prepare`: onboarding
 installs no tooling (`workflows/adopt-existing.md` ring-fence).
 
@@ -20,21 +20,21 @@ scripts don't: kerby ships this procedure, not the pins and not the scanners.
 
 ## Where it installs
 
-An out-of-tree, **git-ignored** toolchain dir — `.ai/sast/` by default — holds the
+An out-of-tree, **git-ignored** toolchain dir — `.kerby/sast/` by default — holds the
 **generated** artifacts only: the venv, the vendored ruleset, the advisory snapshot.
 **Never repo source.** This keeps the audit's read-only-on-the-repo contract and the
 "No source files changed" completion claim true: provisioning writes only under
-`.ai/sast/`, the scan writes only the report under `.ai/audits/`. `audit.md` § 5 (top
+`.kerby/sast/`, the scan writes only the report under `.kerby/audits/`. `audit.md` § 5 (top
 contract) and § 7 (write rule) explicitly list this cache as the one permitted
 non-source write under `--sast` — so honoring both docs is unambiguous.
 
 The hash-locked **requirements lockfile is a committed, versioned input** — it lives
-**outside** the `.ai/sast/` cache (e.g. `sast/requirements.lock`), because it must be
+**outside** the `.kerby/sast/` cache (e.g. `sast/requirements.lock`), because it must be
 present on a fresh checkout / teammate machine for the install to be reproducible. If
 it lived in the git-ignored cache it would be absent on clone, and provisioning would
 silently degrade to `not-run` — defeating the determinism the pin exists to give.
 Pins in `agent-context.yaml` + the committed lockfile are the reproducible *inputs*;
-`.ai/sast/` is the disposable, regenerable *output*.
+`.kerby/sast/` is the disposable, regenerable *output*.
 
 ## Procedure — default: pinned venv, no Docker
 
@@ -43,7 +43,7 @@ pinned version.
 
 1. **Python.** Use the pinned interpreter (`stack.tools.sast.python`). semgrep
    behavior can shift across minor versions, so the interpreter is part of the pin.
-2. **semgrep + Python deps.** Create the venv under `.ai/sast/` (generated, cache) and
+2. **semgrep + Python deps.** Create the venv under `.kerby/sast/` (generated, cache) and
    install from the **committed** hash-locked lockfile: `pip install --require-hashes
    -r <stack.tools.sast.requirements>`. The lockfile is a versioned repo input, not a
    cache artifact (see "Where it installs"). `--require-hashes` makes the install
@@ -51,10 +51,10 @@ pinned version.
    `semgrep==<version>` alone is **not** reproducible — the lockfile pins every
    transitive dep + its hash.
 3. **Ruleset.** Vendor the pinned semgrep ruleset
-   (`stack.tools.sast.semgrep.ruleset`) into `.ai/sast/` so the scan resolves it
+   (`stack.tools.sast.semgrep.ruleset`) into `.kerby/sast/` so the scan resolves it
    offline. Pin to a ruleset revision/hash, not a moving registry tag.
 4. **Advisory DB.** Fetch the pinned advisory snapshot
-   (`stack.tools.sast.advisoryDb.snapshot`) into `.ai/sast/`. The dependency check
+   (`stack.tools.sast.advisoryDb.snapshot`) into `.kerby/sast/`. The dependency check
    runs against this snapshot **only** — never a live query (`audit.md` § 5). Record
    its `date` so the banner can state freshness.
 5. **gitleaks.** Already provisioned by `hooks/pre-commit-check.sh` (betterleaks /
@@ -83,7 +83,7 @@ the pins schema (`python`, `requirements`) needn't change when it lands.
   The project owns the pins (`audit.md` § 5 dead-code convention).
 - **No live / network scans, ever.** Network is a setup-only activity.
 - **No repo-source or `.gitignore` writes.** Provisioning touches only the
-  git-ignored `.ai/sast/` cache.
+  git-ignored `.kerby/sast/` cache.
 - **No CodeQL or any engine** beyond semgrep + the advisory snapshot + the existing
   gitleaks.
 </out_of_scope>

@@ -28,7 +28,7 @@ A curated, project-level knowledge base that gives AI agents the context they ne
 ## Directory Structure
 
 ```
-.ai/knowledge/
+.kerby/knowledge/
 ├── KNOWLEDGE.md              ← Index file (agents read this first)
 ├── architecture-postgres.md
 ├── convention-api-naming.md
@@ -210,23 +210,23 @@ When a decision is reversed or a convention changes:
 
 ### Keeping the Root Context File Lean
 
-The knowledge base relies on the root context file (`CLAUDE.md` / `AGENTS.md` / `AI-CONTEXT.md` — whichever this project uses) staying an **index and pointer**, not a dumping ground. Durable content belongs in `.ai/knowledge/`; current state in `STATUS.md`; session history in `memory.log`. The root file should mostly *point* at those.
+The knowledge base relies on the root context file (`CLAUDE.md` / `AGENTS.md` / `AI-CONTEXT.md` — whichever this project uses) staying an **index and pointer**, not a dumping ground. Durable content belongs in `.kerby/knowledge/`; current state in `STATUS.md`; session history in `memory.log`. The root file should mostly *point* at those.
 
 It still drifts upward over time — dated "Session Notes" sections, completed-work blurbs, and one-off decisions accrete. Unlike the index (≤100 lines) and entries (50–200 lines), nothing here caps the root file, so it silently inflates the input-token cost of **every** session.
 
 - **Set a soft cap** (~250–300 lines is a sane default) and check it during maintenance passes. Line count is a fair proxy for recurring input tokens.
-- **When over the cap, archive — don't delete.** Move dated/completed sections (e.g., "Session Notes (DATE)" older than ~7 days, "Completed" blocks) to a sibling archive file (`CLAUDE-Archive.md` or `.ai/knowledge/`), leaving a one-line pointer behind.
+- **When over the cap, archive — don't delete.** Move dated/completed sections (e.g., "Session Notes (DATE)" older than ~7 days, "Completed" blocks) to a sibling archive file (`CLAUDE-Archive.md` or `.kerby/knowledge/`), leaving a one-line pointer behind.
 - **Never archive load-bearing sections** — project approach/philosophy, structure, key references, and active conventions stay in the root file permanently.
 
 This is agent-checkable: count the lines, flag when over, propose the archive move (never silently). It complements the index/entry size disciplines above rather than duplicating them — different file, different failure mode.
 
-Source: cap-and-archive pattern distilled from `EliaAlberti/cpr-compress-preserve-resume` (2026-06-07, MIT) `/preserve` command — its 280-line CLAUDE.md cap + `CLAUDE-Archive.md` move is the one idea in that repo not already covered by kerby's `.ai/` state-preservation machinery.
+Source: cap-and-archive pattern distilled from `EliaAlberti/cpr-compress-preserve-resume` (2026-06-07, MIT) `/preserve` command — its 280-line CLAUDE.md cap + `CLAUDE-Archive.md` move is the one idea in that repo not already covered by kerby's `.kerby/` state-preservation machinery.
 
 ### Integrity check: knowledge-lint
 
-`knowledge-lint` (`hooks/knowledge-lint.sh`) is a zero-dependency mechanical integrity check for `.ai/knowledge/`. It runs two correctness checks over the entry files:
+`knowledge-lint` (`hooks/knowledge-lint.sh`) is a zero-dependency mechanical integrity check for `.kerby/knowledge/`. It runs two correctness checks over the entry files:
 
-1. **Broken `related:` target** — an entry's `related:` frontmatter names a file that doesn't exist in `.ai/knowledge/`. Fires only when an entry *declares* a link, so there are effectively no false positives.
+1. **Broken `related:` target** — an entry's `related:` frontmatter names a file that doesn't exist in `.kerby/knowledge/`. Fires only when an entry *declares* a link, so there are effectively no false positives.
 2. **Supersede-without-pointer** — an entry has a `## Superseded` section whose body names no replacement entry (no `.md` token). The convention above is to *name what replaced it*; this catches the cases that don't.
 
 It is **advisory by default**: prints findings and exits 0 (knowledge drift is not a build break). Run with `--strict` to exit non-zero when findings exist — useful in a git pre-push or CI gate. Same opt-out as the other knowledge hooks (`agent-context.yaml: knowledge.enabled: false`, or `CODING_RULES_HOOK_DISABLED=knowledge-lint`). Run it by hand any time, or wire it as a git post-commit hook (see `references/hooks.md`); it is deliberately **not** a SessionStart hook — integrity drifts slowly and shouldn't tax every session. Self-tested by `hooks/knowledge-lint.test.sh`.
@@ -237,7 +237,7 @@ It is **advisory by default**: prints findings and exits 0 (knowledge drift is n
 
 One hook ships with `kerby` to remove the most-forgotten chores:
 
-- **`knowledge-bootstrap`** (SessionStart) — creates `.ai/knowledge/KNOWLEDGE.md` from the template on first use, regenerates the AUTO-INDEX block in `KNOWLEDGE.md` from current entry files, and flags entries older than 180 days so agents treat them with appropriate skepticism. No per-project setup beyond wiring SessionStart in your agent's settings.
+- **`knowledge-bootstrap`** (SessionStart) — creates `.kerby/knowledge/KNOWLEDGE.md` from the template on first use, regenerates the AUTO-INDEX block in `KNOWLEDGE.md` from current entry files, and flags entries older than 180 days so agents treat them with appropriate skepticism. No per-project setup beyond wiring SessionStart in your agent's settings.
 
 A second script, **`knowledge-reindex`**, is what `knowledge-bootstrap` calls internally for the index regeneration. It can also be called directly:
 - By the agent, with `--force`, immediately after writing a new entry mid-session (so the index reflects the change without waiting for the next session).
@@ -249,4 +249,4 @@ The proposal workflow above still applies — the hook handles scaffolding and i
 
 ### Optional: Heavier automated compilation
 
-If you outgrow the built-in reindexing — for example, you want cross-link validation, contradiction sweeps, or embedding-based search — the `.ai/knowledge/` directory can be compiled by [OpenKB](external-resources.md) (see Knowledge Base Tools). OpenKB is opt-in; the doctrine here works the same whether it's installed or not.
+If you outgrow the built-in reindexing — for example, you want cross-link validation, contradiction sweeps, or embedding-based search — the `.kerby/knowledge/` directory can be compiled by [OpenKB](external-resources.md) (see Knowledge Base Tools). OpenKB is opt-in; the doctrine here works the same whether it's installed or not.

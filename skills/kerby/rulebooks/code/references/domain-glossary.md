@@ -5,8 +5,8 @@ A `CONTEXT.md` at project root is the **shared domain language** for the project
 Without it, agents (and devs) burn tokens explaining the same concept five different ways: *"the problem when a lesson inside a section of a course is made real"* instead of *"materialization cascade."*
 
 This is distinct from:
-- `.ai/knowledge/` — decisions, conventions, lessons (see `references/knowledge-management.md`)
-- `.ai/STATUS.md` — current session state
+- `.kerby/knowledge/` — decisions, conventions, lessons (see `references/knowledge-management.md`)
+- `.kerby/STATUS.md` — current session state
 - `agent-context.yaml` — project metadata (runtime, stack, paths)
 
 `CONTEXT.md` is **enduring vocabulary**, edited deliberately, read on every session.
@@ -32,10 +32,10 @@ After completing a task, scan your changes. Propose adding a glossary entry when
 3. **A new top-level module** was created that becomes shared vocabulary.
 
 **Do not add:**
-- Session-ephemeral terms — those go in `.ai/STATUS.md` or `memory.log`.
+- Session-ephemeral terms — those go in `.kerby/STATUS.md` or `memory.log`.
 - Implementation trivia (*"the for-loop in `parseRow`"*).
 - Technology names already obvious from `package.json` / `agent-context.yaml`.
-- Decisions or lessons — those belong in `.ai/knowledge/`.
+- Decisions or lessons — those belong in `.kerby/knowledge/`.
 
 **Always propose, never silently edit.** Same rule as knowledge entries: surface the proposed term + definition, get the user's go-ahead, then write.
 

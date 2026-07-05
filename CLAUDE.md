@@ -25,7 +25,7 @@ state, evaluation. Naming the primitives lets edits be deliberate instead of acc
 | **Context engineering** | Organize information so the agent can reason over it — repo-local, versioned, not in chat threads. | `CONTEXT.md` (project glossary) + `BOOTSTRAP.md` (operating rules) + vendor agent-context files kept in sync — see `rulebooks/code/references/multi-tool.md`. |
 | **Progressive disclosure** | Load detail on demand instead of front-loading everything. | `BOOTSTRAP.md` is the index; `rulebooks/code/references/*.md` carry the long-tail, loaded only when cited. |
 | **Observable feedback loops** | Prefer machine-checkable signal over aspirational prose. | `rulebooks/base/hooks/pre-commit-check.sh`, `protect-env.sh`, `warn-env-read.sh`, `protect-git.sh` + gates in `references/quality-gates.md` and `references/validation.md`. |
-| **State preservation** | Carry useful context across session boundaries. | `.ai/memory.log` (append-only history) + `.ai/STATUS.md` (current state) + `.ai/knowledge/` (curated wiki) + `.ai/BLOCKERS.md`, bootstrapped by `session-start-context.sh` + `knowledge-bootstrap.sh`. |
+| **State preservation** | Carry useful context across session boundaries. | `.kerby/memory.log` (append-only history) + `.kerby/STATUS.md` (current state) + `.kerby/knowledge/` (curated wiki) + `.kerby/BLOCKERS.md`, bootstrapped by `session-start-context.sh` + `knowledge-bootstrap.sh`. |
 | **Eval discipline** | Decide what "working" means before shipping. | `references/quality-gates.md` + the verification-before-completion pattern; the pre-commit hook enforces gates mechanically rather than relying on agent memory. |
 
 **External reading:** Anthropic ([effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents), [harness design for long-running apps](https://www.anthropic.com/engineering/harness-design-long-running-apps)); OpenAI ([harness engineering](https://openai.com/index/harness-engineering/)); the [`AGENTS.md`](https://agents.md/) convention.
@@ -50,7 +50,7 @@ primitives; this table is the map — each row points to where the primitive is 
 | Termination condition | what must be true to exit the loop | `rulebooks/code/references/validation.md` (Iron Law: no claim without fresh evidence) |
 | Retry budget / circuit breaker | bounded retries per failure type, then escalate | `rulebooks/code/references/error-handling.md` (build 5 / test 3 / lint 5 → BLOCKED) |
 | Bounded search | cap the hypothesis count so the loop can't flail | `rulebooks/code/references/debugging.md` (max 3 hypotheses) |
-| State across iterations | what carries forward so the loop has no amnesia | `.ai/memory.log`, `.ai/STATUS.md`, checkpoint-before-context-fills |
+| State across iterations | what carries forward so the loop has no amnesia | `.kerby/memory.log`, `.kerby/STATUS.md`, checkpoint-before-context-fills |
 | Iteration cost is the speed limit | a faster loop buys more hypotheses | `rulebooks/code/references/debugging.md` (assess the feedback loop first) |
 | Parallel loops (fan-out) | independent iterations run concurrently | `rulebooks/code/references/sub-agent-delegation.md` (vertical slices, blind lenses) |
 

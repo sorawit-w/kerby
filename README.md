@@ -1,25 +1,28 @@
 <p align="center">
-  <img src="assets/kerby-hero.png" alt="kerby — the gate guardian for agentic coding" width="280"/>
+  <img src="assets/kerby-hero.png" alt="kerby — the gate guardian for agentic work" width="280"/>
 </p>
 
 <h1 align="center">kerby</h1>
 
-<p align="center"><em>The gate guardian for agentic coding. Nothing unproven passes.</em></p>
+<p align="center"><em>The gate guardian for agentic work. Nothing unproven passes.</em></p>
 
 ---
 
-kerby stands between a change and your repo and decides what gets through. It is not your
-pair, your assistant, or your cheerleader. It has heard "I'll add tests later" before. It
-was not moved then either.
+kerby stands between an agent's action and your project and decides what gets through. It
+is not your pair, your assistant, or your cheerleader. It has heard "I'll add tests later"
+before. It was not moved then either.
 
-The job is one motion — **GATE → WEIGH → VERDICT**. A change arrives at the gate. kerby
-weighs it against the evidence. Then it passes, or it doesn't. No claim without a fresh
-test behind it. No commit on a protected branch. No secret in the diff.
+The job is one motion — **GATE → WEIGH → VERDICT**. An action arrives at the gate. kerby
+weighs it against the evidence. Then it passes, or it doesn't. The engine doesn't know or
+care what the work is; the **rulebook** you load tells it what the gates are. The first
+rulebook is coding — no claim without a fresh test behind it, no commit on a protected
+branch, no secret in the diff. It will not be the last.
 
-![kerby's one motion: a change arrives, kerby weighs it against the evidence, and the verdict is binary — the change passes or it is BLOCKED and the action stops.](assets/gate-motion.svg)
+![kerby's one motion: an action arrives, kerby weighs it against the evidence, and the verdict is binary — the action passes or it is BLOCKED and stops.](assets/gate-motion.svg)
 
-The same motion runs whatever the work is — that work routes into task-shaped playbooks
-(feature, bugfix, and three more); the [skill README](skills/kerby/README.md#workflows) maps them.
+The same motion runs whatever the work is — the `code` rulebook routes coding work into
+task-shaped playbooks (feature, bugfix, and three more); the
+[skill README](skills/kerby/README.md#workflows) maps them.
 
 ## What it looks like when kerby says no
 
@@ -48,17 +51,78 @@ No tone to argue with. The gate is open or it isn't.
 
 ## What it is
 
-kerby is a loadable **rule-corpus + opt-in guardrail hooks** that govern how an AI coding
-agent works. The rules shape how ordinary coding tasks get done; they don't do a task
-themselves. The hooks enforce the few rules that must never be left to memory —
-destructive git, `.env` edits, secrets in a commit — mechanically, every time.
+kerby is two things, deliberately separated:
 
-You can load the rules for a session, install the hooks per project for standing
-enforcement, prepare an existing repo, or audit a repo against the rules.
+- **An engine** — domain-blind machinery that loads rulebooks, validates them, pins trust,
+  registers guardrail hooks, and renders verdicts. It knows GATE → WEIGH → VERDICT and
+  nothing else. Its commands: `load`, `unload`, `reload`, `status`, `install`,
+  `uninstall`, `rulebooks list|create`.
+- **Rulebooks** — self-contained folders (a `rulebook.toml` manifest + prose rules +
+  hooks + commands) that carry the actual judgment. Copy a folder, get a governed domain.
+  Two ship built in: **`base`**, the universal floor that rides under every rulebook (no
+  secrets staged, no untrusted artifact obeyed as instructions, no claim without evidence,
+  no irreversible action without approval), and **`code`**, the coding rulebook — the
+  corpus kerby has always enforced, with its own commands (`kerby code audit`,
+  `kerby code prepare`).
+
+The rules shape how work gets done; they don't do the work. The hooks enforce the few
+rules that must never be left to memory — mechanically, every time. Rulebooks can also be
+loaded from a local folder or straight from a GitHub repo, each behind a one-time trust
+review with a hash pin.
+
+kerby keeps its per-project state (memory, status, knowledge, audit reports) under
+**`.kerby/`** in the consuming repo.
 
 > Formerly shipped as `coding-rules` in
 > [`sorawit-w/agent-skills`](https://github.com/sorawit-w/agent-skills); extracted here
 > with full history. **Invoke `kerby`, not `coding-rules`.**
+
+## Rulebooks you could write
+
+Nothing below exists yet — that is the point. The engine is finished machinery; a rulebook
+is a folder you write. One gate each, to make it concrete:
+
+| Domain | A gate that rulebook would hold |
+|---|---|
+| **Sales** | No outbound quote leaves without passing the approved-discount-matrix check |
+| **Support** | No refund promised without a policy citation; no customer PII pasted into a reply |
+| **Ops** | No production runbook step executes without a named, tested rollback step |
+| **Editorial** | No piece ships with an unverified quote or a claim missing its source link |
+| **Compliance** | No public claim goes out without an entry in the approved-claims register |
+
+A verdict from that last one would read exactly like the real ones above:
+
+```
+BLOCKED: outbound claim "guaranteed 40% cost reduction"
+Reason: no matching entry in the approved-claims register — unsubstantiated
+performance claims don't ship. Cite the study or cut the number.
+```
+
+*(Hypothetical — from a compliance rulebook you could write. The gate doesn't care what
+the work is; it cares whether the evidence is there.)*
+
+### When a rulebook makes sense — and when it doesn't
+
+Write one when the discipline is **repeated** (the same rules every session, not a one-off
+check), the failure is **irreversible or expensive** (sent, deployed, published, deleted),
+and the gate is **verifiable** (an agent can check evidence — a register entry, a passing
+test, a citation — without a human squinting at it).
+
+Skip it when a linter or CI job already enforces the thing (wire that in directly), when
+the "rule" is a style preference with no failure mode, or when the call is pure human
+judgment with no checkable evidence — a rulebook can route that to a human, but it can't
+replace one.
+
+`docs/AUTHORING-RULEBOOKS.md` has the full contract; `kerby rulebooks create` walks you
+through building one interactively.
+
+## How it got here
+
+v1–v5 kerby *was* a coding playbook — one corpus, hardcoded. v6 split the engine from the
+rules logically; v7 made the split physical — self-contained rulebook folders, rulebook
+commands, multi-rulebook load, remote sources. v8 finished the move: project state lives
+under `.kerby/`, the migration training wheels are gone, and the engine no longer knows
+what coding is. Coding is the first rulebook. It is not the identity.
 
 ## Install
 
@@ -81,55 +145,40 @@ npx skills add sorawit-w/kerby
 /kerby status      # check whether the rules are still active
 /kerby install     # persistent per-project setup (guardrail hooks)
 /kerby uninstall   # mirror — removes the managed hooks
-/kerby prepare     # onboard an existing repo (populate .ai/ context)
-/kerby audit       # conformance audit → HTML report
+/kerby code prepare  # onboard an existing repo (populate .kerby/ context)
+/kerby code audit    # conformance audit → HTML report
 ```
+
+`prepare` and `audit` belong to the `code` rulebook — the qualified form names it. The bare `/kerby prepare` / `/kerby audit` also work while only one loaded rulebook provides them (inference).
 
 ## What kerby holds
 
 These are not decoration. They are what every verdict comes back to:
 
-- **Clarity over cleverness.** Code is read more than it's written.
-- **Safety over speed.** A fast change that breaks the repo cost you time, not saved it.
-- **Never leave the repo broken.** The gate closes behind you, not just in front.
+- **Clarity over cleverness.** Work is read more than it's produced.
+- **Safety over speed.** A fast change that breaks the project cost you time, not saved it.
+- **Never leave the project broken.** The gate closes behind you, not just in front.
 - **Nothing unproven passes.** Evidence, or it doesn't ship.
 
 ## Documentation
 
 - **[`skills/kerby/README.md`](skills/kerby/README.md)** — full user guide: what it does,
   when to use it, the loader behavior, and the per-project install.
-- **[`skills/kerby/SKILL.md`](skills/kerby/SKILL.md)** — the skill body (sub-command
-  routing, install/uninstall mechanics).
+- **[`skills/kerby/SKILL.md`](skills/kerby/SKILL.md)** — the engine (command dispatch,
+  selection + trust, install/uninstall mechanics).
+- **[`docs/AUTHORING-RULEBOOKS.md`](docs/AUTHORING-RULEBOOKS.md)** — write your own rulebook.
 - **[`skills/kerby/rulebooks/code/BOOTSTRAP.md`](skills/kerby/rulebooks/code/BOOTSTRAP.md)** — the
-  rules themselves.
+  coding rules themselves.
 - **[`CLAUDE.md`](CLAUDE.md)** — the harness-engineering vocabulary kerby implements.
 
 ## Status
 
-Current release: `7.0.0` — **plug-and-play rulebooks**: self-contained rulebook folders, engine vs. rulebook commands, multi-rulebook load, `rulebooks list|create`.
-(loader, validator, lockfile, verdicts) and the rules are manifest-declared **rulebooks**:
-`base` (the universal, non-overridable floor) composed under `code` (everything kerby has
-always enforced, now declared in `rulebook.toml` instead of hardcoded in the load flow).
-External rulebooks pass a one-time trust review with a hash pin; enforcement degrade is
-visible in `status` instead of implied; adding a rulebook never requires an engine edit.
-No action needed for existing users — `kerby load` behaves as it always has, plus one line
-announcing which rulebook is on duty. See [CHANGELOG.md](CHANGELOG.md) and
-[docs/AUTHORING-RULEBOOKS.md](docs/AUTHORING-RULEBOOKS.md).
+Current release: `8.0.0` — house cleaning: `.ai/` → `.kerby/` state migration, v7 stub/shim removal, qualified command form, multi-domain READMEs. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
 
-Prior release: `5.8.0` — closed the **repeated-literal drift gap**: the new **Hoist repeated
-literals to a single named source** rule (`working-patterns.md` § Code Standards) names the
-move for the moment a second caller forces the seam, separating *deduplication* (named
-in-code constant) from *externalization* (config/env).
-
-Earlier: `5.7.0` — closed the **hollow-pass gap**. `validation.md` long *named* the
-green runs that prove nothing — always-true assertions, `.only`/`.skip` focused suites — but
-naming a fake is not catching one. `pre-commit-check.sh` now reads the diff: over the *added*
-lines of staged test files it statically flags focused/disabled markers and always-true
-assertions, as a soft advisory (counts only, never echoing a test line).
-
-**Opinionated — read first.** These are one author's rules. Read
+**Opinionated — read first.** The `code` rulebook is one author's rules. Read
 [`skills/kerby/rulebooks/code/BOOTSTRAP.md`](skills/kerby/rulebooks/code/BOOTSTRAP.md) end-to-end
-before adopting, and fork-and-edit rather than file feature requests on rule content.
+before adopting, and fork-and-edit rather than file feature requests on rule content. The
+engine is domain-blind; the opinions live in the rulebooks, where you can replace them.
 
 ## License
 

@@ -1,12 +1,20 @@
 #!/bin/bash
-# Hook: Bootstrap .ai/knowledge/ on session start; surface stale entries
+# Hook: Bootstrap .kerby/knowledge/ on session start; surface stale entries
 # Type: SessionStart
 # Name: knowledge-bootstrap
 # Outputs context that Claude reads at the beginning of the session.
 #
 # Behavior:
 # - If agent-context.yaml has `knowledge.enabled: false`, exits silently.
-# - Otherwise, if `.ai/knowledge/` is missing, scaffolds the directory
+# - If legacy .ai/knowledge/ exists but .kerby/knowledge/ doesn't, skips
+#   scaffolding and nudges (`kerby load` performs the confirmed migration) —
+#   scaffolding a fresh .kerby/knowledge/ next to un-migrated legacy entries
+#   would split the knowledge base in two.
+# - If BOTH .ai/knowledge/ (still holding entries) and .kerby/knowledge/ exist
+#   — a migration collision `load` named-and-skipped — warns that the legacy
+#   entries are stranded (manual reconcile needed) but continues maintaining
+#   the active .kerby/ vault.
+# - Otherwise, if `.kerby/knowledge/` is missing, scaffolds the directory
 #   from templates/KNOWLEDGE.md.template (resolved via $KERBY_DIR
 #   or repo-relative fallback).
 # - Scans existing entries for staleness (default: > 180 days since
@@ -53,18 +61,38 @@ elif [[ -x "$SCRIPT_DIR/knowledge-reindex.sh" ]]; then
   REINDEX="$SCRIPT_DIR/knowledge-reindex.sh"
 fi
 
-# Scaffold .ai/knowledge/ if missing.
-if [[ ! -d ".ai/knowledge" ]]; then
-  mkdir -p ".ai/knowledge"
+# Legacy guard: un-migrated pre-v8 knowledge base. Never scaffold beside it —
+# that would split the knowledge base across .ai/ and .kerby/. Nudge and stop;
+# `kerby load` performs the confirmed migration.
+if [[ -d ".ai/knowledge" && ! -d ".kerby/knowledge" ]]; then
+  echo "DATA> legacy .ai/knowledge/ found — run 'kerby load' to migrate it to .kerby/knowledge/"
+  echo ""
+  exit 0
+fi
+
+# Collision guard: both vaults present and the legacy one still holds entries.
+# `kerby load` named-and-skipped this collision rather than moving it, so plain
+# `load` can't resolve it — the legacy entries are stranded until reconciled by
+# hand. Don't stop (.kerby/ is the active vault and still needs its reindex),
+# but warn so the stranded entries aren't silently ignored.
+if [[ -d ".ai/knowledge" && -d ".kerby/knowledge" ]] \
+   && [[ -n "$(find .ai/knowledge -type f ! -name 'KNOWLEDGE.md' 2>/dev/null | head -n1)" ]]; then
+  echo "DATA> legacy .ai/knowledge/ still holds un-migrated entries beside .kerby/knowledge/ — 'kerby load' skips this collision; reconcile by hand (move the .ai/knowledge/ entries into .kerby/knowledge/, or delete the stale .ai/ copy)"
+  echo ""
+fi
+
+# Scaffold .kerby/knowledge/ if missing.
+if [[ ! -d ".kerby/knowledge" ]]; then
+  mkdir -p ".kerby/knowledge"
   if [[ -n "$TEMPLATE" ]]; then
-    cp "$TEMPLATE" ".ai/knowledge/KNOWLEDGE.md"
+    cp "$TEMPLATE" ".kerby/knowledge/KNOWLEDGE.md"
     echo "=== Knowledge Base Bootstrapped ==="
-    echo "Created .ai/knowledge/KNOWLEDGE.md from template."
+    echo "Created .kerby/knowledge/KNOWLEDGE.md from template."
     echo "Add entries as <type>-<short-description>.md alongside the index."
     echo ""
   else
     # Template not found — write a minimal index so the dir isn't empty.
-    cat > ".ai/knowledge/KNOWLEDGE.md" <<'EOF'
+    cat > ".kerby/knowledge/KNOWLEDGE.md" <<'EOF'
 # Knowledge Base Index
 
 Project knowledge — decisions, context, conventions, lessons.
@@ -75,7 +103,7 @@ Project knowledge — decisions, context, conventions, lessons.
 <!-- AUTO-INDEX:END -->
 EOF
     echo "=== Knowledge Base Bootstrapped ==="
-    echo "Created .ai/knowledge/KNOWLEDGE.md (template not found; minimal stub used)."
+    echo "Created .kerby/knowledge/KNOWLEDGE.md (template not found; minimal stub used)."
     echo ""
   fi
 fi
@@ -83,7 +111,7 @@ fi
 # Reindex KNOWLEDGE.md from current entry files. Idempotent — only writes
 # if content actually changed. Failure here must NOT break session start,
 # so any non-zero exit is swallowed.
-if [[ -n "$REINDEX" && -d ".ai/knowledge" ]]; then
+if [[ -n "$REINDEX" && -d ".kerby/knowledge" ]]; then
   "$REINDEX" --force || true
 fi
 
@@ -103,10 +131,10 @@ else
   THRESHOLD=""  # neither flavor of `date` worked — skip staleness check
 fi
 
-if [[ -n "$THRESHOLD" && -d ".ai/knowledge" ]]; then
+if [[ -n "$THRESHOLD" && -d ".kerby/knowledge" ]]; then
   STALE_LIST=""
   shopt -s nullglob
-  for f in .ai/knowledge/*.md; do
+  for f in .kerby/knowledge/*.md; do
     base=$(basename "$f")
     [[ "$base" == "KNOWLEDGE.md" ]] && continue
 

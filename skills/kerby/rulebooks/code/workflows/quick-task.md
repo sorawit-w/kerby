@@ -64,7 +64,7 @@ If you can't state it cleanly, the task doesn't fit. Switch workflows.
    git add <specific-files>
    git commit -m "<type>(<scope>): <description>"
    ```
-5. **Log** — append to `.ai/memory.log`
+5. **Log** — append to `.kerby/memory.log`
 6. **Tell the developer how to verify** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions).
 </do_it>
 

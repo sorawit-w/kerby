@@ -52,7 +52,7 @@ Each error type has a maximum retry count and recovery strategy:
 1. Check for platform-specific issues (native modules, OS-specific paths)
 2. Verify generated code syntax (if code generation involved)
 3. Check for circular dependencies manually
-4. If still failing: mark BLOCKED, document in `.ai/BLOCKERS.md`
+4. If still failing: mark BLOCKED, document in `.kerby/BLOCKERS.md`
 
 ---
 
@@ -83,7 +83,7 @@ If root cause is clear:
 If root cause is unclear:
 1. Add detailed logging around the failing assertion
 2. Run test again
-3. If still failing after 3 attempts: mark BLOCKED, document in `.ai/BLOCKERS.md`
+3. If still failing after 3 attempts: mark BLOCKED, document in `.kerby/BLOCKERS.md`
 
 ---
 
@@ -112,7 +112,7 @@ If a rule is too strict for your use case:
    // biome-ignore lint/rule-name: <reason>
    const someCode = ...;
    ```
-2. Document the exception in `.ai/memory.log`
+2. Document the exception in `.kerby/memory.log`
 3. If multiple files affected: update `biome.json` config instead
 
 ---
@@ -149,7 +149,7 @@ bun install --force
 
 1. Check if error is platform-specific (native modules, Windows vs Unix paths)
 2. Look for known issues in dependency's GitHub repo
-3. If unable to resolve: mark BLOCKED, document in `.ai/BLOCKERS.md`
+3. If unable to resolve: mark BLOCKED, document in `.kerby/BLOCKERS.md`
 
 ---
 
@@ -170,7 +170,7 @@ If validation fails:
 
 ### Document the Blocker
 
-Create `.ai/BLOCKERS.md` with this format:
+Create `.kerby/BLOCKERS.md` with this format:
 
 ```markdown
 ## [blocker-id]: [short description]
@@ -198,7 +198,7 @@ Create `.ai/BLOCKERS.md` with this format:
 
 ### Update STATUS.md
 
-Add to `.ai/STATUS.md` under the Blockers section:
+Add to `.kerby/STATUS.md` under the Blockers section:
 
 ```
 ## Blockers
@@ -247,7 +247,7 @@ Before stopping work, ensure the main branch is in a buildable state.
    ```bash
    bun run build && bun run lint && bun run test
    ```
-5. Document the failed attempt in `.ai/memory.log`
+5. Document the failed attempt in `.kerby/memory.log`
 
 ### If Task is Partially Complete
 
@@ -258,7 +258,7 @@ Before stopping work, ensure the main branch is in a buildable state.
    git push -u origin wip/[task-id]-incomplete
    ```
 3. Leave `main` clean and building
-4. Document next steps in `.ai/memory.log`
+4. Document next steps in `.kerby/memory.log`
 
 ---
 

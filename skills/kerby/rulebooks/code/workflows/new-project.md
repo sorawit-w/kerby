@@ -85,8 +85,8 @@ Complete ALL of these before declaring done:
    ```bash
    git push -u origin $(git branch --show-current)
    ```
-3. **`.ai/memory.log` created** with session summary
-4. **`.ai/STATUS.md` created** with project state
+3. **`.kerby/memory.log` created** with session summary
+4. **`.kerby/STATUS.md` created** with project state
 5. **`CONTEXT.md` filled** with the project's core domain terms — at least 3 entries. The `context-bootstrap` hook scaffolds the file; you fill it before declaring done. See `references/domain-glossary.md`.
 6. **`ROADMAP.md` populated** from requirements — not just the empty bootstrap header. Active items reflect the planned scope; phase grouping if multi-phase.
 7. **Vendor-adapter structure scaffolded** — `ports/`, `adapters/`, and `composition.ts` exist under the source root, even if empty (adapters added per vendor on demand).

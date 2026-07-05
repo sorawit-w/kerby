@@ -1,10 +1,10 @@
 #!/bin/bash
-# Hook: Regenerate .ai/knowledge/KNOWLEDGE.md AUTO-INDEX block
+# Hook: Regenerate .kerby/knowledge/KNOWLEDGE.md AUTO-INDEX block
 # Name: knowledge-reindex
 #
 # Two trigger modes:
 #   (default) — git post-commit: only regen if the just-made commit
-#               touched a .ai/knowledge/*.md file (excluding KNOWLEDGE.md).
+#               touched a .kerby/knowledge/*.md file (excluding KNOWLEDGE.md).
 #               Requires being inside a git work tree.
 #   --force   — Always regen, no git checks. Used by knowledge-bootstrap.sh
 #               on session start, and safe for the agent to call directly
@@ -58,15 +58,15 @@ if [[ "$FORCE" == "0" ]]; then
   # What changed in the just-made commit, scoped to entry files.
   # --root makes the initial commit (no parent) diff against the empty tree
   # instead of returning nothing.
-  CHANGED=$(git diff-tree --no-commit-id --name-only -r --root HEAD -- .ai/knowledge 2>/dev/null \
-    | grep -v '^\.ai/knowledge/KNOWLEDGE\.md$' || true)
+  CHANGED=$(git diff-tree --no-commit-id --name-only -r --root HEAD -- .kerby/knowledge 2>/dev/null \
+    | grep -v '^\.kerby/knowledge/KNOWLEDGE\.md$' || true)
 
   if [[ -z "$CHANGED" ]]; then
     exit 0
   fi
 fi
 
-INDEX=".ai/knowledge/KNOWLEDGE.md"
+INDEX=".kerby/knowledge/KNOWLEDGE.md"
 if [[ ! -f "$INDEX" ]]; then
   echo "knowledge-reindex: $INDEX missing; skipping." >&2
   exit 0
@@ -82,7 +82,7 @@ fi
 # Build the new index block.
 TMP_BLOCK=$(mktemp)
 shopt -s nullglob
-for f in .ai/knowledge/*.md; do
+for f in .kerby/knowledge/*.md; do
   base=$(basename "$f")
   [[ "$base" == "KNOWLEDGE.md" ]] && continue
 

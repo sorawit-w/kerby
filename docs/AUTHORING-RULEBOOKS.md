@@ -13,6 +13,50 @@ rulebook wants to put in their session, and refuse anything it can't verify.
 That is not an obstacle course; it is the reason anyone will trust a
 rulebook they didn't write.
 
+## When a rulebook makes sense — and when it doesn't
+
+Write a rulebook when all three hold:
+
+1. **The discipline repeats.** The same rules govern every session in the domain —
+   not a one-off check you could just ask for.
+2. **The failure is irreversible or expensive.** Something gets sent, published,
+   deployed, deleted, or promised — and un-doing it costs more than gating it.
+3. **The gate is verifiable.** An agent can check evidence mechanically or
+   near-mechanically: a register entry exists, a test passed, a citation resolves,
+   a matrix approves the number. "Feels right" is not a gate.
+
+Sketches that pass the test (none exist yet — they're folders you could write):
+
+| Domain | The repeated, irreversible, verifiable gate |
+|---|---|
+| Sales | outbound quotes checked against the approved-discount matrix before sending |
+| Support | refund promises require a policy citation; replies scanned for pasted PII |
+| Ops | runbook steps refuse to execute without a named, tested rollback step |
+| Editorial | pieces don't publish with unverified quotes or unsourced claims |
+| Compliance | public claims must match an entry in the approved-claims register |
+
+**Skip the rulebook** when a linter or CI job already enforces the thing (wire that
+in directly — don't wrap it), when the "rule" is a style preference with no failure
+mode (that's a doc, not a gate), or when the call is pure human judgment with no
+checkable evidence — a rulebook can *route* that decision to a human
+(`severity = "block"` on a prose rule that demands approval), but it cannot replace
+the human.
+
+## Where your rulebook keeps project state
+
+**Default: write project state under `.kerby/`** in the consuming repo — it is
+kerby's project-state dir (the engine already keeps `rulebooks.lock` and external
+clones there, and the `code` rulebook keeps `memory.log`, `STATUS.md`, `knowledge/`,
+`audits/` there). One dir to gitignore-or-commit deliberately, one dir the user
+audits, one dir that never collides with their sources. Never write under
+`.kerby/rulebooks/` — that subtree is the engine's external-rulebook
+materialization area and the uninstall sweep treats everything in it as removable.
+
+**Opt-out:** if your domain has an entrenched location (say, a docs pipeline that
+must emit into `content/`), your rulebook may write there instead — but say so in
+your rulebook's README and in the relevant rule bodies, so the user knows which
+paths your rulebook touches before they approve it at the trust prompt.
+
 ## Folder structure
 
 One folder, one fixed filename at its root. Everything else is yours to

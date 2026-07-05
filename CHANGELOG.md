@@ -3,6 +3,65 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [8.0.0] — 2026-07-05
+
+**House cleaning.** The v7 grace period ends, kerby's project state consolidates
+under `.kerby/`, and the docs finally say what kerby became: a domain-blind gate
+engine with pluggable rulebooks. Coding is the first rulebook, not the identity.
+
+### Breaking
+
+- **Project state moves from `.ai/` to `.kerby/`.** Everything kerby creates in a
+  consuming repo — `memory.log`, `STATUS.md`, `BLOCKERS.md`, `knowledge/`,
+  `audits/` (incl. the `.last-audit` baseline), `sast/` — now lives under
+  `.kerby/`, beside `rulebooks.lock`. The SessionStart hooks read `.kerby/`
+  **only** (no fallback).
+
+  **Migration — one command:** run `kerby load` in the repo and confirm the listed
+  moves. The agent migrates per-artifact (`git mv` for tracked files, `mv` for
+  untracked; collisions are named and skipped, never merged; files kerby didn't
+  create are left in place). Until you do, session start prints a one-line nudge —
+  nothing is read from `.ai/` and nothing is lost, just un-migrated.
+  Update `.gitignore` entries from `.ai/audits/` + `.ai/sast/` to
+  `.kerby/audits/` + `.kerby/sast/`.
+
+  **Mixed-version teams:** a teammate still on v7 keeps writing `.ai/` while v8
+  writes `.kerby/` — upgrade together, or state will split until everyone migrates.
+
+- **v7 migration machinery removed.** The pointer stubs at the old
+  `resources/**.md` paths, the five exec shims at the old `resources/hooks/`
+  enforcer paths, and the project-root `rulebooks.lock` fallback (+ its
+  auto-migration) are gone, as v7 promised. Pre-v7 hook registrations that still
+  point at old shim paths must **run `kerby uninstall` then `kerby install`** —
+  `uninstall` sweeps the dead `resources/hooks/` enforcer entries (the
+  engine-services root is matched by path alone), then `install` re-registers
+  from the rulebook folders. Re-running `install` alone is not enough: it only
+  adds the new entries and leaves the stale shim commands registered.
+  `.kerby/rulebooks.lock` is the only lockfile location read.
+
+### Changed
+
+- **Docs prefer the qualified command form** — `kerby code audit`,
+  `kerby code prepare` — naming the rulebook a command belongs to. The bare
+  inferred form (`kerby audit`) remains fully supported behavior.
+- **READMEs repositioned for multi-domain kerby**: the engine/rulebook split is
+  the story, with a "Rulebooks you could write" table (sales, support, ops,
+  editorial, compliance), a "when a rulebook makes sense" test, and the
+  v5→v7→v8 evolution in one paragraph. `AUTHORING-RULEBOOKS.md` gains the same
+  guidance plus the **artifact-location default**: rulebooks that create project
+  state write under `.kerby/` (opt-out allowed, but must be disclosed in the
+  rulebook's README and rule bodies).
+- `agent-context.yaml.template` defaults (`logging.logTo`, SAST cache notes) and
+  the state templates now point at `.kerby/`; freshly `prepare`d repos write
+  `.kerby/` from day one.
+
+### Migration notes
+
+- Existing `load`/session users: run `kerby load` once per repo, confirm the move. Done.
+- `install` users on pre-v7 hook paths: run `kerby uninstall` then `kerby install` — `uninstall` clears the dead shim entries, `install` re-registers from the rulebook folders (re-running `install` alone leaves the stale entries behind).
+- Frozen `.eval/parity/` captures and the ENGINE-MAP docs keep their historical
+  `.ai/` paths by design — they are decision records, marked as such.
+
 ## [7.0.0] — 2026-07-04
 
 **Plug-and-play rulebooks.** The engine/rulebook split of 6.0.0 becomes physical:
@@ -340,18 +399,18 @@ or "OWASP-compliant" (same honesty stance as 5.1.0).
 
 ### Added
 - **`--sast` flag** on the `audit` sub-command ([`SKILL.md`](skills/kerby/SKILL.md),
-  [`audit.md`](skills/kerby/resources/references/audit.md) §5/§10): two new mechanical-band
+  [`audit.md`](skills/kerby/rulebooks/code/references/audit.md) §5/§10): two new mechanical-band
   checks — **SAST (semgrep)** and **vulnerable dependencies** `[A06 · CWE-1104]` — added to
   the `security` dimension, both gated on `--sast`.
-- **[`references/sast-provisioning.md`](skills/kerby/resources/references/sast-provisioning.md)** —
+- **[`references/sast-provisioning.md`](skills/kerby/rulebooks/code/references/sast-provisioning.md)** —
   agent-driven, on-demand, pinned toolchain setup (hash-locked requirements + pinned Python;
   no Docker). All network at setup, none at scan; installs to the git-ignored `.ai/sast/`
   cache, never repo source. Not part of `prepare`.
-- **[`references/sast-normalization.md`](skills/kerby/resources/references/sast-normalization.md)** —
+- **[`references/sast-normalization.md`](skills/kerby/rulebooks/code/references/sast-normalization.md)** —
   the SARIF→byte-stable normalization pass (relativize paths, strip volatile fields, stable
   total-order sort, canonical serialization) + the Phase-2 default-on determinism gate
   (manual checklist, not a runner).
-- **`stack.tools.sast`** in [`agent-context.schema.yaml`](skills/kerby/resources/agent-context.schema.yaml)
+- **`stack.tools.sast`** in [`agent-context.schema.yaml`](skills/kerby/rulebooks/code/agent-context.schema.yaml)
   (`SastTools` def) + a commented template block — project-owned pins (semgrep + ruleset,
   Python, hash-locked requirements, advisory snapshot). kerby resolves them; drift is the
   project's to manage, surfaced as a banner freshness line.
@@ -359,7 +418,7 @@ or "OWASP-compliant" (same honesty stance as 5.1.0).
   `Content-Security-Policy` meta (no script, no external loads, no images) behind the §8
   escaping, and an amber `notrun` style so a `--sast`-requested-but-unprovisioned security
   section can't read as a clean pass.
-- **Tier-2 registry row** ([`external-resources.md`](skills/kerby/resources/references/external-resources.md))
+- **Tier-2 registry row** ([`external-resources.md`](skills/kerby/rulebooks/code/references/external-resources.md))
   for the opt-in agentic security dataflow pass — developer-run, never invoked by `audit`.
 
 ### Notes
@@ -375,7 +434,7 @@ or "OWASP-compliant" (same honesty stance as 5.1.0).
 
 ## [5.1.0] — 2026-06-21
 
-Mapped the **Security Lens** ([`validation.md`](skills/kerby/resources/references/validation.md)
+Mapped the **Security Lens** ([`validation.md`](skills/kerby/rulebooks/code/references/validation.md)
 § Security Lens — Conditional Pass) to named, dated security standards and closed one
 genuine coverage gap. The lens stays **conditional** and **`[behavioral]`** — it *targets*
 these standards best-effort by agent judgment; nothing mechanically verifies conformance,
@@ -388,7 +447,7 @@ and no artifact may claim the code is "OWASP-compliant."
   or DNS-rebinding into internal targets). This is the behavior-changing addition: the lens
   now fires on a surface the prior trigger list missed.
 - **OWASP Top 10 (2021) + CWE tags** on every Security Lens check, plus `[A06 · CWE-1104]`
-  on the dependency-review rule in [`guardrails.md`](skills/kerby/resources/references/guardrails.md)
+  on the dependency-review rule in [`guardrails.md`](skills/kerby/rulebooks/code/references/guardrails.md)
   § Security Awareness. Tags are a dated citation, stamped against the 2021 list; `LLM01`
   references the separate OWASP Top 10 for LLM Applications.
 - **A04 (Insecure design)** `[A04 · CWE-657]` and **A05 (Security misconfiguration)**
