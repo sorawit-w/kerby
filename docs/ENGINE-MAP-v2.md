@@ -148,6 +148,7 @@ line where sections left the engine file.
 | `status` panel (v9.0.0) | + `registered script missing — re-run kerby install` row for a settings entry under a kerby-managed root whose script no longer exists (the state a pre-v9 hook install leaves after the rename) |
 | Selection source grammar (v9.1.0) | announcement gains `detected` / `chosen`, loses `default`; the first-time-default hint is replaced by a `(matched: <marker>; …)` hint on `detected` |
 | Ask-fallback flow (v9.1.0) | new surface — an unpinned load with a multi-match or no-match presents the builtin list and asks; spec-tested, not parity-tested (mirrors the "New commands" row) |
+| TOFU prompt gate line (v9.1.0) | the external-rulebook trust prompt's `Loading this replaces the default gate for this session.` becomes `Loading this selects <id> as this session's gate (replacing the current selection).` — the only changed line in the prompt block; there is no "default gate" post-v9.1. The rest of the TOFU block stays byte-identical |
 
 Replay rule: byte-match everything except these enumerated deltas. A mismatch outside
 the table = stop, classify, BLOCKED if unexplained — never "explain away".
