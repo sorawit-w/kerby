@@ -3,6 +3,36 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.6.0] — 2026-07-05
+
+**Command discoverability**: a first-class listing command, and the floor stops
+posing as a selectable rulebook.
+
+- **New engine command `commands`** — lists every user-invocable command:
+  a fixed engine section, then one section per selected rulebook whose rows
+  render `name`/`description` **verbatim** from that rulebook's validated
+  `rulebook.toml` `[[command]]` tables (deterministic — never inferred,
+  summarized, or invented). Rows use the qualified form (`kerby swe audit`),
+  doc convention v8. `kerby <id> commands` scopes to one rulebook.
+- **Cold `commands` is browse-mode, not dispatch** — with nothing loaded it
+  lists (builtins annotated `(not loaded)`) and never runs the selection order
+  or loads anything. Documented as a deliberate divergence from V15, which
+  governs rulebook-provided commands only. External rulebooks' manifest fields
+  render cold only under the existing silent-load condition (pin hash matches
+  the user-local approval record); otherwise an identity-only lockfile row —
+  rendering is never a path around TOFU.
+- **`rulebooks list` no longer lists the floor** — the install-resolved builtin
+  floor is merged into every session implicitly and was never a selectable row.
+  Exclusion is by floor identity, never the id string (an external declaring
+  `id = "base"` still lists). The `status` rulebook panel still shows the floor
+  — deliberate: floor visibility belongs to state reporting, not the selection
+  menu.
+- **Mild breaking change**: `commands` joins the E13 reserved set
+  (`validate-rulebook.py` `RESERVED_COMMANDS`); an external rulebook that
+  already declares a `[[command]]` named `commands` now fails validation and
+  must rename. New fixture `.eval/rulebooks/invalid-E13-reserved-commands/`
+  locks the regression.
+
 ## [9.5.1] — 2026-07-05
 
 **Housekeeping for the decoupling** (third of the three-part series; docs + a file

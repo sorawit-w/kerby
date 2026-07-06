@@ -12,9 +12,9 @@ description: >
   that itself governs how those tasks are done; `audit` checks a repo's
   conformance to the rules, it is NOT a general bug/security review.
   Engine sub-commands via the args parameter: `load` (default), `unload`,
-  `reload`, `status`, `install`, `uninstall`, `rulebooks [list]|create`;
-  loaded rulebooks add their own commands (e.g. the bundled `swe` rulebook
-  provides `prepare` and `audit`).
+  `reload`, `status`, `install`, `uninstall`, `rulebooks [list]|create`,
+  `commands`; loaded rulebooks add their own commands (e.g. the bundled
+  `swe` rulebook provides `prepare` and `audit`).
 ---
 
 # kerby — session loader
@@ -127,16 +127,16 @@ This skill's job is the **loading** step — getting the selected rulebook's roo
 
 Two kinds of commands (V2):
 
-- **Engine commands** (fixed, **reserved** — a rulebook may never declare or shadow them): `load`, `unload`, `reload`, `status`, `install`, `uninstall`, `rulebooks` (and the grammar tokens `list`, `create`, plus `help`).
+- **Engine commands** (fixed, **reserved** — a rulebook may never declare or shadow them): `load`, `unload`, `reload`, `status`, `install`, `uninstall`, `rulebooks`, `commands` (and the grammar tokens `list`, `create`, plus `help`).
 - **Rulebook commands**, declared by the loaded rulebooks via `[[command]]` in their manifests (e.g. the `swe` rulebook provides `audit` and `prepare`). Invoked as `kerby [rulebook] <command>`; the rulebook may be omitted.
 
 **Position-1 resolution of `args`** (first hit wins):
 
 1. **Engine command** — the reserved set above.
-2. **Rulebook id** (`kerby swe audit`) — a loaded or builtin rulebook id; the next token is that rulebook's command. Rulebook ids shadow command names in this position; a shadowed command stays reachable in qualified form from another rulebook.
+2. **Rulebook id** (`kerby swe audit`) — a loaded or builtin rulebook id; the next token is that rulebook's command. Rulebook ids shadow command names in this position; a shadowed command stays reachable in qualified form from another rulebook. One reserved name is special in the *second* position: `kerby <id> commands` is not a rulebook command (E13 forbids a rulebook declaring it) — it resolves to the engine's `commands` listing scoped to that rulebook (§ `commands`).
 3. **Unique command inference** — a command name declared by exactly **one** loaded rulebook (`kerby audit` → swe's `audit`).
 4. **Ambiguous** (two or more loaded rulebooks declare it) — prompt: list each as `<rulebook-id> <command> (<origin>) — <description>` and ask which to run. Never guess.
-5. **Unknown** — say so and list what IS available: engine commands + each loaded rulebook's commands with descriptions. `help` maps to this listing too (reserved-only at v7). (The legacy token `code` gets a rename hint — see § Migration residue.)
+5. **Unknown** — say so and list what IS available: engine commands + each loaded rulebook's commands with descriptions — the same listing `commands` renders (§ `commands`). `help` maps to this listing too (reserved-only at v7). (The legacy token `code` gets a rename hint — see § Migration residue.)
 
 If `args` is empty or unset, default to `load`. Natural language still routes (e.g., "install kerby in this project" → `install`; "onboard this repo" → `prepare` via inference).
 
@@ -246,7 +246,7 @@ Check whether the rules are currently loaded.
 
 List every rulebook this install can see, one row each: `id`, `version`, `origin`, `description`, and a `loaded` marker.
 
-- **Builtins:** every directory under `<install-root>/rulebooks/` with a `rulebook.toml` (read id/version/description from the manifest). `base` is listed with the marker **`floor — always loaded`** — it is merged into every session and is not a selectable row.
+- **Builtins:** every directory under `<install-root>/rulebooks/` with a `rulebook.toml` (read id/version/description from the manifest) — **except the install-resolved builtin floor**, which is not listed: it is merged into every session implicitly (merge rule 1, `docs/rulebook-contract.md`) and is never a selectable row, so it does not belong in a selection menu (the `status` rulebook panel still shows it — floor visibility belongs to state reporting, not to this list). The exclusion is the *install-resolved floor identity*, never an id string: an external rulebook that merely declares `id = "base"` is an ordinary lockfile entry and is listed like any other external.
 - **External:** every `local`/`remote` entry in the lockfile (path/URL shown as provenance).
 - **`loaded`** marks each rulebook in the current `selected` pin.
 
@@ -264,6 +264,19 @@ Interactive, skill-creator-style authoring flow (V6). Read `docs/AUTHORING-RULEB
 6. **Offer a test load** — which runs the normal trust prompt. The creator's own rulebook still goes through the gate; creation is not pre-approval.
 
 `create` writes only inside the new rulebook folder (location confirmed with the user first; default `./<id>/`).
+
+---
+
+## `commands`
+
+List every user-invocable command. Output is literal (VOICE.md zoning) — a plain table, no persona. `kerby commands` covers the whole current selection; `kerby <id> commands` renders just that rulebook's section (see the Command model position-2 rule).
+
+- **Engine section (fixed, first):** the reserved engine commands — `load`, `unload`, `reload`, `status`, `install`, `uninstall`, `rulebooks list|create`, `commands` — one row each with the engine's own one-line description. This part is engine-owned and never varies with the selection.
+- **One section per rulebook in the current selection**, header `<id>@<version> (<origin>)`, each row rendered as `` `kerby <id> <name>` — <description> `` with `name` and `description` **verbatim from that rulebook's validated `rulebook.toml` `[[command]]` tables — never inferred, summarized, or invented**. Prefixing the literal `kerby <id> ` is mechanical composition, not inference. A rulebook that declares no `[[command]]` renders its header plus `no commands` — never a guessed row. (The floor declares none today; if it ever did, its rows would render like any other's.) Append one note: the bare form (`kerby <name>`) also works while exactly one loaded rulebook declares that name (Command model step 3).
+
+**Cold behavior — browse mode, not dispatch.** With nothing loaded, `commands` lists; it never loads. Do **not** run the selection order (pin → detect → ask) and do not read any rulebook prose into context. This deliberately diverges from cold dispatch (V15, § Command model): V15 governs *rulebook-provided* commands, which need their rulebook loaded to run — `commands` is engine-owned and read-only, so there is nothing to load for. Cold output: the engine section, then each installed builtin's `[[command]]` rows annotated `(not loaded)`, then each external lockfile entry per the trust rule below. Qualified cold (`kerby <id> commands`) browses just that rulebook's section under the same rules; an unknown id → say so and list the known ids.
+
+**Trust rule for rendering manifest fields cold.** An install-resolved builtin's manifest is repo-trusted — always renderable. An external rulebook's `[[command]]` fields render **iff** its current content hash matches the project pin **and** appears in the user-local `~/.claude/kerby/approved-rulebooks.json` — the same condition under which `load` proceeds silently (§ Rulebooks, selection, and trust). Anything else — no user-local approval, or a changed hash — renders one identity-only row built from the lockfile, `<id> (<origin>: <path_or_url>) — pinned; reapproval required (`load` re-runs the trust prompt) — commands not shown`, and never any manifest text. Rendering is display-only and grants nothing; a loaded external already cleared TOFU, so its rows render.
 
 ---
 

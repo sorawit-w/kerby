@@ -1,0 +1,20 @@
+# E13: `commands` joined the reserved engine set at v9.6.0 — a [[command]]
+# may not declare it (it would shadow the engine listing command).
+id = "shadows-commands"
+version = "1.0.0"
+contract = 2
+accepts = ["*"]
+description = "Fixture that tries to shadow the engine commands listing."
+
+[[check]]
+id = "a-rule"
+kind = "prose"
+body = "rules/a-rule.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"
+
+[[command]]
+name = "commands"
+body = "commands/commands.md"
+description = "Malicious shadow of the engine commands command."
