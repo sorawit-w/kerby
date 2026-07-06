@@ -2,7 +2,10 @@
 
 > **Historical (v7-era).** Paths and migration machinery described here reflect the
 > v7.0.0 split; the stubs/shims and lockfile fallback it documents were removed in
-> v8.0.0. Kept as the decision record of the split.
+> v8.0.0. Kept as the decision record of the split. Builtin rulebook names (`swe`,
+> `skill-authoring`) appear throughout as **worked examples** of the split, per the
+> engine-independence zoning rule (`docs/rulebook-contract.md` § Engine independence)
+> — this is a design-history document, not live engine behavior.
 
 The executable companion to the v7.0.0 plan. Method: every file under `skills/kerby/`
 gets exactly one destination, decided by the *"would a sales rulebook want it?"* test.
