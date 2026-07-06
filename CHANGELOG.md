@@ -3,6 +3,36 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.5.0] — 2026-07-05
+
+**The engine stops knowing the domain.** Second of the three-part decoupling
+(after v9.4's groundwork): the loader's behavior-bearing branches now consume
+the `[identity]` fields v9.4 added, so no engine logic keys on the name `swe`.
+
+- **Load / reload confirmations** are read from `[identity].load_confirmation` /
+  `reload_confirmation` — rendered verbatim only for an install-resolved builtin,
+  every other origin gets the generic template. The bundled `swe` carries its
+  historic wording in its manifest, so its output is **byte-identical** to before;
+  the hardcoded `swe` confirmation branch is gone.
+- **`status`** scans `[identity].signature_phrases` (falling back to root-body
+  text), naming only the rulebook id — never echoing the matched phrase.
+- **The `install` hook prompt** derives its per-rulebook enforcer lines from each
+  check's own `[[check]]` fields instead of naming `swe`'s hooks in prose.
+- **The `load` readiness nudge** is now gated on the selection actually declaring
+  a `prepare` command and tests only engine-owned context artifacts.
+
+**Two deliberate behavior deltas** (both were `swe`-coupled assumptions):
+1. The readiness nudge fires only when a selected rulebook provides a `prepare`
+   command — a `skill-authoring`-only selection is no longer nudged toward a
+   command it doesn't ship.
+2. The "already prepared?" test drops the `agent-context.yaml` clause (a
+   rulebook-owned artifact) and keys on engine-owned artifacts only (`CONTEXT.md`
+   / `.kerby/knowledge/`). A repo with a populated `CONTEXT.md` but no
+   `agent-context.yaml` now reads as prepared.
+
+The `code` → `swe` migration shims (pin migration, rename hints) are quarantined
+into one marked **§ Migration residue** section, scheduled for removal at v10.
+
 ## [9.4.0] — 2026-07-05
 
 **The contract learns who you are; the engine stops needing to know.** First of
