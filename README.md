@@ -178,7 +178,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.4.0` — the manifest contract gains the optional `[identity]` table (signature phrases + confirmation lines, E15) and the engine-independence zoning rule; the engine starts consuming `[identity]` in the next release. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.5.0` — the loader now consumes `[identity]`: load/reload confirmations, the `status` signature scan, the install hook prompt, and the readiness nudge are all derived from manifest fields instead of a hardcoded `swe` branch. The `code`→`swe` migration residue is quarantined to one sunset-dated section. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests

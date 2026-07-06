@@ -24,8 +24,8 @@ test = "{test_command}"
 [detect]                      # builtin auto-selection markers (D17, v9.1). Root-relative
                               # globs; the loader matches these among BUILTINS only (D19).
                               # Two kinds, both ROOT-ANCHORED — that is the whole safety story.
-                              #  (1) Build/package manifests — also the *manifest clause* of
-                              #      SKILL.md's readiness-nudge has-real-code test (keep in sync).
+                              #  (1) Build/package manifests. (SKILL.md's readiness-nudge reads this
+                              #      marker list from the manifest — no restated copy to keep in sync.)
                               #  (2) scripts/*.py, scripts/*.sh — non-recursive code signals that
                               #      catch a manifest-less repo whose code lives in scripts/ (a
                               #      skill-authoring repo with tooling but no build manifest —
