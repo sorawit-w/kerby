@@ -11,14 +11,14 @@
 # Mirrors the bidirectional glob-parity guard in hooks/route-high-stakes.test.sh:
 # same teeth-bearing shape, so shipped guidance can't silently disagree.
 #
-# Run: bash scripts/check-plan-gate-parity.sh
+# Run: bash skills/kerby/rulebooks/swe/scripts/check-plan-gate-parity.sh
 # Exit 0 = constants agree everywhere and the cap invariant holds; non-zero =
 # cross-file drift, within-file drift, a missing constant, or default > approval.
 
 set -u
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-RES="$SCRIPT_DIR/../skills/kerby/rulebooks/swe"
+RES="$SCRIPT_DIR/.."   # this script lives in <swe-root>/scripts/; RES is the swe root
 
 FAILS=0
 pass() { echo "PASS: $1"; }

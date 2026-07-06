@@ -152,20 +152,21 @@ If accepted, the skill:
    - `~/.claude/settings.json` (global — applies to every project)
    - `<project>/.claude/settings.local.json` (project, gitignored — your machine only) — **default**
    - `<project>/.claude/settings.json` (project, committed — teammates also inherit)
-3. **Builds eight hook entries** with absolute paths to the resolved scripts (the `Resolved from` column is the install-relative directory each script lives in):
+3. **Builds nine hook entries** with absolute paths to the resolved scripts (the `Resolved from` column is the install-relative directory each script lives in):
 
    | Event | Matcher | Script | Resolved from | What it does |
    |---|---|---|---|---|
    | `PreToolUse` | `"Edit\|Write"` | `protect-env.sh` | `rulebooks/swe/hooks/` | Hard-block edits to `.env` files (security — not env-var disablable) |
    | `PreToolUse` | `"Bash"` | `protect-git.sh` | `rulebooks/swe/hooks/` | Hard-block destructive git (`reset --hard`, `push --force` to protected branches, `clean -f`, etc.) — security, not env-var disablable |
-   | `PreToolUse` | `"Bash"` | `pre-commit-check.sh` | `rulebooks/base/hooks/` | Soft-warn on missing quality gates before `git commit`; hard-block on detected secrets in staged files (the floor scan; `swe` binds it via a confined shim — one registration) |
+   | `PreToolUse` | `"Bash"` | `pre-commit-check.sh` | `rulebooks/base/hooks/` | The base floor's **pure secret scan** — hard-block on detected secrets in staged files. Base's own registration (registers under every selection); never disablable |
+   | `PreToolUse` | `"Bash"` | `hollow-test-check.sh` | `rulebooks/swe/hooks/` | swe's self-contained soft check (v9.3): flag hollow tests + remind to run the gates at commit — a *separate* `Bash` entry from base's scan, disablable via `CODING_RULES_HOOK_DISABLED=hollow-test-check` |
    | `PreToolUse` | `"Read"` | `warn-env-read.sh` | `rulebooks/swe/hooks/` | Soft-remind when reading `.env` files (env-var disablable) |
    | `PreToolUse` | `"Edit\|Write"` | `route-high-stakes.sh` | `rulebooks/swe/hooks/` | Remind when editing a §3 high-stakes path — advisory routing, not a block |
    | `SessionStart` | `""` | `session-start-context.sh` | `resources/hooks/` | Inject `.kerby/STATUS.md` head + recent `.kerby/memory.log` so the agent resumes with state |
    | `SessionStart` | `""` | `knowledge-bootstrap.sh` | `resources/hooks/` | Scaffold `.kerby/knowledge/KNOWLEDGE.md` if missing; reindex AUTO-INDEX block; flag entries older than 180 days |
    | `SessionStart` | `""` | `context-bootstrap.sh` | `resources/hooks/` | Scaffold `CONTEXT.md` (project domain glossary) if missing; never overwrites |
 
-   (`SKILL.md` is the source of truth for the full derivation — base-first dedup, shim-following to the resolved target. The table above is a `swe`-on-`base` install.)
+   (`SKILL.md` is the source of truth for the full derivation — base-first dedup, with shim-following still supported for an *external* rulebook that shims into a shared script. As of v9.3 the bundled `swe` is self-contained: base's secret scan and swe's `hollow-test-check.sh` are **two distinct `Bash` entries**, not one shimmed registration. The table above is a `swe`-on-`base` install.)
 
 4. **Shows the full diff** of the merged settings.json. Single y/n confirmation. On `n`, nothing is written.
 5. **Idempotent** — re-running detects already-managed entries by their absolute-path signature (any script whose resolved path sits under a kerby hook root — `<install-root>/rulebooks/*/hooks/` or `<install-root>/resources/hooks/`) and skips them.
@@ -174,18 +175,19 @@ If accepted, the skill:
 
 ### Disabling individual hooks at runtime
 
-Once hooks are registered, three soft hooks (non-security) can be temporarily disabled via the `CODING_RULES_HOOK_DISABLED` env var (comma-separated, no spaces):
+Once hooks are registered, the **soft (non-security) hooks** can be temporarily disabled via the `CODING_RULES_HOOK_DISABLED` env var (comma-separated, no spaces). The disablable tokens are `hollow-test-check`, `warn-env-read`, `route-high-stakes`, `session-start-context`, `knowledge-bootstrap`, and `context-bootstrap`. The three **security** hooks — `protect-env`, `protect-git`, and the base floor's secret-scan `pre-commit-check.sh` — are **not** disablable.
 
 ```bash
 # Disable one hook for the current shell
 export CODING_RULES_HOOK_DISABLED=session-start-context
 
 # Disable several
-export CODING_RULES_HOOK_DISABLED=session-start-context,pre-commit-check,knowledge-bootstrap
+export CODING_RULES_HOOK_DISABLED=session-start-context,hollow-test-check,knowledge-bootstrap
 ```
 
-Disablable: `session-start-context`, `knowledge-bootstrap`, `context-bootstrap`, `pre-commit-check` (soft reminder only — secret scan still runs).
-**Not disablable** (security / data-loss critical): `protect-env`, `protect-git`. To bypass these, edit your settings file and remove the entry — a deliberate config edit, not an ambient variable.
+> **Note on the legacy `pre-commit-check` token:** before v9.3 the hollow-test soft check lived inside base's `pre-commit-check.sh` under that name. `hollow-test-check.sh` still honors the legacy `pre-commit-check` token, so an old disable setting keeps working — but it now disables only the **hollow-test soft check**, never the secret scan (which is non-disablable by design).
+
+**Not disablable** (security / data-loss critical): `protect-env`, `protect-git`, and the base floor's secret-scan `pre-commit-check.sh`. To bypass these, edit your settings file and remove the entry — a deliberate config edit, not an ambient variable. (Everything in the disablable-token list above is a soft, non-security hook.)
 
 ### Plugin-level activation is intentionally NOT supported
 
@@ -198,7 +200,7 @@ Two folders, two jobs — the v7 split made physical:
 **`rulebooks/`** — the rules, as self-contained folders (copy one, get a governed domain):
 
 - **`rulebooks/base/`** — the universal floor, merged under every rulebook: `secrets-staged` (+ its `pre-commit-check.sh` enforcer), `no-print-secret`, `untrusted-agent-artifacts`, `iron-law-claims`, `approval-for-irreversible`. Non-overridable.
-- **`rulebooks/swe/`** — the software-engineering rulebook (auto-detected on a repo with a build manifest, v9.1): `BOOTSTRAP.md` (the root body: Prime Directive, routing, hard rules, reference index), `workflows/` (the five task-shape playbooks), `references/` (~26 long-tail topic guides), `hooks/` (the tool-boundary enforcers: `protect-env.sh`, `protect-git.sh`, `warn-env-read.sh`, `route-high-stakes.sh`, + the confinement shim into base's pre-commit check), `commands/` (`audit`, `prepare`), `templates/` + `scripts/` + `agent-context.schema.yaml` (the per-project `agent-context.yaml` contract and its validator).
+- **`rulebooks/swe/`** — the software-engineering rulebook (auto-detected on a repo with a build manifest, v9.1): `BOOTSTRAP.md` (the root body: Prime Directive, routing, hard rules, reference index), `workflows/` (the five task-shape playbooks), `references/` (~26 long-tail topic guides), `hooks/` (the tool-boundary enforcers: `protect-env.sh`, `protect-git.sh`, `warn-env-read.sh`, `route-high-stakes.sh`, and its self-contained `hollow-test-check.sh` — v9.3, no longer a shim into base), `commands/` (`audit`, `prepare`), `templates/` + `scripts/` (incl. `check-plan-gate-parity.sh`, the swe plan-gate constant guard relocated here in v9.5.1) + `agent-context.schema.yaml` (the per-project `agent-context.yaml` contract and its validator).
 
 **`resources/`** — engine machinery only, rulebook-agnostic:
 

@@ -3,6 +3,26 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.5.1] — 2026-07-05
+
+**Housekeeping for the decoupling** (third of the three-part series; docs + a file
+move, no behavior change):
+
+- **Relocated** `check-plan-gate-parity.sh` from the repo-root `scripts/` to
+  `skills/kerby/rulebooks/swe/scripts/` — it checks swe's own plan-gate constants,
+  so it belongs with the rulebook and now travels with it. Maintainer pointers
+  (root `CLAUDE.md`, `docs/ENGINE-MAP.md`) updated.
+- **Generalized engine → rulebook cross-links** in
+  `resources/references/hooks.md`: the coding-enforcer pointer and the OpenKB
+  reference no longer hard-link into `rulebooks/swe/`, so an engine reference can't
+  404 if swe is absent.
+- **Fixed stale pre-v9.3 shim descriptions** in the skill README: the install
+  hook table now shows the correct **nine** entries (base's secret scan and swe's
+  `hollow-test-check.sh` as two distinct `Bash` entries, not one shimmed
+  registration), matching the v9.3 self-contained model.
+- **Flagged `docs/ENGINE-MAP-v2.md`** as a design-history document whose builtin
+  names are worked examples under the engine-independence zoning rule.
+
 ## [9.5.0] — 2026-07-05
 
 **The engine stops knowing the domain.** Second of the three-part decoupling

@@ -11,8 +11,10 @@ Hooks are shell commands or LLM prompts that run automatically at specific lifec
 kerby ships with these hooks:
 
 > The coding enforcers (`.env` protection/read-warning, high-stakes routing,
-> pre-commit check, quality-gate verification) are documented in the code
-> rulebook: `rulebooks/swe/references/hooks.md`.
+> pre-commit check, quality-gate verification) are documented in the coding
+> rulebook that declares them — e.g. the bundled `swe` rulebook's own
+> `references/hooks.md`. This engine reference covers only the engine-owned
+> SessionStart/knowledge hooks below.
 
 ### SessionStart → Context Injection
 
@@ -124,7 +126,7 @@ Two zero-dependency mechanical checks over `.kerby/knowledge/` entries:
 1. **Broken `related:` target** — an entry's `related:` frontmatter names a file that isn't in `.kerby/knowledge/`. Fires only when a link is declared, so effectively no false positives.
 2. **Supersede-without-pointer** — an entry has a `## Superseded` section whose body names no replacement entry (no `.md` token).
 
-**Advisory by default** — prints findings, always exits 0. Pass `--strict` to exit 1 on any finding (for a git pre-push or CI gate). Deliberately **not** a SessionStart hook: integrity drifts slowly and shouldn't be re-checked every session. There is **no orphan check** — `related:` is optional, so "no inbound link" is a curation opinion, not a correctness error; that's [OpenKB](../../rulebooks/swe/references/external-resources.md)'s semantic-lint job, not this floor's.
+**Advisory by default** — prints findings, always exits 0. Pass `--strict` to exit 1 on any finding (for a git pre-push or CI gate). Deliberately **not** a SessionStart hook: integrity drifts slowly and shouldn't be re-checked every session. There is **no orphan check** — `related:` is optional, so "no inbound link" is a curation opinion, not a correctness error; that's a semantic-lint concern for a richer knowledge tool (e.g. OpenKB, referenced by the bundled `swe` rulebook), not this engine floor's.
 
 Same opt-out as the other knowledge hooks — `agent-context.yaml: knowledge.enabled: false`, or `CODING_RULES_HOOK_DISABLED=knowledge-lint`. Run it directly any time (`bash "${KERBY_DIR}/resources/hooks/knowledge-lint.sh"`), or append the call to a project `post-commit` hook the same way as `knowledge-reindex.sh` above. Self-tested by `hooks/knowledge-lint.test.sh`.
 
@@ -154,7 +156,7 @@ Non-security hooks respect a single env var for ad-hoc disabling during a sessio
 CODING_RULES_HOOK_DISABLED=session-start-context
 
 # Disable several (comma-separated, no spaces)
-CODING_RULES_HOOK_DISABLED=session-start-context,pre-commit-check
+CODING_RULES_HOOK_DISABLED=session-start-context,hollow-test-check
 ```
 
 Hook names match the `# Name:` header in each script. Current names:
@@ -162,12 +164,14 @@ Hook names match the `# Name:` header in each script. Current names:
 | Name | Disablable? |
 |------|-------------|
 | `session-start-context` | Yes |
+| `context-bootstrap` | Yes |
 | `knowledge-bootstrap` | Yes (or per-project: `agent-context.yaml: knowledge.enabled: false`) |
 | `knowledge-reindex` | Yes (same per-project opt-out as `knowledge-bootstrap`) |
 | `knowledge-lint` | Yes (same per-project opt-out as `knowledge-bootstrap`) |
-| `pre-commit-check` | Yes (disables soft reminder only — secret scan always runs) |
+| `hollow-test-check` | Yes — swe's soft hollow-test + commit reminder (v9.3). Honors the legacy alias `pre-commit-check` (its pre-v9.3 name inside base's script) |
 | `warn-env-read` | Yes (soft `.env`-read reminder) |
 | `route-high-stakes` | Yes (soft §3 high-stakes routing reminder) |
+| `pre-commit-check` | No — the base floor's **secret scan** is never disablable (the `pre-commit-check` token is now only the legacy alias for `hollow-test-check` above, which is a different, self-contained script) |
 | `protect-env` | No — security-critical, edit `.claude/settings.json` to remove |
 | `protect-git` | No — data-loss-critical, edit `.claude/settings.json` to remove |
 

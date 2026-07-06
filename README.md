@@ -178,7 +178,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.5.0` — the loader now consumes `[identity]`: load/reload confirmations, the `status` signature scan, the install hook prompt, and the readiness nudge are all derived from manifest fields instead of a hardcoded `swe` branch. The `code`→`swe` migration residue is quarantined to one sunset-dated section. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.5.1` — housekeeping for the decoupling: the swe-specific plan-gate parity script moves under the swe rulebook, engine reference cross-links into swe are generalized, and stale pre-v9.3 shim descriptions in the README are corrected. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests
