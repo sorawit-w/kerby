@@ -56,7 +56,7 @@ kerby is two things, deliberately separated:
 - **An engine** — domain-blind machinery that loads rulebooks, validates them, pins trust,
   registers guardrail hooks, and renders verdicts. It knows GATE → WEIGH → VERDICT and
   nothing else. Its commands: `load`, `unload`, `reload`, `status`, `install`,
-  `uninstall`, `rulebooks list|create`.
+  `uninstall`, `rulebooks list|create`, `commands`.
 - **Rulebooks** — self-contained folders (a `rulebook.toml` manifest + prose rules +
   hooks + commands) that carry the actual judgment. Copy a folder, get a governed domain.
   Three ship built in: **`base`**, the universal floor that rides under every rulebook (no
@@ -149,6 +149,7 @@ npx skills add sorawit-w/kerby
 /kerby install     # persistent per-project setup (guardrail hooks)
 /kerby uninstall   # mirror — removes the managed hooks
 /kerby rulebooks   # list every rulebook this install can see
+/kerby commands    # list every command the current selection provides
 ```
 
 Rulebook commands (e.g. `kerby swe prepare`, `kerby swe audit`) are documented in each
@@ -178,7 +179,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.5.1` — housekeeping for the decoupling: the swe-specific plan-gate parity script moves under the swe rulebook, engine reference cross-links into swe are generalized, and stale pre-v9.3 shim descriptions in the README are corrected. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.6.0` — command discoverability: new `commands` engine command lists every user-invocable command verbatim from the rulebook manifests (cold = browse-mode, never a load), and `rulebooks list` stops listing the always-implicit floor. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests

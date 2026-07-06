@@ -107,7 +107,8 @@ description = "Run the review flow."   # shown in listings + the trust prompt (E
 ```
 
 Add `description = "one line"` at the top level too — `kerby rulebooks list`
-shows it. If you ship a `hard`/`partial` enforcer, also declare its trigger so
+shows it. Each `[[command]].description` is likewise rendered **verbatim** by
+`kerby commands` — write it as the one-line row you want users to see. If you ship a `hard`/`partial` enforcer, also declare its trigger so
 `install` can register it: `event = "PreToolUse"`, `matcher = "Bash"` (an
 enforcer without an `event` cannot be auto-registered; the validator warns).
 

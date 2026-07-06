@@ -27,7 +27,7 @@ None are required — `kerby` works on its own. They sharpen the edges where it 
 ## What it does
 
 - **Loads the selected rulebook's root body** (for `swe`, `rulebooks/swe/BOOTSTRAP.md`) into the current session via the `Read` tool, so the rules enter conversation context as a tool result (not a paraphrase).
-- **Engine sub-commands** routed via the `args` parameter: `load` (default), `unload`, `reload`, `status`, `install`, `uninstall`, `rulebooks list|create`. Loaded rulebooks add their own commands — the `swe` rulebook provides `prepare` and `audit` ([its README](rulebooks/swe/README.md) documents them).
+- **Engine sub-commands** routed via the `args` parameter: `load` (default), `unload`, `reload`, `status`, `install`, `uninstall`, `rulebooks list|create`, `commands`. Loaded rulebooks add their own commands — the `swe` rulebook provides `prepare` and `audit` ([its README](rulebooks/swe/README.md) documents them).
 - **Per-project install** appends a single instruction line to your `CLAUDE.md` / `AGENTS.md` / `AI-CONTEXT.md` / `.cursorrules` so future sessions auto-invoke `kerby` at start. **Per-file confirmation required — never silent.**
 - **Compaction-safe.** Long sessions can strip earlier context; `args: status` checks whether BOOTSTRAP markers are still present, `args: reload` re-injects them.
 
