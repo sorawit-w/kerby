@@ -111,6 +111,12 @@ but this section is authoritative for kerby).
 2. Run a local Codex review against the branch diff
    (`/codex:review --base main --scope branch`); loop review → fix → re-review until it
    returns clean. The final review must run against the exact tree you push.
+   (`/codex:review` is user-only (`disable-model-invocation`) — an agent substitutes
+   `/codex:rescue` with a review brief. On the maintainer's machine, a global PreToolUse
+   gate additionally blocks `gh pr create` until the clean review is recorded:
+   `git rev-parse HEAD > "$(git rev-parse --git-dir)/codex-reviewed"` — write it only
+   after a clean review of that exact tree. The gate is machine-local convenience, not
+   part of this repo's gate.)
 3. Open the PR noting `Codex-reviewed locally at <sha>` (the reviewed branch HEAD), then
    `gh pr merge --squash --delete-branch`. The local-clean review **authorizes the merge**
    — it *is* the independent-model Codex review the rule-text gate in
