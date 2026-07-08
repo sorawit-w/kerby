@@ -45,8 +45,10 @@ When opening a PR (base = the repo's default branch):
    verifies the repo at the session cwd, so run `gh pr create` as a standalone
    command — combining it with `cd`/`pushd`/`-C`, or retargeting it with
    `gh -R`/`--repo`, is refused (would check, or create the PR against, the wrong
-   repo). Known ceiling: the gate string-matches, so any Bash command containing a
-   `gh pr create` invocation-shaped string is checked. The **final** review must run
+   repo). Known ceiling: the gate string-matches (covering `gh pr create` and its `gh pr
+new` alias, with or without global flags), so any Bash command containing such
+an invocation-shaped string is checked; user-defined `gh alias set` shortcuts
+are not resolved. The **final** review must run
    against the exact tree you push — fix churn on the branch is throwaway (the
    squash-merge collapses it), but nothing may change after that last clean review.
 2. **Open the PR**, then merge with `--squash --delete-branch` (squash keeps one

@@ -42,6 +42,8 @@ BLOCK_NO_MARKER=(
   "CODEX_GATE_BYPASS=1 gh pr create; gh pr create"      # masking: 2nd invocation unauthorized
   "gh pr create; CODEX_GATE_BYPASS=1 gh pr create"      # reversed masking
   "gh --help pr create"                                 # non-repo global flag before subcommand: still gated
+  "gh pr new"                                           # built-in alias for pr create
+  "gh pr new --fill"
 )
 for cmd in "${BLOCK_NO_MARKER[@]}"; do
   run "$cmd"
@@ -57,6 +59,7 @@ REFUSE=(
   "gh -R owner/repo pr create"          # repo-targeting global flag: wrong-repo refusal
   "gh --repo owner/repo pr create"
   "gh --repo=owner/repo pr create"
+  "gh -R owner/repo pr new"             # alias + repo-targeting flag
 )
 for cmd in "${REFUSE[@]}"; do
   run "$cmd"
@@ -78,6 +81,7 @@ ALLOW_BYPASS=(
   "CODEX_GATE_BYPASS=1 gh pr create --fill"
   "cd /tmp && CODEX_GATE_BYPASS=1 gh pr create"   # bypass precedes cd-refusal (precedence rule 1)
   "CODEX_GATE_BYPASS=1 gh -R owner/repo pr create"  # strip swallows the global flag too
+  "CODEX_GATE_BYPASS=1 gh pr new"                   # alias bypass
 )
 for cmd in "${ALLOW_BYPASS[@]}"; do
   run "$cmd"

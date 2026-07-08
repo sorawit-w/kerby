@@ -59,12 +59,18 @@ Codex is genuinely missing.
 ## Known ceilings (deliberate)
 
 - **String-match gate, not a shell parser.** Whitespace-tolerant regex catches
-  `gh  pr create` and `gh <global-opts> pr create` (e.g. `gh -R owner/repo pr
-  create`) variants, but a line-continuation split evades it, and a `gh pr
-  create`-shaped string inside quoted prose over-blocks (safe direction: rerun
-  standalone or bypass). A `-C `, `-R `, or `--repo` token anywhere in a
-  compound command likewise triggers the wrong-repo refusal (safe direction —
-  the gate already asks you to run `gh pr create` standalone).
+  `gh pr create`, its `gh pr new` alias, and the `gh <global-opts> pr create`
+  form (e.g. `gh -R owner/repo pr create`), but a line-continuation split evades
+  it, a matching string inside quoted prose over-blocks (safe direction: rerun
+  standalone or bypass), and a user-defined `gh alias set` shortcut is not
+  resolved. A `-C `, `-R `, or `--repo` token anywhere in a compound command
+  likewise triggers the wrong-repo refusal (safe direction — the gate already
+  asks you to run the command standalone). Deliberate-only escape hatches the
+  gate does **not** try to catch (they are shaped like intent, not accident,
+  and chasing them would bloat the matcher): opening a PR through the raw REST
+  path (`gh api repos/{o}/{r}/pulls -X POST …`), a user-defined `gh alias`, or a
+  shell line-continuation split. These are the `CODEX_GATE_BYPASS` category by
+  another name — treated as an accepted ceiling, not a hole to plug.
 - **codex-mark trusts the teed log.** Forging a log is deliberate deception, not
   drift; `$GIT_DIR/codex-review-audit.log` keeps history visible.
 - **jq required for the gate hook.** Missing jq degrades to an announced ALLOW

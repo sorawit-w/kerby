@@ -44,24 +44,28 @@ fi
 CMD=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty')
 [ -z "$CMD" ] && exit 0
 
-# Whitespace-tolerant guarded-command matcher. A literal-substring match let
-# `gh  pr create` / tab forms through; matching only contiguous `gh pr create`
-# also let `gh <global-opts> pr create` (e.g. `gh -R owner/repo pr create`)
-# fail OPEN — the hook exited before the marker check on ordinary CLI syntax.
-# So allow gh global options (option-SHAPED tokens, same idea as protect-git's
-# GIT_GLOBAL_OPT) between `gh` and `pr`. `create`-side flags already follow the
-# contiguous `pr create` and need no handling here.
+# Whitespace-tolerant guarded-command matcher. Three ways a naive match failed:
+#   - a literal substring let `gh  pr create` / tab forms through;
+#   - matching only contiguous `gh pr create` let `gh <global-opts> pr create`
+#     (e.g. `gh -R owner/repo pr create`) fail OPEN — the hook exited before the
+#     marker check on ordinary CLI syntax;
+#   - `create` alone missed `gh pr new`, gh's built-in alias for `pr create`
+#     (verified: `gh pr new --help` prints "Create a pull request").
+# So: allow gh global option-SHAPED tokens (same idea as protect-git's
+# GIT_GLOBAL_OPT) between `gh` and `pr`, and match both subcommand spellings.
+# create-side flags already follow the subcommand and need no handling here.
+# Ceiling: user-defined `gh alias set` shortcuts are not resolved (documented).
 GH_GLOBAL_OPT='(-R[[:space:]]+[^[:space:]]+|--repo[=[:space:]][^[:space:]]+|--[A-Za-z][A-Za-z-]*=[^[:space:]]+|--[A-Za-z][A-Za-z-]*|-[A-Za-z])'
-GH_PR_CREATE_RE="(^|[^[:alnum:]_-])gh([[:space:]]+${GH_GLOBAL_OPT})*[[:space:]]+pr[[:space:]]+create\\b"
+GH_PR_OPEN_RE="(^|[^[:alnum:]_-])gh([[:space:]]+${GH_GLOBAL_OPT})*[[:space:]]+pr[[:space:]]+(create|new)\\b"
 
-echo "$CMD" | grep -qE "$GH_PR_CREATE_RE" || exit 0
+echo "$CMD" | grep -qE "$GH_PR_OPEN_RE" || exit 0
 
 # Strip every bypass-AUTHORIZED invocation (token directly prefixing the gh,
 # consuming through to the next command separator — so it also swallows any
 # global flags after gh), then re-test the residual.
 STRIPPED=$(printf '%s' "$CMD" | sed -E 's/(^|[[:space:]])CODEX_GATE_BYPASS=1[[:space:]]+gh[^|;&]*//g')
 
-echo "$STRIPPED" | grep -qE "$GH_PR_CREATE_RE" || exit 0  # all guarded invocations authorized
+echo "$STRIPPED" | grep -qE "$GH_PR_OPEN_RE" || exit 0  # all guarded invocations authorized
 
 # The marker check below runs in the hook's cwd and validates the LOCAL repo's
 # HEAD. A residual command that changes directory (cd/pushd/-C) or retargets
