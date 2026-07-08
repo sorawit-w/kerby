@@ -37,7 +37,11 @@ set -u
 INPUT=$(cat)
 
 if ! command -v jq >/dev/null 2>&1; then
-  echo "codex-pr-gate: jq not found — gate DEGRADED, allowing without check. Install jq to restore the PR gate." >&2
+  # Surface the degrade on STDOUT via additionalContext — the channel the agent
+  # reads on a PreToolUse exit 0 (plain stderr on exit 0 is NOT shown to the
+  # model, so the announce would otherwise be silent). Built by hand, not jq —
+  # jq is the missing thing; the message is a fixed literal with no interpolation.
+  printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"codex-pr-gate: jq not found — the PR gate cannot parse the command and is DEGRADED (allowing gh pr create without a marker check). Install jq to restore enforcement."}}'
   exit 0
 fi
 
@@ -69,12 +73,16 @@ echo "$STRIPPED" | grep -qE "$GH_PR_OPEN_RE" || exit 0  # all guarded invocation
 
 # The marker check below runs in the hook's cwd and validates the LOCAL repo's
 # HEAD. A residual command that changes directory (cd/pushd/-C) or retargets
-# the PR to another repo (gh -R/--repo) would be checked against the WRONG
-# repo, so refuse — run `gh pr create` plain, from the repo it belongs to.
+# the PR to another repo (gh -R/--repo flags, or an in-command GH_REPO=
+# assignment) would be checked against, or create the PR in, the WRONG repo —
+# so refuse. Run the command plain, from the repo it belongs to.
+# Ceiling: an already-EXPORTED GH_REPO (not in the command string) is invisible
+# to a PreToolUse hook, same as protect-git's ambient-var blindness — documented.
 if echo "$STRIPPED" | grep -qE '(^|[^[:alnum:]_-])(cd|pushd)[[:space:]]' || \
    echo "$STRIPPED" | grep -qE '[[:space:]]-C[[:space:]]' || \
-   echo "$STRIPPED" | grep -qE '[[:space:]](-R[[:space:]]|--repo([[:space:]]|=))'; then
-  echo "Codex PR gate: run 'gh pr create' as a standalone command from the session's working directory, with no cd/pushd/-C and no -R/--repo — those would make the gate check (or the PR target) the wrong repo. To bypass deliberately (user-authorized only), prefix the gh invocation with CODEX_GATE_BYPASS=1." >&2
+   echo "$STRIPPED" | grep -qE '[[:space:]](-R[[:space:]]|--repo([[:space:]]|=))' || \
+   echo "$STRIPPED" | grep -qE '(^|[[:space:]])GH_REPO='; then
+  echo "Codex PR gate: run 'gh pr create' as a standalone command from the session's working directory — no cd/pushd/-C, no -R/--repo, no GH_REPO= (those would make the gate check, or the PR target, the wrong repo). To bypass deliberately (user-authorized only), prefix the gh invocation with CODEX_GATE_BYPASS=1." >&2
   exit 2
 fi
 

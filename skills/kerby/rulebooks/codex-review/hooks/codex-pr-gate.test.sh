@@ -60,6 +60,7 @@ REFUSE=(
   "gh --repo owner/repo pr create"
   "gh --repo=owner/repo pr create"
   "gh -R owner/repo pr new"             # alias + repo-targeting flag
+  "GH_REPO=other/repo gh pr create"     # env-var repo retarget: wrong-repo refusal
 )
 for cmd in "${REFUSE[@]}"; do
   run "$cmd"
@@ -106,16 +107,21 @@ run "echo 'how gh pr create works'"
 printf '{"tool_input":{"command":""}}' | (cd "$WORK" && bash "$HOOK") >/dev/null 2>&1
 [[ "$?" -eq 0 ]] && pass "empty command exits 0" || fail "empty command should exit 0"
 
-# no-jq: degraded allow with stderr notice (PATH stripped of jq; git still needed? hook exits before git)
-NOJQ_ERR=$(printf '{"tool_input":{"command":"gh pr create"}}' \
-  | (cd "$WORK" && PATH="/usr/bin:/bin" bash -c 'command -v jq >/dev/null 2>&1 && exit 99; bash '"$HOOK"'' ) 2>&1)
+# no-jq: degraded allow, announced via additionalContext JSON on STDOUT (not
+# stderr — exit-0 stderr is invisible to the agent). Build a PATH with the tools
+# the hook needs but deliberately no jq.
+FAKEBIN=$(mktemp -d)
+for t in bash sh cat printf grep sed git; do
+  p=$(command -v "$t" 2>/dev/null) && ln -s "$p" "$FAKEBIN/$t"
+done
+NOJQ_OUT=$(printf '{"tool_input":{"command":"gh pr create"}}' \
+  | (cd "$WORK" && PATH="$FAKEBIN" "$FAKEBIN/bash" "$HOOK") 2>/dev/null)
 NOJQ_RC=$?
-if [[ "$NOJQ_RC" -eq 99 ]]; then
-  pass "no-jq case skipped (jq present in /usr/bin:/bin on this machine)"
-elif [[ "$NOJQ_RC" -eq 0 && "$NOJQ_ERR" == *DEGRADED* ]]; then
-  pass "no-jq degrades to allow with stderr notice"
+rm -rf "$FAKEBIN"
+if [[ "$NOJQ_RC" -eq 0 && "$NOJQ_OUT" == *'"additionalContext"'* && "$NOJQ_OUT" == *DEGRADED* ]]; then
+  pass "no-jq degrades to allow with additionalContext JSON on stdout"
 else
-  fail "no-jq should allow (0) with DEGRADED notice, got rc=$NOJQ_RC err=$NOJQ_ERR"
+  fail "no-jq should allow (0) with DEGRADED additionalContext on stdout, got rc=$NOJQ_RC out=$NOJQ_OUT"
 fi
 
 echo

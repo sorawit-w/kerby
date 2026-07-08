@@ -73,8 +73,13 @@ Codex is genuinely missing.
   another name — treated as an accepted ceiling, not a hole to plug.
 - **codex-mark trusts the teed log.** Forging a log is deliberate deception, not
   drift; `$GIT_DIR/codex-review-audit.log` keeps history visible.
-- **jq required for the gate hook.** Missing jq degrades to an announced ALLOW
-  (stderr) — install jq to restore enforcement.
+- **jq required for the gate hook.** Missing jq degrades to an announced ALLOW —
+  the notice rides `additionalContext` JSON on stdout (the channel the agent
+  reads on a PreToolUse exit 0; stderr there is invisible to the model). Install
+  jq to restore enforcement.
+- **Ambient GH_REPO is invisible.** An in-command `GH_REPO=other/repo gh pr
+  create` is refused (wrong-repo), but an already-`export`ed `GH_REPO` can't be
+  seen by a PreToolUse hook — same ambient-var blindness as swe's protect-git.
 - **Plan review has no mechanical backstop.** The eager stance's trigger line is
   the only prompt; if rules seem to stop applying mid-session (compaction), run
   `kerby reload`.
