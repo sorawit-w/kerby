@@ -40,5 +40,7 @@ On the first codex-workflow moment in a session, check whether the global
 section (markers: `CODEX_VERDICT`, a bounded review loop). Duplicates are
 ambiguity, not reinforcement — surface a remove / proceed-anyway / stop menu
 and let the user choose; removal only ever happens with the user's per-file
-confirmation, never silently. `kerby pr-check` runs the thorough version of
-this check.
+confirmation, never silently. Surface it **once** and never block ongoing work
+on it: if the moment is a rescue/deadlock, flag the duplicate and keep going —
+config hygiene is not on the critical path. `kerby pr-check` runs the thorough
+version of this check.
