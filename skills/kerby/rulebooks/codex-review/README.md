@@ -54,7 +54,8 @@ only (manifest `override = "authorized-scoped"`). The prefix form is the only
 honored one: an embedded token (PR-body text) authorizes nothing, and one
 authorized invocation never authorizes a second one in the same command. The one
 sanctioned marker-less use is the step-4 fallback (GitHub-side review) when local
-Codex is genuinely missing.
+Codex is genuinely missing — or present but unable to produce a verdict within
+the delegation budget (`references/delegation.md` § Bounded delegation).
 
 ## Known ceilings (deliberate)
 

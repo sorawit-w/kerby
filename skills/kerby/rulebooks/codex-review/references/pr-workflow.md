@@ -7,13 +7,16 @@ When opening a PR (base = the repo's default branch):
    review → fix → re-review per the **Review loop (bounded)** rule below.
    `/codex:review` is user-only (`disable-model-invocation`) — the agent runs the
    same engine headless instead: `node <codex-plugin>/scripts/codex-companion.mjs
-   review "--wait --base <default-branch> --scope branch"` via background Bash with
-   an explicit timeout (default timeout SIGTERMs), or substitutes `/codex:rescue`
-   with a review brief. When this caveat bites, also offer the user the plugin's
+   review "--wait --base <default-branch> --scope branch" < /dev/null` via
+   background Bash with an explicit timeout (default timeout SIGTERMs), or
+   substitutes `/codex:rescue` with a review brief. Every attempt is bounded per
+   `references/delegation.md` § Bounded delegation — a budget exhausted with no
+   verdict activates the step-4 fallback. When this caveat bites, also offer the user the plugin's
    stop-time review gate once per repo per session — the cost caveat and mechanics
    are single-sourced in `references/delegation.md`. "Not in my Skill list" is NOT
    "no local Codex" — verify on disk first (see `references/stance.md` preflight);
-   the fallback in step 4 is only for a plugin that is genuinely missing or broken.
+   the fallback in step 4 is only for a plugin that is genuinely missing or
+   broken, or one that exhausted the delegation budget with no verdict.
    **Review loop (bounded).** Every review brief must carry the severity rubric and
    the verdict contract: "Tag each finding P0 (security / data-loss / correctness
    blocker), P1 (likely bug or broken contract), P2 (should-fix), P3 (nit). End the
@@ -62,8 +65,10 @@ ceiling). The **final** review must run
    reviewed and pushed. (Squash-merge changes the commit SHA on the default branch
    but not the content, so the note stays verifiable as "reviewed tree == PR head
    tree".)
-4. **Fallback — no local Codex available** (plugin/CLI genuinely missing or broken
-   per the stance preflight, NOT merely absent from the Skill list): the mechanical
+4. **Fallback — no local Codex verdict** (plugin/CLI genuinely missing or broken
+   per the stance preflight, NOT merely absent from the Skill list — **or present
+   but unable to produce a verdict within the delegation budget**, per
+   `references/delegation.md` § Bounded delegation): the mechanical
    PR gate will still block `gh pr create` with no marker — this is the one
    sanctioned marker-less use of `CODEX_GATE_BYPASS=1`, because the GitHub-side
    review below replaces the local one; never bypass when local Codex works. Open
@@ -80,6 +85,12 @@ ceiling). The **final** review must run
    addresses a comment resets the timer; merge at the silence cap — the **4th poll,
    ~10 min** after that reply. A clean signal (👍, or a completed no-findings review
    of HEAD) short-circuits the cap and merges immediately.
+   **Last rung — no GitHub remote, or GitHub Codex also unavailable:** the agent
+   verifies the diff itself against green regression tests, then asks the user for
+   fresh per-PR `CODEX_GATE_BYPASS=1` authorization, disclosing in the PR body
+   that no independent Codex review occurred. Self-review is NOT a substitute for
+   the review — it is a disclosed degradation, taken only after both Codex venues
+   have failed (or the GitHub venue doesn't exist for this repo).
 
 Enforcement note: the review-before-PR half IS mechanically gated (the PR gate in
 step 1, registered per repo by `kerby install`), and the clean-verdict attestation

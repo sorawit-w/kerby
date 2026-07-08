@@ -125,7 +125,9 @@ but this section is authoritative for kerby).
    `skills/kerby/CLAUDE.md` requires (Codex ≠ the authoring agent; venue doesn't matter,
    so a second GitHub pass would only re-review identical bytes).
 
-**Fallback — no local Codex:** open the PR, trigger a GitHub `@codex review`, and poll.
+**Fallback — no local Codex (or local Codex unable to produce a verdict within the
+delegation budget — see the codex-review rulebook's `references/delegation.md`
+§ Bounded delegation):** open the PR, trigger a GitHub `@codex review`, and poll.
 **Address every comment before merging** — fix it (a fix is a new push → new review
 cycle) or push back with reasoning; never merge with an open, unaddressed comment. Merge
 only on a green light **against the current head**: an approval / 👍 reaction dated after

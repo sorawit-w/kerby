@@ -90,6 +90,7 @@ ok=1
 [[ "$RC" -eq 0 ]] || ok=0
 [[ "$(cat "$MARKER" 2>/dev/null)" == "$HEAD_SHA" ]] || ok=0
 grep -q "P2=2 P3=1" "$GITDIR/codex-review-audit.log" || ok=0
+grep -Eq "P2=2 P3=1 dur=([0-9]+|\?)s" "$GITDIR/codex-review-audit.log" || ok=0  # duration baseline field
 grep -q "PR note: Codex-reviewed locally at $HEAD_SHA" "$WORK/out.txt" || ok=0
 grep -q "P2/P3 logged=3" "$WORK/out.txt" || ok=0
 [[ "$(sed -n 2p "$ROUNDS")" == "0" ]] || ok=0
