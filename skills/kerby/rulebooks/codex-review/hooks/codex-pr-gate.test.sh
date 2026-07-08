@@ -41,6 +41,7 @@ BLOCK_NO_MARKER=(
   'gh pr create --body "set CODEX_GATE_BYPASS=1 to bypass"'  # embedded token: NOT a bypass
   "CODEX_GATE_BYPASS=1 gh pr create; gh pr create"      # masking: 2nd invocation unauthorized
   "gh pr create; CODEX_GATE_BYPASS=1 gh pr create"      # reversed masking
+  "gh --help pr create"                                 # non-repo global flag before subcommand: still gated
 )
 for cmd in "${BLOCK_NO_MARKER[@]}"; do
   run "$cmd"
@@ -53,6 +54,9 @@ REFUSE=(
   "cd /tmp && gh pr create"
   "pushd /tmp && gh pr create"
   "git -C /tmp pull && gh pr create"
+  "gh -R owner/repo pr create"          # repo-targeting global flag: wrong-repo refusal
+  "gh --repo owner/repo pr create"
+  "gh --repo=owner/repo pr create"
 )
 for cmd in "${REFUSE[@]}"; do
   run "$cmd"
@@ -73,6 +77,7 @@ rm -f "$MARKER"
 ALLOW_BYPASS=(
   "CODEX_GATE_BYPASS=1 gh pr create --fill"
   "cd /tmp && CODEX_GATE_BYPASS=1 gh pr create"   # bypass precedes cd-refusal (precedence rule 1)
+  "CODEX_GATE_BYPASS=1 gh -R owner/repo pr create"  # strip swallows the global flag too
 )
 for cmd in "${ALLOW_BYPASS[@]}"; do
   run "$cmd"

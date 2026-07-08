@@ -43,7 +43,8 @@ When opening a PR (base = the repo's default branch):
    honored one; the token embedded elsewhere in the command authorizes nothing, and
    one authorized invocation never authorizes another in the same command. The gate
    verifies the repo at the session cwd, so run `gh pr create` as a standalone
-   command — combining it with `cd`/`pushd`/`-C` is refused (would check the wrong
+   command — combining it with `cd`/`pushd`/`-C`, or retargeting it with
+   `gh -R`/`--repo`, is refused (would check, or create the PR against, the wrong
    repo). Known ceiling: the gate string-matches, so any Bash command containing a
    `gh pr create` invocation-shaped string is checked. The **final** review must run
    against the exact tree you push — fix churn on the branch is throwaway (the

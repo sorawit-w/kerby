@@ -44,23 +44,33 @@ fi
 CMD=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty')
 [ -z "$CMD" ] && exit 0
 
-# Whitespace-tolerant guarded-command matcher (a literal-substring match let
-# `gh  pr create` / tab forms through a declared-hard gate).
-GH_PR_CREATE_RE='(^|[^[:alnum:]_-])gh[[:space:]]+pr[[:space:]]+create\b'
+# Whitespace-tolerant guarded-command matcher. A literal-substring match let
+# `gh  pr create` / tab forms through; matching only contiguous `gh pr create`
+# also let `gh <global-opts> pr create` (e.g. `gh -R owner/repo pr create`)
+# fail OPEN — the hook exited before the marker check on ordinary CLI syntax.
+# So allow gh global options (option-SHAPED tokens, same idea as protect-git's
+# GIT_GLOBAL_OPT) between `gh` and `pr`. `create`-side flags already follow the
+# contiguous `pr create` and need no handling here.
+GH_GLOBAL_OPT='(-R[[:space:]]+[^[:space:]]+|--repo[=[:space:]][^[:space:]]+|--[A-Za-z][A-Za-z-]*=[^[:space:]]+|--[A-Za-z][A-Za-z-]*|-[A-Za-z])'
+GH_PR_CREATE_RE="(^|[^[:alnum:]_-])gh([[:space:]]+${GH_GLOBAL_OPT})*[[:space:]]+pr[[:space:]]+create\\b"
 
 echo "$CMD" | grep -qE "$GH_PR_CREATE_RE" || exit 0
 
 # Strip every bypass-AUTHORIZED invocation (token directly prefixing the gh,
-# consuming through to the next command separator), then re-test the residual.
+# consuming through to the next command separator — so it also swallows any
+# global flags after gh), then re-test the residual.
 STRIPPED=$(printf '%s' "$CMD" | sed -E 's/(^|[[:space:]])CODEX_GATE_BYPASS=1[[:space:]]+gh[^|;&]*//g')
 
 echo "$STRIPPED" | grep -qE "$GH_PR_CREATE_RE" || exit 0  # all guarded invocations authorized
 
-# The marker check below runs in the hook's cwd. A residual command that
-# changes directory first would be checked against the WRONG repo, so refuse.
+# The marker check below runs in the hook's cwd and validates the LOCAL repo's
+# HEAD. A residual command that changes directory (cd/pushd/-C) or retargets
+# the PR to another repo (gh -R/--repo) would be checked against the WRONG
+# repo, so refuse — run `gh pr create` plain, from the repo it belongs to.
 if echo "$STRIPPED" | grep -qE '(^|[^[:alnum:]_-])(cd|pushd)[[:space:]]' || \
-   echo "$STRIPPED" | grep -qE '[[:space:]]-C[[:space:]]'; then
-  echo "Codex PR gate: run 'gh pr create' as a standalone command from the session's working directory — combining it with cd/pushd/-C would make the gate check the wrong repo. To bypass deliberately (user-authorized only), prefix the gh invocation with CODEX_GATE_BYPASS=1." >&2
+   echo "$STRIPPED" | grep -qE '[[:space:]]-C[[:space:]]' || \
+   echo "$STRIPPED" | grep -qE '[[:space:]](-R[[:space:]]|--repo([[:space:]]|=))'; then
+  echo "Codex PR gate: run 'gh pr create' as a standalone command from the session's working directory, with no cd/pushd/-C and no -R/--repo — those would make the gate check (or the PR target) the wrong repo. To bypass deliberately (user-authorized only), prefix the gh invocation with CODEX_GATE_BYPASS=1." >&2
   exit 2
 fi
 

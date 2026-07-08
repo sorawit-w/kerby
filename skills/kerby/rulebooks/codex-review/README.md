@@ -59,10 +59,12 @@ Codex is genuinely missing.
 ## Known ceilings (deliberate)
 
 - **String-match gate, not a shell parser.** Whitespace-tolerant regex catches
-  `gh  pr create` variants, but a line-continuation split evades it, and a
-  `gh pr create`-shaped string inside quoted prose over-blocks (safe direction:
-  rerun standalone or bypass). ` -C ` in quoted title/body text can likewise
-  false-block.
+  `gh  pr create` and `gh <global-opts> pr create` (e.g. `gh -R owner/repo pr
+  create`) variants, but a line-continuation split evades it, and a `gh pr
+  create`-shaped string inside quoted prose over-blocks (safe direction: rerun
+  standalone or bypass). A `-C `, `-R `, or `--repo` token anywhere in a
+  compound command likewise triggers the wrong-repo refusal (safe direction —
+  the gate already asks you to run `gh pr create` standalone).
 - **codex-mark trusts the teed log.** Forging a log is deliberate deception, not
   drift; `$GIT_DIR/codex-review-audit.log` keeps history visible.
 - **jq required for the gate hook.** Missing jq degrades to an announced ALLOW
