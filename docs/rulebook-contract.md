@@ -226,7 +226,9 @@ first successful load; read by every later load.
   never drift: `load <x>` **adds** to `selected` (or leaves the pin untouched
   when `<x>` is already a member — sameness is resolved identity,
   install-resolved builtin or `path_or_url`, never the id string; a bare id
-  resolves to the active incumbent first) and `unload <x>` **removes**;
+  resolves to the active incumbent first, and with no incumbent to the
+  install builtin before any pinned-but-unselected external of that id) and
+  `unload <x>` **removes**;
   replacing a gate is unload-then-load, two explicit acts, and `load +<x>` is
   a back-compat alias of `load <x>`. An external (`local`/`remote`) rulebook
   is appended and pinned only after validation + TOFU approval clear — a
