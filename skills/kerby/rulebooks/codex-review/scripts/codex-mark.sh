@@ -49,7 +49,12 @@ head_time=$(git log -1 --format=%ct)
 [ "$log_mtime" -gt "$head_time" ] \
   || fail "review log is older than HEAD — a commit landed after the review; re-review this exact tree"
 
-# 3. Round counter (per branch; resets on branch switch or on PASS).
+# 3. Round counter (per branch; resets on branch switch or on PASS). Compute the
+# incremented value here but DEFER the write until after the verdict parses
+# (step 4). A malformed / missing-verdict attempt must NOT consume a round —
+# otherwise a couple of brief-drift mark attempts push the counter to 3 and the
+# first real review with an open P0/P1 is instantly HELD instead of getting its
+# three legitimate rounds.
 rounds_file="$gitdir/codex-review-rounds"
 rounds=0
 if [ -f "$rounds_file" ]; then
@@ -58,9 +63,9 @@ if [ -f "$rounds_file" ]; then
 fi
 case "$rounds" in ''|*[!0-9]*) rounds=0 ;; esac
 rounds=$((rounds + 1))
-printf '%s\n%s\n' "$branch" "$rounds" > "$rounds_file"
 
-# 4. Parse the verdict line (last occurrence wins; fail closed if absent).
+# 4. Parse the verdict line (last occurrence wins; fail closed if absent or
+# malformed) — BEFORE persisting the round, so a failed parse costs nothing.
 verdict=$(grep -E 'CODEX_VERDICT:' "$log" | tail -n1)
 [ -n "$verdict" ] \
   || fail "no CODEX_VERDICT line in $log — the review brief must require it; re-run the review with the rubric + verdict contract included"
@@ -69,6 +74,11 @@ get() { printf '%s' "$verdict" | sed -n "s/.*$1=\([0-9][0-9]*\).*/\1/p"; }
 p0=$(get P0); p1=$(get P1); p2=$(get P2); p3=$(get P3)
 [ -n "$p0" ] && [ -n "$p1" ] && [ -n "$p2" ] && [ -n "$p3" ] \
   || fail "malformed CODEX_VERDICT line (all four counts P0..P3 required): $verdict"
+
+# Verdict is well-formed — NOW this counts as a real round. Persist the
+# increment (PASS overwrites it to 0 below; DENIED/HELD keep it for the next
+# attempt). A failed parse above exited before reaching here, costing no round.
+printf '%s\n%s\n' "$branch" "$rounds" > "$rounds_file"
 
 # 5. Verdict.
 if [ "$p0" -eq 0 ] && [ "$p1" -eq 0 ]; then

@@ -52,7 +52,18 @@ fresh_log "CODEX_VERDICT: P0=0 P1=0"
 mark
 [[ "$RC" -eq 1 && ! -f "$MARKER" ]] && pass "missing P2/P3 fails closed" || fail "partial verdict: rc=$RC marker=$([ -f "$MARKER" ] && echo yes || echo no)"
 
-# 4. DENIED on open P1 (exit 1), round counts up, no marker.
+# 3b. A malformed/missing-verdict attempt must NOT consume a round.
+rm -f "$ROUNDS"
+fresh_log "no verdict here at all"
+mark  # fails closed
+[[ "$RC" -eq 1 && ( ! -f "$ROUNDS" || "$(sed -n 2p "$ROUNDS" 2>/dev/null)" != "1" ) ]] \
+  && pass "malformed attempt costs no round" || fail "malformed consumed a round: rounds=$(sed -n 2p "$ROUNDS" 2>/dev/null)"
+fresh_log "CODEX_VERDICT: P0=0 P1=1 P2=0"  # missing P3
+mark
+[[ "$RC" -eq 1 && ( ! -f "$ROUNDS" || "$(sed -n 2p "$ROUNDS" 2>/dev/null)" != "1" ) ]] \
+  && pass "partial-verdict attempt costs no round" || fail "partial consumed a round: rounds=$(sed -n 2p "$ROUNDS" 2>/dev/null)"
+
+# 4. DENIED on open P1 (exit 1), round counts up (first VALID round), no marker.
 rm -f "$ROUNDS"
 fresh_log "CODEX_VERDICT: P0=0 P1=2 P2=1 P3=0"
 mark
