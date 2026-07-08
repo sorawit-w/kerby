@@ -71,7 +71,9 @@ ceiling). The **final** review must run
    `references/delegation.md` § Bounded delegation): the mechanical
    PR gate will still block `gh pr create` with no marker — this is the one
    sanctioned marker-less use of `CODEX_GATE_BYPASS=1`, because the GitHub-side
-   review below replaces the local one; never bypass when local Codex works. Open
+   review below replaces the local one; never bypass when local Codex works.
+   Sanctioned ≠ pre-authorized: the bypass still needs the user's per-PR
+   approval (the gate rule's "user-approved only" applies on every rung). Open
    the PR (with the bypass), trigger a GitHub-side `@codex review` (include the
    P0–P3 rubric in the mention comment), and poll. **Address every P0/P1 comment
    before merging** — fix it (a fix is a new push → new review cycle) or push back
