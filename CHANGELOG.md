@@ -3,6 +3,43 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.8.0] — 2026-07-07
+
+**Additive `load`**: bare `kerby load <source>` now ADDS to the pinned
+selection instead of replacing it. `load` ≠ `replace`.
+
+- **`load <source>` appends** the resolved rulebook to `selected` and re-pins;
+  loading a rulebook that is already selected (by resolved identity —
+  install-resolved builtin, or same `path_or_url` external; a bare id resolves
+  to the active incumbent first) leaves the pin untouched and still performs
+  the ordinary in-context load (`already selected: <id> — selection unchanged`).
+- **Replace is two explicit acts** — `unload <id>`, then `load <other>`. The
+  destructive op is no longer the bare default: `kerby load codex-review` in a
+  `swe` repo used to silently drop `swe` — every coding guardrail gone; it now
+  joins it. Same posture win on the trust side: a tricked `load ./evil` can
+  only *join* the gate, never substitute it.
+- **`load +<source>` stays** as a back-compat alias with identical behavior.
+- **Trust ordering stated explicitly**: an external rulebook is appended and
+  pinned only after validation + the trust prompt clear — a declined prompt
+  writes nothing.
+- **Duplicate-id refusal unchanged in substance, split in statement**: an arg
+  whose id collides with a *different* active rulebook (builtin `swe` vs a
+  local fork named `swe`) is still refused — unload the incumbent first. Only
+  the same-rulebook case became an idempotent skip.
+- **Qualified dispatch follows** (warm and cold): `kerby <id> <cmd>` ensures
+  `<id>` is a selected member (append-or-skip) — it no longer re-pins the
+  selection to `<id>` alone, and a warm qualified command on an unselected
+  rulebook loads it first (TOFU still gates externals).
+- **`status` verdicts are per selected rulebook**: `partially loaded` names
+  what was detected and what is selected-but-missing (the compaction case),
+  never a single collapsed answer.
+- TOFU gate line: `Loading this makes <id> part of this session's gate
+  (selection after load: <list>).` Pin-changing loads announce
+  `selection: <list>`.
+- Docs: root README gains a Selection model section + `unload` in quick
+  start; ENGINE-MAP delta table gains the v9.8.0 rows (v7 parity baseline
+  untouched).
+
 ## [9.7.0] — 2026-07-07
 
 **New builtin `codex-review`**: the Codex workflows leave the maintainer's

@@ -1,6 +1,6 @@
 # codex-review — opt-in Codex workflows (PR gate, plan review, delegation).
 # Deliberately declares NO [detect] table: Codex is slow and vendor-coupled, so
-# adoption is an explicit `kerby load +codex-review`, never workspace-shape
+# adoption is an explicit `kerby load codex-review`, never workspace-shape
 # auto-selection. Extends base (implicit-mandatory; listed for clarity).
 # Self-contained: every declared path resolves inside this folder (contract 2).
 # Contract: docs/rulebook-contract.md.

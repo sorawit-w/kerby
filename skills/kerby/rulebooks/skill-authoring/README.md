@@ -11,8 +11,8 @@ ship *unverified* only when explicitly labeled and acknowledged.)
 ## Scope
 
 - **Governs the host repo's skills.** Load it in any repo where you author
-  SKILL.md files: `kerby load skill-authoring`, or `kerby load
-  +skill-authoring` alongside another rulebook.
+  SKILL.md files: `kerby load skill-authoring` (additive — it joins whatever
+  rulebook the repo already pins).
 - **Does not re-implement the tools.** Building skills is `skill-creator`'s
   job; auditing rule adherence is `skill-evaluator`'s. This rulebook is the
   discipline between them — when the gate opens, what evidence it takes to

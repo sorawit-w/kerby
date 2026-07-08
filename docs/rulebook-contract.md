@@ -32,7 +32,7 @@ pinned (D10).
 | Origin | Where it lives | Path rules | Trust |
 |---|---|---|---|
 | `builtin` | `skills/kerby/rulebooks/<id>/`, ships inside kerby | **folder-confined like every origin** (contract 2 — the v1 resources-relative exemption is gone; builtins are self-contained) | repo-versioned; no hash pin required. **Builtin trust is anchored to the install location, never *granted* by a lockfile**: an entry claiming `origin: builtin` is the builtin *iff* its `id` resolves to `<install-root>/rulebooks/<id>` and its `path_or_url` is that install path. The validator rejects `--origin builtin` for any path outside `--builtin-root` (E04); a `builtin` claim for a workspace path is invalid HELD, not trusted. A pin claiming `origin: local`/`remote` — even one whose `id` collides with a builtin — is honored as that external rulebook (loaded from its `path_or_url` through TOFU, never silently swapped for the builtin), since it grants no trust; that keeps builtin-id forks reloadable |
-| `local` | anywhere on disk, loaded by explicit path | confined: every declared path must resolve **inside** the rulebook root — no `..`, no absolute paths (E04). **No symlinks and no `.git/` anywhere under the folder** (declared *or* undeclared): a rulebook must be self-contained plain files, since a symlink escapes confinement (a mutable-target instruction channel the trust hash can't cover) and `.git/` is skipped by the hash (so content under it would be a hash-blind channel) — both E04. Remote clones strip `.git/` at fetch; a local rulebook must be a clean content dir, not a git working tree | one-time review + hash pin (TOFU) on first load — for **any** local rulebook, including a `data`-only one (loading it makes it the session's governing gate, in place of whatever builtin would otherwise be selected; a prose/code rulebook *additionally* admits external instructions/scripts). Silent re-load only while the hash matches **and** the hash is in the per-machine `~/.claude/kerby/approved-rulebooks.json` — a committed project lockfile is untrusted content and can never by itself pre-approve an external rulebook |
+| `local` | anywhere on disk, loaded by explicit path | confined: every declared path must resolve **inside** the rulebook root — no `..`, no absolute paths (E04). **No symlinks and no `.git/` anywhere under the folder** (declared *or* undeclared): a rulebook must be self-contained plain files, since a symlink escapes confinement (a mutable-target instruction channel the trust hash can't cover) and `.git/` is skipped by the hash (so content under it would be a hash-blind channel) — both E04. Remote clones strip `.git/` at fetch; a local rulebook must be a clean content dir, not a git working tree | one-time review + hash pin (TOFU) on first load — for **any** local rulebook, including a `data`-only one (loading it makes it part of the session's governing gate — selecting an external gate is a trust decision whether it joins or stands alone, and a cloned lockfile's `selected` array can still put it in place of a builtin outright; a prose/code rulebook *additionally* admits external instructions/scripts). Silent re-load only while the hash matches **and** the hash is in the per-machine `~/.claude/kerby/approved-rulebooks.json` — a committed project lockfile is untrusted content and can never by itself pre-approve an external rulebook |
 | `remote` | fetched by explicit `load <git-URL \| owner/repo>`, materialized at `.kerby/rulebooks/<id>/` (session temp dir when the workspace is read-only) | confined exactly like `local`; clone's `.git/` deleted after fetch; manifest `id` must be a slug (it becomes the path component) | TOFU exactly like `local`, plus `Source: <url>` provenance in the prompt. **No silent network** (plain `load`/`reload` use the existing clone) and **no silent updates** (re-running `load <source>` re-clones; a changed hash re-prompts). Lockfile entry adds `local_path` — untrusted like every lockfile field: the loader re-derives it from the id; a mismatch or out-of-root path is fail-closed HELD |
 
 Auto-selection is builtin-only (D19): external rulebooks load by explicit
@@ -222,12 +222,20 @@ first successful load; read by every later load.
   successful load writes it** — whether the selection came from an explicit
   arg, marker detection (`source: detected`), or the user's answer to the
   ask-fallback (`source: chosen`) — so detection/ask happens once per project
-  and every later load reads the pin. Changing rulebooks is an explicit act
-  (`load <x>` replaces, `load +<x>` adds, `unload <x>` removes), never drift. **Ids are unique within `selected`** —
-  since it keys on `id` and every user-facing op dispatches by id, `load +`
-  refuses a rulebook whose id already names an active selection (e.g. the
-  builtin `swe` plus a local fork also named `swe`); the user unloads the
-  incumbent or `load`-replaces instead.
+  and every later load reads the pin. Changing rulebooks is an explicit act,
+  never drift: `load <x>` **adds** to `selected` (or leaves the pin untouched
+  when `<x>` is already a member — sameness is resolved identity,
+  install-resolved builtin or `path_or_url`, never the id string; a bare id
+  resolves to the active incumbent first) and `unload <x>` **removes**;
+  replacing a gate is unload-then-load, two explicit acts, and `load +<x>` is
+  a back-compat alias of `load <x>`. An external (`local`/`remote`) rulebook
+  is appended and pinned only after validation + TOFU approval clear — a
+  declined prompt writes nothing. **Ids are unique within `selected`** —
+  since it keys on `id` and every user-facing op dispatches by id, `load`
+  refuses a rulebook whose id already names a *different* active selection
+  (e.g. the builtin `swe` plus a local fork also named `swe`); the user
+  unloads the incumbent first. Loading the *same* already-selected rulebook
+  is an idempotent pin no-op (in-context refresh).
 - `remote` entries carry `path_or_url` = the source URL (identity) and
   `local_path` = the clone dir — re-derived from the id at load, never trusted
   from the file.
