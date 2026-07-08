@@ -48,19 +48,22 @@ fi
 CMD=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty')
 [ -z "$CMD" ] && exit 0
 
-# Whitespace-tolerant guarded-command matcher. Three ways a naive match failed:
-#   - a literal substring let `gh  pr create` / tab forms through;
-#   - matching only contiguous `gh pr create` let `gh <global-opts> pr create`
-#     (e.g. `gh -R owner/repo pr create`) fail OPEN — the hook exited before the
-#     marker check on ordinary CLI syntax;
-#   - `create` alone missed `gh pr new`, gh's built-in alias for `pr create`
-#     (verified: `gh pr new --help` prints "Create a pull request").
-# So: allow gh global option-SHAPED tokens (same idea as protect-git's
-# GIT_GLOBAL_OPT) between `gh` and `pr`, and match both subcommand spellings.
-# create-side flags already follow the subcommand and need no handling here.
-# Ceiling: user-defined `gh alias set` shortcuts are not resolved (documented).
-GH_GLOBAL_OPT='(-R[[:space:]]+[^[:space:]]+|--repo[=[:space:]][^[:space:]]+|--[A-Za-z][A-Za-z-]*=[^[:space:]]+|--[A-Za-z][A-Za-z-]*|-[A-Za-z])'
-GH_PR_OPEN_RE="(^|[^[:alnum:]_-])gh([[:space:]]+${GH_GLOBAL_OPT})*[[:space:]]+pr[[:space:]]+(create|new)\\b"
+# Guarded-command matcher — a BROAD token-sequence match, deliberately not an
+# option-shape enumeration. It fires on `gh` … `pr` … `create|new` in order,
+# with any run of non-separator tokens between (options in ANY form), stopping
+# at a command separator (; & |) so it can't span into a different command.
+# Why broad, not enumerated: three review rounds each found a distinct gh syntax
+# the enumerating regex failed OPEN on — spaced global flags, the `new` alias,
+# then attached `-Rowner/repo` / `-R=owner/repo` shorthand. Enumerating option
+# shapes never converged; matching the token sequence and ignoring the option
+# forms catches them all at once. The trade is over-blocking (a weird compound
+# like `gh frob pr create` matches) — the safe direction, since the gate already
+# requires `gh pr create` to be run standalone. Verified against the full form
+# zoo (attached/spaced/=/alias/globals) plus negatives (`git status`,
+# `gh pr view`). Ceilings the string match can't reach — a line-continuation
+# split, the raw REST path (`gh api …/pulls`), a user-defined `gh alias` — are
+# the deliberate-bypass category, documented in README, not chased here.
+GH_PR_OPEN_RE='(^|[^[:alnum:]_-])gh([[:space:]]+[^[:space:];&|]+)*[[:space:]]+pr[[:space:]]+(create|new)\b'
 
 echo "$CMD" | grep -qE "$GH_PR_OPEN_RE" || exit 0
 
@@ -80,7 +83,8 @@ echo "$STRIPPED" | grep -qE "$GH_PR_OPEN_RE" || exit 0  # all guarded invocation
 # to a PreToolUse hook, same as protect-git's ambient-var blindness — documented.
 if echo "$STRIPPED" | grep -qE '(^|[^[:alnum:]_-])(cd|pushd)[[:space:]]' || \
    echo "$STRIPPED" | grep -qE '[[:space:]]-C[[:space:]]' || \
-   echo "$STRIPPED" | grep -qE '[[:space:]](-R[[:space:]]|--repo([[:space:]]|=))' || \
+   echo "$STRIPPED" | grep -qE '[[:space:]]-R([[:space:]]|=|[^[:space:]])' || \
+   echo "$STRIPPED" | grep -qE '[[:space:]]--repo([[:space:]]|=)' || \
    echo "$STRIPPED" | grep -qE '(^|[[:space:]])GH_REPO='; then
   echo "Codex PR gate: run 'gh pr create' as a standalone command from the session's working directory — no cd/pushd/-C, no -R/--repo, no GH_REPO= (those would make the gate check, or the PR target, the wrong repo). To bypass deliberately (user-authorized only), prefix the gh invocation with CODEX_GATE_BYPASS=1." >&2
   exit 2

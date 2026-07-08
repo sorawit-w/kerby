@@ -44,6 +44,7 @@ BLOCK_NO_MARKER=(
   "gh --help pr create"                                 # non-repo global flag before subcommand: still gated
   "gh pr new"                                           # built-in alias for pr create
   "gh pr new --fill"
+  "gh -Xfoo pr create"                                  # arbitrary attached short flag: broad matcher still gates
 )
 for cmd in "${BLOCK_NO_MARKER[@]}"; do
   run "$cmd"
@@ -60,6 +61,8 @@ REFUSE=(
   "gh --repo owner/repo pr create"
   "gh --repo=owner/repo pr create"
   "gh -R owner/repo pr new"             # alias + repo-targeting flag
+  "gh -Rowner/repo pr create"           # attached -R value (verified valid gh syntax)
+  "gh -R=owner/repo pr create"          # -R=value form
   "GH_REPO=other/repo gh pr create"     # env-var repo retarget: wrong-repo refusal
 )
 for cmd in "${REFUSE[@]}"; do

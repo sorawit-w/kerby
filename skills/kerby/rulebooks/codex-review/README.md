@@ -58,19 +58,21 @@ Codex is genuinely missing.
 
 ## Known ceilings (deliberate)
 
-- **String-match gate, not a shell parser.** Whitespace-tolerant regex catches
-  `gh pr create`, its `gh pr new` alias, and the `gh <global-opts> pr create`
-  form (e.g. `gh -R owner/repo pr create`), but a line-continuation split evades
-  it, a matching string inside quoted prose over-blocks (safe direction: rerun
-  standalone or bypass), and a user-defined `gh alias set` shortcut is not
-  resolved. A `-C `, `-R `, or `--repo` token anywhere in a compound command
-  likewise triggers the wrong-repo refusal (safe direction — the gate already
-  asks you to run the command standalone). Deliberate-only escape hatches the
-  gate does **not** try to catch (they are shaped like intent, not accident,
-  and chasing them would bloat the matcher): opening a PR through the raw REST
-  path (`gh api repos/{o}/{r}/pulls -X POST …`), a user-defined `gh alias`, or a
-  shell line-continuation split. These are the `CODEX_GATE_BYPASS` category by
-  another name — treated as an accepted ceiling, not a hole to plug.
+- **String-match gate, not a shell parser.** The matcher is a broad token
+  sequence — `gh` … `pr` … `create`/`new` in order, any options in any form
+  between, not crossing a `;`/`&`/`|` separator. This catches every gh
+  invocation syntax by design (attached `-Rowner/repo`, `-R=owner/repo`, spaced
+  `-R owner/repo`, `--repo=`, the `new` alias, arbitrary global flags) rather
+  than enumerating option shapes — four review rounds each found a shape an
+  enumerating regex missed, so the gate stopped enumerating. The trade is
+  over-blocking in the safe direction: a `gh pr create`-shaped string inside
+  quoted prose, or a `-C `/`-R`/`--repo`/`GH_REPO=` token anywhere in a compound
+  command, triggers a (re)fusal — the gate already asks you to run the command
+  standalone, so rerun it plain or bypass. Deliberate-only escape hatches it does
+  **not** try to catch (shaped like intent, not accident): the raw REST path
+  (`gh api repos/{o}/{r}/pulls -X POST …`), a user-defined `gh alias`, or a shell
+  line-continuation split. These are the `CODEX_GATE_BYPASS` category by another
+  name — an accepted ceiling, not a hole to plug.
 - **codex-mark trusts the teed log.** Forging a log is deliberate deception, not
   drift; `$GIT_DIR/codex-review-audit.log` keeps history visible.
 - **jq required for the gate hook.** Missing jq degrades to an announced ALLOW —
