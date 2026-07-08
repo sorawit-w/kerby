@@ -246,3 +246,7 @@ __pycache__/
 
 # generated plugin caches (impeccable)
 **/.impeccable/hook.cache.json
+
+# kerby project-state pin — per-checkout state, never committed: a committed
+# builtin pin fail-closed HELDs in this source repo (install-root == workspace).
+.kerby/rulebooks.lock

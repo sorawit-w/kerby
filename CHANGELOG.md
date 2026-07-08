@@ -3,6 +3,34 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.7.0] — 2026-07-07
+
+**New builtin `codex-review`**: the Codex workflows leave the maintainer's
+global config and become a rulebook — opt-in, versioned, and gated like
+everything else.
+
+- **`codex-review` rulebook** — one book, three workflows, one stance (Codex
+  advises, Claude decides): the PR gate (review before `gh pr create`; open
+  P0/P1 block; 3-round cap; PASS / DENIED / HELD), complexity-gated plan
+  review, and rescue delegation. Thin eager root body (`references/stance.md`);
+  the heavy references load on demand.
+- **Opt-in by construction** — declares no `[detect]` markers; nothing in a
+  workspace's shape can select it. `kerby load +codex-review`, or it does not
+  load.
+- **`pr-create-gate`** (`PreToolUse`/`Bash`, hard once installed) — blocks
+  `gh pr create` unless `scripts/codex-mark.sh` recorded a P0/P1-clean review
+  of the exact HEAD. The marker has one writer; hands are not it. Hardened
+  over the ported original: whitespace-tolerant detection, per-invocation
+  direct-prefix bypass (`CODEX_GATE_BYPASS=1`, strip-then-residual — an
+  embedded token authorizes nothing), announced degrade when `jq` is missing.
+- **`scripts/codex-mark.sh`** — verifies the teed review log against HEAD,
+  enforces the round cap, writes the marker and the audit line. A
+  `CODEX_VERDICT` line missing any of the four counts fails closed.
+- **`kerby codex-review pr-check`** — reports plugin preflight (on disk, not
+  the skill list), marker vs HEAD, rounds, audit tail, and duplicate codex
+  rules still sitting in a CLAUDE.md.
+- Both hook and marker scripts ship sibling red/green test harnesses.
+
 ## [9.6.0] — 2026-07-05
 
 **Command discoverability**: a first-class listing command, and the floor stops
