@@ -18,7 +18,7 @@ preflight, when-to-read pointers. The heavy references load on demand.
 in explicitly:
 
 ```
-kerby load +codex-review     # add to the selection (pin persists)
+kerby load codex-review      # adds to the selection (pin persists)
 kerby install                # register the gate hook (Phase 2)
 ```
 

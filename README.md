@@ -146,11 +146,22 @@ npx skills add sorawit-w/kerby
 /kerby             # default: load the rules into the session
 /kerby reload      # re-load after a context compaction
 /kerby status      # check whether the rules are still active
+/kerby unload <id> # drop one rulebook from the selection
 /kerby install     # persistent per-project setup (guardrail hooks)
 /kerby uninstall   # mirror — removes the managed hooks
 /kerby rulebooks   # list every rulebook this install can see
 /kerby commands    # list every command the current selection provides
 ```
+
+### Selection model
+
+A project's active rulebooks are a **pinned set** (`.kerby/rulebooks.lock`), not a
+single slot. `kerby load <rulebook>` **adds** to that set — loading `codex-review`
+alongside `swe` never drops `swe` — and loading something already selected just
+refreshes it in context. Removing is always its own explicit act: `kerby unload <id>`.
+To swap gates, unload one, then load the other; nothing replaces the selection as a
+side effect of loading. (`load +<id>`, the older additive spelling, still works and
+means the same thing.)
 
 Rulebook commands (e.g. `kerby swe prepare`, `kerby swe audit`) are documented in each
 rulebook's own README — for the software-engineering rulebook, see
@@ -179,7 +190,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.7.0` — new builtin `codex-review`: the Codex workflows (the PR gate with its codex-mark attestation, plan review, rescue delegation) become an opt-in rulebook. It declares no `[detect]` markers — nothing loads it but an explicit `load +codex-review`. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.8.0` — additive `load`: a bare `kerby load <rulebook>` now joins the pinned selection instead of replacing it; swapping gates is an explicit `unload` + `load`, and `load +<id>` stays as an alias. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests

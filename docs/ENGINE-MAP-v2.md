@@ -140,18 +140,20 @@ line where sections left the engine file.
 |---|---|
 | TOFU prompt | + `Commands it provides: …` line; + `Source: <url>` line (remote only) |
 | `status` | + `Loaded rulebooks:` header line |
-| Announcement | one line per selected rulebook (multi-load only; single-rulebook line unchanged) |
+| Announcement | one line per selected rulebook (multi-load only; single-rulebook line unchanged) — superseded at v9.8.0: the `selection: <list>` line fires on ANY pin change, including first pins and single-member additions (see the v9.8.0 selection-semantics row) |
 | `install` summary | per-rulebook grouping wording; entry *set* identical per V14 dedup |
 | Lockfile path mentions | `.kerby/rulebooks.lock` (+ one-line migration announcement, V13) |
 | Cold dispatch (`audit`/`prepare`, nothing loaded) | + selection announcement + load confirmation *preceding* the baseline output; command output itself byte-matches (baseline captures these cold) |
-| New commands (`rulebooks`, `unload`, `load +`) | no baseline exists — spec-tested, not parity-tested |
+| New commands (`rulebooks`, `unload`, `load +` — since v9.8.0 an alias of bare `load`) | no baseline exists — spec-tested, not parity-tested |
 | Flow-internal mechanics prose (Phase A) | path re-roots (`resources/rulebooks/`→`rulebooks/`, hooks-dir table, workflow/audit doc pointers, locator rewrite) + the contract-2 corrections the reorg makes mandatory (`--origin builtin` no longer grants special resolution; detection signature gains the legacy-shim root). **User-facing verbatim strings — confirmations, announcement format, TOFU prompt block, compaction caveat — are NOT covered by this row and must stay byte-identical** (verified: scenarios 3 & 7 IDENTICAL at Phase A replay; prompt/announcement blocks untouched in 1/2/4/5/6). |
 | Rulebook id + version (v9.0.0 rename onward) | everywhere the baseline prints `code@1.0.0` / id `code` / `kerby code <cmd>`, the live output prints `swe@<installed manifest version>` / `swe` / `kerby swe <cmd>` — id/version substitution only. The version **tracks the installed `swe` manifest**, not a frozen number (v9.0.0: `2.0.0`; v9.1.0: `2.1.0` after the `[detect]` add; every later swe manifest bump likewise). Same for any other builtin a scenario loads — `skill-authoring@<installed version>` (v9.1.0: `1.1.0`). The surrounding verbatim strings (confirmations, announcement format, TOFU prompt block) are otherwise unchanged |
 | Pin migration (v9.0.0) | + one-line announcement `pin migrated: builtin 'code' → 'swe' (renamed in v9.0.0)` preceding a pinned load of a pre-v9 lockfile |
 | `status` panel (v9.0.0) | + `registered script missing — re-run kerby install` row for a settings entry under a kerby-managed root whose script no longer exists (the state a pre-v9 hook install leaves after the rename) |
 | Selection source grammar (v9.1.0) | announcement gains `detected` / `chosen`, loses `default`; the first-time-default hint is replaced by a `(matched: <marker>; …)` hint on `detected` |
 | Ask-fallback flow (v9.1.0) | new surface — an unpinned load with a multi-match or no-match presents the builtin list and asks; spec-tested, not parity-tested (mirrors the "New commands" row) |
-| TOFU prompt gate line (v9.1.0) | the external-rulebook trust prompt's `Loading this replaces the default gate for this session.` becomes `Loading this selects <id> as this session's gate (replacing the current selection).` — the only changed line in the prompt block; there is no "default gate" post-v9.1. The rest of the TOFU block stays byte-identical |
+| TOFU prompt gate line (v9.1.0) | the external-rulebook trust prompt's `Loading this replaces the default gate for this session.` becomes `Loading this selects <id> as this session's gate (replacing the current selection).` — the only changed line in the prompt block; there is no "default gate" post-v9.1. The rest of the TOFU block stays byte-identical (gate line superseded again at v9.8.0 — row below) |
+| Selection semantics (v9.8.0) | bare `load <source>` **adds** to the pinned selection (pin no-op when that rulebook is already selected, by resolved identity — a bare id resolves incumbent-first); replace exists only as `unload <id>` then `load <other>`; `+` is a back-compat alias; an external appends only after validation + TOFU clear. Any baseline flow in which a bare `load <id>` re-pinned/replaced an existing selection is superseded — the load appends, renders one announcement line per selected rulebook, and adds a `selection: <list>` line when the pin changes. Qualified dispatch (warm or cold) ensure-members its id additively; `status` verdicts are per selected rulebook (`partially loaded` names each side). Spec-tested, not parity-tested |
+| TOFU prompt gate line (v9.8.0) | the v9.1.0 gate line `Loading this selects <id> as this session's gate (replacing the current selection).` becomes `Loading this makes <id> part of this session's gate (selection after load: <list>).` — again the only changed line in the prompt block; the rest stays byte-identical |
 
 Replay rule: byte-match everything except these enumerated deltas. A mismatch outside
 the table = stop, classify, BLOCKED if unexplained — never "explain away".
@@ -162,5 +164,5 @@ See the v7 plan (mirrored in the PR description). Summary index: V1 layout · V2
 model · V3 audit/prepare re-home · V4 install derivation · V5 base listed as floor ·
 V6 interactive create · V7 eval scoping · V8 contract 2 · V9 stubs/shims · V10 trust
 unchanged · V11 behavior parity · V12 remote sources · V13 lockfile → `.kerby/` ·
-V14 shared-enforcer ownership · V15 load replace/`+`/unload + cold dispatch ·
+V14 shared-enforcer ownership · V15 load/`+`/unload selection ops + cold dispatch (bare `load` additive since v9.8.0; originally replace/add) ·
 V16 reserved names + dispatch precedence.
