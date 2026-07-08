@@ -179,7 +179,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.6.0` — command discoverability: new `commands` engine command lists every user-invocable command verbatim from the rulebook manifests (cold = browse-mode, never a load), and `rulebooks list` stops listing the always-implicit floor. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.7.0` — new builtin `codex-review`: the Codex workflows (the PR gate with its codex-mark attestation, plan review, rescue delegation) become an opt-in rulebook. It declares no `[detect]` markers — nothing loads it but an explicit `load +codex-review`. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests

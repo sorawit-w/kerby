@@ -1,0 +1,82 @@
+# codex-review — opt-in Codex workflows (PR gate, plan review, delegation).
+# Deliberately declares NO [detect] table: Codex is slow and vendor-coupled, so
+# adoption is an explicit `kerby load +codex-review`, never workspace-shape
+# auto-selection. Extends base (implicit-mandatory; listed for clarity).
+# Self-contained: every declared path resolves inside this folder (contract 2).
+# Contract: docs/rulebook-contract.md.
+id = "codex-review"
+version = "0.1.0"
+contract = 2
+accepts = ["git_change"]      # scopes the mechanical gate; the plan-review /
+                              # delegation prose is behavioral, not subject-scoped
+                              # (README § Known ceilings)
+extends = ["base"]
+description = "Opt-in Codex workflows — PR gate (review before gh pr create; P0/P1 block, 3-round cap, PASS/DENIED/HELD), complexity-gated plan review, rescue delegation."
+
+[gate]
+block_on = ["block"]
+hold_on = ["warn"]
+
+[identity]                    # scan-only phrases for `status` — distinctive lines
+                              # of the EAGER root body (stance.md), never strings
+                              # that appear in ordinary review transcripts (a
+                              # CODEX_VERDICT line in a transcript must not read
+                              # as "rulebook loaded").
+signature_phrases = [
+  "codex-review stance",
+  "Verify Codex on disk before asserting it is missing",
+]
+# load/reload confirmations omitted — the engine's generic template is right.
+
+[[check]]
+id = "codex-stance"           # ROOT BODY (first-declared prose): thin index —
+kind = "prose"                # stance, on-disk preflight, when-to-read pointers,
+body = "references/stance.md" # adoption duplicate-rule check. Eager (root + low).
+enforcement = "behavioral"
+severity = "block"
+token_cost = "low"
+
+[[check]]
+id = "pr-review-loop"
+kind = "prose"
+body = "references/pr-workflow.md"
+enforcement = "behavioral"
+severity = "block"
+token_cost = "medium"         # on demand: stance points here at PR moments; the
+                              # gate hook stderr is the mechanical backstop
+
+[[check]]
+id = "plan-review"
+kind = "prose"
+body = "references/plan-review.md"
+enforcement = "behavioral"
+severity = "warn"             # skipping plan review HOLDs, never DENIES
+token_cost = "medium"         # on demand: the stance trigger line (with its
+                              # inline complexity fallback) is the only backstop
+
+[[check]]
+id = "codex-delegation"
+kind = "prose"
+body = "references/delegation.md"
+enforcement = "behavioral"
+severity = "info"             # advisory ladder, not a gate
+token_cost = "low"            # EAGER on purpose: stuck moments are exactly when
+                              # the agent won't go fetch a reference
+
+[[check]]
+id = "pr-create-gate"
+kind = "code"
+needs = ["branch"]
+enforcement = "hard"
+enforcer = "hooks/codex-pr-gate.sh"
+event = "PreToolUse"
+matcher = "Bash"
+severity = "block"
+override = "authorized-scoped"  # CODEX_GATE_BYPASS=1 directly prefixing the gh
+                                # invocation, user-authorized only (same idiom as
+                                # swe's CODING_RULES_ALLOW_PROTECTED_COMMIT=1)
+
+[[command]]
+name = "pr-check"
+body = "commands/pr-check.md"
+description = "Report PR-gate state: codex-plugin preflight (on disk), marker vs HEAD, round counter, audit-log tail, duplicate-rule warning."
