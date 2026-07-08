@@ -46,7 +46,9 @@ log="${1:-$gitdir/codex-review.log}"
 log_mtime=$(stat -c %Y "$log" 2>/dev/null || stat -f %m "$log" 2>/dev/null) \
   || fail "cannot stat $log"
 # Attempt duration: tee creates the log at review start and last-writes it at
-# review end, so birth->mtime spans the run. Advisory only (the dur= audit
+# review end, so birth->mtime spans the run — valid ONLY because this script
+# consumes the log after each parse (see below); tee's truncation of an
+# existing file does NOT reset birth time. Advisory only (the dur= audit
 # field is the observed-good baseline for delegation.md's wall-clock ceiling);
 # "?" when the filesystem has no birth time (Linux %W returns 0 there).
 log_birth=$(stat -c %W "$log" 2>/dev/null || stat -f %B "$log" 2>/dev/null)
@@ -88,6 +90,12 @@ p0=$(get P0); p1=$(get P1); p2=$(get P2); p3=$(get P3)
 # increment (PASS overwrites it to 0 below; DENIED/HELD keep it for the next
 # attempt). A failed parse above exited before reaching here, costing no round.
 printf '%s\n%s\n' "$branch" "$rounds" > "$rounds_file"
+
+# Consume the log now that its verdict is parsed: the next attempt's tee must
+# create a FRESH inode or its dur= would span since the first attempt (birth
+# time survives truncation). Kept as .prev for the audit trail. A malformed
+# log exits above without being consumed, so it stays inspectable.
+mv -f "$log" "$log.prev"
 
 # 5. Verdict.
 if [ "$p0" -eq 0 ] && [ "$p1" -eq 0 ]; then

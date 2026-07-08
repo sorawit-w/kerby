@@ -20,14 +20,18 @@ scoped re-review, rescue.
   teed to a log, or the signals below don't exist.
 - **Classify before waiting.** Log tail at a known block-point + flat CPU =
   deterministic hang → kill now, no grace. Alive and initialized but silent =
-  stall → bounded grace, then kill.
-- **Wall-clock ceiling per attempt:** ~2× the observed-good duration (`dur=`
-  fields in `$GIT_DIR/codex-review-audit.log`); no baseline → 15 min.
+  stall → grace to the attempt's ceiling, then kill — never earlier, never past.
+- **Wall-clock ceiling per attempt:** ~2× the observed-good duration (median of
+  the numeric `dur=` fields in `$GIT_DIR/codex-review-audit.log`, ignoring `?`);
+  no baseline → 15 min.
 - **Restart keyed to cause:** known cause → fix it, retry once; unknown stall →
   at most one blind retry. Never loop identical restarts.
-- **Delegation budget: ~2 attempts total.** Exhausted with no verdict → treat
+- **Delegation budget: at most 2 attempts per requested verdict** (a
+  verdict-producing run never consumes it). Exhausted with no verdict → treat
   Codex as unable to produce a verdict and take the invoking workflow's
-  fallback path (for the PR gate: `pr-workflow.md` step 4).
+  fallback path (for the PR gate: `pr-workflow.md` step 4). "No verdict" means
+  no `CODEX_VERDICT` line at all — a DENIED or HELD outcome IS a verdict; HELD
+  escalates to the user, never to a fallback.
 
 ## The stop-time review gate — offer wording and cost caveat (single source)
 

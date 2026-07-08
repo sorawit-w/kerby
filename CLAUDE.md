@@ -133,7 +133,8 @@ cycle) or push back with reasoning; never merge with an open, unaddressed commen
 only on a green light **against the current head**: an approval / 👍 reaction dated after
 the latest push, or a reasonable silence window once ≥1 completed review of HEAD exists —
 never when Codex never reviewed HEAD at all. (Poll cadence is maintainer-personal tuning,
-not part of this gate.)
+not part of this gate. Deliberately stricter than the shipped rulebook: this repo has no
+self-review last rung — if both Codex venues fail, escalate to the maintainer.)
 
 **Merge conventions:** squash is the default — one commit per PR on `main`; don't use
 `--merge` / `--rebase` without being asked. Always pass `--delete-branch` (this repo's

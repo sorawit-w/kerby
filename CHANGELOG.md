@@ -13,22 +13,31 @@ one stdin deadlock, one 27-minute silent stall).
   headless Codex run): close stdin (`< /dev/null` — an open empty stdin in a
   background shell deadlocks silently), classify hang vs. stall before waiting
   (known block-point + flat CPU → kill now; alive-but-silent → bounded grace),
-  per-attempt wall-clock ceiling (~2× observed-good, 15 min cold-start
-  default), cause-keyed restarts (known cause → fix + retry once; unknown →
-  one blind retry max), ~2-attempt delegation budget.
+  per-attempt wall-clock ceiling (~2× the median observed-good, 15 min
+  cold-start default; stall grace runs exactly to the ceiling), cause-keyed
+  restarts (known cause → fix + retry once; unknown → one blind retry max),
+  at most 2 attempts per requested verdict ("no verdict" = no `CODEX_VERDICT`
+  line at all — DENIED/HELD are verdicts, HELD escalates, never falls back).
 - **Broadened fallback trigger** (`pr-workflow.md` step 4, `stance.md`, root
   `CLAUDE.md`): the fallback now also activates when Codex is present but
   unable to produce a verdict within the delegation budget — previously only
   "genuinely missing or broken" qualified, leaving a non-converging Codex in
   limbo.
 - **Degradation ladder, not a self-review license**: local Codex → GitHub
-  `@codex review` (skipped when the repo has no GitHub remote) → self-review +
-  per-PR user-authorized `CODEX_GATE_BYPASS=1`, disclosed in the PR body.
-  Self-review is a disclosed degradation, never a substitute.
+  `@codex review` (skipped when the repo has no GitHub remote; the GitHub venue
+  gets its own bounded budget — failed only after ≥2 re-mentions and ~15 min
+  with zero review activity) → self-review + the user's explicit per-PR
+  approval of the no-independent-review merge, disclosed in the PR body (or
+  merge commit message when no PR exists). Sanctioned ≠ pre-authorized: every
+  bypass rung still needs per-PR user approval. Self-review is a disclosed
+  degradation, never a substitute.
 - **`dur=` audit field**: `codex-mark.sh` records each passing review's
-  wall-clock duration (log birth→mtime — `tee` creates the log at review
-  start) in `codex-review-audit.log`, giving the ceiling rule its
-  observed-good baseline; `?` where the filesystem lacks birth time.
+  wall-clock duration (log birth→mtime) in `codex-review-audit.log`, giving
+  the ceiling rule its observed-good baseline; `?` where the filesystem lacks
+  birth time. To keep dur honest per attempt, codex-mark now consumes the log
+  (→ `codex-review.log.prev`) whenever it parses a verdict — tee truncation
+  does not reset birth time, so a reused inode would silently inflate the
+  baseline.
 
 ## [9.8.0] — 2026-07-07
 
