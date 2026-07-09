@@ -60,10 +60,12 @@ INJECTION_PATTERNS = ("ignore previous", "you must now", "disregard the above")
 CHECK_REQUIRED = ("id", "kind", "enforcement", "severity")
 TOP_REQUIRED = ("id", "version", "contract", "accepts")
 # Engine command names a rulebook may never declare or shadow (V16). Includes
-# grammar tokens (`list`, `create`), `help` (reserved-only at v7), and
-# `commands` (the engine listing command, reserved at v9.6.0).
+# grammar tokens (`list`, `create`), `help` (reserved-only at v7),
+# `commands` (the engine listing command, reserved at v9.6.0), and
+# `check-updates` (the freshness report, reserved at v9.11.0).
 RESERVED_COMMANDS = {"load", "unload", "reload", "status", "install", "uninstall",
-                     "rulebooks", "list", "create", "help", "commands"}
+                     "rulebooks", "list", "create", "help", "commands",
+                     "check-updates"}
 # Claude Code lifecycle events install can register hooks for. Unknown events
 # warn rather than fail — the harness may add events faster than this list.
 KNOWN_EVENTS = {"PreToolUse", "PostToolUse", "SessionStart", "SessionEnd", "Stop",

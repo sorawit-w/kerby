@@ -56,7 +56,7 @@ kerby is two things, deliberately separated:
 - **An engine** — domain-blind machinery that loads rulebooks, validates them, pins trust,
   registers guardrail hooks, and renders verdicts. It knows GATE → WEIGH → VERDICT and
   nothing else. Its commands: `load`, `unload`, `reload`, `status`, `install`,
-  `uninstall`, `rulebooks list|create`, `commands`.
+  `uninstall`, `rulebooks list|create`, `commands`, `check-updates`.
 - **Rulebooks** — self-contained folders (a `rulebook.toml` manifest + prose rules +
   hooks + commands) that carry the actual judgment. Copy a folder, get a governed domain.
   Three ship built in: **`base`**, the universal floor that rides under every rulebook (no
@@ -151,6 +151,7 @@ npx skills add sorawit-w/kerby
 /kerby uninstall   # mirror — removes the managed hooks
 /kerby rulebooks   # list every rulebook this install can see
 /kerby commands    # list every command the current selection provides
+/kerby check-updates # read-only freshness report (builtins offline; only locally-approved pinned remotes fetched)
 ```
 
 ### Selection model
@@ -167,6 +168,15 @@ The lock is machine-local state — its path fields are absolute paths on your m
 so it is never committed; `kerby install` offers to add it to your `.gitignore`.
 Builtin pins track the install: after a kerby upgrade, the next `load` re-pins the
 new version and announces it once (`pin updated: <id> <old> → <new>`).
+
+To *share* a selection, commit the optional intent manifest `.kerby/rulebooks.toml`
+(created by `kerby install`'s offer, or by hand) — path-free and trust-inert: it names
+the rulebooks and exact versions this repo uses, a teammate's fresh checkout resolves
+it on first load, and externals still go through the trust prompt on every machine.
+`kerby check-updates` reports freshness for the *pinned* selection: builtins compare
+offline against the install; a remote is fetched only when its pin matches your
+per-machine approval store (manifest-only entries are listed as adoptable, never
+fetched). Read-only — applying an update is always an ordinary `load`.
 
 Rulebook commands (e.g. `kerby swe prepare`, `kerby swe audit`) are documented in each
 rulebook's own README — for the software-engineering rulebook, see
@@ -195,7 +205,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.10.0` — lock hygiene + builtin version-reconcile: `install` offers the `.gitignore` entry for the machine-local lock, and a stale builtin pin re-pins from the install on the next `load` with a one-line announcement. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.11.0` — intent manifest + `check-updates`: a committed, trust-inert `.kerby/rulebooks.toml` shares which rulebooks a repo uses (externals still TOFU per machine), and a read-only `check-updates` reports what's stale — builtins offline, remotes fetched only when locally approved. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests

@@ -269,6 +269,69 @@ first successful load; read by every later load.
 Compute the hash with
 `python3 skills/kerby/resources/scripts/validate-rulebook.py <dir> --hash`.
 
+## Intent manifest (`.kerby/rulebooks.toml`) — committed, optional
+
+The lockfile above is machine-local *resolution* — absolute paths, per-checkout
+state, never committed. The intent manifest is its committed inverse: a
+path-free, trust-inert TOML file naming which rulebooks the project *intends*
+to use, so a teammate's fresh checkout can reproduce the selection without
+inheriting anyone's machine state.
+
+```toml
+# kerby intent manifest — committed. Names which rulebooks this repo uses.
+# Trust-inert: grants no approval; externals still TOFU on every machine.
+[[rulebook]]
+id = "swe"                # builtin — resolves against the local install
+version = "3.1.0"         # exact pin: a drift detector, not a resolver
+
+[[rulebook]]
+id = "team-standards"
+version = "1.2.0"
+source = "https://github.com/org/team-standards"  # remote only — never a local path
+```
+
+Fields per `[[rulebook]]` entry — nothing else is honored:
+
+- `id` — slug, same rules as a manifest id (E04 doctrine: an id becomes a path
+  component).
+- `version` — the exact version expected. **A drift detector, not a
+  resolver:** kerby has no registry and cannot fetch historical versions —
+  builtins load whatever the install ships; remotes fetch HEAD of `source`. A
+  mismatch is announced, never silently absorbed.
+- `source` — optional; a **scheme-bearing remote URL** (`https://…` /
+  `ssh://git@…`). GitHub shorthand (`owner/repo`) and scp-style syntax
+  (`git@host:org/repo` — no scheme) are malformed here — a committed file has
+  no user present to disambiguate the forms `load` can ask about. Never a local filesystem path: a local external has no shareable
+  source, so its entry carries `id` + `version` only and each machine supplies
+  its own copy. An entry whose `id` matches an installed builtin never carries
+  a `source` — that combination is malformed (a builtin resolves against the
+  install; a URL claiming its id is the shadowing the trust rules forbid).
+
+**Trust: the manifest grants nothing — not even fetch consent.** It is
+committed workspace content — exactly as untrusted as a committed lockfile
+(previous section). It never pre-approves: a `source` URL only *names* a
+rulebook; **fetching it requires a per-entry confirmation first** (workspace
+content must never trigger network on its own — the explicit-arg consent of
+`load <url>` has no analogue here, so the loader asks before any clone;
+headless, the entry is skipped and named, never fetched), and loading it then
+runs the full remote flow — clone, validate, TOFU prompt — on every machine.
+The schema has no `origin`, `sha256`, or `local_path` fields; an entry
+carrying one is malformed, never a trust assertion. Duplicate `id`s across
+entries are malformed (ids are unique within a selection).
+
+**Lifecycle (opt-in by existence):** created by `kerby install`'s offer or by
+hand. While it exists, every pin mutation (`load`/`unload`) and builtin
+version-reconcile mirrors into it, always announced. When absent, nothing
+reads or writes it. **Malformed → announced and ignored** — TOML parse
+failure, an unknown field, a non-slug `id`, a `source` that is not a
+scheme-bearing remote URL, duplicate `id`s, or a builtin-id entry carrying a
+`source` makes the loader announce `intent manifest unreadable (<reason>) —
+ignoring; falling through` and continue down the selection order; never a
+HELD. It grants no trust, so skipping is safe; silence is not. **A manifest
+that resolves zero entries** (empty, or every entry skipped/declined) writes
+no pin and falls through the same way — a nothing-loaded manifest must not
+pin an accidental floor-only selection.
+
 ## Engine independence — the zoning rule
 
 This contract's opening promise — the engine loads, weighs, and enforces
