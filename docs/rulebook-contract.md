@@ -298,26 +298,39 @@ Fields per `[[rulebook]]` entry — nothing else is honored:
   resolver:** kerby has no registry and cannot fetch historical versions —
   builtins load whatever the install ships; remotes fetch HEAD of `source`. A
   mismatch is announced, never silently absorbed.
-- `source` — optional; a remote URL (the same forms `load <source>` accepts).
-  Never a local filesystem path: a local external has no shareable source, so
-  its entry carries `id` + `version` only and each machine supplies its own
-  copy.
+- `source` — optional; a **scheme-bearing remote URL** (`https://…` / `git@…`).
+  GitHub shorthand (`owner/repo`) is malformed here — a committed file has no
+  user present to disambiguate the path/shorthand collision `load` can ask
+  about. Never a local filesystem path: a local external has no shareable
+  source, so its entry carries `id` + `version` only and each machine supplies
+  its own copy. An entry whose `id` matches an installed builtin never carries
+  a `source` — that combination is malformed (a builtin resolves against the
+  install; a URL claiming its id is the shadowing the trust rules forbid).
 
-**Trust: the manifest grants nothing.** It is committed workspace content —
-exactly as untrusted as a committed lockfile (previous section). It never
-pre-approves: a `source` URL only *names* a rulebook; loading it runs the full
-remote flow — clone, validate, TOFU prompt — on every machine. The schema has
-no `origin`, `sha256`, or `local_path` fields; an entry carrying one is
-malformed, never a trust assertion.
+**Trust: the manifest grants nothing — not even fetch consent.** It is
+committed workspace content — exactly as untrusted as a committed lockfile
+(previous section). It never pre-approves: a `source` URL only *names* a
+rulebook; **fetching it requires a per-entry confirmation first** (workspace
+content must never trigger network on its own — the explicit-arg consent of
+`load <url>` has no analogue here, so the loader asks before any clone;
+headless, the entry is skipped and named, never fetched), and loading it then
+runs the full remote flow — clone, validate, TOFU prompt — on every machine.
+The schema has no `origin`, `sha256`, or `local_path` fields; an entry
+carrying one is malformed, never a trust assertion. Duplicate `id`s across
+entries are malformed (ids are unique within a selection).
 
 **Lifecycle (opt-in by existence):** created by `kerby install`'s offer or by
 hand. While it exists, every pin mutation (`load`/`unload`) and builtin
 version-reconcile mirrors into it, always announced. When absent, nothing
 reads or writes it. **Malformed → announced and ignored** — TOML parse
-failure, an unknown field, a non-slug `id`, or a `source` that is not a remote
-URL makes the loader announce `intent manifest unreadable (<reason>) —
+failure, an unknown field, a non-slug `id`, a `source` that is not a
+scheme-bearing remote URL, duplicate `id`s, or a builtin-id entry carrying a
+`source` makes the loader announce `intent manifest unreadable (<reason>) —
 ignoring; falling through` and continue down the selection order; never a
-HELD. It grants no trust, so skipping is safe; silence is not.
+HELD. It grants no trust, so skipping is safe; silence is not. **A manifest
+that resolves zero entries** (empty, or every entry skipped/declined) writes
+no pin and falls through the same way — a nothing-loaded manifest must not
+pin an accidental floor-only selection.
 
 ## Engine independence — the zoning rule
 
