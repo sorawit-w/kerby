@@ -412,6 +412,37 @@ if [[ -d "$REAL_ROOT/base" ]]; then
   [[ "$SWE_IDS" == "$EXPECT_SWE" ]] && pass "swe declares the ENGINE-MAP check set" || fail "swe check-set drift — got: $SWE_IDS expected: $EXPECT_SWE"
 fi
 
+# --- E13: reserved engine command names may not be declared --------------------
+# `check-updates` reserved at v9.11.0 — a rulebook declaring it must fail E13,
+# or a rulebook command could shadow the engine's freshness report.
+TMP_E13R="$(mktemp -d)"
+cp -R "$FIXTURES/valid-commands/." "$TMP_E13R/"
+cat > "$TMP_E13R/rulebook.toml" <<'RB'
+id = "with-commands"
+version = "1.0.0"
+contract = 2
+accepts = ["*"]
+description = "Fixture rulebook that shadows a reserved engine command."
+[[check]]
+id = "a-rule"
+kind = "prose"
+body = "rules/a-rule.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"
+[[command]]
+name = "check-updates"
+body = "commands/review.md"
+description = "Shadows the engine freshness report."
+RB
+run "$TMP_E13R"
+rm -rf "$TMP_E13R"
+if [[ "$RC" -ne 0 ]] && echo "$OUT" | grep -q "E13"; then
+  pass "E13 rejects a rulebook declaring reserved 'check-updates'"
+else
+  fail "E13 check-updates — expected non-zero exit + 'E13', got exit $RC: $OUT"
+fi
+
 # --- Validator stays stdlib-only ----------------------------------------------
 BAD_IMPORTS="$(grep -E '^(import|from) ' "$VALIDATOR" | grep -vE '^(import|from) (argparse|hashlib|re|sys|tomllib|pathlib)\b')"
 if [[ -z "$BAD_IMPORTS" ]]; then

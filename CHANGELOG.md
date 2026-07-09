@@ -3,6 +3,32 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.11.0] — 2026-07-08
+
+**Intent manifest + `check-updates`**: share *which* rulebooks a repo uses
+without sharing anyone's machine state, and ask kerby what's stale.
+
+- **Intent manifest `.kerby/rulebooks.toml`** (committed, optional, opt-in by
+  existence) — the lockfile's committed inverse: path-free, trust-inert TOML
+  naming each rulebook (`id`, exact `version`, remote `source` URL). New
+  selection rung between the pin and detection: a fresh checkout (manifest,
+  no lock) resolves builtins by id, fetches remotes through the **full TOFU
+  flow** (the manifest never pre-approves), names-and-skips local externals,
+  then writes the ordinary lock. While it exists, pin mutations and
+  version-reconciles mirror into it, always announced (`intent updated: …`).
+  Malformed → announced and ignored, never HELD. Exact pins are drift
+  detectors, not resolvers — kerby has no registry. Schema:
+  `docs/rulebook-contract.md` § Intent manifest. `install` offers to create
+  it after the lock-hygiene step.
+- **`check-updates` engine command** (reserved; E13 enforces, with a test) —
+  read-only freshness report: builtins compared offline against the install;
+  remotes shallow-cloned to a session temp dir, validated, compared by
+  version + hash, temp deleted; locals named as uncheckable. Per-entry lines
+  + one-line footer. Never writes, never auto-applies, never pre-approves —
+  a reported update flows through the ordinary `load` trust gate.
+- Docs: README engine-command list, quick start, Selection model sharing
+  paragraph; ENGINE-MAP v9.11.0 delta rows (spec-tested).
+
 ## [9.10.0] — 2026-07-08
 
 **Lock hygiene + builtin version-reconcile**: the pin stops lying about
