@@ -26,12 +26,17 @@ scoped re-review, rescue.
   no baseline → 15 min.
 - **Restart keyed to cause:** known cause → fix it, retry once; unknown stall →
   at most one blind retry. Never loop identical restarts.
-- **Delegation budget: at most 2 attempts per requested verdict** (a
-  verdict-producing run never consumes it). Exhausted with no verdict → treat
-  Codex as unable to produce a verdict and take the invoking workflow's
+- **Delegation budget: at most 2 attempts per requested verdict** (a run that
+  yields a *parseable* verdict never consumes it). Exhausted with no verdict →
+  treat Codex as unable to produce a verdict and take the invoking workflow's
   fallback path (for the PR gate: `pr-workflow.md` step 4). "No verdict" means
-  no `CODEX_VERDICT` line at all — a DENIED or HELD outcome IS a verdict; HELD
-  escalates to the user, never to a fallback.
+  no parseable `CODEX_VERDICT` line — a missing line **and** a malformed one
+  (present but not all four counts P0..P3) both count: each consumes a
+  delegation attempt and, once the budget is spent, routes to the fallback.
+  (A malformed line still costs no codex-mark *round* — that counter only
+  advances on a well-formed verdict; the delegation budget and the round cap
+  are separate.) A DENIED or HELD outcome IS a verdict; HELD escalates to the
+  user, never to a fallback.
 
 ## The stop-time review gate — offer wording and cost caveat (single source)
 

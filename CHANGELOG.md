@@ -16,8 +16,9 @@ one stdin deadlock, one 27-minute silent stall).
   per-attempt wall-clock ceiling (~2× the median observed-good, 15 min
   cold-start default; stall grace runs exactly to the ceiling), cause-keyed
   restarts (known cause → fix + retry once; unknown → one blind retry max),
-  at most 2 attempts per requested verdict ("no verdict" = no `CODEX_VERDICT`
-  line at all — DENIED/HELD are verdicts, HELD escalates, never falls back).
+  at most 2 attempts per requested verdict ("no verdict" = no *parseable*
+  `CODEX_VERDICT` line — a malformed line counts, so repeated garbage output
+  is bounded too; DENIED/HELD are verdicts, HELD escalates, never falls back).
 - **Broadened fallback trigger** (`pr-workflow.md` step 4, `stance.md`, root
   `CLAUDE.md`): the fallback now also activates when Codex is present but
   unable to produce a verdict within the delegation budget — previously only
@@ -37,7 +38,8 @@ one stdin deadlock, one 27-minute silent stall).
   birth time. To keep dur honest per attempt, codex-mark now consumes the log
   (→ `codex-review.log.prev`) whenever it parses a verdict — tee truncation
   does not reset birth time, so a reused inode would silently inflate the
-  baseline.
+  baseline. The consume fails closed — a failed `mv` blocks the marker rather
+  than passing on a broken baseline.
 
 ## [9.8.0] — 2026-07-07
 

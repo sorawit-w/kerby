@@ -128,5 +128,16 @@ fresh_log "CODEX_VERDICT: P0=0 P1=0 P2=0 P3=0"
 mark
 [[ "$RC" -eq 0 ]] && pass "stat works on $(uname -s) (marker written)" || fail "stat fallback: rc=$RC err=$(cat "$WORK/err.txt")"
 
+# 11. Log consume fails closed: if the log can't be moved to .prev, no marker.
+# Force mv failure by making the destination path ($LOG.prev/codex-review.log)
+# a non-empty directory — mv into it fails "Directory not empty" on BSD & GNU.
+rm -f "$MARKER" "$ROUNDS"
+rm -rf "$LOG.prev"
+mkdir -p "$LOG.prev/$(basename "$LOG")/blocker"
+fresh_log "CODEX_VERDICT: P0=0 P1=0 P2=0 P3=0"
+mark
+[[ "$RC" -ne 0 && ! -f "$MARKER" ]] && pass "log-consume failure fails closed (no marker)" || fail "consume failure: rc=$RC marker=$([ -f "$MARKER" ] && echo yes || echo no)"
+rm -rf "$LOG.prev"
+
 echo
 if [[ "$FAILS" -eq 0 ]]; then echo "ALL PASS"; else echo "$FAILS FAILURE(S)"; exit 1; fi

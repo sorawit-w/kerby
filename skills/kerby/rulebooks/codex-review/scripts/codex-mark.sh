@@ -94,8 +94,10 @@ printf '%s\n%s\n' "$branch" "$rounds" > "$rounds_file"
 # Consume the log now that its verdict is parsed: the next attempt's tee must
 # create a FRESH inode or its dur= would span since the first attempt (birth
 # time survives truncation). Kept as .prev for the audit trail. A malformed
-# log exits above without being consumed, so it stays inspectable.
-mv -f "$log" "$log.prev"
+# log exits above without being consumed, so it stays inspectable. Fail closed
+# if the move can't happen — a silent failure would leave the reused inode the
+# consume exists to prevent, and we must not mark PASS on a broken baseline.
+mv -f "$log" "$log.prev" || fail "cannot consume review log ($log -> $log.prev) — clear it, re-review, re-mark"
 
 # 5. Verdict.
 if [ "$p0" -eq 0 ] && [ "$p1" -eq 0 ]; then
