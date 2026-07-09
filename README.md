@@ -190,7 +190,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.8.0` — additive `load`: a bare `kerby load <rulebook>` now joins the pinned selection instead of replacing it; swapping gates is an explicit `unload` + `load`, and `load +<id>` stays as an alias. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.9.0` — codex-review 0.2.0, bounded delegation: headless Codex runs close stdin, classify hang vs. stall, and carry wall-clock ceilings with a ~2-attempt budget; a Codex that can't produce a verdict in budget now flows into the fallback ladder instead of an infinite wait. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests

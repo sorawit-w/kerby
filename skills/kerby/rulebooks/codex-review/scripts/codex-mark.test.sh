@@ -70,7 +70,9 @@ mark
 [[ "$RC" -eq 1 && ! -f "$MARKER" && "$(sed -n 2p "$ROUNDS")" == "1" ]] \
   && pass "DENIED on open P1 (round 1)" || fail "DENIED: rc=$RC rounds=$(sed -n 2p "$ROUNDS" 2>/dev/null)"
 
-# 5. HELD at round 3 (exit 2).
+# 5. HELD at round 3 (exit 2). Each round tees a fresh log — codex-mark
+# consumed the previous one on parse.
+fresh_log "CODEX_VERDICT: P0=0 P1=2 P2=1 P3=0"
 mark  # round 2 -> DENIED
 fresh_log "CODEX_VERDICT: P0=1 P1=0 P2=0 P3=0"
 mark  # round 3 -> HELD
@@ -90,12 +92,24 @@ ok=1
 [[ "$RC" -eq 0 ]] || ok=0
 [[ "$(cat "$MARKER" 2>/dev/null)" == "$HEAD_SHA" ]] || ok=0
 grep -q "P2=2 P3=1" "$GITDIR/codex-review-audit.log" || ok=0
+grep -Eq "P2=2 P3=1 dur=([0-9]+|\?)s" "$GITDIR/codex-review-audit.log" || ok=0  # duration baseline field
 grep -q "PR note: Codex-reviewed locally at $HEAD_SHA" "$WORK/out.txt" || ok=0
 grep -q "P2/P3 logged=3" "$WORK/out.txt" || ok=0
 [[ "$(sed -n 2p "$ROUNDS")" == "0" ]] || ok=0
 [[ "$ok" -eq 1 ]] && pass "PASS writes marker+audit+PR-note, resets rounds" || fail "PASS case: rc=$RC out=$(cat "$WORK/out.txt")"
 
+# 7b. Log is consumed on parse (fresh inode per attempt), so the next dur=
+# measures ITS OWN run — not the span since the first attempt (tee truncation
+# does not reset birth time; without the consume this asserts dur>=3).
+[[ ! -f "$LOG" && -f "$LOG.prev" ]] && pass "log consumed to .prev after parse" || fail "log not consumed"
+sleep 3
+fresh_log "CODEX_VERDICT: P0=0 P1=0 P2=0 P3=0"
+mark
+last_dur=$(tail -n1 "$GITDIR/codex-review-audit.log" | sed -n 's/.*dur=\([0-9?]*\)s$/\1/p')
+[[ "$last_dur" == "?" || "$last_dur" -le 1 ]] && pass "dur is per-attempt (${last_dur}s)" || fail "dur spans attempts: ${last_dur}s"
+
 # 8. Stale log after a new commit -> fail, marker not refreshed.
+fresh_log "CODEX_VERDICT: P0=0 P1=0 P2=0 P3=0"
 git -c user.email=t@t -c user.name=t commit -q --allow-empty -m next
 mark
 [[ "$RC" -eq 1 ]] && pass "stale log after new commit fails" || fail "stale log: rc=$RC"
@@ -113,6 +127,17 @@ git checkout -q -- tracked.txt
 fresh_log "CODEX_VERDICT: P0=0 P1=0 P2=0 P3=0"
 mark
 [[ "$RC" -eq 0 ]] && pass "stat works on $(uname -s) (marker written)" || fail "stat fallback: rc=$RC err=$(cat "$WORK/err.txt")"
+
+# 11. Log consume fails closed: if the log can't be moved to .prev, no marker.
+# Force mv failure by making the destination path ($LOG.prev/codex-review.log)
+# a non-empty directory — mv into it fails "Directory not empty" on BSD & GNU.
+rm -f "$MARKER" "$ROUNDS"
+rm -rf "$LOG.prev"
+mkdir -p "$LOG.prev/$(basename "$LOG")/blocker"
+fresh_log "CODEX_VERDICT: P0=0 P1=0 P2=0 P3=0"
+mark
+[[ "$RC" -ne 0 && ! -f "$MARKER" ]] && pass "log-consume failure fails closed (no marker)" || fail "consume failure: rc=$RC marker=$([ -f "$MARKER" ] && echo yes || echo no)"
+rm -rf "$LOG.prev"
 
 echo
 if [[ "$FAILS" -eq 0 ]]; then echo "ALL PASS"; else echo "$FAILS FAILURE(S)"; exit 1; fi

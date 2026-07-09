@@ -52,9 +52,11 @@ warn-severity checks — blunt; not recommended.
 `CODEX_GATE_BYPASS=1` **directly prefixing** the gh invocation, user-authorized
 only (manifest `override = "authorized-scoped"`). The prefix form is the only
 honored one: an embedded token (PR-body text) authorizes nothing, and one
-authorized invocation never authorizes a second one in the same command. The one
-sanctioned marker-less use is the step-4 fallback (GitHub-side review) when local
-Codex is genuinely missing.
+authorized invocation never authorizes a second one in the same command.
+Marker-less use is sanctioned only inside the step-4 fallback ladder (GitHub-side
+review replacing the local one, or the disclosed last-rung degradation) when
+local Codex is genuinely missing — or present but unable to produce a verdict
+within the delegation budget (`references/delegation.md` § Bounded delegation).
 
 ## Known ceilings (deliberate)
 

@@ -7,13 +7,16 @@ When opening a PR (base = the repo's default branch):
    review → fix → re-review per the **Review loop (bounded)** rule below.
    `/codex:review` is user-only (`disable-model-invocation`) — the agent runs the
    same engine headless instead: `node <codex-plugin>/scripts/codex-companion.mjs
-   review "--wait --base <default-branch> --scope branch"` via background Bash with
-   an explicit timeout (default timeout SIGTERMs), or substitutes `/codex:rescue`
-   with a review brief. When this caveat bites, also offer the user the plugin's
-   stop-time review gate once per repo per session — the cost caveat and mechanics
-   are single-sourced in `references/delegation.md`. "Not in my Skill list" is NOT
+   review "--wait --base <default-branch> --scope branch" < /dev/null` via
+   background Bash with an explicit timeout (default timeout SIGTERMs), or
+   substitutes `/codex:rescue` with a review brief. Every attempt is bounded per
+   `references/delegation.md` § Bounded delegation — a budget exhausted with no
+   verdict activates the step-4 fallback. When the user-only caveat bites, also
+   offer the user the plugin's stop-time review gate once per repo per session —
+   the cost caveat and mechanics are single-sourced in `references/delegation.md`. "Not in my Skill list" is NOT
    "no local Codex" — verify on disk first (see `references/stance.md` preflight);
-   the fallback in step 4 is only for a plugin that is genuinely missing or broken.
+   the fallback in step 4 is only for a plugin that is genuinely missing or
+   broken, or one that exhausted the delegation budget with no verdict.
    **Review loop (bounded).** Every review brief must carry the severity rubric and
    the verdict contract: "Tag each finding P0 (security / data-loss / correctness
    blocker), P1 (likely bug or broken contract), P2 (should-fix), P3 (nit). End the
@@ -33,7 +36,10 @@ When opening a PR (base = the repo's default branch):
    unless a marker records a clean Codex review of the current HEAD. The marker is
    written ONLY by this rulebook's `scripts/codex-mark.sh` — never by hand;
    hand-writing it is gate-dodging. Tee every review's output to
-   `$(git rev-parse --git-dir)/codex-review.log`, then run `scripts/codex-mark.sh`
+   `$(git rev-parse --git-dir)/codex-review.log` — a fresh file per attempt
+   (remove any never-marked leftover first; the audit `dur=` is measured from
+   the log's creation, and codex-mark consumes the log whenever it parses a
+   verdict) — then run `scripts/codex-mark.sh`
    (resolve it relative to this rulebook's root — the folder this file was loaded
    from): it verifies a clean `CODEX_VERDICT` (P0=0 P1=0) against a log newer than
    HEAD, enforces the round cap (PASS / DENIED / HELD), writes the marker, appends
@@ -62,11 +68,16 @@ ceiling). The **final** review must run
    reviewed and pushed. (Squash-merge changes the commit SHA on the default branch
    but not the content, so the note stays verifiable as "reviewed tree == PR head
    tree".)
-4. **Fallback — no local Codex available** (plugin/CLI genuinely missing or broken
-   per the stance preflight, NOT merely absent from the Skill list): the mechanical
-   PR gate will still block `gh pr create` with no marker — this is the one
-   sanctioned marker-less use of `CODEX_GATE_BYPASS=1`, because the GitHub-side
-   review below replaces the local one; never bypass when local Codex works. Open
+4. **Fallback — no local Codex verdict** (plugin/CLI genuinely missing or broken
+   per the stance preflight, NOT merely absent from the Skill list — **or present
+   but unable to produce a verdict within the delegation budget**, per
+   `references/delegation.md` § Bounded delegation): the mechanical
+   PR gate will still block `gh pr create` with no marker — marker-less use of
+   `CODEX_GATE_BYPASS=1` is sanctioned only inside this step's ladder: here
+   because the GitHub-side review below replaces the local one, and on the last
+   rung as a disclosed degradation. Never bypass when local Codex works.
+   Sanctioned ≠ pre-authorized: the bypass still needs the user's per-PR
+   approval (the gate rule's "user-approved only" applies on every rung). Open
    the PR (with the bypass), trigger a GitHub-side `@codex review` (include the
    P0–P3 rubric in the mention comment), and poll. **Address every P0/P1 comment
    before merging** — fix it (a fix is a new push → new review cycle) or push back
@@ -80,6 +91,17 @@ ceiling). The **final** review must run
    addresses a comment resets the timer; merge at the silence cap — the **4th poll,
    ~10 min** after that reply. A clean signal (👍, or a completed no-findings review
    of HEAD) short-circuits the cap and merges immediately.
+   **Last rung — no GitHub remote, or GitHub Codex unavailable** (the GitHub
+   venue counts as failed only after ≥2 re-mentions and ~15 min with zero
+   review activity on HEAD — it gets a bounded budget just like the local one):
+   the agent verifies the diff itself against green regression tests, then
+   stops for the user's explicit per-PR approval of the no-independent-review
+   merge — if the PR is not yet open, that approval also authorizes the
+   `CODEX_GATE_BYPASS=1` prefix on `gh pr create` — and discloses in the PR
+   body (or the merge commit message when no PR exists) that no independent
+   Codex review occurred. Self-review is NOT a substitute for the review — it
+   is a disclosed degradation, taken only after both Codex venues have failed
+   (or the GitHub venue doesn't exist for this repo).
 
 Enforcement note: the review-before-PR half IS mechanically gated (the PR gate in
 step 1, registered per repo by `kerby install`), and the clean-verdict attestation

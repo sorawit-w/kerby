@@ -125,13 +125,16 @@ but this section is authoritative for kerby).
    `skills/kerby/CLAUDE.md` requires (Codex ≠ the authoring agent; venue doesn't matter,
    so a second GitHub pass would only re-review identical bytes).
 
-**Fallback — no local Codex:** open the PR, trigger a GitHub `@codex review`, and poll.
+**Fallback — no local Codex (or local Codex unable to produce a verdict within the
+delegation budget — see the codex-review rulebook's `references/delegation.md`
+§ Bounded delegation):** open the PR, trigger a GitHub `@codex review`, and poll.
 **Address every comment before merging** — fix it (a fix is a new push → new review
 cycle) or push back with reasoning; never merge with an open, unaddressed comment. Merge
 only on a green light **against the current head**: an approval / 👍 reaction dated after
 the latest push, or a reasonable silence window once ≥1 completed review of HEAD exists —
 never when Codex never reviewed HEAD at all. (Poll cadence is maintainer-personal tuning,
-not part of this gate.)
+not part of this gate. Deliberately stricter than the shipped rulebook: this repo has no
+self-review last rung — if both Codex venues fail, escalate to the maintainer.)
 
 **Merge conventions:** squash is the default — one commit per PR on `main`; don't use
 `--merge` / `--rebase` without being asked. Always pass `--delete-branch` (this repo's

@@ -5,7 +5,7 @@
 # Self-contained: every declared path resolves inside this folder (contract 2).
 # Contract: docs/rulebook-contract.md.
 id = "codex-review"
-version = "0.1.0"
+version = "0.2.0"
 contract = 2
 accepts = ["git_change"]      # scopes the mechanical gate; the plan-review /
                               # delegation prose is behavioral, not subject-scoped

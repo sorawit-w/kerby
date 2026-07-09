@@ -45,6 +45,17 @@ log="${1:-$gitdir/codex-review.log}"
 [ -f "$log" ] || fail "no review log at $log — tee the Codex review output there first"
 log_mtime=$(stat -c %Y "$log" 2>/dev/null || stat -f %m "$log" 2>/dev/null) \
   || fail "cannot stat $log"
+# Attempt duration: tee creates the log at review start and last-writes it at
+# review end, so birth->mtime spans the run — valid ONLY because this script
+# consumes the log after each parse (see below); tee's truncation of an
+# existing file does NOT reset birth time. Advisory only (the dur= audit
+# field is the observed-good baseline for delegation.md's wall-clock ceiling);
+# "?" when the filesystem has no birth time (Linux %W returns 0 there).
+log_birth=$(stat -c %W "$log" 2>/dev/null || stat -f %B "$log" 2>/dev/null)
+case "$log_birth" in
+  ''|*[!0-9]*|0) dur="?" ;;
+  *) dur=$((log_mtime - log_birth)); [ "$dur" -ge 0 ] || dur="?" ;;
+esac
 head_time=$(git log -1 --format=%ct)
 [ "$log_mtime" -gt "$head_time" ] \
   || fail "review log is older than HEAD — a commit landed after the review; re-review this exact tree"
@@ -80,11 +91,19 @@ p0=$(get P0); p1=$(get P1); p2=$(get P2); p3=$(get P3)
 # attempt). A failed parse above exited before reaching here, costing no round.
 printf '%s\n%s\n' "$branch" "$rounds" > "$rounds_file"
 
+# Consume the log now that its verdict is parsed: the next attempt's tee must
+# create a FRESH inode or its dur= would span since the first attempt (birth
+# time survives truncation). Kept as .prev for the audit trail. A malformed
+# log exits above without being consumed, so it stays inspectable. Fail closed
+# if the move can't happen — a silent failure would leave the reused inode the
+# consume exists to prevent, and we must not mark PASS on a broken baseline.
+mv -f "$log" "$log.prev" || fail "cannot consume review log ($log -> $log.prev) — clear it, re-review, re-mark"
+
 # 5. Verdict.
 if [ "$p0" -eq 0 ] && [ "$p1" -eq 0 ]; then
   printf '%s\n' "$head" > "$gitdir/codex-reviewed"
-  printf '%s %s rounds=%s P0=%s P1=%s P2=%s P3=%s\n' \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$head" "$rounds" "$p0" "$p1" "$p2" "$p3" \
+  printf '%s %s rounds=%s P0=%s P1=%s P2=%s P3=%s dur=%ss\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$head" "$rounds" "$p0" "$p1" "$p2" "$p3" "$dur" \
     >> "$gitdir/codex-review-audit.log"
   printf '%s\n%s\n' "$branch" 0 > "$rounds_file"
   echo "codex-mark: PASS — marker written for $head"

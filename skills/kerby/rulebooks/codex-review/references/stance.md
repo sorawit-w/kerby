@@ -13,8 +13,10 @@ condition for a loop.
 are `disable-model-invocation` (user-only), so they never appear in the
 session's skill list — absence-from-the-list is NOT absence. Check the plugin
 itself: `find <codex-plugin>/commands -name '*.md'` or locate
-`scripts/codex-companion.mjs`. Only a genuinely missing/broken plugin
-activates any fallback path. `kerby pr-check` runs this preflight for you.
+`scripts/codex-companion.mjs`. A fallback path activates only for a genuinely
+missing/broken plugin — or a delegation budget exhausted with no verdict
+(`references/delegation.md` § Bounded delegation). `kerby pr-check` runs this
+preflight for you.
 
 ## When to read what
 
