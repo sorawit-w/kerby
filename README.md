@@ -173,8 +173,10 @@ To *share* a selection, commit the optional intent manifest `.kerby/rulebooks.to
 (created by `kerby install`'s offer, or by hand) — path-free and trust-inert: it names
 the rulebooks and exact versions this repo uses, a teammate's fresh checkout resolves
 it on first load, and externals still go through the trust prompt on every machine.
-`kerby check-updates` reports freshness against it (builtins offline, remotes fetched;
-read-only — applying an update is always an ordinary `load`).
+`kerby check-updates` reports freshness for the *pinned* selection: builtins compare
+offline against the install; a remote is fetched only when its pin matches your
+per-machine approval store (manifest-only entries are listed as adoptable, never
+fetched). Read-only — applying an update is always an ordinary `load`.
 
 Rulebook commands (e.g. `kerby swe prepare`, `kerby swe audit`) are documented in each
 rulebook's own README — for the software-engineering rulebook, see

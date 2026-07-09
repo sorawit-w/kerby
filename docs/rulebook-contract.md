@@ -298,10 +298,10 @@ Fields per `[[rulebook]]` entry — nothing else is honored:
   resolver:** kerby has no registry and cannot fetch historical versions —
   builtins load whatever the install ships; remotes fetch HEAD of `source`. A
   mismatch is announced, never silently absorbed.
-- `source` — optional; a **scheme-bearing remote URL** (`https://…` / `git@…`).
-  GitHub shorthand (`owner/repo`) is malformed here — a committed file has no
-  user present to disambiguate the path/shorthand collision `load` can ask
-  about. Never a local filesystem path: a local external has no shareable
+- `source` — optional; a **scheme-bearing remote URL** (`https://…` /
+  `ssh://git@…`). GitHub shorthand (`owner/repo`) and scp-style syntax
+  (`git@host:org/repo` — no scheme) are malformed here — a committed file has
+  no user present to disambiguate the forms `load` can ask about. Never a local filesystem path: a local external has no shareable
   source, so its entry carries `id` + `version` only and each machine supplies
   its own copy. An entry whose `id` matches an installed builtin never carries
   a `source` — that combination is malformed (a builtin resolves against the
