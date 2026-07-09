@@ -163,6 +163,11 @@ To swap gates, unload one, then load the other; nothing replaces the selection a
 side effect of loading. (`load +<id>`, the older additive spelling, still works and
 means the same thing.)
 
+The lock is machine-local state — its path fields are absolute paths on your machine —
+so it is never committed; `kerby install` offers to add it to your `.gitignore`.
+Builtin pins track the install: after a kerby upgrade, the next `load` re-pins the
+new version and announces it once (`pin updated: <id> <old> → <new>`).
+
 Rulebook commands (e.g. `kerby swe prepare`, `kerby swe audit`) are documented in each
 rulebook's own README — for the software-engineering rulebook, see
 [`skills/kerby/rulebooks/swe/README.md`](skills/kerby/rulebooks/swe/README.md).
@@ -190,7 +195,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.9.0` — codex-review 0.2.0, bounded delegation: headless Codex runs close stdin, classify hang vs. stall, and carry wall-clock ceilings with a ~2-attempt budget; a Codex that can't produce a verdict in budget now flows into the fallback ladder instead of an infinite wait. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.10.0` — lock hygiene + builtin version-reconcile: `install` offers the `.gitignore` entry for the machine-local lock, and a stale builtin pin re-pins from the install on the next `load` with a one-line announcement. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests

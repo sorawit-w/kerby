@@ -3,6 +3,36 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.10.0] — 2026-07-08
+
+**Lock hygiene + builtin version-reconcile**: the pin stops lying about
+versions, and the machine-local lock stops leaking into commits.
+
+- **Builtin version-reconcile on `load`/`reload`** — a `selected` entry with
+  install-resolved builtin identity whose pinned `version` differs from the
+  installed manifest is rewritten entirely from the install (same re-derive
+  doctrine as pin migration) and announced once: `pin updated: <id> <old> →
+  <new> (builtin — tracks the install)`. After the re-pin the versions agree,
+  so the line fires once per version change, then goes quiet — no extra
+  state. Externals are exempt: their version only moves with content, which
+  already routes through the hash → reapproval gate.
+- **`install` writes the `.gitignore` entry** — a confirmed step riding the
+  pin write: coverage tested with `git check-ignore` (covering patterns
+  count), then an `Add to .gitignore? [y/n]` offer showing the exact
+  two-line marker block; ignores exactly the lock path, never `.kerby/`
+  wholesale. `uninstall` gains the symmetric offer, removing only the exact
+  marker block — hand-written or covering entries are reported, never
+  touched.
+- **`load` first-pin tip** — writing a repo's first pin in a git repo that
+  does not ignore the lock appends one announcement line pointing at
+  `kerby install`; a tip only, never a file write.
+- **`status` stale-pin marker** — a stale builtin pin renders as
+  `<id>@<pin-version> (builtin — install has <new-version>; next load
+  re-pins)`; report-only.
+- Docs: README Selection model notes the lock is machine-local and that
+  builtin pins track the install; ENGINE-MAP delta table gains the v9.10.0
+  rows (v7 parity baseline untouched).
+
 ## [9.9.0] — 2026-07-08
 
 **codex-review 0.2.0 — bounded delegation**: a Codex that hangs or stalls now
