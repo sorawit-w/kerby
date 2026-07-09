@@ -151,7 +151,7 @@ npx skills add sorawit-w/kerby
 /kerby uninstall   # mirror — removes the managed hooks
 /kerby rulebooks   # list every rulebook this install can see
 /kerby commands    # list every command the current selection provides
-/kerby check-updates # read-only freshness report (builtins offline, remotes fetched)
+/kerby check-updates # read-only freshness report (builtins offline; only locally-approved pinned remotes fetched)
 ```
 
 ### Selection model
@@ -205,7 +205,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.11.0` — intent manifest + `check-updates`: a committed, trust-inert `.kerby/rulebooks.toml` shares which rulebooks a repo uses (externals still TOFU per machine), and a read-only `check-updates` reports what's stale — builtins offline, remotes fetched. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.11.0` — intent manifest + `check-updates`: a committed, trust-inert `.kerby/rulebooks.toml` shares which rulebooks a repo uses (externals still TOFU per machine), and a read-only `check-updates` reports what's stale — builtins offline, remotes fetched only when locally approved. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests
