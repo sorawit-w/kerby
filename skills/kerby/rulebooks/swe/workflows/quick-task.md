@@ -2,7 +2,7 @@
 
 For simple tasks — single-file edits, config changes, documentation updates, or fixes with obvious root cause (complexity below `plan_threshold` — default 4, i.e. the low band).
 
-**Branching:** quick-task stays in-place. Use a normal `git checkout -b` — worktree overhead is not justified for changes this small. Worktree default applies only to `workflows/feature.md` and `workflows/bugfix.md`. (If the task turns out to be more complex than expected, escalate to the task-type workflow — `bugfix.md` for a bug fix, else `feature.md` — and create a worktree at that point.)
+**Branching:** use a normal `git checkout -b` — the in-place branch default from `BOOTSTRAP.md` § Branching. (If the task turns out to be more complex than expected, escalate to the task-type workflow — `bugfix.md` for a bug fix, else `feature.md` — and **continue on the same in-place branch**; escalating workflows never changes the branching default, and a worktree is created only if a § Branching escalation trigger applies.)
 
 <fit_check>
 ## Fit Check (before you start)

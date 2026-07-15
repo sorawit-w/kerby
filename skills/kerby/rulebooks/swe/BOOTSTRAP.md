@@ -117,28 +117,30 @@ These rules apply to ALL tasks regardless of workflow. Violating any of these is
 
 **Never work on protected branches** — main, master, dev, develop, staging, release/*, trunk.
 
-**Worktree gate — answer before creating one:**
-
-1. Will another agent or sub-agent work on a different branch concurrently?
-2. Is there uncommitted work on another branch that must be preserved?
-3. Is this task expected to span multiple sessions (>1 day)?
-
-If **all three are no** → use `git checkout -b <type>/<short-description>` in-place; skip the worktree. Otherwise proceed with the worktree default below. Record the gate answers in one line (in `.kerby/memory.log` or the commit footer) so the decision is auditable.
-
-**Default (gate → worktree): create a worktree at `.worktrees/<branch-name>/` for feature and bugfix work.** This provides physical isolation for parallel sub-agents and cleaner lifecycle management.
+**Default: branch in place.** For every task type — quick-task, bugfix, feature — create a normal branch **from the protected base** and work there. The start point matters: plain `git checkout -b` branches from wherever HEAD is, so if you are not already on the protected branch (e.g. you just finished a task on another branch), pass the base explicitly:
 
 ```bash
-git worktree add .worktrees/<branch-name> -b <type>/<short-description>
-cd .worktrees/<branch-name>
+git checkout -b <type>/<short-description> <protected-base>   # base (e.g. main) — omit only when already on it
 ```
 
 Types: `feature`, `fix`, `refactor`, `test`, `docs`, `chore`
 
-**Package manager check before creating the worktree:** If `package-lock.json` is present (npm), `node_modules/ > 500MB`, or `package.json` has >50 direct dependencies, silently fall back to an in-place branch (`git checkout -b`) and note to the user: "npm detected; using in-place branch to avoid node_modules duplication." For Bun, pnpm, Deno, Python, Rust, Go, and most other stacks, worktree-default applies. See `references/git-worktrees.md` for the full detection table.
+**Worktree escalation — create a worktree only when a trigger below applies, never silently.** Task type ("it's a bug fix") and task size ("it touches multiple files") are **not** triggers.
 
-**Exception:** `workflows/quick-task.md` stays in-place. Worktree overhead isn't justified for single-file edits or docs-only changes.
+1. **Concurrent branches (necessity):** another agent or session must work on a *different branch* at the same time — git cannot check out two branches in one working tree.
+2. **Explicit request:** the user asked for a worktree, or a harness setting mandates one. If the harness already runs you *inside* a worktree it provides, that need is met — use it; never create a second one within it.
+3. **Dirty-state preservation:** uncommitted work elsewhere in the working tree must survive untouched while you work. Announce and proceed — no confirmation round-trip needed.
 
-Confirm you are on the correct branch before proceeding. If `git branch --show-current` returns a protected branch name, STOP and create a new branch/worktree. When the hooks are installed, `protect-git.sh` also hard-blocks `git commit` while you are on a protected branch — only set `CODING_RULES_ALLOW_PROTECTED_COMMIT=1` (inline, one command) when the user has explicitly authorized a commit to that branch, never to bypass the guard on your own.
+When a trigger applies, announce it in one line **before** creating — `creating worktree at .worktrees/<branch-name> — trigger: <which>` — and record that line (in `.kerby/memory.log` or the commit footer) so the decision is auditable. The worktree **replaces** the in-place `git checkout -b` — never both. Pass the protected base explicitly (without it, git branches from the current HEAD — under triggers 1 and 3 that is often another task branch or a dirty tree, not the base you want):
+
+```bash
+git worktree add .worktrees/<branch-name> -b <type>/<short-description> <protected-base>
+cd .worktrees/<branch-name>
+```
+
+**Cost check before escalating:** npm repos duplicate `node_modules` per worktree, and on Windows the nested `.worktrees/<branch-name>/` prefix can push deep paths past the 260-character limit. Neither cost silently overrides a trigger — if trigger 1 forces isolation on an npm repo, create the worktree and name the cost in the same announcement. Details and the decision table: `references/git-worktrees.md`.
+
+Confirm you are on the correct branch before proceeding. If `git branch --show-current` returns a protected branch name, STOP and create a branch first. When the hooks are installed, `protect-git.sh` also hard-blocks `git commit` while you are on a protected branch — only set `CODING_RULES_ALLOW_PROTECTED_COMMIT=1` (inline, one command) when the user has explicitly authorized a commit to that branch, never to bypass the guard on your own.
 
 Full worktree tactics (creation, lifecycle, cleanup, failure modes): `references/git-worktrees.md`
 
@@ -300,7 +302,7 @@ All paths in this index are relative to this rulebook's root — the folder wher
 | Full error handling & recovery trees | `references/error-handling.md` |
 | Systematic debugging (reproduce → hypothesize → fix) | `references/debugging.md` |
 | Commits, logging, status, boards, branches, dev TODOs | `references/communication.md` |
-| Git worktree tactics (creation, cleanup, package-manager detection/fallback, failure modes) | `references/git-worktrees.md` |
+| Git worktree tactics (creation, cleanup, package-manager cost detection/announcement, failure modes) | `references/git-worktrees.md` |
 | Environment safety — prod vs non-prod behavior matrix, env detection, env-crossing rule | `references/environment-safety.md` |
 | Guardrails, scope, security, documentation | `references/guardrails.md` |
 | Threat model — enforced vs. behavioral guardrails, the tool-boundary limit, shared-artifact injection path | `references/threat-model.md` |

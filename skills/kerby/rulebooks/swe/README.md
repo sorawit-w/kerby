@@ -123,7 +123,7 @@ versus behavioral, per check.
 
 The rules in `BOOTSTRAP.md` reflect specific choices that may not match your judgment:
 
-- **Worktree-default for feature work** (with a 3-question gate to skip when overhead isn't justified). If your repo is npm-heavy or tiny, you may want `git checkout -b` everywhere.
+- **In-place branch by default; worktrees only as an announced escalation** (concurrent different-branch work, explicit request, or dirty-state preservation). If you want worktrees everywhere, say so — the escalation honors explicit requests.
 - **Commit after every completed piece of work**, not at the end of the session. Some teams prefer squashed commits and a clean history; this rule fights that.
 - **No completion claims without fresh evidence.** Some workflows are exploratory and "should work" is fine. Not here.
 - **Manual verification instructions in every completion report.** Reasonable for shipped features; overkill for one-line typo fixes.

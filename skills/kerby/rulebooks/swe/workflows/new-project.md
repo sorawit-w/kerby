@@ -15,9 +15,16 @@ You MUST read these before starting:
 <branch>
 ## 2. Create Working Branch
 
-```bash
-git checkout -b feature/initial-setup
-```
+Branch setup follows `BOOTSTRAP.md` § Branching: in-place branch is the default; a worktree only on an announced escalation trigger (in a freshly initialized repo none normally applies — but an explicit user/harness request still wins). The base ref depends on the repo's state — check which case you're in:
+
+- **Repo has commits and a protected base resolves** (`git rev-parse --verify main` — or `master`): branch from it explicitly, per § Branching:
+  ```bash
+  git checkout -b feature/initial-setup <protected-base>   # omit the base only when already on it
+  ```
+- **Unborn repo** (fresh `git init`, no commits yet): there is no base ref to pass and no history to inherit — branch plainly; the protected branch comes into existence when this work first merges or pushes:
+  ```bash
+  git checkout -b feature/initial-setup
+  ```
 
 Confirm you are on the branch:
 ```bash

@@ -33,10 +33,10 @@ Load `guidelines/core.md` to understand platform inference and runtime selection
 
 ### 2. Create Working Branch
 
-Follow the branch naming convention from `communication.md`:
+Branch setup follows `BOOTSTRAP.md` § Branching — in-place branch from the protected base is the default; a worktree only on an announced escalation trigger. Naming convention from `communication.md`:
 
 ```bash
-git checkout -b <type>/<short-description>
+git checkout -b <type>/<short-description> <protected-base>   # omit the base only when already on it
 ```
 
 Examples:

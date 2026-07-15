@@ -210,7 +210,7 @@ Two folders, two jobs — the v7 split made physical:
 - **`scripts/validate-rulebook.py`** — the manifest/trust validator every `load` runs.
 - **`references/`** — engine docs: `hooks.md` (registration + lifecycle) and `multi-tool.md` (Claude Code / Codex / Cursor wiring).
 
-Rulebook-specific opinions (worktree-default, commit cadence, verification taste) and
+Rulebook-specific opinions (branching defaults, commit cadence, verification taste) and
 the rule-editing guide live with the rulebook — see the
 [swe README](rulebooks/swe/README.md#a-note-on-opinionation).
 

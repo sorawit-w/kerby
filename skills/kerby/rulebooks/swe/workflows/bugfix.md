@@ -9,19 +9,20 @@ You MUST complete these before writing any code:
 
 1. Read `references/debugging.md` — systematic debugging approach
 2. Read `references/communication.md` — commit format, logging
-3. **Answer the Worktree Gate** (see BOOTSTRAP.md — 3 questions). If the gate → worktree, create it; else create an in-place branch.
+3. **Set up the branch — check the § Branching triggers FIRST** (BOOTSTRAP.md), then take exactly ONE of these paths:
 
-   Worktree path (gate → yes):
+   **No trigger (the default) — branch in place, from the protected base:**
    ```bash
-   git worktree add .worktrees/<branch-name> -b fix/<short-description>
+   git checkout -b fix/<short-description> <protected-base>   # omit the base only when already on it
+   ```
+   **A trigger applies** (concurrent different-branch work; explicit user/harness request; dirty-state preservation) — announce it in one line, then create the worktree **instead of** the in-place branch, from the protected base (never from another branch's HEAD):
+   ```bash
+   git worktree add .worktrees/<branch-name> -b fix/<short-description> <protected-base>
    cd .worktrees/<branch-name>
    {package_manager} install
    ```
-   In-place path (gate → no, or npm fallback):
-   ```bash
-   git checkout -b fix/<short-description>
-   ```
-   See `references/git-worktrees.md` for npm detection and fallback rules.
+   (A harness-provided worktree already satisfies its trigger — work in it; create nothing.)
+   Worktree costs (npm `node_modules` duplication, Windows path limits): `references/git-worktrees.md`.
 4. **Baseline check** — establish which tests already fail vs. which are yours:
    - If you just created this worktree or in-place branch from a known-good base: **skip full gates** — run only `{test_command}` to note any pre-existing failures
    - If `git status` shows a clean working tree and the last commit's gates passed: **skip full gates**
@@ -106,12 +107,12 @@ Complete ALL of these before declaring done:
    - **`.kerby/knowledge/` lesson** if this bug reveals an operational lesson worth keeping
    - **`CONTEXT.md` update** if a new domain term was introduced or renamed. See `references/domain-glossary.md`.
 8. **Branch finalization — pick one of four options** (same as feature workflow):
-   - **Open PR** (default) — push branch; open PR; keep worktree until PR is merged
-   - **Merge locally** (solo project / approved hotfix) — merge, then `git worktree remove .worktrees/<name>`
-   - **Preserve branch** (more work expected) — keep worktree; note reason in `.kerby/memory.log`
-   - **Discard** (requires explicit user confirmation) — `git worktree remove --force .worktrees/<name>`
+   - **Open PR** (default) — push branch; open PR; if a worktree was used, keep it until the PR is merged
+   - **Merge locally** (solo project / approved hotfix) — merge; if a worktree was used, `git worktree remove .worktrees/<name>`
+   - **Preserve branch** (more work expected) — note reason in `.kerby/memory.log`; keep the worktree if one was used
+   - **Discard** (requires explicit user confirmation) — leave the branch first (`git worktree remove --force .worktrees/<name>` if one was used, else `git checkout <base>`), then `git branch -D <branch>` (git refuses to delete a checked-out branch)
    
-   If using an in-place branch (npm fallback), only options 1 or 2 apply.
+   On an in-place branch (the default), skip the worktree actions — they apply only when an escalation trigger created one.
 
 9. **Do NOT merge to a protected branch without explicit user instruction.**
 
