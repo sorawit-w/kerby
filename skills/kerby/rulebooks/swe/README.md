@@ -151,3 +151,9 @@ skill — split-context audit removes author bias.
 The original kerby corpus (v1–v5 as a monolithic playbook), split engine-from-rules
 in v6.0.0, physically self-contained in v7.0.0, renamed `code` → `swe` in v9.0.0.
 Contract: `docs/rulebook-contract.md`.
+
+v2.4.0 absorbs from `Sahir619/fable-method` (MIT, 2026-07-14): the intent-gate
+forced artifact + authority order (`references/intent-gate.md`, new eager check
+`intent-gate-on-behavior-change`) and the deception categories in
+`references/audit.md`; catalog entry with the not-adopted list in
+`references/external-resources.md`.

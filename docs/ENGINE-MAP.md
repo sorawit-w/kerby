@@ -241,6 +241,7 @@ unit; per-section split is ring-fenced out.
 | `verification-before-completion` | prose (block, high) | behavioral | `references/validation.md` in place |
 | `security-lens` | prose (block, high) | behavioral | `references/validation.md` in place (deduped by path) |
 | `guardrails-scope-security` | prose (block, high) | behavioral | `references/guardrails.md` in place |
+| `intent-gate-on-behavior-change` (v9.12.0) | prose (eager, low) | behavioral | `references/intent-gate.md` in place — the forced `INTENT:` line (absorbed from fable-method) |
 
 Plus `[commands]` (`{build,lint,test}_command`) and `[gate]` per the handoff.
 

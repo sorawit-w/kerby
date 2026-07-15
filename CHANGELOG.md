@@ -3,9 +3,9 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
-## [9.12.0] — 2026-07-15
+## [9.13.0] — 2026-07-15
 
-**Worktree as announced escalation** (swe 2.4.0): the branching default flips —
+**Worktree as announced escalation** (swe 2.5.0): the branching default flips —
 an in-place `git checkout -b` from the protected branch is now the default for
 *every* task type, and a worktree is an escalation that must name its trigger
 out loud. Motivated by a reproduced failure: an agent created a worktree for a
@@ -32,6 +32,43 @@ worktree at that point") handed it verbatim.
   opinionation bullet, and the feature-loop diagram label all restate the new
   default; quick-task escalation now explicitly continues on the same in-place
   branch.
+- Hardened through review: trigger-first mutually exclusive branch setup in
+  the workflows, explicit `<protected-base>` on both `git worktree add -b`
+  and the default `git checkout -b` (ambient-HEAD contamination), discard
+  ordering (never delete a checked-out branch), decision-table precedence,
+  and a repo-state split (has-commits vs unborn) in `new-project.md`.
+
+## [9.12.0] — 2026-07-14
+
+**swe 2.4.0 — fable-method absorption**: the intent gate, deception
+categories, the forced-artifact authoring principle, and trap fixtures.
+Absorbed from `Sahir619/fable-method` (MIT, commit `b2a24d5`); engine
+untouched.
+
+- **Intent gate** (`rulebooks/swe/references/intent-gate.md`, new eager
+  check `intent-gate-on-behavior-change`, behavioral/block/low) — before any
+  behavior-changing edit, the forced `INTENT: code does <X>; the failing
+  check/task expects <Y>; the spec says <Z>` line; authority order: explicit
+  user statement > spec > tests > current code behavior; X/Y/Z disagreement
+  is the finding, never a silent edit. One-line pointer added to BOOTSTRAP
+  § Diagnosis. Upstream eval measured this rule at 1/4 compliance as
+  mid-list prose vs 4/4 as a forced artifact.
+- **Deception categories** (`rulebooks/swe/references/audit.md`, inference
+  band) — weakened checks, false completion, scope creep, spec betrayal,
+  debris; each mapped onto existing checks (hollow tests, iron-law-claims,
+  dead code) as lenses over the bands, not a new band.
+- **Forced-artifact authoring principle** (`skills/kerby/CLAUDE.md`
+  § Authoring style + a pointer in `docs/AUTHORING-RULEBOOKS.md` § Choosing
+  enforcement) — shape behavioral rules as forced artifacts at decision
+  points, not prose in lists.
+- **Trap fixtures** (`.eval/traps/` — s2-surprise-trap, s7-fraudulent-work,
+  ported verbatim + kerby-reframed answer sheets, runbook README) — manual
+  behavioral tests for the two new surfaces, graded via skill-evaluator
+  sessions; deliberately NOT a runner (kerby ships no eval harness).
+- Deliberately not adopted (recorded in `references/external-resources.md`
+  catalog entry): fable-loop orchestration (laney's domain), domain adapters
+  (rulebook architecture covers it), numeric loop bounds (already exist),
+  their LLM-judge eval runner.
 
 ## [9.11.0] — 2026-07-08
 

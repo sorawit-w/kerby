@@ -205,7 +205,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.12.0` — swe branching inverted: in-place branch is the default for every task type; a worktree is an announced escalation (concurrent different-branch work, explicit request, or dirty-state preservation) — never silent, and task type/size are explicitly non-triggers. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.13.0` — swe 2.5.0 inverts the branching default: in-place branch is the default for every task type; a worktree is an announced escalation (concurrent different-branch work, explicit request, or dirty-state preservation) — never silent, always from an explicit protected base, and task type/size are explicitly non-triggers. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests

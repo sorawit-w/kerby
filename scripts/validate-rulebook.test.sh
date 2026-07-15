@@ -407,7 +407,7 @@ if [[ -d "$REAL_ROOT/base" ]]; then
   BASE_IDS="$(grep -E '^id = "' "$REAL_ROOT/base/rulebook.toml" | sed -E 's/id = "(.*)".*/\1/' | tail -n +2 | sort | tr '\n' ' ')"
   SWE_IDS="$(grep -E '^id = "' "$REAL_ROOT/swe/rulebook.toml" | sed -E 's/id = "(.*)".*/\1/' | tail -n +2 | sort | tr '\n' ' ')"
   EXPECT_BASE="approval-for-irreversible iron-law-claims no-print-secret secrets-staged untrusted-agent-artifacts "
-  EXPECT_SWE="destructive-git env-read-warning guardrails-scope-security high-stakes-routing hollow-test-heuristic operating-rules protect-env protected-branch-commit quality-gate-tiers security-lens verification-before-completion "
+  EXPECT_SWE="destructive-git env-read-warning guardrails-scope-security high-stakes-routing hollow-test-heuristic intent-gate-on-behavior-change operating-rules protect-env protected-branch-commit quality-gate-tiers security-lens verification-before-completion "
   [[ "$BASE_IDS" == "$EXPECT_BASE" ]] && pass "base declares the ENGINE-MAP check set" || fail "base check-set drift — got: $BASE_IDS expected: $EXPECT_BASE"
   [[ "$SWE_IDS" == "$EXPECT_SWE" ]] && pass "swe declares the ENGINE-MAP check set" || fail "swe check-set drift — got: $SWE_IDS expected: $EXPECT_SWE"
 fi

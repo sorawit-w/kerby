@@ -6,7 +6,7 @@
 # uniform confinement, no builtin exemption.
 # Contract: docs/rulebook-contract.md (contract 2).
 id = "swe"
-version = "2.4.0"
+version = "2.5.0"
 contract = 2
 accepts = ["git_change"]
 extends = ["base"]
@@ -105,6 +105,14 @@ body = "references/guardrails.md"
 enforcement = "behavioral"
 severity = "block"
 token_cost = "high"
+
+[[check]]
+id = "intent-gate-on-behavior-change"
+kind = "prose"
+body = "references/intent-gate.md"
+enforcement = "behavioral"
+severity = "block"
+token_cost = "low"                        # eager — the forced artifact must be in context at the decision point
 
 # --- code: the hook-backed checks (install remains the trust opt-in, D13) ---
 

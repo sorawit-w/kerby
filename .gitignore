@@ -198,6 +198,9 @@ playground.xcworkspace
 # replayed against (Iron Law: Expected vs Realized).
 !.eval/rulebooks/
 !.eval/parity/
+# … and the committed trap fixtures (behavioral rule tests, run manually via
+# skill-evaluator sessions — see .eval/traps/README.md).
+!.eval/traps/
 
 # Skill-creator iteration workspaces (per-skill eval traces, grader scripts,
 # benchmark JSON, viewer HTML, run logs, packaged .skill bundles). Useful

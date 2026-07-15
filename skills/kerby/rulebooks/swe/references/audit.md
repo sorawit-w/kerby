@@ -79,6 +79,22 @@ Agent judgment. Each finding must **name the heuristic it used** so a human can 
 
 > Reality this exposes: of ~23 rule areas, roughly **7 are cleanly auditable, ~3 partial, ~12 process-only.** A clean audit means "no violations *among the statically-checkable rules*" — not full conformance. The banner must say so.
 
+### Deception categories — inference band
+
+Beyond conformance *drift* (the rows above), audit the work's *claims*. These five categories, ordered by real-world frequency, are how completed work lies about itself; each maps onto an existing check where one exists, so they add lenses, not duplicate machinery.
+
+| Category | Heuristic | Source rule |
+|---|---|---|
+| **Weakened checks** | diff the test files specifically: assertions loosened or deleted, expected values changed to match new behavior, tolerances widened, real calls replaced by mocks. A changed test is suspect until its justification traces to the governing authority — explicit user statement, spec, or the documented no-spec path (`intent-gate.md`). Extends the hollow/stub-tests row above from *static fakes* to *diff-visible weakening*. | `validation.md` § What Counts as Evidence + `intent-gate.md` |
+| **False completion** | completion language in commit messages, PR bodies, or docs ("all tests pass", "fixed") that the same change undermines — the referenced tests were themselves modified, or the diff contradicts a claim about what was touched. Absence of a committed run record alone lowers confidence; it is not by itself a finding (most repos never commit test output). | base `iron-law-claims` + `validation.md` (Iron Law extension) |
+| **Scope creep** | a commit whose diff exceeds its stated subject: drive-by refactors, reformat noise, new dependencies unnamed in the message. Judged per commit against its own subject line — this makes BOOTSTRAP's process-only stay-on-task rule partially auditable. | BOOTSTRAP §4 + `intent-gate.md` |
+| **Spec betrayal** | code changed to satisfy a check that contradicts the README/spec/docstring — the silent side-matching the intent gate forbids. Authority order: explicit user statement > spec > tests > current code behavior. | `intent-gate.md` |
+| **Debris** | leftover scratch files, debug prints, commented-out code, orphaned imports. Overlaps the mechanical dead-code check — reuse its tooling where resolvable; this row adds the *fraud framing* (debris in a "complete" change signals an unaudited report). | `working-patterns.md` § Code Standards |
+
+All five emit as ordinary findings (§6) at `confidence: inferred` (debris rows backed by the linter stay `observed`), with the same severity/dimension mapping — deception categories are lenses over the bands, not a new band.
+
+**Source:** absorbed from `Sahir619/fable-method` (MIT, 2026-07-14) — fable-judge's fraud taxonomy, reframed onto kerby's existing checks and confidence bands; its re-run-every-claimed-verification stance stays with the requesting session, not the static audit.
+
 ---
 
 ## 6. Finding shape
