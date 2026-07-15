@@ -91,6 +91,8 @@ The script version breaks the moment the project uses Bun, pnpm, Deno, or a cust
 
 Not absolute: when a rule genuinely requires a specific command (e.g., `git` invocations in the branching section), use it. The test is whether the command is load-bearing for the rule's meaning, or just the author's habit.
 
+**Shape rules as forced artifacts at decision points, not prose in lists.** Weak models (and strong models under load) follow rules where a decision is being made, not rules stated mid-list. Where a rule can demand a concrete output artifact — a named line that must appear in the report, a verdict with a fixed shape, a threshold that routes — prefer that shape over descriptive prose. Measured evidence: `Sahir619/fable-method` (MIT, 2026-07-14) tested its intended-behavior rule as prose mid-list (1/4 runs complied) vs. as a forced `INTENT:` line required in the report (4/4). Kerby's own examples of the shape: the verdict line in `skills/kerby/rulebooks/skill-authoring/rules/record-the-verdict.md`, and the `INTENT:` line in `rulebooks/swe/references/intent-gate.md`.
+
 **Engine surfaces have one extra constraint:** edits to `SKILL.md`, `resources/`, or the repo-root `scripts/` are bound by the engine-independence zoning rule (`docs/rulebook-contract.md` § Engine independence) — a builtin rulebook's name may appear there only as a worked example or bundle contents, never as something behavior keys on. Behavior branches consume contract fields (`[detect]`, `[identity]`, `[[check]]`, `[[command]]`) instead.
 
 ---

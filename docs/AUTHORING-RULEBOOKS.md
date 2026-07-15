@@ -145,6 +145,12 @@ the effective level is `behavioral`, and `kerby status` shows
 `degraded — run install to bind`. You do not get to look enforced without
 being enforced.
 
+For `behavioral` prose, shape the rule as a **forced artifact at the decision
+point** — a named line or verdict the agent must emit — rather than
+descriptive prose in a list; measured compliance differs dramatically (see
+kerby's `skills/kerby/CLAUDE.md` § Authoring style for the evidence and
+in-house examples).
+
 ### Choosing `severity` and `floor`
 
 - `severity` maps through `[gate]`: `block` → DENIED, `warn` → HELD, `info`

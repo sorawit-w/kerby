@@ -195,6 +195,8 @@ During iteration, use tiered checks for fast feedback (see `references/quality-g
 
 This generalizes the Iron Law in `references/debugging.md` ("No fixes without root cause investigation first") to all coding work, not just bugfixes. Symptom-driven patches in feature work — adding `*` to a CORS allow-list, wrapping in `try/catch` to silence an error, copying a Stack Overflow snippet whose context you have not verified — are the same failure mode under a different name.
 
+**Before a behavior-changing edit, the intent gate applies** (`references/intent-gate.md`): write its forced `INTENT:` line — the canonical shape lives in that file, do not restate it from memory — and when code, check, and spec disagree, the disagreement is the finding, never a silent edit that makes one side match another.
+
 ### Resource Cleanup
 
 Before declaring done, terminate every long-running process you spawned — dev servers, watchers (`tsc --watch`, `vitest --watch`), build daemons, tunnels (`ngrok`, `cloudflared`), test containers. Scan shell history for backgrounded commands; confirm with `ps` or `lsof -i :PORT`; terminate cleanly. Orphaned processes hold ports and confuse the developer's next move.
