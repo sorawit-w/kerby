@@ -3,6 +3,36 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.12.0] — 2026-07-15
+
+**Worktree as announced escalation** (swe 2.4.0): the branching default flips —
+an in-place `git checkout -b` from the protected branch is now the default for
+*every* task type, and a worktree is an escalation that must name its trigger
+out loud. Motivated by a reproduced failure: an agent created a worktree for a
+bug fix citing "touches multiple files + bug-fix task" — reasons the old
+3-question gate never contained, but which the old anchor text ("worktree
+default … for feature and bugfix work"; quick-task's "escalate … and create a
+worktree at that point") handed it verbatim.
+
+- **Escalation triggers, exhaustive:** (1) concurrent work on a *different
+  branch* — the one technical necessity; (2) explicit request from the user or
+  a harness setting (a harness-provided worktree counts as met — never nest a
+  second inside it); (3) dirty-state preservation — announce and proceed. Task
+  type and task size are explicitly named **non-triggers**.
+- **Nothing silent:** every worktree creation announces
+  `creating worktree at .worktrees/<name> — trigger: <which>` and records the
+  line (`.kerby/memory.log` or commit footer — the old gate's auditability,
+  kept). The npm fallback note is un-silenced the same way: cost is named in
+  the announcement, never a silent override.
+- **Windows long-path failure row** added to `git-worktrees.md` — nested
+  `.worktrees/<branch>/node_modules/…` paths vs MAX_PATH 260;
+  `core.longpaths` fixes git, not the tooling that walks the same paths.
+- Workflows (`feature.md` § 1, `bugfix.md` § 1, `quick-task.md` branching note,
+  both finalization tables), `git-worktrees.md` decision/cost tables, README
+  opinionation bullet, and the feature-loop diagram label all restate the new
+  default; quick-task escalation now explicitly continues on the same in-place
+  branch.
+
 ## [9.11.0] — 2026-07-08
 
 **Intent manifest + `check-updates`**: share *which* rulebooks a repo uses

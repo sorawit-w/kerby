@@ -1,41 +1,42 @@
 # Git Worktrees — Isolated Parallel Branches
 
-Worktrees enable physical isolation of branches within a single repository, eliminating branch-switching overhead and keeping the repo state clean across parallel work.
+Worktrees give a branch its own physical directory within a single repository. In kerby they are the **escalation path, not the default** — the default is an in-place `git checkout -b` (BOOTSTRAP.md § Branching). This reference holds the tactics for when an escalation trigger applies.
 
 ---
 
 ## When to Use
 
-| Workflow | Use Worktree? | Reason |
+| Situation | Use Worktree? | Reason |
 |----------|---|---|
-| Feature/bugfix with parallel sub-agents OR multi-session (>1 day) | Yes | Physical isolation pays off |
-| Feature/bugfix, solo serial, single-session | No | Install tax + lost build cache outweigh benefit; use `git checkout -b` in-place |
+| Concurrent work on a *different branch* (parallel agents/sessions) | Yes | Necessity — git cannot check out two branches in one working tree |
+| User or harness explicitly requests one | Yes | Explicit request; if the harness already runs you inside a worktree it provides, use that one — never nest a second |
+| Uncommitted work elsewhere must survive untouched | Yes — announce first | Dirty-state preservation; announce and proceed |
+| Feature/bugfix, solo serial — any size, any file count | No | The in-place default; task type and size are not triggers |
 | Quick single-file tasks (`quick-task.md`) | No | Context switch overhead not justified |
-| Sub-agent delegation with parallel branches | Yes — shared coordinator worktree | Avoids context collisions |
-| One-off edits on main | No | Checkout, edit, checkout out — no isolation needed |
+| Sub-agent fan-out on one feature | No new worktrees | Sub-agents share the coordinator's working tree (`sub-agent-delegation.md`) |
 
-See the "Worktree gate" in `BOOTSTRAP.md` for the 3-question check the agent must answer before creating one.
+See BOOTSTRAP.md § Branching for the escalation triggers — a worktree is never created silently; announce the trigger in one line before creating.
 
 ---
 
 ## Package Manager Detection
 
-Worktree safety depends on whether the project duplicates dependencies per worktree or shares them globally.
+When an escalation trigger applies, check what a worktree costs on this stack — some managers duplicate dependencies per worktree, others share them globally.
 
-| Lockfile | Manager | Worktree Safety |
+| Lockfile | Manager | Worktree Cost |
 |----------|---------|---|
-| `bun.lockb` | Bun | worktree-default ✓ |
-| `pnpm-lock.yaml` | pnpm | worktree-default ✓ |
-| `.pnp.cjs` or `.pnp.js` | Yarn Berry PnP | worktree-default ✓ |
-| `yarn.lock` (no `.pnp`) | Yarn 1.x | worktree-default ✓ |
-| `deno.lock` | Deno | worktree-default ✓ |
-| `pyproject.toml` | Python | worktree-default ✓ |
-| `Cargo.toml` | Rust | worktree-default ✓ |
-| `go.mod` | Go | worktree-default ✓ |
-| `package-lock.json` | npm | Fall back silently (see note below) |
-| (no lockfile) | (no install) | worktree-default ✓ |
+| `bun.lockb` | Bun | duplication-safe ✓ |
+| `pnpm-lock.yaml` | pnpm | duplication-safe ✓ |
+| `.pnp.cjs` or `.pnp.js` | Yarn Berry PnP | duplication-safe ✓ |
+| `yarn.lock` (no `.pnp`) | Yarn 1.x | duplication-safe ✓ |
+| `deno.lock` | Deno | duplication-safe ✓ |
+| `pyproject.toml` | Python | duplication-safe ✓ |
+| `Cargo.toml` | Rust | duplication-safe ✓ |
+| `go.mod` | Go | duplication-safe ✓ |
+| `package-lock.json` | npm | expensive — duplicates `node_modules` (see note below) |
+| (no lockfile) | (no install) | duplication-safe ✓ |
 
-**npm fallback note (silent):** When npm is detected, silently use in-place branch instead of worktree to avoid `node_modules` duplication. If `node_modules/ > 500MB` or `package.json` has `>50` direct dependencies, also fall back silently and note to user: "npm detected; using in-place branch to avoid node_modules duplication."
+**npm cost note (never silent):** the in-place default already avoids `node_modules` duplication, so on most npm repos this note never fires. When a trigger *does* force a worktree on an npm repo (or one with `node_modules/ > 500MB` or >50 direct dependencies), create it and name the cost in the same one-line announcement — e.g. "creating worktree — trigger: concurrent branches; note: npm will duplicate node_modules." Cost never silently overrides a trigger, and no fallback happens without saying so.
 
 ---
 
@@ -115,6 +116,7 @@ Output shows path, branch, commit SHA, and detach state. Use this to verify no s
 | Directory deleted externally | `git worktree prune` (removes stale entries) |
 | Branch already checked out in another worktree | Git prevents duplicate; use existing worktree instead |
 | Orphaned worktree entries (`.git/worktrees/`) | `git worktree prune` cleans up dangling references |
+| Long-path failures on Windows (260-char MAX_PATH) — builds/installs fail on deep `.worktrees/<branch>/node_modules/…` paths | `git config core.longpaths true` fixes git itself, **not** other tooling (MSBuild, node-gyp) that walks the same paths; keep branch names short; prefer the in-place default when no trigger forces isolation |
 
 ---
 

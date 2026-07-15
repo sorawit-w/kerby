@@ -6,7 +6,7 @@
 # uniform confinement, no builtin exemption.
 # Contract: docs/rulebook-contract.md (contract 2).
 id = "swe"
-version = "2.3.0"
+version = "2.4.0"
 contract = 2
 accepts = ["git_change"]
 extends = ["base"]

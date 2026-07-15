@@ -205,7 +205,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.11.0` — intent manifest + `check-updates`: a committed, trust-inert `.kerby/rulebooks.toml` shares which rulebooks a repo uses (externals still TOFU per machine), and a read-only `check-updates` reports what's stale — builtins offline, remotes fetched only when locally approved. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.12.0` — swe branching inverted: in-place branch is the default for every task type; a worktree is an announced escalation (concurrent different-branch work, explicit request, or dirty-state preservation) — never silent, and task type/size are explicitly non-triggers. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests

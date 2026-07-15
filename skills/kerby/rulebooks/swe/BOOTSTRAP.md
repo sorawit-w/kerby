@@ -117,28 +117,30 @@ These rules apply to ALL tasks regardless of workflow. Violating any of these is
 
 **Never work on protected branches** — main, master, dev, develop, staging, release/*, trunk.
 
-**Worktree gate — answer before creating one:**
+**Default: branch in place.** For every task type — quick-task, bugfix, feature — create a normal branch from the protected branch and work there:
 
-1. Will another agent or sub-agent work on a different branch concurrently?
-2. Is there uncommitted work on another branch that must be preserved?
-3. Is this task expected to span multiple sessions (>1 day)?
+```bash
+git checkout -b <type>/<short-description>
+```
 
-If **all three are no** → use `git checkout -b <type>/<short-description>` in-place; skip the worktree. Otherwise proceed with the worktree default below. Record the gate answers in one line (in `.kerby/memory.log` or the commit footer) so the decision is auditable.
+Types: `feature`, `fix`, `refactor`, `test`, `docs`, `chore`
 
-**Default (gate → worktree): create a worktree at `.worktrees/<branch-name>/` for feature and bugfix work.** This provides physical isolation for parallel sub-agents and cleaner lifecycle management.
+**Worktree escalation — create a worktree only when a trigger below applies, never silently.** Task type ("it's a bug fix") and task size ("it touches multiple files") are **not** triggers.
+
+1. **Concurrent branches (necessity):** another agent or session must work on a *different branch* at the same time — git cannot check out two branches in one working tree.
+2. **Explicit request:** the user asked for a worktree, or a harness setting mandates one. If the harness already runs you *inside* a worktree it provides, that need is met — use it; never create a second one within it.
+3. **Dirty-state preservation:** uncommitted work elsewhere in the working tree must survive untouched while you work. Announce and proceed — no confirmation round-trip needed.
+
+When a trigger applies, announce it in one line **before** creating — `creating worktree at .worktrees/<branch-name> — trigger: <which>` — and record that line (in `.kerby/memory.log` or the commit footer) so the decision is auditable. Then:
 
 ```bash
 git worktree add .worktrees/<branch-name> -b <type>/<short-description>
 cd .worktrees/<branch-name>
 ```
 
-Types: `feature`, `fix`, `refactor`, `test`, `docs`, `chore`
+**Cost check before escalating:** npm repos duplicate `node_modules` per worktree, and on Windows the nested `.worktrees/<branch-name>/` prefix can push deep paths past the 260-character limit. Neither cost silently overrides a trigger — if trigger 1 forces isolation on an npm repo, create the worktree and name the cost in the same announcement. Details and the decision table: `references/git-worktrees.md`.
 
-**Package manager check before creating the worktree:** If `package-lock.json` is present (npm), `node_modules/ > 500MB`, or `package.json` has >50 direct dependencies, silently fall back to an in-place branch (`git checkout -b`) and note to the user: "npm detected; using in-place branch to avoid node_modules duplication." For Bun, pnpm, Deno, Python, Rust, Go, and most other stacks, worktree-default applies. See `references/git-worktrees.md` for the full detection table.
-
-**Exception:** `workflows/quick-task.md` stays in-place. Worktree overhead isn't justified for single-file edits or docs-only changes.
-
-Confirm you are on the correct branch before proceeding. If `git branch --show-current` returns a protected branch name, STOP and create a new branch/worktree. When the hooks are installed, `protect-git.sh` also hard-blocks `git commit` while you are on a protected branch — only set `CODING_RULES_ALLOW_PROTECTED_COMMIT=1` (inline, one command) when the user has explicitly authorized a commit to that branch, never to bypass the guard on your own.
+Confirm you are on the correct branch before proceeding. If `git branch --show-current` returns a protected branch name, STOP and create a branch first. When the hooks are installed, `protect-git.sh` also hard-blocks `git commit` while you are on a protected branch — only set `CODING_RULES_ALLOW_PROTECTED_COMMIT=1` (inline, one command) when the user has explicitly authorized a commit to that branch, never to bypass the guard on your own.
 
 Full worktree tactics (creation, lifecycle, cleanup, failure modes): `references/git-worktrees.md`
 

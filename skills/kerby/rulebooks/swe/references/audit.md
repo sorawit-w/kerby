@@ -75,7 +75,7 @@ Agent judgment. Each finding must **name the heuristic it used** so a human can 
 
 **Partials** (`partial` — check the visible slice, declare the blind spot): protected-branch direct commits (git topology is lossy post-merge), `.kerby/memory.log` cadence (presence/rough-cadence only — can't judge content), docs-not-updated-with-behavior (can't confirm behavior actually changed).
 
-**Process-only** (never checked — listed in the banner): evidence-based verification, diagnosis-with-evidence, resource cleanup, manual-verify instructions, sub-agent delegation, ambiguity-before-cost, output discipline, don't-print-secrets-in-chat, install-approval, stay-on-task, don't-merge, worktree-gate reasoning.
+**Process-only** (never checked — listed in the banner): evidence-based verification, diagnosis-with-evidence, resource cleanup, manual-verify instructions, sub-agent delegation, ambiguity-before-cost, output discipline, don't-print-secrets-in-chat, install-approval, stay-on-task, don't-merge, worktree-escalation reasoning.
 
 > Reality this exposes: of ~23 rule areas, roughly **7 are cleanly auditable, ~3 partial, ~12 process-only.** A clean audit means "no violations *among the statically-checkable rules*" — not full conformance. The banner must say so.
 
