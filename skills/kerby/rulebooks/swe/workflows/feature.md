@@ -10,16 +10,19 @@ You MUST complete these before writing any code:
 1. Read `references/working-patterns.md` — task approach, code standards
 2. Read `references/communication.md` — commit format, logging, branch naming
 3. Read project conventions — linter config, formatter config, existing code patterns
-4. **Branch in place** (the default — BOOTSTRAP.md § Branching):
+4. **Set up the branch — check the § Branching triggers FIRST** (BOOTSTRAP.md), then take exactly ONE of these paths:
+
+   **No trigger (the default) — branch in place:**
    ```bash
    git checkout -b <type>/<short-description>
    ```
-   Escalate to a worktree **only** if a § Branching trigger applies (concurrent different-branch work; explicit user/harness request; dirty-state preservation) — announce the trigger in one line first, then:
+   **A trigger applies** (concurrent different-branch work; explicit user/harness request; dirty-state preservation) — announce it in one line, then create the worktree **instead of** the in-place branch, from the protected base (never from another branch's HEAD):
    ```bash
-   git worktree add .worktrees/<branch-name> -b <type>/<short-description>
+   git worktree add .worktrees/<branch-name> -b <type>/<short-description> <protected-base>
    cd .worktrees/<branch-name>
    {package_manager} install    # bun install, pnpm install, etc.
    ```
+   (A harness-provided worktree already satisfies its trigger — work in it; create nothing.)
    Ensure `.worktrees/` is in `.gitignore` before creating one. Worktree costs (npm `node_modules` duplication, Windows path limits): `references/git-worktrees.md`.
 5. **Baseline check** — confirm you're starting from a clean state:
    - If you just created this worktree or in-place branch from a known-good base (main/develop passed CI): **skip baseline gates**
@@ -203,7 +206,7 @@ Complete ALL of these before declaring done:
    | **Open PR** (default) | Work is ready for human review | Push branch; open PR; if a worktree was used, keep it until the PR is merged |
    | **Merge locally** | Solo project, fast-path, or approved | `git checkout <base>`, merge; if a worktree was used, `git worktree remove .worktrees/<name>` |
    | **Preserve branch** | More work expected later | Note branch + reason in `.kerby/memory.log`; keep the worktree if one was used |
-   | **Discard** | Work is a dead-end or spike | Requires explicit "discard" confirmation from user; then delete the branch (and `git worktree remove --force .worktrees/<name>` if one was used) |
+   | **Discard** | Work is a dead-end or spike | Requires explicit "discard" confirmation from user; then leave the branch: `git worktree remove --force .worktrees/<name>` if one was used, else `git checkout <base>` — and only then `git branch -D <branch>` (git refuses to delete a checked-out branch) |
 
    On an in-place branch (the default), skip the worktree actions — they apply only when an escalation trigger created one.
 

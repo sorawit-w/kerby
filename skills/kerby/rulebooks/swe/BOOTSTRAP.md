@@ -131,10 +131,10 @@ Types: `feature`, `fix`, `refactor`, `test`, `docs`, `chore`
 2. **Explicit request:** the user asked for a worktree, or a harness setting mandates one. If the harness already runs you *inside* a worktree it provides, that need is met — use it; never create a second one within it.
 3. **Dirty-state preservation:** uncommitted work elsewhere in the working tree must survive untouched while you work. Announce and proceed — no confirmation round-trip needed.
 
-When a trigger applies, announce it in one line **before** creating — `creating worktree at .worktrees/<branch-name> — trigger: <which>` — and record that line (in `.kerby/memory.log` or the commit footer) so the decision is auditable. Then:
+When a trigger applies, announce it in one line **before** creating — `creating worktree at .worktrees/<branch-name> — trigger: <which>` — and record that line (in `.kerby/memory.log` or the commit footer) so the decision is auditable. The worktree **replaces** the in-place `git checkout -b` — never both. Pass the protected base explicitly (without it, git branches from the current HEAD — under triggers 1 and 3 that is often another task branch or a dirty tree, not the base you want):
 
 ```bash
-git worktree add .worktrees/<branch-name> -b <type>/<short-description>
+git worktree add .worktrees/<branch-name> -b <type>/<short-description> <protected-base>
 cd .worktrees/<branch-name>
 ```
 
@@ -300,7 +300,7 @@ All paths in this index are relative to this rulebook's root — the folder wher
 | Full error handling & recovery trees | `references/error-handling.md` |
 | Systematic debugging (reproduce → hypothesize → fix) | `references/debugging.md` |
 | Commits, logging, status, boards, branches, dev TODOs | `references/communication.md` |
-| Git worktree tactics (creation, cleanup, package-manager detection/fallback, failure modes) | `references/git-worktrees.md` |
+| Git worktree tactics (creation, cleanup, package-manager cost detection/announcement, failure modes) | `references/git-worktrees.md` |
 | Environment safety — prod vs non-prod behavior matrix, env detection, env-crossing rule | `references/environment-safety.md` |
 | Guardrails, scope, security, documentation | `references/guardrails.md` |
 | Threat model — enforced vs. behavioral guardrails, the tool-boundary limit, shared-artifact injection path | `references/threat-model.md` |

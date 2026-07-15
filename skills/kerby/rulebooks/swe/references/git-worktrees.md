@@ -6,13 +6,15 @@ Worktrees give a branch its own physical directory within a single repository. I
 
 ## When to Use
 
+**Precedence: the trigger rows win.** Evaluate the three `Yes` rows first; if any trigger matches, the `No` rows below it never veto — they describe the no-trigger default only. Task type and size neither create a trigger nor cancel one (an explicitly requested worktree for a quick task is still created).
+
 | Situation | Use Worktree? | Reason |
 |----------|---|---|
 | Concurrent work on a *different branch* (parallel agents/sessions) | Yes | Necessity — git cannot check out two branches in one working tree |
 | User or harness explicitly requests one | Yes | Explicit request; if the harness already runs you inside a worktree it provides, use that one — never nest a second |
 | Uncommitted work elsewhere must survive untouched | Yes — announce first | Dirty-state preservation; announce and proceed |
-| Feature/bugfix, solo serial — any size, any file count | No | The in-place default; task type and size are not triggers |
-| Quick single-file tasks (`quick-task.md`) | No | Context switch overhead not justified |
+| Feature/bugfix, solo serial — any size, any file count (no trigger) | No | The in-place default; task type and size are not triggers |
+| Quick single-file tasks (`quick-task.md`) (no trigger) | No | Context switch overhead not justified |
 | Sub-agent fan-out on one feature | No new worktrees | Sub-agents share the coordinator's working tree (`sub-agent-delegation.md`) |
 
 See BOOTSTRAP.md § Branching for the escalation triggers — a worktree is never created silently; announce the trigger in one line before creating.
@@ -42,16 +44,16 @@ When an escalation trigger applies, check what a worktree costs on this stack �
 
 ## Creation
 
-Create a new worktree with a clean branch:
+Create a new worktree with a clean branch — **always pass the base ref**; without it git branches from the current HEAD, which under the concurrency or dirty-state triggers is often another task branch or a dirty tree:
 
 ```bash
-git worktree add .worktrees/<branch-name> -b <type>/<description>
+git worktree add .worktrees/<branch-name> -b <type>/<description> <protected-base>
 ```
 
 Example:
 
 ```bash
-git worktree add .worktrees/feature-auth -b feature/auth
+git worktree add .worktrees/feature-auth -b feature/auth main
 ```
 
 Then install and verify:
@@ -88,7 +90,7 @@ After work is complete:
 | Merged locally | `git worktree remove .worktrees/<name>` |
 | PR opened | Keep worktree until PR merged; then `git worktree remove .worktrees/<name>` |
 | Preserve for later | Keep worktree, note reason/branch in `.kerby/memory.log` |
-| Explicit discard | `git worktree remove --force .worktrees/<name>` (requires intent) |
+| Explicit discard | `git worktree remove --force .worktrees/<name>`, then `git branch -D <branch>` if the branch itself is discarded (requires intent; git refuses to delete a branch still checked out anywhere) |
 
 **Before discarding:** Verify with `git branch -v` that all work is pushed or committed to a safe location.
 
@@ -117,16 +119,6 @@ Output shows path, branch, commit SHA, and detach state. Use this to verify no s
 | Branch already checked out in another worktree | Git prevents duplicate; use existing worktree instead |
 | Orphaned worktree entries (`.git/worktrees/`) | `git worktree prune` cleans up dangling references |
 | Long-path failures on Windows (260-char MAX_PATH) — builds/installs fail on deep `.worktrees/<branch>/node_modules/…` paths | `git config core.longpaths true` fixes git itself, **not** other tooling (MSBuild, node-gyp) that walks the same paths; keep branch names short; prefer the in-place default when no trigger forces isolation |
-
----
-
-## Migration from In-Place Branches
-
-If you're already on a traditional in-place branch when adopting worktrees:
-
-- Finish the current branch normally (via existing checkout)
-- Apply worktrees only to new branches going forward
-- Do not retroactively convert old branches — it adds complexity and risk
 
 ---
 
