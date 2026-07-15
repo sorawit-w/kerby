@@ -15,6 +15,8 @@ You MUST read these before starting:
 <branch>
 ## 2. Create Working Branch
 
+Branch setup follows `BOOTSTRAP.md` § Branching: in-place branch is the default; a worktree only on an announced escalation trigger (in a freshly initialized repo none normally applies — but an explicit user/harness request still wins). No explicit base ref here: a fresh repo's HEAD *is* the protected base.
+
 ```bash
 git checkout -b feature/initial-setup
 ```

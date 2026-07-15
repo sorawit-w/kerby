@@ -11,9 +11,9 @@ You MUST complete these before writing any code:
 2. Read `references/communication.md` — commit format, logging
 3. **Set up the branch — check the § Branching triggers FIRST** (BOOTSTRAP.md), then take exactly ONE of these paths:
 
-   **No trigger (the default) — branch in place:**
+   **No trigger (the default) — branch in place, from the protected base:**
    ```bash
-   git checkout -b fix/<short-description>
+   git checkout -b fix/<short-description> <protected-base>   # omit the base only when already on it
    ```
    **A trigger applies** (concurrent different-branch work; explicit user/harness request; dirty-state preservation) — announce it in one line, then create the worktree **instead of** the in-place branch, from the protected base (never from another branch's HEAD):
    ```bash

@@ -117,10 +117,10 @@ These rules apply to ALL tasks regardless of workflow. Violating any of these is
 
 **Never work on protected branches** — main, master, dev, develop, staging, release/*, trunk.
 
-**Default: branch in place.** For every task type — quick-task, bugfix, feature — create a normal branch from the protected branch and work there:
+**Default: branch in place.** For every task type — quick-task, bugfix, feature — create a normal branch **from the protected base** and work there. The start point matters: plain `git checkout -b` branches from wherever HEAD is, so if you are not already on the protected branch (e.g. you just finished a task on another branch), pass the base explicitly:
 
 ```bash
-git checkout -b <type>/<short-description>
+git checkout -b <type>/<short-description> <protected-base>   # base (e.g. main) — omit only when already on it
 ```
 
 Types: `feature`, `fix`, `refactor`, `test`, `docs`, `chore`
