@@ -4,7 +4,10 @@
 
 <h1 align="center">kerby</h1>
 
-<p align="center"><em>The gate guardian for agentic work. Nothing unproven passes.</em></p>
+<p align="center">
+  <em>The gate guardian for agentic work. Nothing unproven passes.</em><br/>
+  <sub>Load a rulebook and kerby constrains what an agent may do inside your repo, then validates its output against the rules. Software-engineering rules ship built in; write your own.</sub>
+</p>
 
 ---
 
