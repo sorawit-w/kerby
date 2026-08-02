@@ -27,7 +27,7 @@ runtime:
 stack:
   frameworks: {}
   tools:
-    python: "scripts/check-skill-compat.py, resources/scripts/validate-rulebook.py"
+    python: "scripts/check-skill-compat.py, skills/kerby/resources/scripts/validate-rulebook.py"
     bash: "rulebook hook enforcers + their .test.sh self-checks"
   aiProviders: []
 

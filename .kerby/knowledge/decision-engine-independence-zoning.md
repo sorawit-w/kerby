@@ -34,7 +34,11 @@ instead of special-casing the builtin `swe` rulebook's name in engine code
   trust-boundary risk given kerby's local/remote rulebook trust model.
 - Reading from `[identity]` instead lets the same confirmation/scan logic work
   for any rulebook (builtin or, for non-trust-granting fields, external)
-  without the engine naming that rulebook anywhere in its own source.
+  without the engine's *behavior* keying on that rulebook's name. The zoning
+  rule (`docs/rulebook-contract.md` § Engine independence) still permits a
+  builtin rulebook's name to appear in engine surfaces as a worked example or
+  bundle contents — e.g. `swe` in SKILL.md's install-table example — it only
+  forbids behavior branching on the name.
 
 ## Revisit When
 

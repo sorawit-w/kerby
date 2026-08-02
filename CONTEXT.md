@@ -13,7 +13,7 @@
 
 ### Rulebook
 
-A self-contained folder (`rulebook.toml` manifest + prose rules + hooks + commands) carrying a domain's actual judgment. The engine stays domain-blind — it loads, validates, and dispatches rulebooks without knowing what any of them govern. `skills/kerby/rulebooks/<id>/`
+A self-contained folder (`rulebook.toml` manifest + prose rules, optionally hooks and commands too — `skill-authoring` ships neither) carrying a domain's actual judgment. The engine stays domain-blind — it loads, validates, and dispatches rulebooks without knowing what any of them govern. `skills/kerby/rulebooks/<id>/`
 
 ### GATE → WEIGH → VERDICT
 
@@ -21,7 +21,7 @@ The one motion the engine runs on every action: an action arrives at the gate, k
 
 ### Floor
 
-The `base` rulebook's checks (`floor = true` in the manifest) — always merged first into any selection and non-overridable by any extending rulebook. Secrets-staged, untrusted-agent-artifacts, iron-law-claims, and approval-for-irreversible are the current floor rules.
+The `base` rulebook's checks (`floor = true` in the manifest) — always merged first into any selection and non-overridable by any extending rulebook. Secrets-staged, no-print-secret, untrusted-agent-artifacts, iron-law-claims, and approval-for-irreversible are the current floor rules.
 
 ### Selection
 
