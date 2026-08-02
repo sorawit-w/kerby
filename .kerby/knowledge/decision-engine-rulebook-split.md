@@ -10,10 +10,12 @@ updated: 2026-08-02
 
 ## Context
 
-Commit history shows two release tags — v6.0.0 ("pluggable rulebooks:
-engine/rulebook split") and v7.0.0 ("plug-and-play rulebooks:
-self-containment, commands, multi-rulebook, remote sources") — moving kerby
-to an engine that loads pluggable rulebook folders. The "v1–v5 was a single
+Commit history shows two commit subjects labeled v6.0.0 (`b161c32`,
+"pluggable rulebooks: engine/rulebook split") and v7.0.0 (`74509cb`,
+"plug-and-play rulebooks: self-containment, commands, multi-rulebook, remote
+sources") — these are version numbers named in the commit subject, not git
+release tags (`git tag --list` is empty in this repo) — moving kerby to an
+engine that loads pluggable rulebook folders. The "v1–v5 was a single
 hardcoded coding playbook" framing comes from README.md's own "How it got
 here" section, not from commit history in this repo's visible log — the
 v1–v5 commits themselves aren't independently verified here.

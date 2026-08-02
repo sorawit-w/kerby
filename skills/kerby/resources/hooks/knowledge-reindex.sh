@@ -28,6 +28,22 @@
 
 set -u
 
+# Force a UTF-8 locale for deterministic multi-byte string slicing below.
+# `${var:0:N}` truncation length is locale-dependent — a caller running under
+# `C`/`POSIX` slices by byte, while a UTF-8 locale slices by character, so the
+# same title/body containing an em-dash or arrow produces a different cut
+# (and a different regenerated KNOWLEDGE.md) depending on the invoking
+# environment. Try common UTF-8 locale names in order; if none is installed,
+# LC_ALL is left unset and behavior reverts to whatever the caller had —
+# an explicit fallback, not a silently masked one.
+for _KR_LOCALE in C.UTF-8 en_US.UTF-8 en_US.utf8; do
+  if locale -a 2>/dev/null | grep -qx "$_KR_LOCALE"; then
+    export LC_ALL="$_KR_LOCALE"
+    break
+  fi
+done
+unset _KR_LOCALE
+
 FORCE=0
 if [[ "${1:-}" == "--force" ]]; then
   FORCE=1
@@ -117,9 +133,22 @@ for f in .kerby/knowledge/*.md; do
     { started=1; print }
   ' "$f")
   HOOK=$(echo "$HOOK" | tr -s '[:space:]' ' ' | sed 's/^ //;s/ $//')
-  # Truncate the line so the index entry stays under ~120 chars.
-  if [[ ${#HOOK} -gt 90 ]]; then
-    HOOK="${HOOK:0:87}"
+
+  # Truncate the hook so the FULL rendered line — "- [title](file) — hook" —
+  # stays under knowledge-management.md's ~120-char index-line convention.
+  # The budget is derived from the prefix length, not a flat constant: a
+  # flat 90-char hook budget ignores title+filename overhead and regularly
+  # produced 170+ char lines for a long title.
+  PREFIX="- [$TITLE]($base) — "
+  BUDGET=$(( 116 - ${#PREFIX} ))   # 116, not 120: a few chars of slack
+  if (( BUDGET < 15 )); then
+    # Title + filename alone already eat the line budget — a forced-floor
+    # hook here would either be too short to be useful or push the line
+    # past the ~120-char convention regardless. Drop the hook; the link
+    # still reaches the full entry.
+    HOOK=""
+  elif [[ ${#HOOK} -gt $BUDGET ]]; then
+    HOOK="${HOOK:0:$((BUDGET - 3))}"
     # Don't leave a dangling code span: an odd backtick count means the cut
     # landed inside a `...` run, which breaks markdown rendering. Trim back
     # to before the last (now-unterminated) backtick.
@@ -131,7 +160,7 @@ for f in .kerby/knowledge/*.md; do
   fi
 
   if [[ -n "$HOOK" ]]; then
-    echo "- [$TITLE]($base) — $HOOK" >> "$TMP_BLOCK"
+    echo "${PREFIX}${HOOK}" >> "$TMP_BLOCK"
   else
     echo "- [$TITLE]($base)" >> "$TMP_BLOCK"
   fi
