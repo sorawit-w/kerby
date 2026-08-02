@@ -10,12 +10,11 @@ updated: 2026-08-02
 
 ## Context
 
-Three consecutive commits — `94f91bf` (v9.4.0, "contract gains the optional
-[identity] table — decoupling 1/3"), `be83802` (v9.5.0, "engine consumes
-[identity]; behavior stops keying on `swe` — decoupling 2/3"), `98f427b`
-(v9.5.1, "housekeeping for the decoupling 3/3") — plus root `CLAUDE.md`'s
-"Engine independence" mention and `docs/rulebook-contract.md` § Engine
-independence.
+Three consecutive commits — `94f91bf` (v9.4.0, contract gains the optional
+identity table, decoupling 1/3), `be83802` (v9.5.0, engine consumes identity
+and behavior stops keying on the swe name, decoupling 2/3), `98f427b` (v9.5.1,
+housekeeping for the decoupling, 3/3) — plus root `CLAUDE.md`'s "Engine
+independence" mention and `docs/rulebook-contract.md` § Engine independence.
 
 ## Decision (human-confirmed 2026-08-02)
 

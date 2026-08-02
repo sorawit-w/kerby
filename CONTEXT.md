@@ -13,7 +13,7 @@
 
 ### Rulebook
 
-A self-contained folder (`rulebook.toml` manifest + prose rules, optionally hooks and commands too — `skill-authoring` ships neither) carrying a domain's actual judgment. The engine stays domain-blind — it loads, validates, and dispatches rulebooks without knowing what any of them govern. `skills/kerby/rulebooks/<id>/`
+A self-contained folder (`rulebook.toml` manifest, optionally prose rules / hooks / commands — a rulebook can be all-mechanical with no prose at all) carrying a domain's actual judgment. The engine stays domain-blind — it loads, validates, and dispatches rulebooks without knowing what any of them govern. `skills/kerby/rulebooks/<id>/`
 
 ### GATE → WEIGH → VERDICT
 

@@ -101,20 +101,33 @@ for f in .kerby/knowledge/*.md; do
     TITLE="${base%.md}"
   fi
 
-  # First non-blank, non-heading line of the body becomes the hook.
-  # Files with no frontmatter (fm stays 0) still get scanned from the top.
+  # First body paragraph (all lines up to the next blank line or heading)
+  # becomes the hook, so a hard-wrapped sentence — e.g. a backtick code span
+  # split across a line break — is rejoined before truncation instead of
+  # being cut mid-span. Files with no frontmatter (fm stays 0) still get
+  # scanned from the top.
   HOOK=$(awk '
-    BEGIN { fm=0; saw_fm=0 }
+    BEGIN { fm=0; saw_fm=0; started=0 }
     /^---[[:space:]]*$/ { fm++; saw_fm=1; next }
     saw_fm && fm < 2 { next }    # inside frontmatter, skip
-    /^[[:space:]]*$/ { next }
-    /^#/ { next }
-    { print; exit }
+    !started && /^[[:space:]]*$/ { next }
+    !started && /^#/ { next }
+    /^[[:space:]]*$/ { if (started) exit; next }
+    /^#/ { if (started) exit; next }
+    { started=1; print }
   ' "$f")
   HOOK=$(echo "$HOOK" | tr -s '[:space:]' ' ' | sed 's/^ //;s/ $//')
   # Truncate the line so the index entry stays under ~120 chars.
   if [[ ${#HOOK} -gt 90 ]]; then
-    HOOK="${HOOK:0:87}..."
+    HOOK="${HOOK:0:87}"
+    # Don't leave a dangling code span: an odd backtick count means the cut
+    # landed inside a `...` run, which breaks markdown rendering. Trim back
+    # to before the last (now-unterminated) backtick.
+    BT_COUNT=$(tr -cd '`' <<< "$HOOK" | wc -c)
+    if (( BT_COUNT % 2 == 1 )); then
+      HOOK="${HOOK%\`*}"
+    fi
+    HOOK="${HOOK}..."
   fi
 
   if [[ -n "$HOOK" ]]; then

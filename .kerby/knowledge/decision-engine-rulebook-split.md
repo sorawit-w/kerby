@@ -10,20 +10,20 @@ updated: 2026-08-02
 
 ## Context
 
-Commit history (`v6.0.0 — pluggable rulebooks (engine/rulebook split)`, `v7.0.0 —
-plug-and-play rulebooks (self-containment, commands, multi-rulebook, remote
-sources)`) shows kerby moved to an engine that loads pluggable rulebook
-folders. The "v1–v5 was a single hardcoded coding playbook" framing comes from
-README.md's own "How it got here" section, not from commit history in this
-repo's visible log — the v1–v5 commits themselves aren't independently
-verified here.
+Commit history shows two release tags — v6.0.0 ("pluggable rulebooks:
+engine/rulebook split") and v7.0.0 ("plug-and-play rulebooks:
+self-containment, commands, multi-rulebook, remote sources") — moving kerby
+to an engine that loads pluggable rulebook folders. The "v1–v5 was a single
+hardcoded coding playbook" framing comes from README.md's own "How it got
+here" section, not from commit history in this repo's visible log — the
+v1–v5 commits themselves aren't independently verified here.
 
 ## Decision (human-confirmed 2026-08-02)
 
 Split kerby into two parts: an **engine** (loads, validates, pins trust,
 registers hooks, renders verdicts) — designed to be domain-blind — and
-**rulebooks** (self-contained folders — manifest + prose, optionally hooks
-and commands too — carrying the actual domain judgment). v7 made the split
+**rulebooks** (self-contained folders — manifest, optionally prose / hooks /
+commands too — carrying the actual domain judgment). v7 made the split
 physical: rulebooks became self-contained folders resolvable from their own
 root, supporting multiple rulebooks loaded at once and remote sources. Note:
 v6/v7 established the *structural* split and the *intent* of domain-blindness;
