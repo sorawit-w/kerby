@@ -140,3 +140,5 @@ self-review last rung — if both Codex venues fail, escalate to the maintainer.
 `--merge` / `--rebase` without being asked. Always pass `--delete-branch` (this repo's
 `deleteBranchOnMerge` is off). Merging via this workflow **overrides kerby's own "leave
 for human review" guardrail** for this repo — the owner has opted in.
+
+At session start, invoke the `kerby` skill (args: load) to load kerby guardrails into context.

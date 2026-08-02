@@ -38,7 +38,7 @@ This replaces the need for the agent to "remember" to read project state — it'
 Runs at the start of every session. Three jobs:
 
 1. **Scaffold** `.kerby/knowledge/KNOWLEDGE.md` from `templates/KNOWLEDGE.md.template` if the directory is missing. One-time, idempotent.
-2. **Reindex** the AUTO-INDEX block in `KNOWLEDGE.md` from the title (frontmatter) and first body line of each entry file. Idempotent — only writes if content actually changed. Internally calls `knowledge-reindex.sh --force`.
+2. **Reindex** the AUTO-INDEX block in `KNOWLEDGE.md` from the title (frontmatter) and first body paragraph of each entry file. Idempotent — only writes if content actually changed. Internally calls `knowledge-reindex.sh --force`.
 3. **Stale scan** — scans entry files for `updated:` (or `created:` as fallback) and prints any older than 180 days, so the agent can flag them rather than treating them as authoritative.
 
 Why reindex on session start instead of post-commit? `KNOWLEDGE.md` is read by agents at the start of each session — that's the only moment freshness matters. Aligning regen with the read avoids per-project git-hook installation entirely. (For the case where the agent writes a new entry mid-session, see "Mid-session updates" below.)

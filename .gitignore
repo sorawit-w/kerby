@@ -253,3 +253,17 @@ __pycache__/
 # kerby project-state pin — per-checkout state, never committed: a committed
 # builtin pin fail-closed HELDs in this source repo (install-root == workspace).
 .kerby/rulebooks.lock
+
+# kerby onboarding status stub — point-in-time, per-session working state,
+# noisy to diff/merge; each teammate/agent keeps their own. Unlike
+# .kerby/knowledge/ (curated, shared), STATUS.md is scratch state.
+.kerby/STATUS.md
+
+# kerby audit reports + SAST tool cache — point-in-time and local, per
+# references/audit.md's own recommendation; never part of the shipped skill.
+.kerby/audits/
+.kerby/sast/
+
+# Claude Code project settings, machine-local (hooks registered by
+# `kerby install`, personal permission allowlist). Not shared across machines.
+.claude/settings.local.json

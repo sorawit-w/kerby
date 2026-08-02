@@ -1,0 +1,13 @@
+# kerby intent manifest — committed. Names which rulebooks this repo uses.
+# Trust-inert: grants no approval; externals still TOFU on every machine.
+[[rulebook]]
+id = "skill-authoring"    # builtin — resolves against the local install
+version = "1.2.0"
+
+[[rulebook]]
+id = "swe"                # builtin — resolves against the local install
+version = "2.5.0"
+
+[[rulebook]]
+id = "codex-review"       # builtin — resolves against the local install
+version = "0.2.0"

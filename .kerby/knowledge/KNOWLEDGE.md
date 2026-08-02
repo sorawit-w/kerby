@@ -1,0 +1,12 @@
+# Knowledge Base Index
+
+Project knowledge — architecture decisions, domain context, conventions, and lessons learned.
+Read this index to find relevant context before planning or implementing.
+
+## Entries
+
+<!-- AUTO-INDEX:START -->
+- [Why the coding rulebook was renamed code → swe](decision-code-to-swe-rename.md) — Commit `f89bb3f` — "kerby v9...
+- [Why the engine stopped keying behavior on rulebook names](decision-engine-independence-zoning.md)
+- [Why the engine was split from rulebook content](decision-engine-rulebook-split.md) — Commit history shows two ...
+<!-- AUTO-INDEX:END -->
