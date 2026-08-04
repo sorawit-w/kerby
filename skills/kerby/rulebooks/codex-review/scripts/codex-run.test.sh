@@ -1,15 +1,31 @@
 #!/bin/bash
-# Self-test for codex-run.sh — the watchdog contract: usage/precondition errors
-# spawn nothing; a clean child exits 0; a crashing child exits 5; stdin is
-# closed (the documented deadlock); a stall is killed at the ceiling (exit 4)
-# and takes its whole process group with it; a quiet-but-healthy run is NOT
-# killed early; the review log gets a FRESH inode per attempt (the birth-time
-# contract codex-mark's dur= depends on); the ceiling is 2x the observed-good
-# median, ignoring dur=?, clamped to [300,3600] with a 900s cold-start default;
-# killed runs keep their log and leave an attempts-log trace; stderr stays
-# prefixed even through a job-control kill.
+# Self-test for codex-run.sh (a thin shim) / codex-run.py (the watchdog): usage
+# and precondition errors spawn nothing; a clean child exits 0; a crashing
+# child exits 5; stdin is closed (the documented deadlock); a stall is killed
+# at the ceiling (exit 4) and takes its whole process group with it; a
+# quiet-but-healthy run is NOT killed early; the review log gets a FRESH inode
+# per attempt (the birth-time contract codex-mark's dur= depends on); the
+# ceiling is 2x the observed-good median, ignoring dur=?, clamped to
+# [300,3600] with a 900s cold-start default; killed runs keep their log and
+# leave an attempts-log trace; stderr stays prefixed on every call.
 #
 # No real Codex, no network: every child is a generated stub under $WORK.
+#
+# codex-run.py rewrote the bash predecessor after five review rounds found
+# seven defects, all one shape: ps/kill -0/kill/wait each have a third answer
+# ("the query failed") that every guard misfolded into an unbounded wait or a
+# misdirected signal. proc.wait(timeout=) has no third answer, so this suite
+# tests both the BEHAVIOUR (dynamic pins, same as the bash predecessor's) and
+# the STRUCTURE (new static pins asserting the oracle machinery cannot exist
+# in the file at all — see the "static analysis" section).
+#
+# NOT covered by assertion, and deliberately so — no env-var backdoor was
+# added to force them, because a test-only hole in a wrapper whose job is
+# bounding an untrusted runtime is a worse trade than an untested branch:
+#   - exit 6 (SURVIVOR) needs a process that ignores SIGKILL — genuine
+#     uninterruptible I/O, which cannot be created portably from a test.
+#   - the EPERM-on-kill case needs a setuid credential change.
+# Both are covered by review, not by this suite.
 #
 # Run from anywhere: bash codex-run.test.sh
 # Exit 0 = all assertions pass; non-zero = a failure.
@@ -18,6 +34,7 @@ set -u
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 RUN="$SCRIPT_DIR/codex-run.sh"
+PY="$SCRIPT_DIR/codex-run.py"
 
 FAILS=0
 pass() { echo "PASS: $1"; }
@@ -34,7 +51,17 @@ LOG="$GITDIR/codex-review.log"
 AUDIT="$GITDIR/codex-review-audit.log"
 ATTEMPTS="$GITDIR/codex-run-attempts.log"
 
-run() { bash "$RUN" "$@" >"$WORK/out.txt" 2>"$WORK/err.txt"; RC=$?; }
+# Every synchronous call goes through the shim ($RUN, unchanged filename) and
+# is checked for the stderr-prefix contract inline — a stray unprefixed line
+# (e.g. an uncaught traceback) fails immediately, at every call site, not just
+# the one place the bash predecessor's job-control-notice bug happened to hit.
+run() {
+  bash "$RUN" "$@" >"$WORK/out.txt" 2>"$WORK/err.txt"; RC=$?
+  local bad
+  bad=$(grep -vc '^codex-run: ' "$WORK/err.txt" 2>/dev/null)
+  [[ "${bad:-0}" -eq 0 ]] \
+    || fail "run(): unprefixed stderr from '$*': $(grep -v '^codex-run: ' "$WORK/err.txt" | head -2)"
+}
 now() { date +%s; }
 # Same GNU-then-BSD idiom the scripts use, so the tests observe exactly what
 # codex-mark will compute.
@@ -108,6 +135,27 @@ run --ceiling abc -- "$WORK/fast.sh"
 run -- "$WORK/does-not-exist.sh"
 [[ "$RC" -eq 1 && ! -f "$LOG" ]] && pass "missing runtime fails closed, no log" || fail "missing runtime: rc=$RC log=$([ -f "$LOG" ] && echo yes || echo no)"
 
+# T30 — -h/--help must be unknown options, not a help screen. argparse would
+# install both silently and exit 2 (a code codex-mark owns) with an unprefixed
+# usage block; this is the mechanical guard against a future "improvement"
+# taking that shape.
+run -h -- "$WORK/fast.sh"
+[[ "$RC" -eq 1 ]] && grep -q "unknown option" "$WORK/err.txt" \
+  && pass "-h is an unknown option, not help" || fail "-h: rc=$RC"
+run --help -- "$WORK/fast.sh"
+[[ "$RC" -eq 1 ]] && grep -q "unknown option" "$WORK/err.txt" \
+  && pass "--help is an unknown option, not help" || fail "--help: rc=$RC"
+
+# T36 — `--ceiling --` : the lone '--' is consumed AS THE CEILING VALUE (last
+# wins, whatever token follows the flag), leaving no terminator for a command
+# vector, so the very next token is read as an option and rejected. Same
+# structural failure in both the bash predecessor and this port — verified by
+# hand-tracing both parse loops token-by-token; the point of this pin is that
+# a future edit to either can't silently swap which failure fires without
+# changing rc.
+run --ceiling -- "$WORK/fast.sh"
+[[ "$RC" -eq 1 ]] && pass "--ceiling consumes '--' as its value, next token then rejected" || fail "--ceiling --: rc=$RC"
+
 # --- Normal exits ---
 
 # 4. Clean child -> exit 0, output captured.
@@ -145,8 +193,9 @@ GC=$(cat "$WORK/gchild" 2>/dev/null || echo 0)
 # did produce one, and codex-mark must still get to parse it.
 [[ -s "$LOG" ]] && pass "killed run keeps its log" || fail "killed run lost its log"
 
-# 19. stderr hygiene: bash prints its own "Terminated: 15" job-control notice
-# when it reaps a killed job. Every line must still be ours.
+# 19. stderr hygiene, explicit re-check of the SAME call run()'s inline check
+# already covered — belt and suspenders, since this is the exact path (a
+# process-group kill) the bash predecessor's job-control notice used to leak on.
 BAD=$(grep -v '^codex-run: ' "$WORK/err.txt" | wc -l | tr -d ' ')
 [[ "$BAD" -eq 0 ]] && pass "stderr stays prefixed through a kill" || fail "leaked $BAD stderr line(s): $(grep -v '^codex-run: ' "$WORK/err.txt" | head -2)"
 
@@ -154,6 +203,15 @@ BAD=$(grep -v '^codex-run: ' "$WORK/err.txt" | wc -l | tr -d ' ')
 # invisible, because only codex-mark PASSes reach the audit log.
 [[ -s "$ATTEMPTS" ]] && grep -q "stall" "$ATTEMPTS" \
   && pass "killed attempt logged to codex-run-attempts.log" || fail "no attempts-log entry"
+
+# T31 — the stall's attempts-log line must show NO collected status (rc=-),
+# never a fabricated rc=0. A stall is killed without waiting on the ceiling
+# path itself (the ladder's own reap is what collects a status, and THAT
+# status belongs to the kill, not to "how the runtime exited" — codex-run.py
+# never conflates the two, and rc stays None -> '-' the whole way through the
+# stall branch).
+grep -q 'class=stall.*rc=-$' "$ATTEMPTS" \
+  && pass "stall logs rc=- (no fabricated status)" || fail "stall rc field: $(grep 'class=stall' "$ATTEMPTS" | tail -1)"
 
 # 9. REGRESSION PIN — a healthy run that prints the old "block-point" line at
 # startup and then goes quiet must RUN TO COMPLETION. Real codex prints that
@@ -170,8 +228,10 @@ t0=$(now); run --ceiling 60 -- "$WORK/blocker.sh"; t1=$(now)
 
 # 10. REGRESSION PIN — fresh inode per attempt. codex-mark derives dur= from
 # the log's filesystem BIRTH time, and truncation does NOT reset it. Replace
-# `rm -f` with `: > "$log"` and this asserts >= 3; pre-create the log and birth
-# predates the run. Either way a stale leftover is how dur=85344s gets recorded.
+# the unlink with a truncating open and this asserts >= 3; pre-create the log
+# and birth predates the run. Either way a stale leftover is how dur=85344s
+# gets recorded. (codex-run.py uses O_EXCL, a kernel guarantee rather than a
+# two-step check — see spawn()'s docstring.)
 printf 'leftover from a never-marked attempt\n' > "$LOG"
 sleep 3
 run -- "$WORK/fast.sh"
@@ -235,9 +295,8 @@ rmdir "$NONREPO"
 
 # 21. Ceiling values that would silently DISABLE the watchdog. "00" is all
 # digits and is not the string "0", so a naive guard lets it through and it
-# means kill-immediately. An oversized value overflows shell arithmetic, the
-# comparison in the poll loop then fails as a non-integer inside the muffled
-# brace group, and the loop spins forever with no bound at all.
+# means kill-immediately. An oversized value must be rejected by range, not
+# silently wrap.
 for BAD in 00 0 999999999999999999999999 -5 1.5; do
   run --ceiling "$BAD" -- "$WORK/fast.sh"
   [[ "$RC" -eq 1 ]] || fail "--ceiling $BAD accepted (rc=$RC)"
@@ -245,10 +304,12 @@ done
 run --ceiling 86400 -- "$WORK/fast.sh"
 [[ "$RC" -eq 0 ]] && pass "invalid ceilings rejected, in-range accepted" || fail "ceiling 86400 rejected: rc=$RC"
 
-# 22. REGRESSION PIN — the signal trap must run the SAME kill ladder. TERM to
-# the wrapper used to fire one un-escalated TERM at the child and exit
-# immediately, orphaning any runtime that ignores TERM — the precise outcome
-# this wrapper exists to prevent.
+# 22. REGRESSION PIN — the signal handler must run the SAME kill ladder as the
+# ceiling path. An earlier bash build fired one un-escalated TERM at the child
+# and exited immediately, orphaning any runtime that ignores TERM — the
+# precise outcome this wrapper exists to prevent. In codex-run.py there is
+# literally one kill_ladder() function and one call site per path (ceiling,
+# signal), which is what this pin has always been asserting.
 rm -f "$LOG"
 rm -f "$WORK/spid"
 bash "$RUN" --ceiling 120 -- "$WORK/stubborn.sh" "$WORK/spid" >"$WORK/out.txt" 2>"$WORK/err.txt" &
@@ -268,7 +329,7 @@ if [[ -z "$CPID" ]]; then
 elif kill -0 "$CPID" 2>/dev/null; then
   fail "trap orphaned the child (pid=$CPID still alive)"; kill -KILL "$CPID" 2>/dev/null
 else
-  pass "trap escalates to KILL, no orphan (wrapper rc=$TRC)"
+  pass "signal handler escalates to KILL, no orphan (wrapper rc=$TRC)"
 fi
 
 # 23. REGRESSION PIN — concurrent attempts on the shared default log used to
@@ -303,13 +364,18 @@ run -- "$WORK/fast.sh"; ODD=$(ceiling_seen)
 
 # --- Codex-review round 2 findings, pinned ---
 
-# 26. REGRESSION PIN — the wrapper must not depend on `ps` at all. Earlier
-# builds consulted it for pid-recycle and post-kill state, and every reading
-# had a third answer ("query failed") that became either an unbounded wait or a
-# misdirected signal. Shadow ps with a stub that always fails; the ceiling must
-# still fire. This pin is what keeps that machinery from creeping back.
+# 26. Widened shadow — ps, pgrep, kill, and killall on PATH all fail. The
+# watchdog must still hit the ceiling: codex-run.py asks the OS nothing about
+# the child except through waitpid; it signals via os.killpg (a direct
+# syscall from inside the process), never by shelling out to an external
+# binary. Shadowing these must therefore have ZERO effect — this is a live
+# behavioural guard against a future contributor reintroducing any shell-out
+# for process inspection (the T33 static pin below is the structural half of
+# the same guarantee).
 mkdir -p "$WORK/fakebin"
-printf '#!/bin/bash\nexit 1\n' > "$WORK/fakebin/ps"; chmod +x "$WORK/fakebin/ps"
+for BIN in ps pgrep kill killall; do
+  printf '#!/bin/bash\nexit 1\n' > "$WORK/fakebin/$BIN"; chmod +x "$WORK/fakebin/$BIN"
+done
 rm -f "$LOG"; rmdir "$LOG.lock" 2>/dev/null
 t0=$(now)
 PATH="$WORK/fakebin:$PATH" bash "$RUN" --ceiling 2 -- "$WORK/forever.sh" "$WORK/gchild3" \
@@ -317,17 +383,19 @@ PATH="$WORK/fakebin:$PATH" bash "$RUN" --ceiling 2 -- "$WORK/forever.sh" "$WORK/
 PPID_W=$!
 until ! kill -0 "$PPID_W" 2>/dev/null || [[ $(( $(now) - t0 )) -gt 25 ]]; do sleep 1; done
 if kill -0 "$PPID_W" 2>/dev/null; then
-  fail "ps failure caused an unbounded wait (wrapper still alive after $(( $(now) - t0 ))s)"
+  fail "shadowed process tools caused an unbounded wait (wrapper still alive after $(( $(now) - t0 ))s)"
   kill -KILL "$PPID_W" 2>/dev/null
 else
   wait "$PPID_W" 2>/dev/null; PRC=$?
-  [[ "$PRC" -eq 4 ]] && pass "ps failure still hits the ceiling (exit 4)" || fail "ps failure: rc=$PRC"
+  [[ "$PRC" -eq 4 ]] && pass "no dependence on ps/pgrep/kill/killall (exit 4)" || fail "shadowed tools: rc=$PRC"
 fi
 rm -rf "$WORK/fakebin"
 
 # 27. REGRESSION PIN — the lock is released exactly ONCE on the signal path.
 # unlock() used to run in both the signal trap and the EXIT trap; another
 # attempt acquiring in between would have its lock deleted by the second call.
+# codex-run.py has ONE release() call site (the try/finally in main()); the
+# signal handler raises and lets that finally do the releasing.
 rm -f "$LOG"; rmdir "$LOG.lock" 2>/dev/null
 bash "$RUN" --ceiling 60 -- "$WORK/forever.sh" "$WORK/gchild4" >/dev/null 2>&1 &
 SPID=$!
@@ -339,47 +407,81 @@ run -- "$WORK/fast.sh"
 [[ "$NOLOCK" -eq 1 && "$RC" -eq 0 ]] \
   && pass "signal path releases the lock once; next attempt acquires" || fail "lock after signal: present=$((1-NOLOCK)) next-rc=$RC"
 
-# --- Codex-review round 3 findings, pinned ---
+# --- The wall-clock bound, end to end ---
 
-# 28. REGRESSION PIN — same guarantee under a ps that fails only on its FIRST
-# call. That interleaving is what broke the round-3 build: the opening baseline
-# read came back empty, so every later comparison read "different", and a live
-# child was classified a stranger, never signalled, then waited on forever.
-mkdir -p "$WORK/fakebin"
-cat > "$WORK/fakebin/ps" <<EOF
-#!/bin/bash
-if [[ ! -f "$WORK/ps-called" ]]; then touch "$WORK/ps-called"; exit 1; fi
-exec /bin/ps "\$@"
-EOF
-chmod +x "$WORK/fakebin/ps"
-rm -f "$WORK/ps-called" "$LOG"; rmdir "$LOG.lock" 2>/dev/null
-t0=$(now)
-PATH="$WORK/fakebin:$PATH" bash "$RUN" --ceiling 2 -- "$WORK/forever.sh" "$WORK/gchild5" \
-  >"$WORK/out.txt" 2>"$WORK/err.txt" &
-QPID=$!
-until ! kill -0 "$QPID" 2>/dev/null || [[ $(( $(now) - t0 )) -gt 25 ]]; do sleep 1; done
-if kill -0 "$QPID" 2>/dev/null; then
-  fail "empty cstart stranded a live child (wrapper alive $(( $(now) - t0 ))s past a 2s ceiling)"
-  kill -KILL "$QPID" 2>/dev/null
-else
-  wait "$QPID" 2>/dev/null; QRC=$?
-  [[ "$QRC" -eq 4 ]] && pass "opening-ps failure still hits the ceiling (exit 4)" || fail "empty cstart: rc=$QRC"
-fi
-rm -rf "$WORK/fakebin" "$WORK/ps-called"
-
-# 29. The wall-clock contract, end to end: a TERM-ignoring child must not push
-# the wrapper past ceiling + grace + slack. This bounds the kill ladder itself,
-# which — since the wrapper no longer waits on a killed child — is now the only
-# thing standing between the ceiling and the exit.
+# 29. A TERM-ignoring child must not push the wrapper past ceiling + grace +
+# reap. Expressed via the SAME constants codex-run.py uses (GRACE_SECONDS=5,
+# REAP_SECONDS=10) rather than a bare magic number, so the assertion tracks
+# the documented bound instead of a literal that happens to hold today.
+GRACE_SECONDS=5; REAP_SECONDS=10; CEILING=3
+BOUND=$((CEILING + GRACE_SECONDS + REAP_SECONDS + 2))   # +2s scheduling slack
 rm -f "$LOG" "$WORK/spid2"; rmdir "$LOG.lock" 2>/dev/null
-t0=$(now); run --ceiling 3 -- "$WORK/stubborn.sh" "$WORK/spid2"; t1=$(now)
-[[ "$RC" -eq 4 && $((t1 - t0)) -lt 20 ]] \
-  && pass "TERM-ignoring child bounded at ceiling+grace ($((t1 - t0))s)" || fail "ladder unbounded: rc=$RC elapsed=$((t1 - t0))"
+t0=$(now); run --ceiling "$CEILING" -- "$WORK/stubborn.sh" "$WORK/spid2"; t1=$(now)
+[[ "$RC" -eq 4 && $((t1 - t0)) -lt "$BOUND" ]] \
+  && pass "TERM-ignoring child bounded at ceiling+grace+reap ($((t1 - t0))s < ${BOUND}s)" \
+  || fail "ladder unbounded: rc=$RC elapsed=$((t1 - t0))s bound=${BOUND}s"
 
 # 20. No stub survived the suite.
 sleep 1
 LEFT=$(pgrep -f "$WORK/(forever|blocker|reader|stubborn)\.sh" 2>/dev/null | wc -l | tr -d ' ')
 [[ "$LEFT" -eq 0 ]] && pass "no orphaned stub processes" || fail "$LEFT orphaned stub(s)"
+
+# --- Static analysis: the machinery that caused rounds 1-5's defects must not
+# be able to exist in the file at all, mechanically, not just behaviourally.
+# AST-based, not grep: the module docstring legitimately narrates the rejected
+# primitives (ps, kill -0, getpgid) BY NAME as design rationale, so a bare
+# text search would false-positive on the file's own comments. Only actual
+# Call nodes matter here. Follows the established idiom in
+# scripts/validate-rulebook.test.sh (its stdlib-only import grep) but at
+# AST precision, because prose about oracles is exactly what this file is
+# supposed to contain plenty of. ---
+
+STATIC=$(python3 - "$PY" <<'PYEOF'
+import ast, sys
+tree = ast.parse(open(sys.argv[1]).read())
+bad = []
+killpg_calls = 0
+FORBIDDEN_ATTRS = {"getpgid", "waitpid"}
+FORBIDDEN_BINARIES = {"ps", "pgrep", "kill", "killall"}
+for node in ast.walk(tree):
+    if not isinstance(node, ast.Call):
+        continue
+    func = node.func
+    if isinstance(func, ast.Attribute):
+        if func.attr == "killpg":
+            killpg_calls += 1
+        elif func.attr in FORBIDDEN_ATTRS:
+            bad.append("os.%s() at line %d" % (func.attr, node.lineno))
+        elif func.attr == "kill" and isinstance(func.value, ast.Name) and func.value.id == "os":
+            bad.append("os.kill() at line %d" % node.lineno)
+    for arg in node.args:
+        values = []
+        if isinstance(arg, (ast.List, ast.Tuple)):
+            values = [e.value for e in arg.elts
+                     if isinstance(e, ast.Constant) and isinstance(e.value, str)]
+        elif isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+            values = [arg.value]
+        if values and values[0] in FORBIDDEN_BINARIES:
+            bad.append("subprocess call to '%s' at line %d" % (values[0], node.lineno))
+print("BAD:" + ("; ".join(bad) if bad else "NONE"))
+print("KILLPG:%d" % killpg_calls)
+PYEOF
+)
+BAD_LINE=$(printf '%s\n' "$STATIC" | sed -n 's/^BAD://p')
+KILLPG_LINE=$(printf '%s\n' "$STATIC" | sed -n 's/^KILLPG://p')
+[[ "$BAD_LINE" == "NONE" ]] \
+  && pass "no process-inspection oracle call sites (AST-checked)" \
+  || fail "found oracle call site(s): $BAD_LINE"
+[[ "$KILLPG_LINE" == "1" ]] \
+  && pass "exactly one os.killpg() call site (signal_group)" \
+  || fail "os.killpg() call site count=$KILLPG_LINE (want 1)"
+
+# T32 — stdlib-only import allowlist, the exact idiom validate-rulebook.test.sh
+# uses for its own validator.
+IMPORT_LEAKS=$(grep -E '^(import|from) ' "$PY" | grep -vE '^(import|from) (datetime|os|re|shutil|signal|subprocess|sys|time)\b')
+[[ -z "$IMPORT_LEAKS" ]] \
+  && pass "codex-run.py imports are stdlib-only" \
+  || fail "non-stdlib import(s): $IMPORT_LEAKS"
 
 echo
 if [[ "$FAILS" -eq 0 ]]; then echo "ALL PASS"; else echo "$FAILS FAILURE(S)"; exit 1; fi

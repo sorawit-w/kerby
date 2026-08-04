@@ -208,7 +208,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.14.0` — codex-review 0.3.0 ships the watchdog: every headless Codex run goes through `scripts/codex-run.sh`, which closes stdin, kills the whole process group at a median-derived ceiling, and classifies the ending (hang / stall / runtime error) instead of waiting forever — the old instruction couldn't be followed, and a 23.7-hour attempt in this repo's own audit log is the receipt. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.14.0` — codex-review 0.4.0 ships the watchdog: every headless Codex run goes through `scripts/codex-run.sh` (a shim) into `scripts/codex-run.py`, which closes stdin, kills the whole process group at a median-derived ceiling, and reports how it ended (killed / runtime error / survived SIGKILL — do not retry) instead of waiting forever. Rewritten from bash to python after five review rounds found seven variants of the same bug — `ps`/`kill -0` each have a third answer besides yes/no, and `waitpid` doesn't. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests

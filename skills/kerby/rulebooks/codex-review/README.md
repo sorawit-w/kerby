@@ -7,14 +7,18 @@ stance: **Codex advises, Claude decides.**
 |---|---|---|
 | PR gate — review before `gh pr create`; P0/P1 block; 3-round cap; PASS/DENIED/HELD | `references/pr-workflow.md` | `hooks/codex-pr-gate.sh` (PreToolUse/Bash) + `scripts/codex-mark.sh` (sole marker writer) |
 | Plan review — adversarial pass on complex plans, dissent disclosed | `references/plan-review.md` | none (behavioral, `warn`) |
-| Rescue delegation — independent diagnosis before human escalation | `references/delegation.md` | `scripts/codex-run.sh` (bounds one headless attempt) |
+| Rescue delegation — independent diagnosis before human escalation | `references/delegation.md` | `scripts/codex-run.sh` (thin shim) → `scripts/codex-run.py` (bounds one headless attempt) |
 
 Every headless Codex invocation — review, scoped re-review, rescue — runs through
-`scripts/codex-run.sh`. It closes stdin, gives the runtime its own process group,
-kills it at a ceiling derived from the observed-good `dur=` median, and reports
-how it ended (0 clean · 4 killed at the ceiling · 5 runtime error). It bounds
-*one attempt* and never retries: the delegation budget and the verdict grammar
-stay with the prose and `codex-mark.sh` respectively.
+`scripts/codex-run.sh`, a shim that execs `scripts/codex-run.py`. It closes
+stdin, gives the runtime its own process group, kills it at a ceiling derived
+from the observed-good `dur=` median, and reports how it ended (0 clean · 4
+killed at the ceiling · 5 runtime error · 6 outlived SIGKILL, do not retry). It
+bounds *one attempt* and never retries: the delegation budget and the verdict
+grammar stay with the prose and `codex-mark.sh` respectively. Written in python
+rather than bash — five review rounds of a bash predecessor found seven
+defects, all one shape (see Known ceilings below); `codex-run.py`'s module
+docstring carries the full rationale.
 
 The root body (`references/stance.md`) is a thin eager index: stance, on-disk
 preflight, when-to-read pointers. The heavy references load on demand.
@@ -89,8 +93,7 @@ within the delegation budget (`references/delegation.md` § Bounded delegation).
   wedged runtime from a thinking one, and does not pretend to: both go quiet.
   The block-point line Codex was once matched on is printed at *startup* on
   every redirected-stdin run and appears verbatim in `references/delegation.md`,
-  so it fires on healthy transcripts; macOS `ps %cpu` is a lifetime average and
-  cannot report instantaneous idleness. A build that killed on line-plus-silence
+  so it fires on healthy transcripts. A build that killed on line-plus-silence
   truncated a healthy 107 KB review at 38s — that is worse than the unbounded
   wait it replaced. Cost of the honest version: a genuine wedge burns the full
   ceiling instead of ~6s. Exit code 3 is left unused rather than recycled.
@@ -104,19 +107,50 @@ within the delegation budget (`references/delegation.md` § Bounded delegation).
   wedge. (`codex-run-attempts.log` records the real elapsed time of every run,
   so the evidence for a better number is there; wiring it into the baseline is
   deliberately not done yet.)
-- **codex-run never inspects the child.** No pid-recycle witness, no post-kill
-  state probe. Four review rounds produced four defects in that machinery, all
-  the same shape: `ps` has a third answer besides yes and no — *the query
-  failed* — and folding it into either of the other two produced an unbounded
-  wait or a signal aimed at a process the wrapper never started. Accepted
-  consequence: at the ceiling it kills the recorded pid's group without
-  re-confirming ownership, so a full pid-space wraparound mid-run could send
-  that signal to an unrelated group. Every version carried that risk; the
-  versions that tried to detect it carried it *plus* the defects.
-- **A killed run reports no exit status.** After the ceiling fires the wrapper
-  kills the group and leaves without `wait`ing. That is what makes the bound
-  unconditional — no process state can delay the wrapper — and the status is
-  not information anyone needed: exit 4 already says how it ended.
+- **codex-run.py (the watchdog behind the `codex-run.sh` shim) never asks the
+  OS about the child — only `waitpid`, via `proc.wait()`, ever gets to
+  conclude anything.** No `ps`, no `kill -0`, no `os.getpgid()`. Five bash
+  review rounds produced seven defects, all one shape: `ps`/`kill -0` each have
+  a third answer besides yes and no — *the query failed* — and folding it into
+  either of the other two produced an unbounded wait or a signal aimed at a
+  process the wrapper never started.
+  **Pid recycling is not merely guarded against — it does not apply.** A pid is
+  not reusable while the process is an unreaped zombie; a process-group id is
+  not reusable while any member of it exists; `start_new_session=True` places
+  the group in a session containing only the wrapper's own descendants, and
+  `setpgid` can only join a group in the caller's *own* session, so a stranger
+  cannot join it either. Every `os.killpg()` call runs strictly before the one
+  `proc.wait()` that reaps — so it provably targets the wrapper's own
+  descendants, on every path. The bash predecessor carried an accepted
+  "pid-recycle" risk; this design doesn't carry a weaker version of it, it
+  removes the premise.
+  **What genuinely remains, and is not solved by any language:** a process in
+  an uninterruptible kernel wait does not die on `SIGKILL` — codex-run detects
+  that authoritatively (see exit 6 below) rather than misreporting it, but
+  detecting it is not preventing it. A group member that calls `setsid()`
+  itself leaves the wrapper's session and escapes the `killpg` entirely — this,
+  not pid recycling, is the real remaining orphan hazard. And a `SIGKILL` to
+  the wrapper itself still strands the lock directory (the bash EXIT trap had
+  the identical hole).
+- **A killed run's exit status is not information.** On the stall path (exit
+  4) the wrapper kills the group and returns without waiting on a status —
+  what ended it is already known. On the survivor path (exit 6, below) there
+  is no status to collect at all: the process is still running.
+- **SURVIVOR (exit 6): the group did not die within grace+reap after
+  SIGKILL.** Proven, not guessed — `waitpid` on the wrapper's own child times
+  out, and that is authoritative in a way `ps` never was. Not reported as a
+  stall: exit 4's contract is "at most one blind retry," and retrying beside a
+  process that could not be killed is the exact hazard this whole rewrite
+  exists to close — two Codex runs on one repo, interleaved git operations, a
+  transcript being appended to by something no later attempt can see. The lock
+  directory is deliberately **left in place** as a tombstone so the next
+  attempt refuses rather than unlinking evidence the survivor is still
+  writing to; the existing collision message already ends *"If nothing is
+  running, remove that directory."* — on this path that sentence is doing real
+  work. Exit is via `os._exit(6)`, not a normal return: an unreaped
+  `subprocess.Popen` can emit an **unprefixed** `ResourceWarning` from
+  `__del__` at interpreter shutdown, which would break the stderr-prefix
+  contract on the one path where it matters most.
 - **codex-run bounds one attempt, not the budget.** It never retries. The
   2-attempt delegation budget stays with the prose in
   `references/delegation.md`, because budget consumption is defined by verdict
@@ -144,8 +178,21 @@ original: whitespace-tolerant detection, per-invocation strip-then-residual
 bypass, explicit no-jq degrade. codex-mark hardened: all four `CODEX_VERDICT`
 counts required (fail-closed on a partial line).
 
-`scripts/codex-run.sh` added 2026-08-03 (0.3.0) — no upstream original. Written
-against a reproduced failure: a 23.7-hour attempt (`dur=85344s`) recorded in this
-repo's own audit log beside 2-minute reviews, caused by an invocation shape that
-could not be bounded (`… | tee log &` makes `$!` the *tee* pid) on a platform with
-no `timeout(1)`.
+`scripts/codex-run.sh` added 2026-08-03 (0.3.0) as a pure-bash watchdog — no
+upstream original. Written against a reproduced failure: a 23.7-hour attempt
+(`dur=85344s`) recorded in this repo's own audit log beside 2-minute reviews,
+caused by an invocation shape that could not be bounded (`… | tee log &` makes
+`$!` the *tee* pid) on a platform with no `timeout(1)`.
+
+Rewritten 2026-08-04 (0.4.0): `codex-run.sh` became a thin shim; the watchdog
+logic moved to `scripts/codex-run.py`. Five bash review rounds (P1 count 5 → 3 →
+2 → 3, i.e. it got *worse* mid-series) converged on one root cause — the
+shell's process-inspection primitives (`ps`, `kill -0`, `kill`, `wait`) each
+have a third answer besides yes/no ("the query failed"), and every guard that
+folded it into one of the other two produced an unbounded wait or a
+misdirected signal. `subprocess.Popen.wait(timeout=…)` has no third answer.
+Parity-checked against the retired bash implementation before deletion: of 39
+assertions, 37 passed identically against both; the 2 that only the bash
+version failed were exactly the round-4/5 findings the rewrite fixes (a
+fabricated `rc=0` on stall, and bash's own unprefixed job-control notice
+leaking onto stderr).

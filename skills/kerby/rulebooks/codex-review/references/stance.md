@@ -23,6 +23,14 @@ what activates a fallback path — that, or a delegation budget exhausted with n
 verdict (`references/delegation.md` § Bounded delegation). `kerby pr-check` runs
 this preflight for you.
 
+Also probe `command -v python3` — every headless invocation runs through
+`scripts/codex-run.sh`, a shim that execs `scripts/codex-run.py`. This is not a
+new hard dependency for a machine that has loaded this rulebook: kerby's own
+`load`/`install` flow already requires python3 for
+`skills/kerby/resources/scripts/validate-rulebook.py`. A missing `python3`
+surfaces as a clear message from the shim itself rather than a raw interpreter
+error.
+
 ## When to read what
 
 - **Opening a PR** (or asked about the PR/merge flow) → read
