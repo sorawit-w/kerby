@@ -612,64 +612,84 @@ IMPORT_LEAKS=$(grep -E '^(import|from) ' "$PY" | grep -vE '^(import|from) (datet
   && pass "codex-run.py imports are stdlib-only" \
   || fail "non-stdlib import(s): $IMPORT_LEAKS"
 
-# T41 — static, REGRESSION PIN. Lock.acquire() used to set `held = True`
-# BEFORE calling mkdir() ("optimistic"); a review found a signal in that gap
-# leaves held=True with nothing on disk, so a DIFFERENT process's later lock
-# at the same path gets deleted by our cleanup. The fix wraps the syscall in
-# block_signals(), making acquisition atomic, and unblocks in a `finally` so
-# the mask never leaks into whatever runs next. Not practically timeable at
-# the integration level (a single mkdir() syscall is far too fast to reliably
-# race externally) — checked structurally instead.
+# T41/T42 — static, REGRESSION PINS, AST-based rather than grep. A review
+# found BOTH grep-based versions of these checks weak enough to false-pass a
+# real mutant: T41's ordering check couldn't distinguish `block_signals()`
+# from `unblock_signals()` swapped into the wrong place (grep -v filtering
+# fixed the substring collision in an earlier round, but the reviewer then
+# showed dedenting unblock_signals() OUT of the finally still passed — the
+# check verified order, never actual containment). T42's textual isolation
+# via `lock.release()` as an anchor couldn't tell an `except Interrupted:`
+# from an `except Exception:`, nor a real `if proc.returncode is None:` check
+# from the same text surviving only in a comment. Real structure needs a real
+# parser: same idiom as the oracle-call-site check above, one level deeper.
 #
-# Two bugs were found IN THIS PIN, not the code, while building/mutation-
-# testing it — both are why the checks below look the way they do:
-#   1. A comment mentioning block_signals() (like this one) satisfies a naive
-#      textual search regardless of what the real code does below it —
-#      caught by mutation-testing a deliberately reordered copy. Fixed by
-#      stripping comment lines first.
-#   2. "unblock_signals()" contains "block_signals()" as a literal substring
-#      (unblock_signals == "un" + "block_signals()"), so a plain grep for
-#      'block_signals()' matches BOTH calls — a mutant that swaps in
-#      unblock_signals() before mkdir() still "found a match before mkdir"
-#      and passed. Fixed by excluding unblock_signals() lines before
-#      searching for block_signals().
-ACQUIRE_BODY=$(sed -n '/def acquire(self):/,/def disown/p' "$PY" | grep -v '^[[:space:]]*#')
-BLOCK_LINE=$(printf '%s\n' "$ACQUIRE_BODY" | grep -v 'unblock_signals()' | grep -n 'block_signals()' | head -1 | cut -d: -f1)
-MKDIR_LINE=$(printf '%s\n' "$ACQUIRE_BODY" | grep -n 'os\.mkdir(self\.path)' | head -1 | cut -d: -f1)
-FINALLY_LINE=$(printf '%s\n' "$ACQUIRE_BODY" | grep -n '^\s*finally:' | head -1 | cut -d: -f1)
-UNBLOCK_LINE=$(printf '%s\n' "$ACQUIRE_BODY" | grep -n 'unblock_signals()' | head -1 | cut -d: -f1)
-if [[ -z "$BLOCK_LINE" || -z "$MKDIR_LINE" || "$BLOCK_LINE" -ge "$MKDIR_LINE" ]]; then
-  fail "Lock.acquire() does not block signals before mkdir() (block@$BLOCK_LINE mkdir@$MKDIR_LINE)"
-elif [[ -z "$FINALLY_LINE" || -z "$UNBLOCK_LINE" || "$UNBLOCK_LINE" -lt "$FINALLY_LINE" ]]; then
-  fail "Lock.acquire() does not unblock in a finally (finally@$FINALLY_LINE unblock@$UNBLOCK_LINE)"
-else
-  pass "Lock.acquire() blocks before mkdir() and unblocks in a finally"
-fi
+# T41 asserts, in Lock.acquire(): block_signals() is called as a statement
+# BEFORE the try/mkdir(); mkdir() is inside that try's body; unblock_signals()
+# is inside that try's OWN finally block (not merely after some finally,
+# anywhere).
+# T42 asserts, in main()'s OUTERMOST try (identified structurally as the one
+# whose finally calls .release() — not the inner wait-try, not __main__'s
+# backstop): it has an `except Interrupted:` handler, and that handler's body
+# contains both an `if` whose test mentions `returncode` and a call to
+# kill_ladder(proc) — not merely nearby text.
+AST_STATIC=$(python3 - "$PY" <<'PYEOF'
+import ast, sys
 
-# T42 — static, REGRESSION PIN. A signal landing between "we decided to call
-# kill_ladder()" (entering `except subprocess.TimeoutExpired:`, or right
-# after spawn() returns) and that branch's own block_signals() line actually
-# running escapes the branch entirely and used to reach main()'s outermost
-# except Interrupted: — which assumed unconditionally that no child existed
-# yet and returned a bare 130, orphaning a live one. The fix makes that outer
-# handler check the same proc.returncode is None signal and run
-# kill_ladder() itself when reached this way. Not dynamically timeable (the
-# entry gap is a handful of bytecode instructions) — checked structurally.
-#
-# `lock.release()` appears in exactly ONE place in this file: main()'s
-# finally block, right after its outer except Interrupted:. That makes it a
-# reliable, portable anchor for isolating THAT specific handler (not the
-# inner one inside the wait-try, not __main__'s backstop, neither of which
-# is anywhere near lock.release()) without needing `tac` (absent on macOS —
-# caught while writing this pin) or fragile line-number bookkeeping.
-OUTER_HANDLER=$(awk '/lock\.release\(\)/{exit} {print}' "$PY" | tail -20)
-if printf '%s\n' "$OUTER_HANDLER" | grep -q 'proc is not None' \
-  && printf '%s\n' "$OUTER_HANDLER" | grep -q 'proc\.returncode is None' \
-  && printf '%s\n' "$OUTER_HANDLER" | grep -q 'kill_ladder(proc)'; then
-  pass "main()'s outer except Interrupted: checks and kills a live child"
-else
-  fail "main()'s outer except Interrupted: no longer checks/kills a live child"
-fi
+tree = ast.parse(open(sys.argv[1]).read())
+
+def find(node, types):
+    return [n for n in ast.walk(node) if isinstance(n, types)]
+
+def calls(node, name):
+    """True if `node` contains a Call to bare name `name` (block_signals())
+    OR a method call whose attribute is `name` (lock.release())."""
+    for c in ast.walk(node):
+        if not isinstance(c, ast.Call):
+            continue
+        f = c.func
+        if isinstance(f, ast.Name) and f.id == name:
+            return True
+        if isinstance(f, ast.Attribute) and f.attr == name:
+            return True
+    return False
+
+# --- T41: Lock.acquire() ---
+lock_cls = next(n for n in find(tree, ast.ClassDef) if n.name == "Lock")
+acquire_fn = next(n for n in lock_cls.body
+                  if isinstance(n, ast.FunctionDef) and n.name == "acquire")
+try_idx = next(i for i, s in enumerate(acquire_fn.body) if isinstance(s, ast.Try))
+acquire_try = acquire_fn.body[try_idx]
+t41 = (
+    any(calls(s, "block_signals") for s in acquire_fn.body[:try_idx])
+    and any(calls(s, "mkdir") for s in acquire_try.body)
+    and bool(acquire_try.finalbody)
+    and any(calls(s, "unblock_signals") for s in acquire_try.finalbody)
+)
+
+# --- T42: main()'s outermost try / except Interrupted: / kill_ladder(proc) ---
+main_fn = next(n for n in find(tree, ast.FunctionDef) if n.name == "main")
+outer_try = next(s for s in main_fn.body if isinstance(s, ast.Try))
+release_in_finally = (bool(outer_try.finalbody)
+                      and any(calls(s, "release") for s in outer_try.finalbody))
+handler = next((h for h in outer_try.handlers
+               if isinstance(h.type, ast.Name) and h.type.id == "Interrupted"), None)
+t42 = bool(
+    release_in_finally and handler
+    and any(calls(s, "kill_ladder") for s in handler.body)
+    and any(isinstance(s, ast.If) and "returncode" in ast.dump(s.test)
+           for s in handler.body)
+)
+print("T41:%s" % t41)
+print("T42:%s" % t42)
+PYEOF
+)
+printf '%s\n' "$AST_STATIC" | grep -q '^T41:True$' \
+  && pass "Lock.acquire() blocks before mkdir(), unblocks in its own finally (AST-checked)" \
+  || fail "Lock.acquire() signal-blocking structure is wrong (AST-checked): $AST_STATIC"
+printf '%s\n' "$AST_STATIC" | grep -q '^T42:True$' \
+  && pass "main()'s outer except Interrupted: checks returncode and kills a live child (AST-checked)" \
+  || fail "main()'s outer except Interrupted: no longer checks/kills a live child (AST-checked): $AST_STATIC"
 
 echo
 if [[ "$FAILS" -eq 0 ]]; then echo "ALL PASS"; else echo "$FAILS FAILURE(S)"; exit 1; fi

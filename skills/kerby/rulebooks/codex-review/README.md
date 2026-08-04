@@ -177,16 +177,22 @@ within the delegation budget (`references/delegation.md` § Bounded delegation).
   claimed as closed: fully closing it means bypassing `Popen.wait()`'s
   internals for a hand-rolled `os.waitpid()` call under this file's own
   atomicity control — materially larger than a guard, and not undertaken
-  here. A related but more tractable gap WAS closed this round: a signal
-  landing between "we decided to call `kill_ladder()`" and that branch's own
-  `block_signals()` line actually running escapes the branch entirely (Python
-  doesn't let a sibling `except` catch an exception raised inside another
-  except clause of the same `try`) — reaching, previously, an outer catch-all
-  that assumed no child existed and orphaned it. The outer `except
-  Interrupted:` now checks the same `proc.returncode is None` signal and runs
-  `kill_ladder()` itself when reached this way, so these entry gaps end in a
-  kill rather than an orphan; only the gap INSIDE `Popen._wait()`'s own
-  internals remains truly unclosable. The mask-inheritance fix has its own
+  here. A related but more tractable gap was NARROWED this round, not fully
+  closed: a signal landing between "we decided to call `kill_ladder()`" and
+  that branch's own `block_signals()` line actually running escapes the
+  branch entirely (Python doesn't let a sibling `except` catch an exception
+  raised inside another except clause of the same `try`) — reaching,
+  previously, an outer catch-all that assumed no child existed and orphaned
+  it, or (a separate bug a review caught) discarded a proven survivor's
+  status and released its lock. The outer `except Interrupted:` now checks
+  `proc.returncode is None` and runs `kill_ladder()` itself when reached this
+  way — checking its result too, so a genuine survivor still gets its
+  tombstone. This shrinks the exposed window from seconds down to individual
+  bytecode instructions, but `spawn()`'s own body has statements of the same
+  shape (`proc = Popen(...)`, then cleanup, then return) where the identical
+  gap can still orphan a child before main()'s witness is ever set — folded
+  into the same accepted-residual family as the gap INSIDE `Popen._wait()`'s
+  own internals, not claimed as closed. The mask-inheritance fix has its own
   dedicated dynamic pin
   (`codex-run.test.sh` T40) precisely because that class of bug — unlike the
   returncode race — *is* fully closable and was verified to be. Same

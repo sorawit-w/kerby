@@ -84,19 +84,34 @@ microsecond SIGALRM).
 
 A related but MORE TRACTABLE class of gap is the entry into a protected
 region rather than a stdlib internal: a signal landing between "we decided to
-call kill_ladder()" (say, just entering `except subprocess.TimeoutExpired:`)
-and that branch's own `block_signals()` line actually running escapes the
-branch entirely — Python does not let a sibling `except` catch an exception
-raised inside another except clause of the same try. Unlike the returncode
-race, this one IS closable without touching Popen's internals: main()'s
-outermost `except Interrupted:` now checks `proc.returncode is None` (proc is
-a module-level-scoped witness, `None` until spawn() succeeds) and runs
-kill_ladder() itself when an escaped signal reaches it that way, so these
-entry gaps end in a kill rather than an orphan. Only the gap INSIDE
-`Popen._wait()` — between its OWN `os.waitpid()` and its OWN assignment of
-`self.returncode` — remains genuinely irreducible, because pthread_sigmask
-closes gaps between STATEMENTS we write; it cannot reach inside a stdlib
-call whose internals we do not control.
+call kill_ladder()" (say, just entering `except subprocess.TimeoutExpired:`,
+or the few statements right after `spawn()` returns in main()) and that
+branch's own `block_signals()` line actually running escapes the branch
+entirely — Python does not let a sibling `except` catch an exception raised
+inside another except clause of the same try. Unlike the returncode race,
+THIS shape is closable without touching Popen's internals: main()'s
+outermost `except Interrupted:` checks `proc.returncode is None` (`proc` is
+a local variable of main(), `None` until `spawn()` succeeds — NOT
+module-scoped, an earlier version of this paragraph said so incorrectly) and
+runs `kill_ladder()` itself — checking ITS return value too, mirroring the
+inner handlers, so a genuine survivor reached this way still gets its
+tombstone and exit 6 rather than a bare 130 that would release the lock
+beside it (a review caught this specific omission). This narrows the exposed
+window from "seconds, at the ceiling or during the grace sleep" down to
+individual CPython bytecode instructions, but does NOT make it exactly zero:
+`spawn()`'s own body has statements of the same shape (`proc = Popen(...)`,
+then `os.close(fd)`, then `return proc`) where a signal landing between
+Popen() returning and the NEXT bytecode instruction completing is caught by
+spawn()'s own `except BaseException:` cleanup instead of main()'s witness ever
+being set — a review reproduced this too. Blocking BEFORE calling `spawn()`
+would close it, but that is the exact mask-inheritance mistake documented two
+paragraphs up. This sub-gap is therefore folded into the SAME accepted-
+residual family as the `Popen._wait()` gap below, not claimed as closed:
+pthread_sigmask closes gaps between statements we choose to guard; it cannot
+retroactively guard a statement inside a stdlib call, or the assignment that
+immediately follows one, without either wrapping literally every statement in
+the file (impractical and its own source of bugs) or reintroducing the
+mask-inheritance hazard by blocking before the call that needs protecting.
 
 This is now accepted as a residual, not engineered further around: closing it
 for real means bypassing `subprocess.Popen.wait()`'s pure-Python polling loop
@@ -308,13 +323,18 @@ def git_short_head():
     from inside a still-blocked region), and fork() copies that mask into
     THIS git subprocess too — the same mask-inheritance mechanism spawn()
     works around for the monitored runtime. Not fixed here: `git rev-parse`
-    is a fast, well-behaved command bounded by `GIT_TIMEOUT` regardless of
-    signal delivery, and `subprocess.run(timeout=)`'s own enforcement uses
-    the unmaskable SIGKILL — so a masked git either finishes quickly or gets
-    killed on schedule either way. Fixing it would mean unblocking/reblocking
-    around every such call inside an otherwise-atomic region, which is
-    exactly the kind of extra surface that produced the mask-inheritance bug
-    documented in the module docstring the first time.
+    is a fast, well-behaved command, and once `subprocess.run(timeout=)`
+    starts counting, its own enforcement uses the unmaskable SIGKILL — so a
+    masked git that got as far as actually running either finishes quickly or
+    gets killed on schedule regardless of its mask. NOT airtight: a review
+    correctly pointed out that `timeout=` only starts counting AFTER `Popen`
+    construction returns — the same fork/exec-handshake-can-hang residual
+    this file already documents for the monitored runtime applies here too,
+    unbounded by GIT_TIMEOUT, however unlikely on a fast local `git`. Fixing
+    the mask issue would mean unblocking/reblocking around every such call
+    inside an otherwise-atomic region, which is exactly the kind of extra
+    surface that produced the mask-inheritance bug documented in the module
+    docstring the first time.
     """
     try:
         done = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
@@ -791,7 +811,27 @@ def main(argv):
         # block first so the kill itself is not interrupted mid-ladder.
         if proc is not None and proc.returncode is None:
             block_signals()
-            kill_ladder(proc)
+            if not kill_ladder(proc):
+                # A review found this branch DISCARDED kill_ladder()'s return
+                # value: on a genuine survivor, it still fell through to
+                # `return 130` below and the `finally` released the lock —
+                # misreporting a proven-unkillable process as a plain
+                # interrupt and permitting a retry to start beside it, the
+                # exact hazard the survivor path exists to prevent. Mirrors
+                # the main survivor branch: disown BEFORE anything else that
+                # could fail, then os._exit — never the ordinary return path,
+                # so `finally` (which would release the lock) never runs.
+                lock.disown()
+                emit("SURVIVOR — pid %d outlived SIGKILL while handling an "
+                     "interrupt (ceiling %ss); it is stuck in an "
+                     "uninterruptible wait. Do NOT retry: a second attempt "
+                     "would run beside it. The lock at %s is left in place "
+                     "on purpose so it cannot. Investigate that pid, then "
+                     "remove the lock once it is gone. Transcript at %s."
+                     % (proc.pid, ceiling, lock.path, log))
+                sys.stdout.flush()
+                sys.stderr.flush()
+                os._exit(6)
         return 130
     finally:
         lock.release()
