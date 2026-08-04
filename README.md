@@ -208,7 +208,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.13.0` — swe 2.5.0 inverts the branching default: in-place branch is the default for every task type; a worktree is an announced escalation (concurrent different-branch work, explicit request, or dirty-state preservation) — never silent, always from an explicit protected base, and task type/size are explicitly non-triggers. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.14.0` — codex-review 0.4.0 ships the watchdog: every headless Codex run goes through `scripts/codex-run.sh` (a shim) into `scripts/codex-run.py`, which closes stdin, kills the whole process group at a median-derived ceiling, and reports how it ended (killed / runtime error / survived SIGKILL — do not retry) instead of waiting forever. Rewritten from bash to python after five review rounds found seven variants of the same bug — `ps`/`kill -0` each have a third answer besides yes/no, and `waitpid` doesn't. — see [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests

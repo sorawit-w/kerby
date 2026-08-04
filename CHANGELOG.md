@@ -3,6 +3,95 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.14.0] — 2026-08-04
+
+**The watchdog** (codex-review 0.4.0): a headless Codex run can no longer wait
+forever, because "wait forever" was never a policy — it was an instruction the
+agent could not follow. `scripts/codex-run.sh` (now a shim) execs new
+`scripts/codex-run.py`, which bounds one attempt and says why it ended; every
+headless invocation routes through it.
+
+- **Written in python, after bash tried and failed five times.** A first
+  pure-bash build shipped, then went through five independent review rounds
+  that found seven defects — and the P1 count went *up* mid-series (5 → 3 → 2 →
+  3) as fixes for one instance of the bug class introduced the next. All seven
+  were one shape: `ps`/`kill -0`/`kill`/`wait` each have a third answer besides
+  yes and no — *the query failed* — and every guard that folded it into one of
+  the other two produced an unbounded wait or a signal aimed at a process the
+  wrapper never started. `subprocess.Popen.wait(timeout=…)` on the wrapper's
+  own child has exactly two outcomes, both bounded by construction; there is no
+  third answer left to misfold. Parity-checked before the bash file was
+  deleted: of 39 assertions, 37 passed identically against both implementations;
+  the 2 that only bash failed were exactly the two known defects the rewrite
+  fixes (a fabricated `rc=0` on stall; bash's own unprefixed job-control notice
+  leaking onto stderr).
+- **Pid recycling isn't guarded against — it doesn't apply.** A pid can't be
+  reused while the process is an unreaped zombie; a process-group id can't be
+  reused while any member exists; the group lives in a session containing only
+  the wrapper's own descendants (`start_new_session=True`), and `setpgid` can
+  only join a group in the caller's *own* session. Every kill runs strictly
+  before the one `wait()` that reaps, so it provably targets the wrapper's own
+  descendants on every path — not merely "probably," the way the bash version's
+  `ps`-based witness could only ever claim.
+- **A process that survives `SIGKILL` is now provable, not guessed** — genuine
+  uninterruptible I/O, detected via `waitpid` timing out rather than `ps`
+  returning an ambiguous answer. New exit **6**: do not retry (a second attempt
+  would run beside the survivor), and the transcript lock is deliberately left
+  as a tombstone so nothing can start beside it. What no language fixes: the
+  process itself is still unkillable, and a group member calling `setsid()`
+  escapes the `killpg` — that, not pid recycling, is the real remaining orphan
+  hazard.
+- **The bound was unimplementable, not just unenforced.** `pr-workflow.md` asked
+  for `codex … | tee log &` "with an explicit timeout." In that shape the
+  shell's `$!` is *tee's* pid — a timeout built on it kills `tee` and leaves the
+  runtime running — and macOS ships no `timeout(1)` to build one with anyway.
+  The receipt is in this repo's own audit log: `dur=85344s`, 23.7 hours, sitting
+  between reviews of 119s and 344s. codex-run takes an argv vector precisely so
+  the pipeline shape is unrepresentable.
+- **Fresh inode per attempt, now a kernel guarantee not a two-step check.**
+  codex-mark derives `dur=` from the transcript's filesystem *birth* time, and
+  truncation does not reset birth — so a never-marked leftover log silently
+  bills the next attempt for both. `O_EXCL` makes "never truncated, never
+  pre-created" atomic; pinned by a test that fails the moment birth predates
+  the run.
+- **Classified endings, not just "it stopped":** 4 = killed at the ceiling (one
+  blind retry, then the fallback) · 5 = the runtime itself failed, cause in the
+  transcript · 6 = survivor, do not retry. Numbered from 3 so nothing reads them
+  as codex-mark's PASS/DENIED/HELD; 3 itself stays unused, because —
+- **— the ceiling is the only bound where classification is concerned, and
+  that is the honest answer.** An early build tried to distinguish a
+  "deterministic hang" from a stall and kill it sooner. Nothing can tell that
+  from a model thinking: both go quiet, the block-point line Codex was matched
+  on is printed at *startup* on every redirected-stdin run and appears verbatim
+  in `delegation.md` itself. That classifier killed a healthy 107 KB review at
+  38 seconds — a bound that truncates good work is worse than the wait it
+  replaced. Removed, pinned by a test, and the rule says so.
+- **The ceiling is a median, and it is clamped.** 2× the observed-good `dur=`
+  median, ignoring `?`, held inside [5 min, 60 min]. A mean over this repo's log
+  would propose 4.8 hours; an uncapped median over a log full of hangs would
+  propose 47 and quietly stop being a watchdog.
+- **Killed runs leave a trace** in a new `$GIT_DIR/codex-run-attempts.log`, kept
+  out of the audit log so failures can never skew the median that bounds them.
+  The 23.7-hour entry was only ever visible because it happened to end in PASS.
+- **The documented runtime did not exist.** `codex-companion.mjs` is gone —
+  today's plugin is bundled into the host binary, with no on-disk footprint — so
+  the "verify on disk" preflight failed, concluded *plugin missing*, and sent
+  every PR to the GitHub fallback. The preflight now probes `command -v codex`
+  (and `python3`); plugin files are a secondary signal that can no longer cast a
+  vote. The dead `--scope branch` flag went with it, and so did `codex exec
+  review`: that subcommand refuses `--base` alongside a custom prompt, and a
+  review with no prompt carries no rubric and emits no `CODEX_VERDICT` — the
+  headless path is `codex exec "<brief>"`. Found by running the repaired
+  command, which is the only reason it isn't still wrong.
+- **The 3-round review cap was silently never engaging.** It's counted by
+  `codex-mark.sh`, and reading a verdict by eye instead of marking it leaves the
+  counter at zero. Three of this change's own five bash-era review rounds ran
+  unmarked before the gap was caught. Both `codex-run`'s success line and
+  `pr-workflow.md` now say to mark every round, DENIED ones included.
+- Docs: `references/{delegation,pr-workflow,stance}.md`, `commands/pr-check.md`,
+  the gate hook's block message, the rulebook README (state files, ceilings,
+  provenance), and this repo's own `CLAUDE.md` § PR Workflow all moved together.
+
 ## [9.13.0] — 2026-07-15
 
 **Worktree as announced escalation** (swe 2.5.0): the branching default flips —

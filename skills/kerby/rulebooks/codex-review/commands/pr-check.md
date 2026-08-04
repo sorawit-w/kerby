@@ -4,16 +4,20 @@ Read-only status report. Run each step, then render the report. Resolve every
 rulebook path relative to this rulebook's root (the folder this command body was
 loaded from). Write nothing; this command only inspects.
 
-## 1. Codex preflight (on disk, never the skill list)
+## 1. Codex preflight (the runtime, never the skill list)
 
-Locate the codex plugin on disk: find its `commands/` directory
-(`find <plugin-root> -name '*.md' -path '*commands*'`) or its
-`scripts/codex-companion.mjs`. Search the known plugin roots (the Claude Code
-plugin cache and any configured plugin directories). Report one line:
-`codex plugin: found at <path>` or `codex plugin: NOT FOUND on disk — the PR
-workflow's step-4 fallback applies`. The session skill list is not evidence
-either way — most codex commands are `disable-model-invocation` and never
-appear there.
+Probe the runtime the headless workflows actually invoke: `command -v codex`.
+Report one line: `codex runtime: found at <path>` or `codex runtime: NOT FOUND
+on PATH — the PR workflow's step-4 fallback applies`.
+
+Then, as a secondary line only, look for plugin files (`find <plugin-root> -name
+'*.md' -path '*commands*'`) across the known plugin roots — the Claude Code
+plugin cache and any configured plugin directories. Report `codex plugin files:
+found at <path>` or `codex plugin files: none on disk (inline plugin, or not
+installed)`. **Absence here is not a verdict:** a plugin bundled into the host
+binary has no on-disk footprint, so this line informs but never decides. The
+session skill list is not evidence either way — most codex commands are
+`disable-model-invocation` and never appear there.
 
 ## 2. Gate state (current repo)
 
@@ -28,6 +32,9 @@ From the session's working directory:
   Report `rounds: <n> of 3 on <branch>` or `rounds: 0 (fresh)`.
 - Audit tail: last 3 lines of `$GIT_DIR/codex-review-audit.log`, or `audit log:
   empty`.
+- Killed attempts: last 3 lines of `$GIT_DIR/codex-run-attempts.log`, or
+  `attempts log: empty`. Entries here are runs that hung, stalled, or errored —
+  they never reach the audit log, so this is the only place they show up.
 - Hook binding: is `hooks/codex-pr-gate.sh` (this rulebook's copy, resolved
   absolute) registered as a PreToolUse/Bash hook in the effective settings?
   Report `gate hook: bound` or `gate hook: NOT BOUND — run kerby install`
@@ -45,5 +52,5 @@ copy** (show the exact section, get per-file confirmation before any edit) /
 ## 4. Render
 
 One compact report block with the four sections above, then a one-line verdict:
-`pr-check: ready` (plugin found, marker fresh or no PR in flight, hook bound, no
+`pr-check: ready` (runtime found, marker fresh or no PR in flight, hook bound, no
 duplicates) or `pr-check: attention — <the specific items>`.
