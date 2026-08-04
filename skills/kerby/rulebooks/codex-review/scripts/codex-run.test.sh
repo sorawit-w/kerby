@@ -439,6 +439,15 @@ t0=$(now); run --ceiling "$CEILING" -- "$WORK/stubborn.sh" "$WORK/spid2"; t1=$(n
 # main()'s outer except Interrupted: — see codex-run.py), and the returncode
 # check itself is not airtight (see the module docstring). Neither of those
 # is what this specific pin is testing.
+#
+# ALSO pins a second bug found later, in the exact same scenario: the signal
+# sent here stays PENDING (blocked) all the way through kill_ladder()
+# completing and main() computing `return 4` (a correct STALL). It was only
+# DELIVERED when Lock.release() ran in main()'s finally and called
+# unblock_signals() unconditionally — raising Interrupted from inside that
+# finally, which REPLACES the already-decided `return 4` with a bare 130.
+# The wrapper's reported exit code is therefore not incidental to this test;
+# it is the second thing being pinned here, not a new scenario.
 GRACE_SECONDS=5; CEILING=2
 rm -f "$LOG" "$WORK/spid3"; rmdir "$LOG.lock" 2>/dev/null
 bash "$RUN" --ceiling "$CEILING" -- "$WORK/stubborn.sh" "$WORK/spid3" \
@@ -448,7 +457,7 @@ until [[ -s "$WORK/spid3" ]] || ! kill -0 "$MPID" 2>/dev/null; do sleep 1; done
 CPID3=$(cat "$WORK/spid3" 2>/dev/null)
 sleep "$((CEILING + 2))"          # land inside the grace window, not at its edges
 kill -TERM "$MPID" 2>/dev/null
-wait "$MPID" 2>/dev/null
+wait "$MPID" 2>/dev/null; MRC=$?
 sleep 1
 if [[ -z "$CPID3" ]]; then
   fail "mid-ladder pin inconclusive: never observed the child pid"
@@ -458,8 +467,10 @@ elif kill -0 "$CPID3" 2>/dev/null; then
 elif [[ -d "$LOG.lock" ]]; then
   fail "signal mid-kill_ladder left the lock stranded"
   rmdir "$LOG.lock" 2>/dev/null
+elif [[ "$MRC" -ne 4 ]]; then
+  fail "a signal deferred during the ladder corrupted the already-decided exit code: rc=$MRC (want 4)"
 else
-  pass "signal mid-kill_ladder still completes the ladder, lock released"
+  pass "signal mid-kill_ladder still completes the ladder, lock released, exit 4 preserved"
 fi
 
 # T40 — REGRESSION PIN, found and fixed while building the T38 pin above, not

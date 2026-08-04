@@ -391,10 +391,17 @@ class Lock:
             raise Usage("cannot create the lock at %s: %s — pass --log to a "
                         "writable path" % (self.path, exc))
         finally:
-            # Unblock unconditionally, success or failure: acquire() is the
-            # only atomic region before spawn() re-blocks on its own, and a
-            # Usage() raised here must not leave the process's signal mask
-            # blocked while it propagates all the way out to report an error.
+            # Unblock unconditionally here, NOT save/restore like release()
+            # does — deliberately asymmetric, not an oversight. acquire() has
+            # exactly one call site in this file (main()'s very first
+            # protected statement), reached before ANY block_signals() call
+            # has ever run, so the ambient mask at entry is always fully
+            # unblocked — there is no caller state to preserve. release(), by
+            # contrast, runs from main()'s outermost finally, which can be
+            # reached from paths that already blocked signals (mid-ladder
+            # cleanup); THAT is what makes save/restore load-bearing there
+            # and merely extra ceremony here. If a second call site is ever
+            # added, revisit this.
             unblock_signals()
 
     def disown(self):
@@ -409,7 +416,34 @@ class Lock:
         # says to remove it), but a real, avoidable gap. block_signals() here
         # carries none of spawn()'s mask-inheritance risk: rmdir() forks
         # nothing.
-        block_signals()
+        #
+        # SAVE and RESTORE the caller's exact prior mask — do NOT call the
+        # unconditional unblock_signals() acquire() uses. release() runs from
+        # main()'s outermost finally, which fires AFTER a clean return value
+        # (0/4/5) is already decided — some paths reach it with signals
+        # already blocked by the caller (e.g. mid-kill_ladder cleanup). A
+        # review found that blindly unblocking there DELIVERS whatever signal
+        # was pending, raising Interrupted from INSIDE this finally — which
+        # propagates out and REPLACES the already-decided return value with a
+        # bare 130, discarding a correct result. pthread_sigmask's own return
+        # value is the previous mask; restoring exactly that (SIG_SETMASK)
+        # rather than force-unblocking preserves whatever policy the caller
+        # was already running, verified directly for both cases (caller
+        # blocked stays blocked, caller unblocked's pending signal fires only
+        # after this returns — never stolen, never force-suppressed).
+        #
+        # Accepted, undisclosed-no-longer residual: a signal in the sliver
+        # between ENTERING this method and the block_signals() line below
+        # actually running is not blocked yet, so it can still raise
+        # Interrupted before self.held is ever touched — leaving both
+        # held=True and the directory present. Same class of gap as
+        # spawn()'s own entry, kill_ladder()'s callers entering their except
+        # clauses, and the module docstring's returncode-race discussion:
+        # narrowed to individual bytecode instructions by this fix, not
+        # eliminated, and not engineered further here for the same reason
+        # given in each of those places — there is no handle/state to
+        # protect before the function's first statement has actually run.
+        saved_mask = block_signals()
         try:
             if not self.held:
                 return              # idempotent AND ownership-checked
@@ -419,7 +453,7 @@ class Lock:
             except OSError:
                 pass
         finally:
-            unblock_signals()
+            restore_signals(saved_mask)
 
 
 CAUGHT_SIGNALS = (signal.SIGHUP, signal.SIGINT, signal.SIGTERM)
@@ -474,12 +508,31 @@ def block_signals():
     INSIDE Popen._wait() between its own os.waitpid() reaping the child and
     assigning self.returncode, which no handler placement can close — see
     the module docstring.
+
+    Returns the mask that was in effect BEFORE this call (pthread_sigmask's
+    own return value) — most callers discard it and use unblock_signals()
+    afterward, which is correct for regions that always want signals fully
+    live again. Lock.release() is the one caller that uses it, via
+    restore_signals(), because it can be entered with signals already
+    blocked by ITS caller (see release()'s own docstring for why blindly
+    unblocking there is a real bug, not a style choice).
     """
-    signal.pthread_sigmask(signal.SIG_BLOCK, CAUGHT_SIGNALS)
+    return signal.pthread_sigmask(signal.SIG_BLOCK, CAUGHT_SIGNALS)
 
 
 def unblock_signals():
     signal.pthread_sigmask(signal.SIG_UNBLOCK, CAUGHT_SIGNALS)
+
+
+def restore_signals(mask):
+    """Set the mask to EXACTLY `mask` — not "unblock", "set to precisely
+    this". Verified directly: if the saved mask had these signals blocked,
+    restoring keeps them blocked (no premature delivery of anything pending
+    from the caller's own perspective); if unblocked, a pending signal fires
+    only after this call, not before — same as if the intervening
+    block_signals() had never run at all from the caller's point of view.
+    """
+    signal.pthread_sigmask(signal.SIG_SETMASK, mask)
 
 
 def spawn(cmd, log_path):
