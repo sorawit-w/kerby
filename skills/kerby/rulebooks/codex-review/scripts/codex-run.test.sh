@@ -301,6 +301,44 @@ run -- "$WORK/fast.sh"; ODD=$(ceiling_seen)
   && pass "1/2 samples -> default; odd non-uniform picks upper median (${ODD}s)" \
   || fail "sample counts: one=$ONE two=$TWO odd=$ODD (want 900/900/500)"
 
+# --- Codex-review round 2 findings, pinned ---
+
+# 26. REGRESSION PIN — `ps` must never be the liveness oracle. When ps fails
+# (or returns nothing) while the child is still alive, treating that as "already
+# exited" walks into a wait() that never returns: an unbounded wait inside the
+# script whose entire purpose is abolishing them. Shadow ps with a stub that
+# always returns empty and confirm the ceiling still fires.
+mkdir -p "$WORK/fakebin"
+printf '#!/bin/bash\nexit 1\n' > "$WORK/fakebin/ps"; chmod +x "$WORK/fakebin/ps"
+rm -f "$LOG"; rmdir "$LOG.lock" 2>/dev/null
+t0=$(now)
+PATH="$WORK/fakebin:$PATH" bash "$RUN" --ceiling 2 -- "$WORK/forever.sh" "$WORK/gchild3" \
+  >"$WORK/out.txt" 2>"$WORK/err.txt" &
+PPID_W=$!
+until ! kill -0 "$PPID_W" 2>/dev/null || [[ $(( $(now) - t0 )) -gt 25 ]]; do sleep 1; done
+if kill -0 "$PPID_W" 2>/dev/null; then
+  fail "ps failure caused an unbounded wait (wrapper still alive after $(( $(now) - t0 ))s)"
+  kill -KILL "$PPID_W" 2>/dev/null
+else
+  wait "$PPID_W" 2>/dev/null; PRC=$?
+  [[ "$PRC" -eq 4 ]] && pass "ps failure still hits the ceiling (exit 4)" || fail "ps failure: rc=$PRC"
+fi
+rm -rf "$WORK/fakebin"
+
+# 27. REGRESSION PIN — the lock is released exactly ONCE on the signal path.
+# unlock() used to run in both the signal trap and the EXIT trap; another
+# attempt acquiring in between would have its lock deleted by the second call.
+rm -f "$LOG"; rmdir "$LOG.lock" 2>/dev/null
+bash "$RUN" --ceiling 60 -- "$WORK/forever.sh" "$WORK/gchild4" >/dev/null 2>&1 &
+SPID=$!
+until [[ -d "$LOG.lock" ]] || ! kill -0 "$SPID" 2>/dev/null; do sleep 1; done
+kill -TERM "$SPID" 2>/dev/null; wait "$SPID" 2>/dev/null
+sleep 1
+NOLOCK=0; [[ ! -d "$LOG.lock" ]] && NOLOCK=1
+run -- "$WORK/fast.sh"
+[[ "$NOLOCK" -eq 1 && "$RC" -eq 0 ]] \
+  && pass "signal path releases the lock once; next attempt acquires" || fail "lock after signal: present=$((1-NOLOCK)) next-rc=$RC"
+
 # 20. No stub survived the suite.
 sleep 1
 LEFT=$(pgrep -f "$WORK/(forever|blocker|reader|stubborn)\.sh" 2>/dev/null | wc -l | tr -d ' ')

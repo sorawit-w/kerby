@@ -101,10 +101,16 @@ logdir=$(dirname "$log")
 # half the story — while both report success. mkdir is the portable atomic
 # test-and-set (no flock on macOS).
 lockdir="$log.lock"
+# `held` makes unlock both idempotent and ownership-checked: releasing twice
+# must not remove a lock a DIFFERENT attempt acquired in between. The EXIT trap
+# is armed BEFORE mkdir so a signal landing between acquisition and arming
+# cannot strand the directory.
+held=0
+unlock() { [ "$held" -eq 1 ] && rmdir "$lockdir" 2>/dev/null; held=0; }
+trap 'unlock' EXIT
 mkdir "$lockdir" 2>/dev/null \
   || fail "another attempt already owns $log (lock: $lockdir) — wait for it to finish, or pass --log to a separate path. If nothing is running, remove that directory."
-unlock() { rmdir "$lockdir" 2>/dev/null; }
-trap 'unlock' EXIT
+held=1
 
 rm -f "$log" || fail "cannot remove the stale log at $log — remove it by hand, then re-run"
 [ -e "$log" ] && fail "$log still exists after removal (a directory?) — clear that path, then re-run"
@@ -151,14 +157,23 @@ child=0
 kill_group() {
   [ "$child" -gt 0 ] || return 0
   kill -TERM -"$child" 2>/dev/null || kill -TERM "$child" 2>/dev/null
+  # Grace is owed to the GROUP, not just its leader: a leader that exits first
+  # while a descendant is still flushing must not cut the descendant's grace
+  # short. `kill -0 -pid` succeeds while any member survives.
   i=0
-  while [ "$i" -lt 5 ] && kill -0 "$child" 2>/dev/null; do sleep 1; i=$((i + 1)); done
+  while [ "$i" -lt 5 ] \
+    && { kill -0 -"$child" 2>/dev/null || kill -0 "$child" 2>/dev/null; }; do
+    sleep 1; i=$((i + 1))
+  done
   kill -KILL -"$child" 2>/dev/null || kill -KILL "$child" 2>/dev/null
 }
 # On our own death, take the child with us — through the SAME ladder. A single
 # TERM followed by an immediate exit leaves a TERM-ignoring runtime orphaned,
 # which is the exact outcome this wrapper exists to prevent.
-trap 'kill_group; unlock; exit 130' HUP INT TERM
+# No unlock() here: `exit` runs the EXIT trap, which releases it. Calling it in
+# both places opens a window where another attempt acquires the lock between the
+# two calls and the second release deletes THEIRS.
+trap 'kill_group; exit 130' HUP INT TERM
 started=$(date +%s)
 class=ok
 rc=0
@@ -187,23 +202,26 @@ tick=1
     sleep "$tick"
   done
 
-  if [ "$class" = ok ]; then
-    wait "$child"; rc=$?
-  else
-    cnow=$(ps -o lstart= -p "$child" 2>/dev/null)
-    if [ -z "$cnow" ]; then
-      # Gone between the last poll and the ceiling check — it finished on its
-      # own, we were simply late. Take its REAL status: fabricating rc=0 here
-      # would report a failed runtime as a clean run.
-      class=ok; wait "$child"; rc=$?
-    elif [ "$cnow" != "$cstart" ]; then
-      # A different process now holds that pid. Never signal a stranger's
-      # process group; we have no status to collect either.
-      class=recycled; rc=0
+  # `ps` decides only whether to SIGNAL. It must never decide liveness: if ps
+  # fails while the child is alive, treating empty output as "already exited"
+  # sends us into a wait() that never returns — an unbounded wait inside the
+  # very script that exists to abolish them. kill -0 is the liveness oracle.
+  if [ "$class" = stall ]; then
+    if kill -0 "$child" 2>/dev/null; then
+      cnow=$(ps -o lstart= -p "$child" 2>/dev/null)
+      if [ -n "$cnow" ] && [ "$cnow" != "$cstart" ]; then
+        class=recycled          # a stranger holds that pid now — never signal it
+      else
+        kill_group              # ours, or ps unusable: killing is the safe direction
+      fi
     else
-      kill_group; wait "$child"; rc=$?
+      class=ok                  # finished between the last poll and this check
     fi
   fi
+  # Safe on every path, including recycled: bash keeps the background job's own
+  # exit status in its job table regardless of OS pid reuse, so this returns the
+  # REAL status immediately rather than a fabricated 0.
+  wait "$child"; rc=$?
 } 2>/dev/null
 
 elapsed=$(( $(date +%s) - started ))
@@ -227,9 +245,11 @@ case "$class" in
     echo "codex-run: STALL — still running at the ${ceiling}s ceiling, killed (ceiling ${ceiling}s). Transcript kept at $log. At most one blind retry, then take the step-4 fallback in references/pr-workflow.md." >&2
     exit 4 ;;
   recycled)
+    # Diagnostic only — the real exit is decided by rc below, exactly as for a
+    # normal completion. The child finished on its own; another process merely
+    # inherited its pid before we looked.
     note recycled
-    echo "codex-run: recycled pid after ${elapsed}s (ceiling ${ceiling}s) — the child was reaped between polls and nothing was signalled. Treat the transcript at $log as complete and check it before retrying." >&2
-    exit 0 ;;
+    echo "codex-run: note — the pid was reused by an unrelated process before the ceiling check, so nothing was signalled; the run itself completed. Transcript at $log." >&2 ;;
 esac
 
 if [ "$rc" -ne 0 ]; then

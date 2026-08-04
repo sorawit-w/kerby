@@ -94,6 +94,16 @@ within the delegation budget (`references/delegation.md` § Bounded delegation).
   truncated a healthy 107 KB review at 38s — that is worse than the unbounded
   wait it replaced. Cost of the honest version: a genuine wedge burns the full
   ceiling instead of ~6s. Exit code 3 is left unused rather than recycled.
+- **The ceiling baseline only learns from PASSes.** `dur=` is written by
+  codex-mark, and codex-mark only writes it on PASS — so a repo whose reviews
+  keep coming back DENIED never updates its baseline, and the ceiling stays
+  anchored to whatever the last clean runs happened to cost. Observed live while
+  building this: a review finished at 628s against a 688s ceiling derived from
+  much older, shorter runs. When a review is killed at the ceiling but the
+  transcript looks healthy, pass `--ceiling` explicitly rather than assuming a
+  wedge. (`codex-run-attempts.log` records the real elapsed time of every run,
+  so the evidence for a better number is there; wiring it into the baseline is
+  deliberately not done yet.)
 - **codex-run bounds one attempt, not the budget.** It never retries. The
   2-attempt delegation budget stays with the prose in
   `references/delegation.md`, because budget consumption is defined by verdict
