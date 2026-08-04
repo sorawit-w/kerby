@@ -9,11 +9,17 @@ When opening a PR (base = the repo's default branch):
    same engine headless instead, always through this rulebook's watchdog:
 
    ```
-   scripts/codex-run.sh -- codex exec review --base <default-branch>
+   scripts/codex-run.sh -- codex exec "<review brief>"
    ```
 
-   — or substitutes `/codex:rescue` with a review brief. Never invoke the runtime
-   bare or piped to `tee`: those forms cannot be bounded (`references/delegation.md`
+   where the brief names the scope (`git diff <default-branch>...HEAD`) and
+   carries the rubric + verdict contract below. **Use `codex exec`, not
+   `codex exec review`:** the `review` subcommand refuses `--base <BRANCH>`
+   together with a custom prompt (`error: the argument '--base <BRANCH>' cannot
+   be used with '[PROMPT]'`), and without the prompt there is no rubric, so it
+   cannot emit the `CODEX_VERDICT` line codex-mark requires. Alternatively
+   substitute `/codex:rescue` with the same brief. Never invoke the runtime bare
+   or piped to `tee`: those forms cannot be bounded (`references/delegation.md`
    § Bounded delegation explains why, and the wrapper is that section's mechanical
    form). Every attempt is bounded there — a budget exhausted with no verdict
    activates the step-4 fallback. When the user-only caveat bites, also

@@ -113,8 +113,10 @@ but this section is authoritative for kerby).
    against the exact tree you push.
    (`/codex:review` is user-only (`disable-model-invocation`) — an agent runs the
    review headless through the `codex-review` rulebook's watchdog instead:
-   `scripts/codex-run.sh -- codex exec review --base main`, never bare and never
-   piped to `tee` (neither form can be bounded — see that rulebook's
+   `scripts/codex-run.sh -- codex exec "<review brief scoped to git diff
+   main...HEAD>"` — `codex exec`, not `codex exec review`, which refuses `--base`
+   alongside a prompt and so can't carry the rubric — never bare and never piped
+   to `tee` (neither form can be bounded — see that rulebook's
    `references/delegation.md` § Bounded delegation); or it substitutes
    `/codex:rescue` with a review brief. On the maintainer's machine, a PreToolUse
    gate additionally blocks `gh pr create` until a clean review of HEAD is recorded.

@@ -2,8 +2,8 @@
 # Self-test for codex-run.sh — the watchdog contract: usage/precondition errors
 # spawn nothing; a clean child exits 0; a crashing child exits 5; stdin is
 # closed (the documented deadlock); a stall is killed at the ceiling (exit 4)
-# and takes its whole process group with it; a deterministic hang is classified
-# early (exit 3); the review log gets a FRESH inode per attempt (the birth-time
+# and takes its whole process group with it; a quiet-but-healthy run is NOT
+# killed early; the review log gets a FRESH inode per attempt (the birth-time
 # contract codex-mark's dur= depends on); the ceiling is 2x the observed-good
 # median, ignoring dur=?, clamped to [300,3600] with a 900s cold-start default;
 # killed runs keep their log and leave an attempts-log trace; stderr stays
@@ -65,10 +65,13 @@ echo $! > "$1"
 echo "working..."
 sleep 300
 EOF
+# Prints the old "block-point" line at startup and then works normally, quietly,
+# for a while — exactly what real codex does on every redirected-stdin run.
 cat > "$WORK/blocker.sh" <<'EOF'
 #!/bin/bash
 echo "Reading additional input from stdin..."
-sleep 300
+sleep 8
+echo "...still working, and this must not have been killed"
 EOF
 cat > "$WORK/reader.sh" <<'EOF'
 #!/bin/bash
@@ -144,11 +147,16 @@ BAD=$(grep -v '^codex-run: ' "$WORK/err.txt" | wc -l | tr -d ' ')
 [[ -s "$ATTEMPTS" ]] && grep -q "stall" "$ATTEMPTS" \
   && pass "killed attempt logged to codex-run-attempts.log" || fail "no attempts-log entry"
 
-# 9. Deterministic hang -> classified EARLY at the block-point, not at the
-# ceiling. With classification dropped this returns 4 sixty seconds later.
+# 9. REGRESSION PIN — a healthy run that prints the old "block-point" line at
+# startup and then goes quiet must RUN TO COMPLETION. Real codex prints that
+# line on every redirected-stdin run, and the string also appears verbatim in
+# this rulebook's own delegation.md, so any transcript quoting it matches too.
+# The first draft of this script treated line+silence as a hang and killed a
+# healthy 107 KB review at 38s. A bound that truncates good work is worse than
+# the unbounded wait it replaced.
 t0=$(now); run --ceiling 60 -- "$WORK/blocker.sh"; t1=$(now)
-[[ "$RC" -eq 3 && $((t1 - t0)) -lt 20 ]] \
-  && pass "block-point hang classified early (exit 3, $((t1 - t0))s)" || fail "hang: rc=$RC elapsed=$((t1 - t0))"
+[[ "$RC" -eq 0 ]] && grep -q "must not have been killed" "$LOG" \
+  && pass "quiet-after-block-point run survives ($((t1 - t0))s)" || fail "false-positive kill: rc=$RC elapsed=$((t1 - t0))"
 
 # --- The birth-time contract ---
 

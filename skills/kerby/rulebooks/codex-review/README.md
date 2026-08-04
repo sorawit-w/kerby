@@ -11,10 +11,10 @@ stance: **Codex advises, Claude decides.**
 
 Every headless Codex invocation — review, scoped re-review, rescue — runs through
 `scripts/codex-run.sh`. It closes stdin, gives the runtime its own process group,
-kills it at a ceiling derived from the observed-good `dur=` median, and classifies
-the ending (0 clean · 3 hang · 4 stall · 5 runtime error). It bounds *one attempt*
-and never retries: the delegation budget and the verdict grammar stay with the
-prose and `codex-mark.sh` respectively.
+kills it at a ceiling derived from the observed-good `dur=` median, and reports
+how it ended (0 clean · 4 killed at the ceiling · 5 runtime error). It bounds
+*one attempt* and never retries: the delegation budget and the verdict grammar
+stay with the prose and `codex-mark.sh` respectively.
 
 The root body (`references/stance.md`) is a thin eager index: stance, on-disk
 preflight, when-to-read pointers. The heavy references load on demand.
@@ -85,17 +85,15 @@ within the delegation budget (`references/delegation.md` § Bounded delegation).
   name — an accepted ceiling, not a hole to plug.
 - **codex-mark trusts the transcript.** Forging a log is deliberate deception,
   not drift; `$GIT_DIR/codex-review-audit.log` keeps history visible.
-- **codex-run knows one block-point.** Hang classification matches a single
-  hardcoded pattern (`Reading additional input from stdin`) — the only one
-  documented and reproducible. A second pattern gets added when it exists, not
-  a config file for a set of size one. Anything else that wedges is caught by
-  the ceiling as a stall instead: slower, same outcome.
-- **"Flat CPU" is read as a frozen transcript.** macOS `ps %cpu` is a decayed
-  lifetime average, so it cannot answer "is this process idle right now."
-  codex-run substitutes a log mtime that has not moved for 5 polls. A runtime
-  that legitimately goes quiet for >5s *after* printing the block-point line
-  would be misread — no such case is known, and the ceiling would have killed
-  it anyway.
+- **The ceiling is the only bound — no early kill.** codex-run cannot tell a
+  wedged runtime from a thinking one, and does not pretend to: both go quiet.
+  The block-point line Codex was once matched on is printed at *startup* on
+  every redirected-stdin run and appears verbatim in `references/delegation.md`,
+  so it fires on healthy transcripts; macOS `ps %cpu` is a lifetime average and
+  cannot report instantaneous idleness. A build that killed on line-plus-silence
+  truncated a healthy 107 KB review at 38s — that is worse than the unbounded
+  wait it replaced. Cost of the honest version: a genuine wedge burns the full
+  ceiling instead of ~6s. Exit code 3 is left unused rather than recycled.
 - **codex-run bounds one attempt, not the budget.** It never retries. The
   2-attempt delegation budget stays with the prose in
   `references/delegation.md`, because budget consumption is defined by verdict

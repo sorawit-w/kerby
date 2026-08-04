@@ -4,9 +4,11 @@
 # Usage:
 #   1. Run the Codex review through this rulebook's watchdog, which writes the
 #      transcript to the log with the fresh inode the dur= field below needs:
-#        scripts/codex-run.sh -- codex exec review --base <default-branch>
-#      (never bare, never piped to tee — neither form can be bounded; see
-#       references/delegation.md § Bounded delegation)
+#        scripts/codex-run.sh -- codex exec "<review brief>"
+#      (`codex exec`, NOT `codex exec review` — the subcommand refuses --base
+#       together with a prompt, and without a prompt there is no rubric, so no
+#       CODEX_VERDICT line. Never bare, never piped to tee — neither form can be
+#       bounded; see references/delegation.md § Bounded delegation)
 #   2. Then run codex-mark.sh (this rulebook's scripts/codex-mark.sh; the
 #      workflow prose names the installed path).
 #      (optional first arg = alternate log path)

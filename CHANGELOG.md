@@ -25,10 +25,20 @@ why it ended; every headless invocation routes through it.
 - **Kills the process group, not the pid.** Codex spawns children; signalling
   only the top pid orphans them. macOS has no `setsid(1)`, so `set -m` earns the
   child its own pgroup. Test 8 spawns a grandchild and checks the corpse.
-- **Classified endings, not just "it stopped":** 3 = parked at a known
-  block-point (fix the cause, retry once) · 4 = stalled to the ceiling (one
-  blind retry, then the fallback) · 5 = the runtime itself failed. Deliberately
-  starting at 3 so nothing reads them as codex-mark's PASS/DENIED/HELD.
+- **Classified endings, not just "it stopped":** 4 = killed at the ceiling (one
+  blind retry, then the fallback) · 5 = the runtime itself failed, cause in the
+  transcript. Numbered from 3 so nothing reads them as codex-mark's
+  PASS/DENIED/HELD; 3 itself is left unused, because —
+- **— the ceiling is the only bound, and that is the honest answer.** The rule
+  used to ask for an early kill on a "deterministic hang". Nothing can tell that
+  from a model thinking: both go quiet, the block-point line Codex was matched on
+  is printed at *startup* on every redirected-stdin run and appears verbatim in
+  `delegation.md` itself, and macOS `ps %cpu` is a lifetime average that cannot
+  report idleness. The first build of this watchdog shipped that classifier and
+  killed a healthy 107 KB review at 38 seconds — a bound that truncates good work
+  is worse than the wait it replaced. Removed, pinned by a test, and the rule now
+  says so. A genuine wedge costs the full ceiling instead of ~6s; that is the
+  price of not guessing.
 - **The ceiling is a median, and it is clamped.** 2× the observed-good `dur=`
   median, ignoring `?`, held inside [5 min, 60 min]. A mean over this repo's log
   would propose 4.8 hours; an uncapped median over a log full of hangs would
@@ -41,7 +51,11 @@ why it ended; every headless invocation routes through it.
   the "verify on disk" preflight failed, concluded *plugin missing*, and sent
   every PR to the GitHub fallback. The preflight now probes `command -v codex`;
   plugin files are a secondary signal that can no longer cast a vote. The dead
-  `--scope branch` flag went with it (`codex exec review --base <branch>`).
+  `--scope branch` flag went with it, and so did `codex exec review`: that
+  subcommand refuses `--base` alongside a custom prompt, and a review with no
+  prompt carries no rubric and emits no `CODEX_VERDICT` — the headless path is
+  `codex exec "<brief>"`. Found by running the repaired command, which is the
+  only reason it isn't still wrong.
 - **Honest instrument.** delegation.md said "flat CPU"; macOS `ps %cpu` is a
   decayed lifetime average and cannot answer "idle right now." The rule now says
   what the watchdog actually reads — a transcript that has not moved — rather

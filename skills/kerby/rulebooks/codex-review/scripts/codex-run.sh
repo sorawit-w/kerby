@@ -23,26 +23,30 @@
 # PASS/DENIED/HELD and must never be read across the two scripts):
 #   0 — exited on its own, status 0, inside the ceiling. Run codex-mark next.
 #   1 — precondition or usage error; nothing was spawned, no attempt consumed.
-#   3 — deterministic HANG: parked at a known block-point. Fix the cause, retry
-#       once (delegation.md: "known cause -> fix it, retry once").
 #   4 — STALL: still alive at the ceiling, killed. At most one blind retry, then
 #       the pr-workflow.md step-4 fallback.
 #   5 — exited on its own, non-zero. Read the log, fix, retry once.
+#   (3 is deliberately unused — see "no early classification" below.)
 #
 # Fail-closed: an unusable log path, an unresolvable runtime, or no git repo
 # exits 1 WITHOUT spawning anything — a half-started attempt would leave a
 # zero-byte log that codex-mark would then stat as evidence.
-# Known ceiling: one hardcoded block-point pattern (the only one documented and
-# reproducible), and "flat CPU" is approximated by a frozen log mtime — macOS
-# `ps %cpu` is a decayed lifetime average, useless as an instantaneous signal.
+#
+# No early hang classification — the ceiling is the only bound. delegation.md
+# once split "deterministic hang" from "stall" and asked for an early kill on
+# the former. There is no sound signal for it here: codex prints the documented
+# block-point line ("Reading additional input from stdin...") at STARTUP on every
+# redirected-stdin run, that same string appears verbatim in this rulebook's own
+# prose (so any transcript quoting delegation.md matches it), and macOS `ps %cpu`
+# is a decayed lifetime average that cannot say "idle right now". A first draft
+# of this script shipped that classifier and killed a healthy 107 KB review at
+# 38s. A bound that truncates good work is worse than the unbounded wait it
+# replaced. The deadlock it aimed at is anyway unreachable through this wrapper,
+# which always redirects < /dev/null; a wedge just costs the full ceiling.
 
 set -u
 
 fail() { echo "codex-run: $1" >&2; exit 1; }
-
-# The single documented block-point. A configurable pattern list for a set of
-# size one is speculative surface — add the second one when it exists.
-BLOCK_RE='Reading additional input from stdin'
 
 ceiling=""
 log=""
@@ -120,15 +124,10 @@ trap 'if [ "$child" -gt 0 ]; then kill -TERM -"$child" 2>/dev/null || kill -TERM
 started=$(date +%s)
 class=ok
 rc=0
-prev_logm=""
-frozen=0
 # Poll every second regardless of the ceiling. A coarser tick would only save
 # noise-level CPU while making every fast run pay up to a full tick of dead
 # latency before the wrapper notices the child already exited.
 tick=1
-# ...but a hang needs the transcript to be quiet for longer than one tick, or a
-# normal gap in a streamed response reads as a hang. mtime has 1s resolution.
-FROZEN_POLLS=5
 
 {
   set -m
@@ -140,18 +139,13 @@ FROZEN_POLLS=5
   set +m
   cstart=$(ps -o lstart= -p "$child" 2>/dev/null)   # pid-recycle witness
 
+  # 4. Wait it out. Two exits only: the child finishes, or the ceiling fires.
+  # A quiet transcript is NOT evidence of anything — a model thinking looks
+  # exactly like a model wedged (see the header). Do not add a cleverer signal
+  # here without one that can tell those two apart.
   while :; do
     kill -0 "$child" 2>/dev/null || break                         # exited on its own
     [ $(( $(date +%s) - started )) -ge "$ceiling" ] && { class=stall; break; }
-    # 4. Deterministic hang: parked at a known block-point AND not moving. The
-    # frozen mtime stands in for delegation.md's "flat CPU" (see the header's
-    # known ceiling). Both conditions are required — a run that legitimately
-    # prints the block-point line and then keeps streaming must not be killed.
-    logm=$(stat -c %Y "$log" 2>/dev/null || stat -f %m "$log" 2>/dev/null)
-    if [ "$logm" = "$prev_logm" ]; then frozen=$((frozen + 1)); else frozen=0; fi
-    if [ -s "$log" ] && [ "$frozen" -ge "$FROZEN_POLLS" ] \
-       && tail -c 4096 "$log" | grep -qE "$BLOCK_RE"; then class=hang; break; fi
-    prev_logm=$logm
     sleep "$tick"
   done
 
@@ -190,10 +184,6 @@ note() {
 }
 
 case "$class" in
-  hang)
-    note hang
-    echo "codex-run: HANG — parked at a known block-point after ${elapsed}s (ceiling ${ceiling}s), killed. Transcript kept at $log. Fix the cause (stdin left open is the usual one), then retry once." >&2
-    exit 3 ;;
   stall)
     note stall
     echo "codex-run: STALL — still running at the ${ceiling}s ceiling, killed (ceiling ${ceiling}s). Transcript kept at $log. At most one blind retry, then take the step-4 fallback in references/pr-workflow.md." >&2

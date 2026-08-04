@@ -30,12 +30,16 @@ reached this repo's own audit log.
 - **Close stdin** (mechanical). An open empty stdin in a background shell
   deadlocks silently on `Reading additional input from stdin...`. The wrapper
   redirects `< /dev/null`; a hand-rolled invocation must too.
-- **Classify before waiting** (mechanical). Transcript parked at a known
-  block-point *and* not growing = deterministic hang → killed now, exit **3**.
-  Alive but silent = stall → grace to the ceiling, then killed, exit **4** —
-  never earlier, never past. (The wrapper reads a frozen transcript mtime as its
-  idle signal, not CPU: macOS `ps %cpu` is a decayed lifetime average, so "flat
-  CPU" is not observable there. Same intent, honest instrument.)
+- **Do not classify before waiting.** This rule used to split "deterministic
+  hang" (kill now) from "stall" (wait for the ceiling). Drop that split: there is
+  no sound way to tell them apart from outside. A model thinking and a model
+  wedged look identical — the transcript is quiet in both. The documented
+  block-point line is printed at *startup* on every redirected-stdin run and
+  appears verbatim in this very file, so matching on it fires on healthy runs;
+  macOS `ps %cpu` is a decayed lifetime average and cannot say "idle right now".
+  A wrapper build that killed on line-plus-silence truncated a healthy 107 KB
+  review at 38 seconds. Everything alive at the ceiling is a stall → killed,
+  exit **4** — never earlier, never past.
 - **Wall-clock ceiling per attempt** (mechanical): ~2× the observed-good duration
   (median of the numeric `dur=` fields in `$GIT_DIR/codex-review-audit.log`,
   ignoring `?`); no baseline → 15 min. The wrapper computes this, clamps it to
@@ -43,8 +47,9 @@ reached this repo's own audit log.
   disable the bound, and prints the value it used. `--ceiling` overrides.
 - **Restart keyed to cause:** known cause → fix it, retry once; unknown stall →
   at most one blind retry. Never loop identical restarts. The wrapper's exit code
-  says which applies — **3** names the cause (fix it), **4** is the blind-retry
-  case, **5** means the runtime itself failed (read the transcript first).
+  says which applies — **4** (killed at the ceiling) is the blind-retry case,
+  **5** means the runtime itself failed and names a cause in the transcript, so
+  read it and fix before retrying.
   Killed and failed attempts append a line to `$GIT_DIR/codex-run-attempts.log`;
   a run that hangs and never marks leaves no other trace.
 - **Delegation budget: at most 2 attempts per requested verdict** (a run that
