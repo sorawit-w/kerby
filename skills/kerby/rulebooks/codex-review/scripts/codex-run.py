@@ -50,35 +50,58 @@ signal can still land in the GAP between "the child's fate is decided" and
 finished reporting, or literally mid-kill_ladder(). Reacting to a signal in
 that gap by re-running kill_ladder() on a pid that may already be reaped is
 exactly the misdirected-signal hazard this file exists to prevent, just
-reached through timing instead of a bad `ps` read. Two structural answers,
-not another guard:
-  - `proc.returncode is None` is the race-free "have we already reaped this"
-    check (Popen sets it synchronously as part of a successful wait()) —
-    checked before every kill_ladder() call reached from a signal handler.
-  - `signal.pthread_sigmask` BLOCKS HUP/INT/TERM (deferring, not dropping,
+reached through timing instead of a bad `ps` read. Two structural answers
+were tried, not another guard:
+  - `proc.returncode is None`, checked before every kill_ladder() call reached
+    from a signal handler.
+  - `signal.pthread_sigmask` to BLOCK HUP/INT/TERM (deferring, not dropping,
     them) around every region that must run as one atomic unit: the trivial
-    gap right after spawn() returns, and the kill ladder itself. They are
-    deliberately left UNBLOCKED around the main ceiling wait, so a long wait
-    stays Ctrl-C-interruptible — that specific window already has a correct,
-    race-free handler.
+    gap right after spawn() returns, and the kill ladder itself. Left
+    UNBLOCKED around the main ceiling wait on purpose, so a long wait stays
+    Ctrl-C-interruptible.
 
-Building the blocking half of that fix surfaced a THIRD instance of the same
-bug class, this time self-inflicted: blocking BEFORE calling spawn() was the
-first draft, on the theory that it would also close the fork/exec handshake
-window. It does — by corrupting something else instead. fork() gives the
-CHILD a copy of the CALLER's signal mask; a child forked while we're blocked
-inherits HUP/INT/TERM as blocked for its ENTIRE LIFETIME, and nothing of ours
-ever unblocks it (only the child's own code could, and none of our stubs, nor
-`codex exec` itself, has any reason to). Verified directly: with block_signals()
-active across spawn(), a later `os.killpg(pid, SIGTERM)` reached the child,
-raised no exception, and had NO EFFECT — the child could not see a signal it
-had already received. Only the unmaskable SIGKILL still worked, silently
-defeating "TERM first, so the runtime can flush a partial transcript"
-everywhere, not just in one edge case. Fix: block AFTER spawn() returns, not
-before — the child has already forked with a normal mask by then, and this
-window is purely our own bookkeeping. The fork/exec handshake window itself
-(before spawn() returns at all — no handle exists yet to act on regardless of
-blocking) is accepted as a residual, folded into the one below.
+Building the blocking half surfaced a THIRD instance of the same bug class,
+self-inflicted: an early draft blocked signals BEFORE calling spawn(), on the
+theory that it would also close the fork/exec handshake window. It does — by
+corrupting something else instead. fork() gives the CHILD a copy of the
+CALLER's signal mask; a child forked while we're blocked inherits HUP/INT/TERM
+as blocked for its ENTIRE LIFETIME, and nothing of ours ever unblocks it.
+Verified directly: with block_signals() active across spawn(), a later
+`os.killpg(pid, SIGTERM)` reached the child, raised no exception, and had NO
+EFFECT — only the unmaskable SIGKILL still worked, silently defeating "TERM
+first, so the runtime can flush a partial transcript" everywhere. Fixed by
+blocking AFTER spawn() returns instead.
+
+A SECOND review round then found that `proc.returncode is None` is NOT the
+race-free check the paragraph above claimed. It is a fact about CPython's
+implementation, not a design choice: `subprocess.Popen._wait()` calls
+`os.waitpid()` — which reaps the child; the pid may now be reused by the OS —
+and only SEVERAL BYTECODE INSTRUCTIONS LATER assigns `self.returncode`. A
+signal delivered to Python in that gap runs its handler with `returncode`
+still `None`, even though the kernel has already reaped the process.
+Reproduced on the FIRST attempt of a scripted adversarial probe (a 10-
+microsecond SIGALRM). The same irreducible bytecode-level granularity also
+means the trivial gaps this file blocks around — right after spawn() returns,
+entering `except TimeoutExpired:` — are each themselves one instruction
+narrower than fully closed, not fully atomic. Pthread_sigmask closes gaps
+between STATEMENTS; it cannot close a gap INSIDE a single stdlib call whose
+internals we do not control.
+
+This is now accepted as a residual, not engineered further around: closing it
+for real means bypassing `subprocess.Popen.wait()`'s pure-Python polling loop
+entirely for a hand-rolled `os.waitpid()` call under our own atomicity
+control — a materially larger redesign than this file attempts. What is NOT
+accepted: a courtesy signal sent on SPECULATION rather than as a reaction to a
+proven-live child. An earlier draft added `nudge_stragglers()` — an
+unconditional post-reap `killpg()` aimed at a possible leftover descendant —
+to close a DIFFERENT (lower-severity) finding. It was removed: the same
+review round pointed out that a process-group id is borrowed from the pid
+namespace and freed the instant the group is empty, so a courtesy signal fired
+after the group may already be empty risks hitting an unrelated, later
+process group. That is a WORSE instance of the exact hazard this file exists
+to eliminate, introduced while trying to close a milder one. A leader-exits-
+cleanly-while-a-descendant-survives is therefore back to being an accepted,
+undetected gap (see README's known-ceilings list) rather than a guessed-at fix.
 
 Known residual, not fixed by any of this: `subprocess.Popen()` itself
 performs a blocking read of the fork/exec handshake pipe. If the forked
@@ -295,23 +318,35 @@ class Lock:
         self.held = False
 
     def acquire(self):
-        # Optimistic: ownership is assumed BEFORE the syscall, so a signal
-        # landing between mkdir returning and the flag being set cannot strand
-        # the directory. The shell version set its flag after mkdir and had
-        # exactly that window.
-        self.held = True
+        # block_signals() around the syscall AND the flag update makes
+        # acquisition genuinely atomic — a review found that setting `held`
+        # optimistically BEFORE mkdir() (the previous approach) has its own
+        # gap: a signal landing between "held = True" and "mkdir() actually
+        # runs" leaves held=True with nothing on disk yet; if a DIFFERENT
+        # process then creates that same lock path before we unwind, our own
+        # cleanup deletes THEIRS. Unlike spawn(), mkdir() forks nothing — a
+        # child inheriting our mask is not a risk here, so blocking around the
+        # whole operation is free of the hazard that ruled it out for spawn().
+        # `held` is only ever set True AFTER mkdir() has actually succeeded,
+        # so neither except branch needs to touch it — it is already False.
+        block_signals()
         try:
             os.mkdir(self.path)
+            self.held = True
         except FileExistsError:
-            self.held = False       # someone else's lock — never touch it
             raise Usage(
                 "another attempt already owns %s (lock: %s) — wait for it to "
                 "finish, or pass --log to a separate path. If nothing is "
                 "running, remove that directory." % (self.log_path, self.path))
         except OSError as exc:
-            self.held = False
             raise Usage("cannot create the lock at %s: %s — pass --log to a "
                         "writable path" % (self.path, exc))
+        finally:
+            # Unblock unconditionally, success or failure: acquire() is the
+            # only atomic region before spawn() re-blocks on its own, and a
+            # Usage() raised here must not leave the process's signal mask
+            # blocked while it propagates all the way out to report an error.
+            unblock_signals()
 
     def disown(self):
         """Leave the lock directory in place on purpose (the survivor path)."""
@@ -446,10 +481,12 @@ def kill_ladder(proc):
     caught by the sibling `except Interrupted:` — it escaped the whole
     construct, leaving the child half-killed and the lock released. Blocking
     the three caught signals for the ladder's duration makes it atomic: a
-    signal arriving here is deferred, not lost, and fires the moment the
-    caller unblocks — by which point the child's fate is already decided.
-    The caller (main()) owns the block/unblock pairing; this function never
-    calls either, so it composes correctly regardless of caller state.
+    signal arriving here is deferred, not lost, until the caller unblocks.
+    In practice the caller never does — the process returns/exits shortly
+    after the ladder completes, and a deferred signal is simply discarded at
+    exit rather than mishandled. The caller (main()) owns the block/unblock
+    pairing; this function never calls either, so it composes correctly
+    regardless of caller state.
 
     The grace is time.sleep, not proc.wait(timeout=GRACE), on purpose: grace is
     owed to the GROUP, and wait() returns the instant the LEADER exits, which
@@ -470,27 +507,6 @@ def kill_ladder(proc):
         return True
     except subprocess.TimeoutExpired:
         return False
-
-
-def nudge_stragglers(proc):
-    """Best-effort, non-blocking TERM to the group after a clean reap.
-
-    proc.wait() only proves the LEADER exited — it cannot prove the whole
-    process group is quiet, because waitpid can only reap OUR OWN children,
-    and a grandchild (something codex's own process spawned, e.g. a tool
-    invocation) is not our child in the reaping sense, only in the
-    signalling sense. A review reproduced exactly this: leader exits 0,
-    a backgrounded descendant is still running, and the "ok" path signalled
-    nothing at all.
-
-    This does not wait for the result and is not part of the ceiling
-    contract — it cannot be, since we structurally cannot waitpid a
-    grandchild. It is a courtesy nudge so a straggler does not linger
-    indefinitely after we have already reported success and released the
-    lock. The leader is already dead by the time this runs, so killpg only
-    ever reaches actual survivors, never the (already-reaped) leader.
-    """
-    signal_group(proc, signal.SIGTERM)
 
 
 def shell_rc(rc):
@@ -525,6 +541,14 @@ def note(attempts_path, klass, elapsed, ceiling, rc, head):
 
 
 def main(argv):
+    # Handlers are main()'s FIRST statement, before argument parsing, before
+    # anything is resolved, acquired, or created — a review found that the
+    # comment here once claimed this but the code did not: install ran after
+    # parse_args()/validate_ceiling()/git_dir(), leaving all of that under
+    # Python's default SIGINT disposition (raise KeyboardInterrupt, which
+    # nothing in this file catches inside main()).
+    install_signal_handlers()
+
     ceiling_text, log, cmd = parse_args(argv)
 
     if not cmd:
@@ -549,19 +573,11 @@ def main(argv):
         raise Usage("cannot write the log directory %s — pass --log to a "
                     "writable path" % logdir)
 
-    # Handlers FIRST, before anything is acquired or created: Python's default
-    # SIGINT disposition (raise KeyboardInterrupt, which nothing here catches)
-    # would otherwise apply during lock acquisition and skip cleanup entirely.
-    install_signal_handlers()
-
     lock = Lock(log)
     try:
-        # A signal between mkdir() succeeding and `held` being observably
-        # true used to terminate the process (default disposition, handlers
-        # not yet installed) with the directory already on disk and no
-        # cleanup. Handlers are now live before this call, so any such
-        # signal raises Interrupted — caught below, and this try/finally
-        # already covers lock.acquire() itself.
+        # Lock.acquire() blocks signals around its own mkdir() + flag update
+        # now, so this call is internally atomic — see its docstring. This
+        # try/finally's job is just to guarantee release() runs regardless.
         lock.acquire()
 
         try:
@@ -613,22 +629,22 @@ def main(argv):
         klass = "ok"
         try:
             # Unblock ONLY for the main wait: a long ceiling should still be
-            # Ctrl-C-interruptible, and this specific window has a correct,
-            # race-free handler right below (returncode is set by wait()
-            # before it returns, so "already reaped" is never a guess). This
-            # does not touch the CHILD's mask — only ours, and the child is
-            # long since forked by now.
+            # Ctrl-C-interruptible, and the except Interrupted: handler right
+            # below checks proc.returncode before acting — not airtight (see
+            # the module docstring's returncode-race discussion), but the best
+            # available signal on this path. This does not touch the CHILD's
+            # mask — only ours, and the child is long since forked by now.
             unblock_signals()
             rc = proc.wait(timeout=ceiling)   # ONE call. No poll loop, no probe.
             # Re-block THE MOMENT this returns, on the SUCCESS path too — not
             # just in the except branches below. Without this line, a signal
             # landing here (child reaped, but still inside the reporting code
-            # that follows: elapsed/head/nudge_stragglers/note/say) escaped to
-            # the outermost catch-all, which returns a bare 130 and discards a
-            # completed, valid result it never even looks at. It doesn't kill
-            # anything there (no misdirected signal — the outer catch never
-            # calls kill_ladder), but it does throw away real information for
-            # no reason. Blocking here removes the last unprotected window.
+            # that follows: elapsed/head/note/emit) escaped to the outermost
+            # catch-all, which returns a bare 130 and discards a completed,
+            # valid result it never even looks at. It doesn't kill anything
+            # there (no misdirected signal — the outer catch never calls
+            # kill_ladder), but it does throw away real information for no
+            # reason. Blocking here removes that window.
             block_signals()
         except subprocess.TimeoutExpired:
             block_signals()      # re-atomic: the ladder must run as one unit
@@ -636,18 +652,21 @@ def main(argv):
         except Interrupted:
             block_signals()
             if proc.returncode is not None:
-                # Already reaped by the time the signal fired (race-free:
-                # Popen sets returncode synchronously as part of a successful
-                # wait()) — the work is DONE. Report the real result instead
-                # of discarding a completed, valid transcript as an interrupt.
-                # klass stays "ok"; falls through to normal reporting below.
+                # Reaped by the time we checked — report the real result
+                # instead of discarding a completed, valid transcript as an
+                # interrupt. NOT airtight: `returncode` is set a few bytecode
+                # instructions AFTER waitpid() itself reaps (see the module
+                # docstring's returncode-race discussion), so this is the best
+                # available signal, not a proof. klass stays "ok"; falls
+                # through to normal reporting below.
                 rc = proc.returncode
             else:
-                # Still alive: the signal is ours to act on. A successful kill
-                # here is a USER-initiated stop, not a ceiling-initiated stall
-                # — report 130, not 4, so the caller isn't told "the ceiling
-                # elapsed" when it didn't. A survivor still needs its
-                # tombstone written below, which 130 alone wouldn't carry.
+                # Still alive by this same imperfect signal: the kill is ours
+                # to attempt. A successful kill here is a USER-initiated stop,
+                # not a ceiling-initiated stall — report 130, not 4, so the
+                # caller isn't told "the ceiling elapsed" when it didn't. A
+                # survivor still needs its tombstone written below, which 130
+                # alone wouldn't carry.
                 klass = "stall" if kill_ladder(proc) else "survivor"
                 if klass != "survivor":
                     return 130
@@ -694,12 +713,13 @@ def main(argv):
 
         # klass == "ok": the leader is reaped, but that only proves the LEADER
         # exited — waitpid cannot reap a grandchild (it isn't our child), so a
-        # backgrounded descendant could still be running. Signals are already
-        # unblocked here (the try above unblocked them for the wait, and
-        # neither exception branch re-entered this path), so this is a plain,
-        # non-atomic courtesy call — correct, because the leader is already
-        # dead and there is nothing left to race against.
-        nudge_stragglers(proc)
+        # backgrounded descendant could still be running. An earlier draft
+        # sent a courtesy SIGTERM to the group here; removed — by this point
+        # the group may already be EMPTY, and a pgid is borrowed from the pid
+        # namespace, freed the instant nothing holds it. Signalling a possibly
+        # already-recycled pgid is a worse instance of the exact hazard this
+        # file exists to eliminate than the straggler it was trying to catch.
+        # Accepted, undetected residual — see README's known-ceilings list.
 
         if rc != 0:
             note(attempts, "exit-%d" % shell_rc(rc), elapsed, ceiling, rc, head)

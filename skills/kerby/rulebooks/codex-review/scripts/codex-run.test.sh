@@ -493,55 +493,56 @@ fi
 kill -KILL "$TGC" 2>/dev/null
 wait "$TPID" 2>/dev/null
 
-# T38 — REGRESSION PIN. `proc.wait()` on the clean-exit path only proves the
-# LEADER was reaped, not the whole process group — waitpid cannot reap a
-# grandchild (it isn't the wrapper's child, only a group member). Reproduced
-# by the reviewer: leader exits 0, a backgrounded descendant is still alive,
-# and the "ok" path signalled nothing at all. leader-exits.sh backgrounds a
-# long sleep then exits immediately; nudge_stragglers' best-effort TERM after
-# a clean reap should reach it even though nothing waits for the result.
-cat > "$WORK/leader-exits.sh" <<'EOF'
-#!/bin/bash
-sleep 300 &
-echo $! > "$1"
-exit 0
-EOF
-chmod +x "$WORK/leader-exits.sh"
-rm -f "$WORK/lgchild"
-run -- "$WORK/leader-exits.sh" "$WORK/lgchild"
-LGC=$(cat "$WORK/lgchild" 2>/dev/null || echo 0)
-sleep 1
-if [[ "$RC" -ne 0 ]]; then
-  fail "leader-exits stub: rc=$RC (want 0)"
-elif [[ "$LGC" -eq 0 ]]; then
-  fail "descendant pin inconclusive: never observed its pid"
-elif kill -0 "$LGC" 2>/dev/null; then
-  fail "descendant survived a clean leader exit, never signalled (pid=$LGC)"
-  kill -KILL "$LGC" 2>/dev/null
-else
-  pass "nudge_stragglers reaches a descendant left running after a clean exit"
-fi
+# T38 was a claimed fix for "a clean leader exit can leave a descendant
+# running, unsignalled" via a courtesy nudge_stragglers() call. Removed along
+# with the function it tested: a second review found that call unsafe (it
+# could TERM an unrelated, later process group once the original one is
+# empty — a pgid is borrowed from the pid namespace and freed the instant
+# nothing holds it). This is now an accepted, undetected gap — see the module
+# docstring and README's known-ceilings list — not something to pin as fixed.
 
-# T39 — a signal arriving AFTER a clean reap but before the report finishes
-# must not discard the real result. Timed generously: fast.sh exits in well
-# under a second; the external TERM lands 2s later, comfortably after
-# block_signals() has already re-engaged on the success path.
-rm -f "$LOG"; rmdir "$LOG.lock" 2>/dev/null
-bash "$RUN" -- "$WORK/fast.sh" >"$WORK/out.txt" 2>"$WORK/err.txt" &
+# T39 (redesigned) — REGRESSION PIN. A previous version of this test was
+# itself flagged as vacuous by review: it slept 2s against an near-instant
+# stub, never confirmed the signal actually landed while the child was still
+# alive, and passed on lock-absence alone regardless of what happened. This
+# version uses a stub with an observable heartbeat so the signal is verified
+# to land DURING the child's lifetime (not racing its exit), and pins that
+# the wrapper's response is always one of the two SOUND outcomes for that
+# case: the child is killed and 130 is reported (klass=stall path), or it
+# reaches survivor status legitimately (it won't here — the stub answers
+# TERM). It must never hang, never leave the lock stranded, and never route
+# through the ceiling-stall messaging (this was a signal, not a timeout).
+# The narrower post-reap race (proc.returncode is None between waitpid()
+# reaping and Popen assigning it) is a few CPython bytecode instructions
+# wide — not reliably reachable from an external `kill` at this level — and
+# is documented as an accepted residual rather than claimed here.
+cat > "$WORK/heartbeat.sh" <<'EOF'
+#!/bin/bash
+echo alive > "$1"
+sleep 30
+EOF
+chmod +x "$WORK/heartbeat.sh"
+rm -f "$LOG" "$WORK/hb"; rmdir "$LOG.lock" 2>/dev/null
+bash "$RUN" -- "$WORK/heartbeat.sh" "$WORK/hb" >"$WORK/out.txt" 2>"$WORK/err.txt" &
 NPID=$!
-sleep 2
-kill -TERM "$NPID" 2>/dev/null
-wait "$NPID" 2>/dev/null; NRC=$?
-# Either outcome is structurally sound (a signal this late almost certainly
-# lands after the process has already exited on its own) — what would FAIL
-# this pin is a hang, a crash, or a stranded lock, none of which involve any
-# process-kill call at all on this path.
-[[ -d "$LOG.lock" ]] && fail "post-reap signal left the lock stranded" \
-  || pass "post-reap signal handled cleanly (rc=$NRC), no stranded lock"
+until [[ -s "$WORK/hb" ]] || ! kill -0 "$NPID" 2>/dev/null; do sleep 1; done
+if [[ ! -s "$WORK/hb" ]]; then
+  fail "T39 inconclusive: wrapper exited before the child reported alive"
+else
+  kill -TERM "$NPID" 2>/dev/null   # child is CONFIRMED alive at this point
+  wait "$NPID" 2>/dev/null; NRC=$?
+  if [[ -d "$LOG.lock" ]]; then
+    fail "signal against a live child left the lock stranded"
+  elif [[ "$NRC" -eq 130 ]]; then
+    pass "signal against a confirmed-live child kills it cleanly (130)"
+  else
+    fail "signal against a live child produced an unsound outcome: rc=$NRC"
+  fi
+fi
 
 # 20. No stub survived the suite.
 sleep 1
-LEFT=$(pgrep -f "$WORK/(forever|blocker|reader|stubborn|leader-exits)\.sh" 2>/dev/null | wc -l | tr -d ' ')
+LEFT=$(pgrep -f "$WORK/(forever|blocker|reader|stubborn|heartbeat)\.sh" 2>/dev/null | wc -l | tr -d ' ')
 [[ "$LEFT" -eq 0 ]] && pass "no orphaned stub processes" || fail "$LEFT orphaned stub(s)"
 
 # --- Static analysis: the machinery that caused rounds 1-5's defects must not
@@ -600,6 +601,27 @@ IMPORT_LEAKS=$(grep -E '^(import|from) ' "$PY" | grep -vE '^(import|from) (datet
 [[ -z "$IMPORT_LEAKS" ]] \
   && pass "codex-run.py imports are stdlib-only" \
   || fail "non-stdlib import(s): $IMPORT_LEAKS"
+
+# T41 — static, REGRESSION PIN. Lock.acquire() used to set `held = True`
+# BEFORE calling mkdir() ("optimistic"); a review found a signal in that gap
+# leaves held=True with nothing on disk, so a DIFFERENT process's later lock
+# at the same path gets deleted by our cleanup. The fix wraps the syscall in
+# block_signals(), making acquisition atomic. Not practically timeable at the
+# integration level (a single mkdir() syscall is far too fast to reliably
+# race externally) — checked structurally instead: block_signals() must
+# appear, textually, before os.mkdir(self.path) inside Lock.acquire().
+# grep -v '^\s*#' first: a comment mentioning block_signals() (as this one
+# does, to explain the fix) would otherwise satisfy the line-number check
+# regardless of what the actual code below it does — caught by mutation
+# testing this pin against a deliberately reordered copy.
+ACQUIRE_BODY=$(sed -n '/def acquire(self):/,/def disown/p' "$PY" | grep -v '^[[:space:]]*#')
+BLOCK_LINE=$(printf '%s\n' "$ACQUIRE_BODY" | grep -n 'block_signals()' | head -1 | cut -d: -f1)
+MKDIR_LINE=$(printf '%s\n' "$ACQUIRE_BODY" | grep -n 'os\.mkdir(self\.path)' | head -1 | cut -d: -f1)
+if [[ -n "$BLOCK_LINE" && -n "$MKDIR_LINE" && "$BLOCK_LINE" -lt "$MKDIR_LINE" ]]; then
+  pass "Lock.acquire() blocks signals before its mkdir() call"
+else
+  fail "Lock.acquire() does not block signals before mkdir() (block@$BLOCK_LINE mkdir@$MKDIR_LINE)"
+fi
 
 echo
 if [[ "$FAILS" -eq 0 ]]; then echo "ALL PASS"; else echo "$FAILS FAILURE(S)"; exit 1; fi

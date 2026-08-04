@@ -129,43 +129,57 @@ within the delegation budget (`references/delegation.md` § Bounded delegation).
   that authoritatively (see exit 6 below) rather than misreporting it, but
   detecting it is not preventing it. A group member that calls `setsid()`
   itself leaves the wrapper's session and escapes the `killpg` entirely — this,
-  not pid recycling, is the real remaining orphan hazard. `proc.wait()` on the
+  not pid recycling, is a real remaining orphan hazard. `proc.wait()` on the
   clean-exit path only proves the *leader* was reaped — `waitpid` cannot reap a
   grandchild (it isn't the wrapper's child, only a member of its process
-  group), so a backgrounded descendant can outlive a successful exit. The
-  wrapper sends a best-effort, non-waited `SIGTERM` to the group after every
-  clean exit (`nudge_stragglers`) so a straggler doesn't linger indefinitely,
-  but this cannot be proof the way `kill_ladder`'s reap is — there is
-  structurally no syscall that would make it one. And a `SIGKILL` to the
-  wrapper itself still strands the lock directory (the bash EXIT trap had the
-  identical hole).
-- **The same bug class reappeared one level up, in signal timing, and got the
-  same treatment: remove the guesswork rather than add a guard.** A review
-  found that a signal landing in the gap between "the child's fate is decided"
-  and "the wrapper finishes acting on it" — after a successful reap but before
-  the function returns, or literally mid-`kill_ladder()` — could re-run the
-  kill ladder against a pid that might already belong to someone else, or
-  escape a nested `except` uncaught and abandon a half-killed child. Two fixes,
-  not a third `ps`-shaped guard: `proc.returncode is None` is the race-free
-  "already reaped?" check (`Popen` sets it synchronously as part of a
-  successful `wait()`), used before every `kill_ladder()` call reached from a
-  signal handler; and `signal.pthread_sigmask` blocks the three caught signals
-  (deferring, not dropping, them) around the trivial gap right after spawning
-  and around the kill ladder itself, so those regions are atomic. They stay
-  unblocked around the main ceiling wait on purpose — a long wait should
-  still be Ctrl-C-interruptible, and that window already has the race-free
-  handler. Building this surfaced a third instance of the same bug class,
-  self-inflicted: the first draft blocked signals *before* calling `spawn()`,
-  which — because `fork()` copies the caller's signal mask into the child —
-  made the spawned process (and everything it backgrounds) inherit TERM as
-  blocked for its *entire lifetime*. Verified directly: `killpg(..., TERM)`
-  reached such a child, raised no exception, and did nothing; only the
-  unmaskable `KILL` still worked. The fix blocks *after* `spawn()` returns,
-  once the child has already forked with a normal mask — a distinction with
-  no timing-based test coverage possible at all, since `kill_ladder`'s fixed
-  grace sleep makes the wrapper's total elapsed time identical whether TERM
-  worked or not; the dedicated pin (`codex-run.test.sh` T40) instead checks
-  the child's own liveness mid-grace, from outside the wrapper.
+  group), so a backgrounded descendant can outlive a successful exit,
+  **undetected**: an earlier draft sent a courtesy `SIGTERM` to the group after
+  every clean exit, on the theory that the leader is already dead so nothing
+  else could be hit — but a review pointed out that once the group is fully
+  empty (leader reaped, no surviving descendant either) its pgid number is
+  freed for OS reuse, so a courtesy signal fired on SPECULATION risks hitting
+  an unrelated, later process group. That is a *worse* instance of the exact
+  hazard this file exists to eliminate than the straggler it was trying to
+  catch, so it was removed — this case is accepted as an undetected gap, not
+  patched with a guess. And a `SIGKILL` to the wrapper itself still strands the
+  lock directory (the bash EXIT trap had the identical hole).
+- **The same bug class reappeared one level up, in signal timing — and the
+  first fix for it was itself incomplete.** A review found that a signal
+  landing in the gap between "the child's fate is decided" and "the wrapper
+  finishes acting on it" — after a successful reap but before the function
+  returns, or literally mid-`kill_ladder()` — could re-run the kill ladder
+  against a pid that might already belong to someone else, or escape a nested
+  `except` uncaught and abandon a half-killed child. Fixed with
+  `proc.returncode is None` as an "already reaped?" check before every
+  `kill_ladder()` call reached from a signal handler, plus
+  `signal.pthread_sigmask` blocking the three caught signals around the
+  regions that must run as one unit — left unblocked around the main ceiling
+  wait on purpose, so a long wait stays Ctrl-C-interruptible. Building the
+  blocking half surfaced a THIRD, self-inflicted instance: blocking *before*
+  calling `spawn()` made the forked child inherit the blocked mask for its
+  *entire lifetime* (`fork()` copies the caller's mask), so a later `TERM`
+  reached the child, raised no exception, and did **nothing** — only the
+  unmaskable `KILL` still worked. Fixed by blocking *after* `spawn()` returns.
+  **A second review round then found `proc.returncode is None` is not the
+  race-free check the first fix claimed.** It is a fact about CPython's
+  implementation, not a design choice: `Popen._wait()` calls `os.waitpid()` —
+  which reaps the child — and only several bytecode instructions later
+  assigns `self.returncode`. A signal in that gap sees `None` on an
+  already-reaped, potentially recycled pid. Reproduced on the *first* attempt
+  of a scripted adversarial probe. This is now an **accepted residual**, not
+  claimed as closed: fully closing it means bypassing `Popen.wait()`'s
+  internals for a hand-rolled `os.waitpid()` call under this file's own
+  atomicity control — materially larger than a guard, and not undertaken
+  here. The mask-inheritance fix has its own dedicated dynamic pin
+  (`codex-run.test.sh` T40) precisely because that class of bug — unlike the
+  returncode race — *is* fully closable and was verified to be. Same
+  reasoning applies to the lock: acquisition used to set `held = True`
+  *before* calling `mkdir()`, leaving a gap where a signal could strand a
+  flag with nothing on disk yet, or (rarer) delete a lock a *different*
+  process created in that window; `Lock.acquire()` now blocks signals around
+  the syscall itself — safe, because `mkdir()` forks nothing, so the
+  mask-inheritance hazard that ruled this out for `spawn()` doesn't apply
+  here. Pinned statically as T41 (the gap is too fast to time externally).
 - **A killed run's exit status is not information — but the wrapper does wait
   to confirm the kill, then discards what it collected.** On the stall path
   (exit 4), `kill_ladder`'s final step is `proc.wait(timeout=REAP_SECONDS)` —
