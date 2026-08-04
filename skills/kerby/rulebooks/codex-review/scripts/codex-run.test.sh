@@ -627,14 +627,40 @@ IMPORT_LEAKS=$(grep -E '^(import|from) ' "$PY" | grep -vE '^(import|from) (datet
 # AttributeError) because it only checked "the word returncode appears in
 # some if" rather than the actual comparison shape.
 #
-# T41 now requires block_signals()/mkdir()/unblock_signals() to be DIRECT
-# statements (not walked into via ast.walk, which would find them inside a
-# dead branch) at their respective required positions.
-# T42 now requires the EXACT compound guard `proc is not None and
-# proc.returncode is None` as one BoolOp(And) — checking the real Compare
-# shape (Is/IsNot, the specific attribute, the specific operand), not
-# "contains this word" — plus a kill_ladder(proc) call with proc as the
-# actual argument, inside that same If.
+# Round 11 tightened both further after a fresh review demonstrated FOUR more
+# passing mutants: (a) T41 didn't verify NOTHING undoes block_signals() before
+# the try — inserting unblock_signals() right after it still "found block
+# before mkdir" and passed; (b) T42 accepted the guard's two halves in EITHER
+# order, but `proc.returncode is None and proc is not None` dereferences
+# `.returncode` on a possibly-None proc before the check that exists to
+# prevent exactly that — a real crash, not an equivalent shape; (c) T42
+# didn't reject extra operands, so `and False` appended to the guard still
+# matched "contains both required comparisons"; (d) the kill_ladder(proc)
+# check still used ast.walk(), so `if False and not kill_ladder(proc):`
+# still "contained" the call as dead code, same class of bug as round 10's
+# original block_signals() gap, just one level deeper.
+#
+# T41 now requires block_signals() to be the STATEMENT IMMEDIATELY BEFORE
+# the try (not merely somewhere before it), mkdir()/unblock_signals() as
+# before.
+# T42 now requires the EXACT BoolOp(And) with exactly 2 operands, in the
+# specific order Python's short-circuit evaluation requires for safety
+# (`proc is not None` first), and the inner `if not kill_ladder(proc):` as
+# a DIRECT, always-evaluated test rather than merely present somewhere in
+# the subtree.
+#
+# HONEST LIMIT, stated rather than chased further: this is a best-effort
+# static check against plausible accidental regressions, not a proof against
+# a deliberately adversarial mutation. Four rounds of "reviewer finds a
+# cleverer mutant, check gets tightened" is diminishing returns on a game
+# that — like the returncode race and the entry-gap residuals elsewhere in
+# this file — has no finite end: proving a statement is unconditionally
+# reached in the general case is undecidable (a sufficiently obfuscated
+# always-false condition can't be told from a genuine one by inspection
+# alone). What matters is that these pins catch the FOUR real, demonstrated
+# mutants above plus the shapes from rounds 8-10 — realistic accidental
+# regressions a future edit might introduce — not that they resist a reader
+# who sets out to specifically defeat this exact checker's source.
 AST_STATIC=$(python3 - "$PY" <<'PYEOF'
 import ast, sys
 
@@ -664,16 +690,18 @@ acquire_fn = next(n for n in lock_cls.body
                   if isinstance(n, ast.FunctionDef) and n.name == "acquire")
 try_idx = next(i for i, s in enumerate(acquire_fn.body) if isinstance(s, ast.Try))
 acquire_try = acquire_fn.body[try_idx]
-t41 = (
-    any(direct_call(s, "block_signals") for s in acquire_fn.body[:try_idx])
-    and any(
-        isinstance(s, ast.Expr) and isinstance(s.value, ast.Call)
-        and isinstance(s.value.func, ast.Attribute) and s.value.func.attr == "mkdir"
-        for s in acquire_try.body
-    )
-    and bool(acquire_try.finalbody)
-    and any(direct_call(s, "unblock_signals") for s in acquire_try.finalbody)
+block_immediately_before = (
+    try_idx > 0 and direct_call(acquire_fn.body[try_idx - 1], "block_signals")
 )
+mkdir_direct = any(
+    isinstance(s, ast.Expr) and isinstance(s.value, ast.Call)
+    and isinstance(s.value.func, ast.Attribute) and s.value.func.attr == "mkdir"
+    for s in acquire_try.body
+)
+unblock_direct = bool(acquire_try.finalbody) and any(
+    direct_call(s, "unblock_signals") for s in acquire_try.finalbody
+)
+t41 = block_immediately_before and mkdir_direct and unblock_direct
 
 # --- T42: main()'s outermost try / except Interrupted: / the exact guard ---
 main_fn = next(n for n in find(tree, ast.FunctionDef) if n.name == "main")
@@ -698,27 +726,38 @@ def is_proc_not_none(test):
     return (isinstance(op, ast.IsNot) and isinstance(left, ast.Name) and left.id == "proc"
            and isinstance(right, ast.Constant) and right.value is None)
 
-def kills_actual_proc(node):
-    for c in ast.walk(node):
-        if (isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
-                and c.func.id == "kill_ladder" and len(c.args) == 1
-                and isinstance(c.args[0], ast.Name) and c.args[0].id == "proc"):
-            return True
-    return False
+def direct_call_in(node, name, argname):
+    """A DIRECT call to name(argname) — used for `not kill_ladder(proc)`, so
+    a call statically present but never evaluated (guarded by `and False`)
+    is not enough."""
+    return (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+           and node.func.id == name and len(node.args) == 1
+           and isinstance(node.args[0], ast.Name) and node.args[0].id == argname)
 
 found_guard = False
 if handler is not None:
     for s in handler.body:
-        # The EXACT compound guard, both halves as one BoolOp(And) — a
-        # mutant dropping "proc is not None" and keeping only the
-        # returncode check is a REAL bug (AttributeError on a None proc),
-        # not an equivalent shape, so no single-condition fallback here.
-        if (isinstance(s, ast.If) and isinstance(s.test, ast.BoolOp)
-                and isinstance(s.test.op, ast.And)
-                and any(is_proc_not_none(v) for v in s.test.values)
-                and any(is_proc_returncode_is_none(v) for v in s.test.values)
-                and kills_actual_proc(s)):
-            found_guard = True
+        if not isinstance(s, ast.If):
+            continue
+        test = s.test
+        # EXACT shape: exactly 2 operands, `proc is not None` FIRST — that
+        # order is what makes the short-circuit safe (Python evaluates left
+        # to right; reversed, `.returncode` is dereferenced before the None
+        # check that exists to prevent it).
+        shape_ok = (
+            isinstance(test, ast.BoolOp) and isinstance(test.op, ast.And)
+            and len(test.values) == 2
+            and is_proc_not_none(test.values[0])
+            and is_proc_returncode_is_none(test.values[1])
+        )
+        if not shape_ok:
+            continue
+        for inner in s.body:
+            if (isinstance(inner, ast.If)
+                    and isinstance(inner.test, ast.UnaryOp)
+                    and isinstance(inner.test.op, ast.Not)
+                    and direct_call_in(inner.test.operand, "kill_ladder", "proc")):
+                found_guard = True
 t42 = bool(release_direct and handler is not None and found_guard)
 
 print("T41:%s" % t41)

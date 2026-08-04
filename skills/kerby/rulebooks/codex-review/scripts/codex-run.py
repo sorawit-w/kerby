@@ -29,7 +29,11 @@ across the two scripts; 2 and 3 are therefore never emitted here):
     6 — SURVIVOR: the group did not die within the grace+reap window after
         SIGKILL. Do NOT retry — a second attempt would run beside it. The lock
         is deliberately left behind so the next attempt refuses. Escalate.
-  130 — HUP/INT/TERM delivered to this wrapper; the kill ladder ran.
+  130 — HUP/INT/TERM delivered to this wrapper. The kill ladder runs whenever
+        a live child was reachable at the point the signal was handled — not
+        an unconditional guarantee; see the residual-gaps discussion below
+        for the specific, narrow windows where a child can exist without the
+        ladder running (nothing spawned yet is the common, unremarkable case).
 
 WHY PYTHON. Five review rounds of the bash predecessor produced seven defects,
 every one the same shape: the shell's process-inspection primitives (ps,
@@ -414,11 +418,16 @@ def install_signal_handlers():
     """Turn HUP/INT/TERM into Interrupted so a single try/finally can clean up.
 
     Called as the FIRST statement in main(), before the lock is even
-    acquired: Python's default SIGINT disposition raises KeyboardInterrupt,
-    which is not caught anywhere in this file (it is not an Exception
-    subclass) and would otherwise skip cleanup entirely if it arrived during
-    lock acquisition. Installing our own handler first replaces that default
-    for the whole lifetime of the process.
+    acquired: Python's default SIGINT disposition raises KeyboardInterrupt
+    (not an Exception subclass, so main()'s `except Interrupted:` clauses
+    cannot catch it), which — before this call replaces the disposition —
+    would propagate all the way to __main__'s belt-and-suspenders
+    `except KeyboardInterrupt:` backstop and skip every bit of cleanup this
+    file does (lock release, kill_ladder) along the way. That backstop exists
+    for the sliver of time BEFORE this function runs, not as a substitute for
+    running it — installing our own handler here replaces Python's default
+    for the rest of the process's lifetime, which is what makes cleanup
+    possible at all from this point on.
 
     A second signal must not re-enter cleanup and skip the release, so the
     handler disarms itself first.
@@ -698,14 +707,17 @@ def main(argv):
             # it didn't — see spawn()'s docstring); nothing is running.
             raise Usage("cannot start '%s': %s — check it is executable, then "
                         "re-run" % (cmd[0], exc))
-        # NOW block, immediately after Popen() has returned control — the
-        # child already forked with a normal mask, so this protects only OUR
-        # OWN bookkeeping for the trivial gap before the next line, without
-        # touching the child at all. (A signal landing INSIDE Popen()'s own
-        # fork/exec handshake, before we have `proc` in hand, is an accepted
-        # residual — there is no handle to act on yet regardless of blocking,
-        # the same shape as the Popen()-can-hang residual in this file's
-        # module docstring.)
+        # NOW block, immediately after spawn() ITSELF returns (not merely
+        # after its internal Popen() call — spawn() has its own post-Popen()
+        # assignment/close/return sequence, with the identical gap shape,
+        # documented in spawn()'s own docstring and NOT covered by this
+        # block_signals() call). The child already forked with a normal
+        # mask, so this protects only OUR OWN bookkeeping for the trivial
+        # gap between spawn() returning and the next line, without touching
+        # the child at all. (A signal landing INSIDE spawn() — before we
+        # have `proc` in hand here — is an accepted residual: there is no
+        # handle to act on yet regardless of blocking, the same shape as the
+        # Popen()-can-hang residual in this file's module docstring.)
         block_signals()
 
         started = time.monotonic()   # monotonic: an NTP step cannot move the bound
@@ -722,13 +734,17 @@ def main(argv):
             rc = proc.wait(timeout=ceiling)   # ONE call. No poll loop, no probe.
             # Re-block THE MOMENT this returns, on the SUCCESS path too — not
             # just in the except branches below. Without this line, a signal
-            # landing here (child reaped, but still inside the reporting code
-            # that follows: elapsed/head/note/emit) escaped to the outermost
-            # catch-all, which returns a bare 130 and discards a completed,
-            # valid result it never even looks at. It doesn't kill anything
-            # there (no misdirected signal — the outer catch never calls
-            # kill_ladder), but it does throw away real information for no
-            # reason. Blocking here removes that window.
+            # landing here (child ALREADY reaped, rc already has a real
+            # value, but still inside the reporting code that follows:
+            # elapsed/head/note/emit) escapes to the outermost catch-all.
+            # That catch-all now checks proc.returncode before deciding
+            # whether to kill anything (fixed in a later round) — and here
+            # it's already set, so it correctly does NOT call kill_ladder —
+            # but it STILL unconditionally returns a bare 130, discarding
+            # the completed, valid result it never looks at. Blocking here
+            # is what prevents THAT specific loss; it is not protecting
+            # against a misdirected kill on this path (nothing here would
+            # trigger one either way).
             block_signals()
         except subprocess.TimeoutExpired:
             block_signals()      # re-atomic: the ladder must run as one unit
@@ -861,10 +877,15 @@ if __name__ == "__main__":
         emit(str(err))
         sys.exit(1)
     except Interrupted:
-        # Defensive only — main() now catches Interrupted internally on every
-        # path once install_signal_handlers() (its first statement) has run,
-        # so this should be unreachable. Kept as a backstop in case a future
-        # change reopens a gap; still exits the same way main() would.
+        # Genuinely reachable, not merely defensive: main()'s preflight
+        # (parse_args/validate_ceiling/git_dir/which/logdir checks) runs
+        # AFTER install_signal_handlers() but BEFORE main()'s own try begins,
+        # so a signal there raises Interrupted with no main()-internal
+        # handler positioned to catch it — it lands here. Harmless on that
+        # specific path: nothing has been acquired or spawned yet, so there
+        # is nothing to clean up and exiting 130 immediately is correct. This
+        # clause is also the true backstop for any future gap that reopens
+        # elsewhere; either way it exits the same way main() itself would.
         sys.exit(130)
     except KeyboardInterrupt:
         # Belt-and-suspenders for the sliver of time before main()'s first
