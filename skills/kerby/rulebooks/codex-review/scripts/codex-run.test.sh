@@ -612,27 +612,29 @@ IMPORT_LEAKS=$(grep -E '^(import|from) ' "$PY" | grep -vE '^(import|from) (datet
   && pass "codex-run.py imports are stdlib-only" \
   || fail "non-stdlib import(s): $IMPORT_LEAKS"
 
-# T41/T42 — static, REGRESSION PINS, AST-based rather than grep. A review
-# found BOTH grep-based versions of these checks weak enough to false-pass a
-# real mutant: T41's ordering check couldn't distinguish `block_signals()`
-# from `unblock_signals()` swapped into the wrong place (grep -v filtering
-# fixed the substring collision in an earlier round, but the reviewer then
-# showed dedenting unblock_signals() OUT of the finally still passed — the
-# check verified order, never actual containment). T42's textual isolation
-# via `lock.release()` as an anchor couldn't tell an `except Interrupted:`
-# from an `except Exception:`, nor a real `if proc.returncode is None:` check
-# from the same text surviving only in a comment. Real structure needs a real
-# parser: same idiom as the oracle-call-site check above, one level deeper.
+# T41/T42 — static, REGRESSION PINS, AST-based rather than grep. Two review
+# rounds found successive versions of these checks too weak. Round 8: T41's
+# ordering check couldn't distinguish `block_signals()` from
+# `unblock_signals()` swapped into the wrong place. Round 9: dedenting
+# unblock_signals() OUT of its finally still passed T41; T42's textual
+# proximity search couldn't distinguish `except Interrupted:` from
+# `except Exception:`, nor a real check from the same words in a comment —
+# fixed with a first AST pass. Round 10: even THAT AST pass used ast.walk(),
+# which recurses into every nested branch — so `if False: block_signals()`
+# still "contained" the call (dead code, never runs) and passed T41; T42
+# accepted `kill_ladder(None)`, a reversed `is not None` guard, or dropping
+# the `proc is not None` half entirely (a REAL bug: `None.returncode` raises
+# AttributeError) because it only checked "the word returncode appears in
+# some if" rather than the actual comparison shape.
 #
-# T41 asserts, in Lock.acquire(): block_signals() is called as a statement
-# BEFORE the try/mkdir(); mkdir() is inside that try's body; unblock_signals()
-# is inside that try's OWN finally block (not merely after some finally,
-# anywhere).
-# T42 asserts, in main()'s OUTERMOST try (identified structurally as the one
-# whose finally calls .release() — not the inner wait-try, not __main__'s
-# backstop): it has an `except Interrupted:` handler, and that handler's body
-# contains both an `if` whose test mentions `returncode` and a call to
-# kill_ladder(proc) — not merely nearby text.
+# T41 now requires block_signals()/mkdir()/unblock_signals() to be DIRECT
+# statements (not walked into via ast.walk, which would find them inside a
+# dead branch) at their respective required positions.
+# T42 now requires the EXACT compound guard `proc is not None and
+# proc.returncode is None` as one BoolOp(And) — checking the real Compare
+# shape (Is/IsNot, the specific attribute, the specific operand), not
+# "contains this word" — plus a kill_ladder(proc) call with proc as the
+# actual argument, inside that same If.
 AST_STATIC=$(python3 - "$PY" <<'PYEOF'
 import ast, sys
 
@@ -641,17 +643,19 @@ tree = ast.parse(open(sys.argv[1]).read())
 def find(node, types):
     return [n for n in ast.walk(node) if isinstance(n, types)]
 
-def calls(node, name):
-    """True if `node` contains a Call to bare name `name` (block_signals())
-    OR a method call whose attribute is `name` (lock.release())."""
-    for c in ast.walk(node):
-        if not isinstance(c, ast.Call):
-            continue
-        f = c.func
-        if isinstance(f, ast.Name) and f.id == name:
-            return True
-        if isinstance(f, ast.Attribute) and f.attr == name:
-            return True
+def direct_call(stmt, name):
+    """True only if `stmt` IS a call to bare-name `name`, not merely
+    contains one somewhere in a nested branch (walk()-ing would also match
+    dead code like `if False: name()`)."""
+    if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
+        f = stmt.value.func
+        return isinstance(f, ast.Name) and f.id == name
+    return False
+
+def direct_method_call(stmt, name):
+    if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
+        f = stmt.value.func
+        return isinstance(f, ast.Attribute) and f.attr == name
     return False
 
 # --- T41: Lock.acquire() ---
@@ -661,25 +665,62 @@ acquire_fn = next(n for n in lock_cls.body
 try_idx = next(i for i, s in enumerate(acquire_fn.body) if isinstance(s, ast.Try))
 acquire_try = acquire_fn.body[try_idx]
 t41 = (
-    any(calls(s, "block_signals") for s in acquire_fn.body[:try_idx])
-    and any(calls(s, "mkdir") for s in acquire_try.body)
+    any(direct_call(s, "block_signals") for s in acquire_fn.body[:try_idx])
+    and any(
+        isinstance(s, ast.Expr) and isinstance(s.value, ast.Call)
+        and isinstance(s.value.func, ast.Attribute) and s.value.func.attr == "mkdir"
+        for s in acquire_try.body
+    )
     and bool(acquire_try.finalbody)
-    and any(calls(s, "unblock_signals") for s in acquire_try.finalbody)
+    and any(direct_call(s, "unblock_signals") for s in acquire_try.finalbody)
 )
 
-# --- T42: main()'s outermost try / except Interrupted: / kill_ladder(proc) ---
+# --- T42: main()'s outermost try / except Interrupted: / the exact guard ---
 main_fn = next(n for n in find(tree, ast.FunctionDef) if n.name == "main")
 outer_try = next(s for s in main_fn.body if isinstance(s, ast.Try))
-release_in_finally = (bool(outer_try.finalbody)
-                      and any(calls(s, "release") for s in outer_try.finalbody))
+release_direct = (bool(outer_try.finalbody)
+                  and any(direct_method_call(s, "release") for s in outer_try.finalbody))
 handler = next((h for h in outer_try.handlers
                if isinstance(h.type, ast.Name) and h.type.id == "Interrupted"), None)
-t42 = bool(
-    release_in_finally and handler
-    and any(calls(s, "kill_ladder") for s in handler.body)
-    and any(isinstance(s, ast.If) and "returncode" in ast.dump(s.test)
-           for s in handler.body)
-)
+
+def is_proc_returncode_is_none(test):
+    if not isinstance(test, ast.Compare) or len(test.ops) != 1:
+        return False
+    left, op, right = test.left, test.ops[0], test.comparators[0]
+    return (isinstance(op, ast.Is) and isinstance(right, ast.Constant) and right.value is None
+           and isinstance(left, ast.Attribute) and left.attr == "returncode"
+           and isinstance(left.value, ast.Name) and left.value.id == "proc")
+
+def is_proc_not_none(test):
+    if not isinstance(test, ast.Compare) or len(test.ops) != 1:
+        return False
+    left, op, right = test.left, test.ops[0], test.comparators[0]
+    return (isinstance(op, ast.IsNot) and isinstance(left, ast.Name) and left.id == "proc"
+           and isinstance(right, ast.Constant) and right.value is None)
+
+def kills_actual_proc(node):
+    for c in ast.walk(node):
+        if (isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
+                and c.func.id == "kill_ladder" and len(c.args) == 1
+                and isinstance(c.args[0], ast.Name) and c.args[0].id == "proc"):
+            return True
+    return False
+
+found_guard = False
+if handler is not None:
+    for s in handler.body:
+        # The EXACT compound guard, both halves as one BoolOp(And) — a
+        # mutant dropping "proc is not None" and keeping only the
+        # returncode check is a REAL bug (AttributeError on a None proc),
+        # not an equivalent shape, so no single-condition fallback here.
+        if (isinstance(s, ast.If) and isinstance(s.test, ast.BoolOp)
+                and isinstance(s.test.op, ast.And)
+                and any(is_proc_not_none(v) for v in s.test.values)
+                and any(is_proc_returncode_is_none(v) for v in s.test.values)
+                and kills_actual_proc(s)):
+            found_guard = True
+t42 = bool(release_direct and handler is not None and found_guard)
+
 print("T41:%s" % t41)
 print("T42:%s" % t42)
 PYEOF

@@ -440,7 +440,8 @@ def block_signals():
     it is unblocked. Verified before use: a signal sent while blocked
     produces zero handler invocations until unblock, then fires exactly
     once. This makes kill_ladder()'s OWN body atomic with respect to these
-    three signals, and closes the gap right after spawn() returns.
+    three signals, and NARROWS (does not fully close — see spawn()'s
+    docstring and the module docstring) the gap right after spawn() returns.
 
     It does NOT close the transitions of entering those regions: a signal
     can still land between "we decided to call kill_ladder()" (e.g. just
@@ -488,9 +489,17 @@ def spawn(cmd, log_path):
     Cleanup ownership is scoped precisely: if os.open() itself raises (a
     narrow TOCTOU — something now occupies log_path between the caller's
     stale-log removal and this call), NO file was created by us and this
-    function must not touch that path at all. Only a Popen() failure AFTER
-    a successful open() unlinks — because only then did we create the inode
-    we're removing.
+    function must not touch that path at all. A Popen() failure AFTER a
+    successful open() unlinks safely, because only then did we create the
+    inode we're removing — NOT the only other case that reaches this cleanup,
+    though: `except BaseException` also catches Interrupted, so a signal
+    landing between Popen() returning (child alive) and this function's own
+    `proc = subprocess.Popen(...)` assignment completing runs this SAME
+    cleanup path — unlinking a log a live child may still be writing to, then
+    re-raising with the caller's `proc = spawn(...)` never completing, so
+    that reference is lost. This is the sub-statement gap the module
+    docstring's residual discussion names; not engineered around further
+    here for the same reason given there.
     """
     fd = os.open(log_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
     try:
@@ -633,13 +642,21 @@ def main(argv):
     lock = Lock(log)
     # `proc` is the outer Interrupted handler's witness for "does a child
     # exist that might need killing". A review found that handler assumed
-    # "no child exists yet" unconditionally — false for two real gaps: the
+    # "no child exists yet" unconditionally — false for real gaps: the
     # instant right after spawn() returns but before the caller's own
     # block_signals() runs, and entering `except subprocess.TimeoutExpired:`
     # before ITS block_signals() runs. Both let Interrupted escape every
-    # inner handler and reach here with a live, unmanaged child. None here
-    # means "not spawned yet" unambiguously — spawn() either returns a real
-    # Popen or raises, it never leaves proc half-set.
+    # inner handler and reach here with a live, unmanaged child, and the
+    # outer handler below now checks for that.
+    #
+    # `None` here is NOT an unambiguous "not spawned yet" signal, and a later
+    # review round showed why: spawn() can create the child and then itself
+    # be interrupted before returning it (see spawn()'s own docstring) — in
+    # that specific sub-case a real child exists, orphaned, while `proc`
+    # here never leaves `None` at all, because the assignment below never
+    # completes. This is the same class of gap as the module docstring's
+    # returncode-race residual, not a defect unique to this line — accepted,
+    # not claimed away.
     proc = None
     try:
         # Lock.acquire() blocks signals around its own mkdir() + flag update
