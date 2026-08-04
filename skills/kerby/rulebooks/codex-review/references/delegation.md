@@ -39,7 +39,10 @@ reached this repo's own audit log.
   macOS `ps %cpu` is a decayed lifetime average and cannot say "idle right now".
   A wrapper build that killed on line-plus-silence truncated a healthy 107 KB
   review at 38 seconds. Everything alive at the ceiling is a stall → killed,
-  exit **4** — never earlier, never past.
+  exit **4** — never earlier. The *kill* starts at the ceiling, not the exit: the
+  wrapper sends TERM so the runtime can flush a partial transcript, then SIGKILLs
+  after a five-second grace, so a TERM-ignoring runtime outlives the ceiling by
+  seconds — never by more, and never unboundedly.
 - **Wall-clock ceiling per attempt** (mechanical): ~2× the observed-good duration
   (median of the numeric `dur=` fields in `$GIT_DIR/codex-review-audit.log`,
   ignoring `?`); no baseline → 15 min. The wrapper computes this, clamps it to

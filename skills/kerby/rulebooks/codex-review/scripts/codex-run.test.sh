@@ -78,6 +78,14 @@ cat > "$WORK/reader.sh" <<'EOF'
 cat > /dev/null
 echo "stdin-eof"
 EOF
+# Ignores TERM. A single un-escalated TERM leaves this alive forever.
+cat > "$WORK/stubborn.sh" <<'EOF'
+#!/bin/bash
+trap '' TERM
+echo $$ > "$1"
+echo "ignoring TERM"
+sleep 300
+EOF
 chmod +x "$WORK"/*.sh
 
 # --- Preconditions: nothing is spawned, no log is created (exit 1) ---
@@ -223,9 +231,79 @@ NONREPO=$(mktemp -d)
 rmdir "$NONREPO"
 [[ "$RC" -eq 1 ]] && pass "not a git repo fails closed" || fail "non-repo: rc=$RC"
 
+# --- Codex-review round 1 findings (P1/P2), pinned ---
+
+# 21. Ceiling values that would silently DISABLE the watchdog. "00" is all
+# digits and is not the string "0", so a naive guard lets it through and it
+# means kill-immediately. An oversized value overflows shell arithmetic, the
+# comparison in the poll loop then fails as a non-integer inside the muffled
+# brace group, and the loop spins forever with no bound at all.
+for BAD in 00 0 999999999999999999999999 -5 1.5; do
+  run --ceiling "$BAD" -- "$WORK/fast.sh"
+  [[ "$RC" -eq 1 ]] || fail "--ceiling $BAD accepted (rc=$RC)"
+done
+run --ceiling 86400 -- "$WORK/fast.sh"
+[[ "$RC" -eq 0 ]] && pass "invalid ceilings rejected, in-range accepted" || fail "ceiling 86400 rejected: rc=$RC"
+
+# 22. REGRESSION PIN — the signal trap must run the SAME kill ladder. TERM to
+# the wrapper used to fire one un-escalated TERM at the child and exit
+# immediately, orphaning any runtime that ignores TERM — the precise outcome
+# this wrapper exists to prevent.
+rm -f "$LOG"
+rm -f "$WORK/spid"
+bash "$RUN" --ceiling 120 -- "$WORK/stubborn.sh" "$WORK/spid" >"$WORK/out.txt" 2>"$WORK/err.txt" &
+WPID=$!
+# The stub reports its own pid. pgrep -f would also match the WRAPPER's command
+# line (it contains the stub path), and picking that pid makes this pin measure
+# a process that always exits — i.e. pass no matter what the trap does.
+until [[ -s "$WORK/spid" ]] || ! kill -0 "$WPID" 2>/dev/null; do sleep 1; done
+CPID=$(cat "$WORK/spid" 2>/dev/null)
+kill -TERM "$WPID" 2>/dev/null
+wait "$WPID" 2>/dev/null; TRC=$?
+sleep 1
+if [[ -z "$CPID" ]]; then
+  # Never let a missed pgrep read as success — that would make this pin vacuous
+  # exactly when the child it is supposed to find is the thing at issue.
+  fail "trap pin inconclusive: never observed the child pid"
+elif kill -0 "$CPID" 2>/dev/null; then
+  fail "trap orphaned the child (pid=$CPID still alive)"; kill -KILL "$CPID" 2>/dev/null
+else
+  pass "trap escalates to KILL, no orphan (wrapper rc=$TRC)"
+fi
+
+# 23. REGRESSION PIN — concurrent attempts on the shared default log used to
+# destroy each other's evidence: the second unlinks the first's inode, the
+# first keeps writing to an unnamed file, and BOTH reported success.
+rm -f "$LOG"; rmdir "$LOG.lock" 2>/dev/null
+bash "$RUN" --ceiling 30 -- "$WORK/forever.sh" "$WORK/gchild2" >/dev/null 2>&1 &
+LPID=$!
+until [[ -d "$LOG.lock" ]] || ! kill -0 "$LPID" 2>/dev/null; do sleep 1; done
+run -- "$WORK/fast.sh"
+[[ "$RC" -eq 1 ]] && grep -q "another attempt already owns" "$WORK/err.txt" \
+  && pass "concurrent attempt refused (log ownership preserved)" || fail "concurrent: rc=$RC err=$(head -1 "$WORK/err.txt")"
+kill -TERM "$LPID" 2>/dev/null; wait "$LPID" 2>/dev/null
+rmdir "$LOG.lock" 2>/dev/null
+
+# 24. The lock is released on every exit path, or the next attempt is wedged.
+rm -f "$LOG"
+run -- "$WORK/crash.sh"
+[[ ! -d "$LOG.lock" ]] && pass "lock released after a failing run" || fail "lock leaked after failure"
+
+# 25. Median needs >= 3 samples: one and two are not a median, and an odd
+# non-uniform set must pick the true upper-median element.
+seed_audit 200
+run -- "$WORK/fast.sh"; ONE=$(ceiling_seen)
+seed_audit 200 400
+run -- "$WORK/fast.sh"; TWO=$(ceiling_seen)
+seed_audit 100 900 200 800 250
+run -- "$WORK/fast.sh"; ODD=$(ceiling_seen)
+[[ "$ONE" == "900" && "$TWO" == "900" && "$ODD" == "500" ]] \
+  && pass "1/2 samples -> default; odd non-uniform picks upper median (${ODD}s)" \
+  || fail "sample counts: one=$ONE two=$TWO odd=$ODD (want 900/900/500)"
+
 # 20. No stub survived the suite.
 sleep 1
-LEFT=$(pgrep -f "$WORK/(forever|blocker|reader)\.sh" 2>/dev/null | wc -l | tr -d ' ')
+LEFT=$(pgrep -f "$WORK/(forever|blocker|reader|stubborn)\.sh" 2>/dev/null | wc -l | tr -d ' ')
 [[ "$LEFT" -eq 0 ]] && pass "no orphaned stub processes" || fail "$LEFT orphaned stub(s)"
 
 echo

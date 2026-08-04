@@ -120,5 +120,5 @@ if [ "$rounds" -ge 3 ]; then
   exit 2
 fi
 
-echo "codex-mark: DENIED — P0=$p0 P1=$p1 open (round $rounds of 3). Fix them, run a SCOPED re-review (verify the fixes + scan the fix diff), tee the output, then mark again. P2=$p2 P3=$p3 -> log as debt (issue or ponytail-debt), never re-loop on them." >&2
+echo "codex-mark: DENIED — P0=$p0 P1=$p1 open (round $rounds of 3). Fix them, run a SCOPED re-review (verify the fixes + scan the fix diff) through scripts/codex-run.sh, then mark again. P2=$p2 P3=$p3 -> log as debt (issue or ponytail-debt), never re-loop on them." >&2
 exit 1

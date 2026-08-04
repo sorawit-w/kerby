@@ -60,10 +60,21 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-[ $# -gt 0 ] || fail "no command after '--' — pass the runtime to run, e.g. -- codex exec review --base main"
+[ $# -gt 0 ] || fail "no command after '--' — pass the runtime to run, e.g. -- codex exec \"<review brief>\""
+# Validate BEFORE spawning. Length-check first so a 30-digit argument never
+# reaches shell arithmetic: an overflowed value makes the ceiling comparison in
+# the poll loop fail as a non-integer, and that failure is inside the muffled
+# brace group — the loop would spin forever with the watchdog silently off.
+# 10# strips leading zeros so "00" resolves to 0 and is rejected as the
+# kill-immediately value it would otherwise be.
 case "$ceiling" in
   '') ;;
-  *[!0-9]*|0) fail "--ceiling takes whole seconds — pass a positive number like --ceiling 900" ;;
+  *[!0-9]*) fail "--ceiling takes whole seconds — pass a positive number like --ceiling 900" ;;
+  *)
+    [ "${#ceiling}" -le 6 ] || fail "--ceiling out of range (max 86400 seconds) — pass a smaller number like --ceiling 900"
+    ceiling=$((10#$ceiling))
+    { [ "$ceiling" -ge 1 ] && [ "$ceiling" -le 86400 ]; } \
+      || fail "--ceiling must be between 1 and 86400 seconds — pass a value like --ceiling 900" ;;
 esac
 
 gitdir=$(git rev-parse --git-dir 2>/dev/null) || fail "not inside a git repo — run this from the repo whose branch is under review"
@@ -83,6 +94,18 @@ command -v "$1" >/dev/null 2>&1 \
 # what stamps the run's start.
 logdir=$(dirname "$log")
 [ -d "$logdir" ] && [ -w "$logdir" ] || fail "cannot write the log directory $logdir — pass --log to a writable path"
+
+# Claim the log before touching it. Two overlapping attempts on the default path
+# silently destroy each other's evidence: the second unlinks the first's inode,
+# the first keeps writing to a file with no name, and the survivor holds only
+# half the story — while both report success. mkdir is the portable atomic
+# test-and-set (no flock on macOS).
+lockdir="$log.lock"
+mkdir "$lockdir" 2>/dev/null \
+  || fail "another attempt already owns $log (lock: $lockdir) — wait for it to finish, or pass --log to a separate path. If nothing is running, remove that directory."
+unlock() { rmdir "$lockdir" 2>/dev/null; }
+trap 'unlock' EXIT
+
 rm -f "$log" || fail "cannot remove the stale log at $log — remove it by hand, then re-run"
 [ -e "$log" ] && fail "$log still exists after removal (a directory?) — clear that path, then re-run"
 
@@ -120,7 +143,22 @@ fi
 # this script's "every stderr line starts with codex-run:" contract. Rule: this
 # block emits no messages of its own — all reporting happens after it.
 child=0
-trap 'if [ "$child" -gt 0 ]; then kill -TERM -"$child" 2>/dev/null || kill -TERM "$child" 2>/dev/null; fi; exit 130' HUP INT TERM
+# One kill ladder, used by both the ceiling and the signal trap. TERM first
+# (the runtime may flush a partial transcript), KILL after a bounded grace.
+# `kill -- -pid` needs the pgroup from `set -m`; a shell without job control
+# leaves the child in OUR group, where -pid would kill us too — hence the
+# bare-pid fallback.
+kill_group() {
+  [ "$child" -gt 0 ] || return 0
+  kill -TERM -"$child" 2>/dev/null || kill -TERM "$child" 2>/dev/null
+  i=0
+  while [ "$i" -lt 5 ] && kill -0 "$child" 2>/dev/null; do sleep 1; i=$((i + 1)); done
+  kill -KILL -"$child" 2>/dev/null || kill -KILL "$child" 2>/dev/null
+}
+# On our own death, take the child with us — through the SAME ladder. A single
+# TERM followed by an immediate exit leaves a TERM-ignoring runtime orphaned,
+# which is the exact outcome this wrapper exists to prevent.
+trap 'kill_group; unlock; exit 130' HUP INT TERM
 started=$(date +%s)
 class=ok
 rc=0
@@ -151,20 +189,20 @@ tick=1
 
   if [ "$class" = ok ]; then
     wait "$child"; rc=$?
-  elif [ "$(ps -o lstart= -p "$child" 2>/dev/null)" != "$cstart" ]; then
-    # The pid we recorded is no longer the process we started — reaped and
-    # recycled between two polls. Never signal a stranger's process group.
-    class=recycled; rc=0
   else
-    # TERM first (codex may flush a partial transcript), KILL after a bounded
-    # grace. `kill -- -pid` needs the pgroup from `set -m`; a shell without job
-    # control leaves the child in OUR group, where -pid would kill us too — so
-    # fall back to the bare pid there.
-    kill -TERM -"$child" 2>/dev/null || kill -TERM "$child" 2>/dev/null
-    i=0
-    while [ "$i" -lt 5 ] && kill -0 "$child" 2>/dev/null; do sleep 1; i=$((i + 1)); done
-    kill -KILL -"$child" 2>/dev/null || kill -KILL "$child" 2>/dev/null
-    wait "$child"; rc=$?
+    cnow=$(ps -o lstart= -p "$child" 2>/dev/null)
+    if [ -z "$cnow" ]; then
+      # Gone between the last poll and the ceiling check — it finished on its
+      # own, we were simply late. Take its REAL status: fabricating rc=0 here
+      # would report a failed runtime as a clean run.
+      class=ok; wait "$child"; rc=$?
+    elif [ "$cnow" != "$cstart" ]; then
+      # A different process now holds that pid. Never signal a stranger's
+      # process group; we have no status to collect either.
+      class=recycled; rc=0
+    else
+      kill_group; wait "$child"; rc=$?
+    fi
   fi
 } 2>/dev/null
 

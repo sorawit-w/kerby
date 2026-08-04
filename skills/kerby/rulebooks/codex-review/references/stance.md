@@ -14,7 +14,7 @@ condition for a loop.
 skill list — absence-from-the-list is NOT absence.
 
 Probe the **runtime**, not the plugin files: `command -v codex`. That CLI is
-what the headless workflows actually invoke (`codex exec review`), and it is the
+what the headless workflows actually invoke (`codex exec "<brief>"`), and it is the
 only probe that answers the question being asked. Plugin files are a *secondary*
 signal at best — a plugin bundled into the host binary (an inline plugin) has no
 on-disk footprint at all, so `find <codex-plugin>/commands -name '*.md'` coming
