@@ -80,12 +80,23 @@ and only SEVERAL BYTECODE INSTRUCTIONS LATER assigns `self.returncode`. A
 signal delivered to Python in that gap runs its handler with `returncode`
 still `None`, even though the kernel has already reaped the process.
 Reproduced on the FIRST attempt of a scripted adversarial probe (a 10-
-microsecond SIGALRM). The same irreducible bytecode-level granularity also
-means the trivial gaps this file blocks around — right after spawn() returns,
-entering `except TimeoutExpired:` — are each themselves one instruction
-narrower than fully closed, not fully atomic. Pthread_sigmask closes gaps
-between STATEMENTS; it cannot close a gap INSIDE a single stdlib call whose
-internals we do not control.
+microsecond SIGALRM).
+
+A related but MORE TRACTABLE class of gap is the entry into a protected
+region rather than a stdlib internal: a signal landing between "we decided to
+call kill_ladder()" (say, just entering `except subprocess.TimeoutExpired:`)
+and that branch's own `block_signals()` line actually running escapes the
+branch entirely — Python does not let a sibling `except` catch an exception
+raised inside another except clause of the same try. Unlike the returncode
+race, this one IS closable without touching Popen's internals: main()'s
+outermost `except Interrupted:` now checks `proc.returncode is None` (proc is
+a module-level-scoped witness, `None` until spawn() succeeds) and runs
+kill_ladder() itself when an escaped signal reaches it that way, so these
+entry gaps end in a kill rather than an orphan. Only the gap INSIDE
+`Popen._wait()` — between its OWN `os.waitpid()` and its OWN assignment of
+`self.returncode` — remains genuinely irreducible, because pthread_sigmask
+closes gaps between STATEMENTS we write; it cannot reach inside a stdlib
+call whose internals we do not control.
 
 This is now accepted as a residual, not engineered further around: closing it
 for real means bypassing `subprocess.Popen.wait()`'s pure-Python polling loop
@@ -290,7 +301,21 @@ def git_dir():
 
 
 def git_short_head():
-    """Short HEAD sha for the attempts log, or the literal '-'."""
+    """Short HEAD sha for the attempts log, or the literal '-'.
+
+    Accepted, low-impact residual (flagged by review): this can be called
+    while our own mask has HUP/INT/TERM blocked (the survivor path calls it
+    from inside a still-blocked region), and fork() copies that mask into
+    THIS git subprocess too — the same mask-inheritance mechanism spawn()
+    works around for the monitored runtime. Not fixed here: `git rev-parse`
+    is a fast, well-behaved command bounded by `GIT_TIMEOUT` regardless of
+    signal delivery, and `subprocess.run(timeout=)`'s own enforcement uses
+    the unmaskable SIGKILL — so a masked git either finishes quickly or gets
+    killed on schedule either way. Fixing it would mean unblocking/reblocking
+    around every such call inside an otherwise-atomic region, which is
+    exactly the kind of extra surface that produced the mask-inheritance bug
+    documented in the module docstring the first time.
+    """
     try:
         done = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
                               stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
@@ -394,8 +419,20 @@ def block_signals():
     Interrupted — it is held pending by the kernel and delivered the moment
     it is unblocked. Verified before use: a signal sent while blocked
     produces zero handler invocations until unblock, then fires exactly
-    once. This is what makes spawn() and kill_ladder() atomic with respect
-    to these three signals without disabling Ctrl-C everywhere else.
+    once. This makes kill_ladder()'s OWN body atomic with respect to these
+    three signals, and closes the gap right after spawn() returns.
+
+    It does NOT close the transitions of entering those regions: a signal
+    can still land between "we decided to call kill_ladder()" (e.g. just
+    entered `except subprocess.TimeoutExpired:`) and the very next line
+    actually running block_signals(). That gap is closed differently —
+    main()'s outer `except Interrupted:` checks `proc.returncode is None`
+    and runs kill_ladder() itself if the exception reaches it that way, so a
+    signal escaping one of these entry gaps still ends up killing the child
+    rather than orphaning it. One residual remains even so: the internal gap
+    INSIDE Popen._wait() between its own os.waitpid() reaping the child and
+    assigning self.returncode, which no handler placement can close — see
+    the module docstring.
     """
     signal.pthread_sigmask(signal.SIG_BLOCK, CAUGHT_SIGNALS)
 
@@ -574,6 +611,16 @@ def main(argv):
                     "writable path" % logdir)
 
     lock = Lock(log)
+    # `proc` is the outer Interrupted handler's witness for "does a child
+    # exist that might need killing". A review found that handler assumed
+    # "no child exists yet" unconditionally — false for two real gaps: the
+    # instant right after spawn() returns but before the caller's own
+    # block_signals() runs, and entering `except subprocess.TimeoutExpired:`
+    # before ITS block_signals() runs. Both let Interrupted escape every
+    # inner handler and reach here with a live, unmanaged child. None here
+    # means "not spawned yet" unambiguously — spawn() either returns a real
+    # Popen or raises, it never leaves proc half-set.
+    proc = None
     try:
         # Lock.acquire() blocks signals around its own mkdir() + flag update
         # now, so this call is internally atomic — see its docstring. This
@@ -735,9 +782,16 @@ def main(argv):
             % (elapsed, ceiling, log))
         return 0
     except Interrupted:
-        # Reachable only before spawn() (lock acquisition, or the stale-log
-        # removal) or after a Usage()-raising branch already unblocked — no
-        # child exists yet on this path, so there is nothing to kill.
+        # Reachable from lock acquisition, the stale-log removal, OR — this
+        # is the fix — the two adjacency gaps named above `proc = None`,
+        # where a child DOES exist but no inner handler was positioned to
+        # catch this exception. `proc.returncode is None` is the same
+        # best-available (not airtight — see the module docstring's
+        # returncode-race discussion) signal used elsewhere in this file;
+        # block first so the kill itself is not interrupted mid-ladder.
+        if proc is not None and proc.returncode is None:
+            block_signals()
+            kill_ladder(proc)
         return 130
     finally:
         lock.release()

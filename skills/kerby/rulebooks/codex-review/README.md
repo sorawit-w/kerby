@@ -114,16 +114,23 @@ within the delegation budget (`references/delegation.md` § Bounded delegation).
   a third answer besides yes and no — *the query failed* — and folding it into
   either of the other two produced an unbounded wait or a signal aimed at a
   process the wrapper never started.
-  **Pid recycling is not merely guarded against — it does not apply.** A pid is
-  not reusable while the process is an unreaped zombie; a process-group id is
-  not reusable while any member of it exists; `start_new_session=True` places
-  the group in a session containing only the wrapper's own descendants, and
+  **Pid recycling does not apply to the design's intended shape.** A pid is not
+  reusable while the process is an unreaped zombie; a process-group id is not
+  reusable while any member of it exists; `start_new_session=True` places the
+  group in a session containing only the wrapper's own descendants, and
   `setpgid` can only join a group in the caller's *own* session, so a stranger
-  cannot join it either. Every `os.killpg()` call runs strictly before the one
-  `proc.wait()` that reaps — so it provably targets the wrapper's own
-  descendants, on every path. The bash predecessor carried an accepted
-  "pid-recycle" risk; this design doesn't carry a weaker version of it, it
-  removes the premise.
+  cannot join it either. Every `os.killpg()` call is *meant* to run strictly
+  before the one `proc.wait()` that reaps. **This claim is not "on every
+  path," and an earlier version of this README overstated it that way** — the
+  returncode-race residual below is exactly a path where the ordering can
+  invert: a signal handler can observe `returncode is None` (so it looks
+  unreaped) a few CPython bytecode instructions AFTER the kernel has actually
+  reaped the child, meaning a `kill_ladder()` triggered from that handler
+  could, in the narrow window this residual describes, signal an already-freed
+  pid/pgid. The bash predecessor carried this risk on essentially every path,
+  unconditionally; this design narrows it to one specific, documented, hard-
+  to-hit gap rather than removing the premise entirely, which is a real
+  improvement but not the absolute one earlier prose here claimed.
   **What genuinely remains, and is not solved by any language:** a process in
   an uninterruptible kernel wait does not die on `SIGKILL` — codex-run detects
   that authoritatively (see exit 6 below) rather than misreporting it, but
@@ -170,7 +177,17 @@ within the delegation budget (`references/delegation.md` § Bounded delegation).
   claimed as closed: fully closing it means bypassing `Popen.wait()`'s
   internals for a hand-rolled `os.waitpid()` call under this file's own
   atomicity control — materially larger than a guard, and not undertaken
-  here. The mask-inheritance fix has its own dedicated dynamic pin
+  here. A related but more tractable gap WAS closed this round: a signal
+  landing between "we decided to call `kill_ladder()`" and that branch's own
+  `block_signals()` line actually running escapes the branch entirely (Python
+  doesn't let a sibling `except` catch an exception raised inside another
+  except clause of the same `try`) — reaching, previously, an outer catch-all
+  that assumed no child existed and orphaned it. The outer `except
+  Interrupted:` now checks the same `proc.returncode is None` signal and runs
+  `kill_ladder()` itself when reached this way, so these entry gaps end in a
+  kill rather than an orphan; only the gap INSIDE `Popen._wait()`'s own
+  internals remains truly unclosable. The mask-inheritance fix has its own
+  dedicated dynamic pin
   (`codex-run.test.sh` T40) precisely because that class of bug — unlike the
   returncode race — *is* fully closable and was verified to be. Same
   reasoning applies to the lock: acquisition used to set `held = True`

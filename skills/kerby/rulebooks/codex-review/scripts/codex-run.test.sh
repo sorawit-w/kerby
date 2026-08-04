@@ -430,10 +430,15 @@ t0=$(now); run --ceiling "$CEILING" -- "$WORK/stubborn.sh" "$WORK/spid2"; t1=$(n
 # `except Interrupted:` could NOT catch it (it belongs to the same try, not a
 # nesting one) — it escaped uncaught, leaving the child half-killed and the
 # lock released. Reproduced by the reviewer: wrapper returned 130, the
-# TERM-ignoring child stayed alive, lock absent. block_signals() during
-# kill_ladder() makes this window zero-width: the external TERM below is sent
-# ~2s after the ceiling fires, landing inside the 5s grace sleep with margin
-# on both sides, so timing precision isn't load-bearing for the test.
+# TERM-ignoring child stayed alive, lock absent. block_signals() makes
+# kill_ladder()'s OWN INTERIOR (once entered) zero-width — this test's signal
+# lands deep inside the 5s grace sleep, well past that entry, with margin on
+# both sides, so timing precision isn't load-bearing here. "Zero-width" is
+# scoped to that interior ONLY: entering this except clause in the first
+# place has its own separate, narrower gap (closed a different way, in
+# main()'s outer except Interrupted: — see codex-run.py), and the returncode
+# check itself is not airtight (see the module docstring). Neither of those
+# is what this specific pin is testing.
 GRACE_SECONDS=5; CEILING=2
 rm -f "$LOG" "$WORK/spid3"; rmdir "$LOG.lock" 2>/dev/null
 bash "$RUN" --ceiling "$CEILING" -- "$WORK/stubborn.sh" "$WORK/spid3" \
@@ -533,10 +538,15 @@ else
   wait "$NPID" 2>/dev/null; NRC=$?
   if [[ -d "$LOG.lock" ]]; then
     fail "signal against a live child left the lock stranded"
-  elif [[ "$NRC" -eq 130 ]]; then
-    pass "signal against a confirmed-live child kills it cleanly (130)"
-  else
+  elif [[ "$NRC" -ne 130 ]]; then
     fail "signal against a live child produced an unsound outcome: rc=$NRC"
+  elif grep -q "STALL" "$WORK/err.txt" 2>/dev/null; then
+    # A review found this exact comment claimed "never routes through the
+    # ceiling-stall messaging" while nothing here checked stderr for it —
+    # this line is what makes that claim true instead of just stated.
+    fail "signal reported as a ceiling STALL, not a user interrupt"
+  else
+    pass "signal against a confirmed-live child kills it cleanly (130, no STALL messaging)"
   fi
 fi
 
@@ -606,21 +616,59 @@ IMPORT_LEAKS=$(grep -E '^(import|from) ' "$PY" | grep -vE '^(import|from) (datet
 # BEFORE calling mkdir() ("optimistic"); a review found a signal in that gap
 # leaves held=True with nothing on disk, so a DIFFERENT process's later lock
 # at the same path gets deleted by our cleanup. The fix wraps the syscall in
-# block_signals(), making acquisition atomic. Not practically timeable at the
-# integration level (a single mkdir() syscall is far too fast to reliably
-# race externally) — checked structurally instead: block_signals() must
-# appear, textually, before os.mkdir(self.path) inside Lock.acquire().
-# grep -v '^\s*#' first: a comment mentioning block_signals() (as this one
-# does, to explain the fix) would otherwise satisfy the line-number check
-# regardless of what the actual code below it does — caught by mutation
-# testing this pin against a deliberately reordered copy.
+# block_signals(), making acquisition atomic, and unblocks in a `finally` so
+# the mask never leaks into whatever runs next. Not practically timeable at
+# the integration level (a single mkdir() syscall is far too fast to reliably
+# race externally) — checked structurally instead.
+#
+# Two bugs were found IN THIS PIN, not the code, while building/mutation-
+# testing it — both are why the checks below look the way they do:
+#   1. A comment mentioning block_signals() (like this one) satisfies a naive
+#      textual search regardless of what the real code does below it —
+#      caught by mutation-testing a deliberately reordered copy. Fixed by
+#      stripping comment lines first.
+#   2. "unblock_signals()" contains "block_signals()" as a literal substring
+#      (unblock_signals == "un" + "block_signals()"), so a plain grep for
+#      'block_signals()' matches BOTH calls — a mutant that swaps in
+#      unblock_signals() before mkdir() still "found a match before mkdir"
+#      and passed. Fixed by excluding unblock_signals() lines before
+#      searching for block_signals().
 ACQUIRE_BODY=$(sed -n '/def acquire(self):/,/def disown/p' "$PY" | grep -v '^[[:space:]]*#')
-BLOCK_LINE=$(printf '%s\n' "$ACQUIRE_BODY" | grep -n 'block_signals()' | head -1 | cut -d: -f1)
+BLOCK_LINE=$(printf '%s\n' "$ACQUIRE_BODY" | grep -v 'unblock_signals()' | grep -n 'block_signals()' | head -1 | cut -d: -f1)
 MKDIR_LINE=$(printf '%s\n' "$ACQUIRE_BODY" | grep -n 'os\.mkdir(self\.path)' | head -1 | cut -d: -f1)
-if [[ -n "$BLOCK_LINE" && -n "$MKDIR_LINE" && "$BLOCK_LINE" -lt "$MKDIR_LINE" ]]; then
-  pass "Lock.acquire() blocks signals before its mkdir() call"
-else
+FINALLY_LINE=$(printf '%s\n' "$ACQUIRE_BODY" | grep -n '^\s*finally:' | head -1 | cut -d: -f1)
+UNBLOCK_LINE=$(printf '%s\n' "$ACQUIRE_BODY" | grep -n 'unblock_signals()' | head -1 | cut -d: -f1)
+if [[ -z "$BLOCK_LINE" || -z "$MKDIR_LINE" || "$BLOCK_LINE" -ge "$MKDIR_LINE" ]]; then
   fail "Lock.acquire() does not block signals before mkdir() (block@$BLOCK_LINE mkdir@$MKDIR_LINE)"
+elif [[ -z "$FINALLY_LINE" || -z "$UNBLOCK_LINE" || "$UNBLOCK_LINE" -lt "$FINALLY_LINE" ]]; then
+  fail "Lock.acquire() does not unblock in a finally (finally@$FINALLY_LINE unblock@$UNBLOCK_LINE)"
+else
+  pass "Lock.acquire() blocks before mkdir() and unblocks in a finally"
+fi
+
+# T42 — static, REGRESSION PIN. A signal landing between "we decided to call
+# kill_ladder()" (entering `except subprocess.TimeoutExpired:`, or right
+# after spawn() returns) and that branch's own block_signals() line actually
+# running escapes the branch entirely and used to reach main()'s outermost
+# except Interrupted: — which assumed unconditionally that no child existed
+# yet and returned a bare 130, orphaning a live one. The fix makes that outer
+# handler check the same proc.returncode is None signal and run
+# kill_ladder() itself when reached this way. Not dynamically timeable (the
+# entry gap is a handful of bytecode instructions) — checked structurally.
+#
+# `lock.release()` appears in exactly ONE place in this file: main()'s
+# finally block, right after its outer except Interrupted:. That makes it a
+# reliable, portable anchor for isolating THAT specific handler (not the
+# inner one inside the wait-try, not __main__'s backstop, neither of which
+# is anywhere near lock.release()) without needing `tac` (absent on macOS —
+# caught while writing this pin) or fragile line-number bookkeeping.
+OUTER_HANDLER=$(awk '/lock\.release\(\)/{exit} {print}' "$PY" | tail -20)
+if printf '%s\n' "$OUTER_HANDLER" | grep -q 'proc is not None' \
+  && printf '%s\n' "$OUTER_HANDLER" | grep -q 'proc\.returncode is None' \
+  && printf '%s\n' "$OUTER_HANDLER" | grep -q 'kill_ladder(proc)'; then
+  pass "main()'s outer except Interrupted: checks and kills a live child"
+else
+  fail "main()'s outer except Interrupted: no longer checks/kills a live child"
 fi
 
 echo
