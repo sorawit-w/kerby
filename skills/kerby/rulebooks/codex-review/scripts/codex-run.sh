@@ -26,9 +26,18 @@
 #   4 — STALL: still alive at the ceiling, killed. At most one blind retry, then
 #       the pr-workflow.md step-4 fallback.
 #   5 — exited on its own, non-zero. Read the log, fix, retry once.
-#   6 — UNREAPED: killed at the ceiling but the process outlived SIGKILL (stuck
-#       in an uninterruptible kernel wait). Do NOT retry — escalate.
 #   (3 is deliberately unused — see "no early classification" below.)
+#
+# The script never inspects the child — no pid-recycle witness, no post-kill
+# state probe. Four review rounds produced four defects in that machinery, each
+# the same shape: `ps` has a third answer besides yes and no ("the query
+# failed"), and folding it into either of the other two yielded an unbounded
+# wait or a signal aimed at a process we never started. See § 5.
+# Accepted consequence: at the ceiling this kills the recorded pid's group
+# without re-confirming it is still ours. If the OS wrapped its entire pid space
+# during the run, that signal could land on an unrelated process group. Every
+# version of this script has carried that risk; the versions that tried to
+# detect it carried it PLUS the defects above.
 #
 # Fail-closed: an unusable log path, an unresolvable runtime, or no git repo
 # exits 1 WITHOUT spawning anything — a half-started attempt would leave a
@@ -192,7 +201,6 @@ tick=1
   "$@" >"$log" 2>&1 </dev/null &
   child=$!
   set +m
-  cstart=$(ps -o lstart= -p "$child" 2>/dev/null)   # pid-recycle witness
 
   # 4. Wait it out. Two exits only: the child finishes, or the ceiling fires.
   # A quiet transcript is NOT evidence of anything — a model thinking looks
@@ -204,57 +212,33 @@ tick=1
     sleep "$tick"
   done
 
-  # `ps` decides only whether to SIGNAL. It must never decide liveness: if ps
-  # fails while the child is alive, treating empty output as "already exited"
-  # sends us into a wait() that never returns — an unbounded wait inside the
-  # very script that exists to abolish them. kill -0 is the liveness oracle.
+  # 5. Two paths, and NEITHER inspects the child.
+  #
+  # Earlier builds asked `ps` whether the pid had been recycled, then whether the
+  # post-SIGKILL state was reapable. Four review rounds produced four defects in
+  # that machinery, all the same shape: every reading of `ps` has a third answer
+  # besides yes and no — "the query failed" — and every time that third answer
+  # was folded into one of the other two, the result was either an unbounded
+  # wait or a signal aimed at a process we did not start. Guard number five was
+  # not going to be the one that held. The machinery is gone instead.
+  #
+  # What is left is true without any oracle:
+  #   - loop exited because kill -0 failed  -> the child is gone -> wait() has
+  #     its status in bash's job table and returns at once.
+  #   - loop exited because the ceiling hit -> kill the group and LEAVE. A killed
+  #     process's exit status is not information: we already know how it ended.
+  #     Not waiting is what makes the wall-clock bound unconditional — there is
+  #     no state a wedged process can be in that delays this script.
   if [ "$class" = stall ]; then
-    if kill -0 "$child" 2>/dev/null; then
-      cnow=$(ps -o lstart= -p "$child" 2>/dev/null)
-      # BOTH timestamps must exist before "different" means anything. If the
-      # opening ps failed, cstart is empty, every later reading compares unequal
-      # to it, and a live child gets misread as a stranger's pid — so we never
-      # signal it and then wait on it forever. An unknown baseline means fall
-      # through to the kill: killing our own child is recoverable, waiting on it
-      # is not.
-      if [ -n "$cstart" ] && [ -n "$cnow" ] && [ "$cnow" != "$cstart" ]; then
-        class=recycled          # a stranger holds that pid now — never signal it
-      else
-        kill_group              # ours, or ps unusable: killing is the safe direction
-        # SIGKILL cannot be caught, but it CAN sit pending against a process
-        # wedged in an uninterruptible kernel wait (D-state: stuck NFS, bad
-        # disk). Such a process never reaps, and wait() on it never returns —
-        # which would put an unbounded wait back into the one script that must
-        # not have one.
-        #
-        # `kill -0` alone cannot make this call: it also succeeds on a ZOMBIE,
-        # and a zombie is the normal post-SIGKILL state — it is waiting for us
-        # to reap it, and wait() returns instantly. Treating that as unreapable
-        # reports every successful kill as a failure. Ask for the process state
-        # instead: Z (or no answer at all, where wait() is still the safe bet)
-        # means reap it; anything else still standing after SIGKILL does not.
-        if kill -0 "$child" 2>/dev/null; then
-          st=$(ps -o stat= -p "$child" 2>/dev/null | tr -d ' ')
-          case "$st" in
-            Z*|'') ;;                  # zombie / unknown — wait() will not block
-            *) class=unreaped ;;       # still runnable or stuck after SIGKILL
-          esac
-        fi
-      fi
-    else
-      class=ok                  # finished between the last poll and this check
-    fi
+    kill_group
+  else
+    wait "$child"; rc=$?
   fi
-  # Safe on every path EXCEPT unreaped: bash keeps the background job's own exit
-  # status in its job table regardless of OS pid reuse, so this returns the REAL
-  # status immediately rather than a fabricated 0. An unreaped child has no
-  # status to collect and would block, so it is the one path that skips this.
-  if [ "$class" != unreaped ]; then wait "$child"; rc=$?; fi
 } 2>/dev/null
 
 elapsed=$(( $(date +%s) - started ))
 
-# 5. Report. The killed log is deliberately LEFT IN PLACE: a run that emitted a
+# 6. Report. The killed log is deliberately LEFT IN PLACE: a run that emitted a
 # CODEX_VERDICT before wedging did produce a verdict — per delegation.md it
 # consumed no attempt, and codex-mark must still get to see it. Do not "tidy up"
 # here. Killed and failed attempts also get an attempts-log line, kept OUT of
@@ -268,20 +252,10 @@ note() {
 }
 
 case "$class" in
-  unreaped)
-    note unreaped
-    echo "codex-run: UNREAPED — killed at the ${ceiling}s ceiling but pid $child outlived SIGKILL (elapsed ${elapsed}s), so it is stuck in an uninterruptible kernel wait. Do NOT retry: a second attempt would run alongside it. Investigate the stuck process (ps -o stat= -p $child), then escalate. Transcript at $log." >&2
-    exit 6 ;;
   stall)
     note stall
     echo "codex-run: STALL — still running at the ${ceiling}s ceiling, killed (ceiling ${ceiling}s). Transcript kept at $log. At most one blind retry, then take the step-4 fallback in references/pr-workflow.md." >&2
     exit 4 ;;
-  recycled)
-    # Diagnostic only — the real exit is decided by rc below, exactly as for a
-    # normal completion. The child finished on its own; another process merely
-    # inherited its pid before we looked.
-    note recycled
-    echo "codex-run: note — the pid was reused by an unrelated process before the ceiling check, so nothing was signalled; the run itself completed. Transcript at $log." >&2 ;;
 esac
 
 if [ "$rc" -ne 0 ]; then

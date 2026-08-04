@@ -51,10 +51,8 @@ reached this repo's own audit log.
 - **Restart keyed to cause:** known cause → fix it, retry once; unknown stall →
   at most one blind retry. Never loop identical restarts. The wrapper's exit code
   says which applies — **4** (killed at the ceiling) is the blind-retry case,
-  **5** means the runtime itself failed and names a cause in the transcript, so
-  read it and fix before retrying, and **6** means the process outlived SIGKILL
-  and is stuck in the kernel: do **not** retry at all — a second attempt would
-  run beside the stuck one — investigate and escalate.
+  and **5** means the runtime itself failed and names a cause in the transcript,
+  so read it and fix before retrying.
   Killed and failed attempts append a line to `$GIT_DIR/codex-run-attempts.log`;
   a run that hangs and never marks leaves no other trace.
 - **Delegation budget: at most 2 attempts per requested verdict** (a run that

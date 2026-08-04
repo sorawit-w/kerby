@@ -303,11 +303,11 @@ run -- "$WORK/fast.sh"; ODD=$(ceiling_seen)
 
 # --- Codex-review round 2 findings, pinned ---
 
-# 26. REGRESSION PIN — `ps` must never be the liveness oracle. When ps fails
-# (or returns nothing) while the child is still alive, treating that as "already
-# exited" walks into a wait() that never returns: an unbounded wait inside the
-# script whose entire purpose is abolishing them. Shadow ps with a stub that
-# always returns empty and confirm the ceiling still fires.
+# 26. REGRESSION PIN — the wrapper must not depend on `ps` at all. Earlier
+# builds consulted it for pid-recycle and post-kill state, and every reading
+# had a third answer ("query failed") that became either an unbounded wait or a
+# misdirected signal. Shadow ps with a stub that always fails; the ceiling must
+# still fire. This pin is what keeps that machinery from creeping back.
 mkdir -p "$WORK/fakebin"
 printf '#!/bin/bash\nexit 1\n' > "$WORK/fakebin/ps"; chmod +x "$WORK/fakebin/ps"
 rm -f "$LOG"; rmdir "$LOG.lock" 2>/dev/null
@@ -341,11 +341,10 @@ run -- "$WORK/fast.sh"
 
 # --- Codex-review round 3 findings, pinned ---
 
-# 28. REGRESSION PIN — a transient failure of the OPENING ps must not strand the
-# run. With cstart empty, every later reading compares "different", the live
-# child is misread as a stranger's pid, never signalled, and waited on forever.
-# The fake ps fails once (its first call, which is the baseline read) and then
-# behaves, reproducing exactly that interleaving.
+# 28. REGRESSION PIN — same guarantee under a ps that fails only on its FIRST
+# call. That interleaving is what broke the round-3 build: the opening baseline
+# read came back empty, so every later comparison read "different", and a live
+# child was classified a stranger, never signalled, then waited on forever.
 mkdir -p "$WORK/fakebin"
 cat > "$WORK/fakebin/ps" <<EOF
 #!/bin/bash
@@ -369,10 +368,9 @@ fi
 rm -rf "$WORK/fakebin" "$WORK/ps-called"
 
 # 29. The wall-clock contract, end to end: a TERM-ignoring child must not push
-# the wrapper past ceiling + grace + slack. This bounds the kill ladder itself.
-# NOTE: it does NOT reach the `unreaped` branch — that needs a process wedged in
-# an uninterruptible kernel wait (D-state), which cannot be created from a test.
-# That branch is reasoned, not exercised; this pin covers the bound around it.
+# the wrapper past ceiling + grace + slack. This bounds the kill ladder itself,
+# which — since the wrapper no longer waits on a killed child — is now the only
+# thing standing between the ceiling and the exit.
 rm -f "$LOG" "$WORK/spid2"; rmdir "$LOG.lock" 2>/dev/null
 t0=$(now); run --ceiling 3 -- "$WORK/stubborn.sh" "$WORK/spid2"; t1=$(now)
 [[ "$RC" -eq 4 && $((t1 - t0)) -lt 20 ]] \

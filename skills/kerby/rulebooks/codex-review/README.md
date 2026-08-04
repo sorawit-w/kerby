@@ -12,8 +12,7 @@ stance: **Codex advises, Claude decides.**
 Every headless Codex invocation — review, scoped re-review, rescue — runs through
 `scripts/codex-run.sh`. It closes stdin, gives the runtime its own process group,
 kills it at a ceiling derived from the observed-good `dur=` median, and reports
-how it ended (0 clean · 4 killed at the ceiling · 5 runtime error · 6 outlived
-SIGKILL, do not retry). It bounds
+how it ended (0 clean · 4 killed at the ceiling · 5 runtime error). It bounds
 *one attempt* and never retries: the delegation budget and the verdict grammar
 stay with the prose and `codex-mark.sh` respectively.
 
@@ -105,6 +104,19 @@ within the delegation budget (`references/delegation.md` § Bounded delegation).
   wedge. (`codex-run-attempts.log` records the real elapsed time of every run,
   so the evidence for a better number is there; wiring it into the baseline is
   deliberately not done yet.)
+- **codex-run never inspects the child.** No pid-recycle witness, no post-kill
+  state probe. Four review rounds produced four defects in that machinery, all
+  the same shape: `ps` has a third answer besides yes and no — *the query
+  failed* — and folding it into either of the other two produced an unbounded
+  wait or a signal aimed at a process the wrapper never started. Accepted
+  consequence: at the ceiling it kills the recorded pid's group without
+  re-confirming ownership, so a full pid-space wraparound mid-run could send
+  that signal to an unrelated group. Every version carried that risk; the
+  versions that tried to detect it carried it *plus* the defects.
+- **A killed run reports no exit status.** After the ceiling fires the wrapper
+  kills the group and leaves without `wait`ing. That is what makes the bound
+  unconditional — no process state can delay the wrapper — and the status is
+  not information anyone needed: exit 4 already says how it ended.
 - **codex-run bounds one attempt, not the budget.** It never retries. The
   2-attempt delegation budget stays with the prose in
   `references/delegation.md`, because budget consumption is defined by verdict
