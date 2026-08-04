@@ -44,6 +44,51 @@ for this file: it is not shorter than the shell version.
 Consequently this script asks the operating system NOTHING about the child
 except through waitpid. No ps, no kill -0, no getpgid. See kill_ladder().
 
+A live review round then found the same bug class again, one level up: a
+signal can still land in the GAP between "the child's fate is decided" and
+"we finished acting on it" — after a successful wait() but before we've
+finished reporting, or literally mid-kill_ladder(). Reacting to a signal in
+that gap by re-running kill_ladder() on a pid that may already be reaped is
+exactly the misdirected-signal hazard this file exists to prevent, just
+reached through timing instead of a bad `ps` read. Two structural answers,
+not another guard:
+  - `proc.returncode is None` is the race-free "have we already reaped this"
+    check (Popen sets it synchronously as part of a successful wait()) —
+    checked before every kill_ladder() call reached from a signal handler.
+  - `signal.pthread_sigmask` BLOCKS HUP/INT/TERM (deferring, not dropping,
+    them) around every region that must run as one atomic unit: the trivial
+    gap right after spawn() returns, and the kill ladder itself. They are
+    deliberately left UNBLOCKED around the main ceiling wait, so a long wait
+    stays Ctrl-C-interruptible — that specific window already has a correct,
+    race-free handler.
+
+Building the blocking half of that fix surfaced a THIRD instance of the same
+bug class, this time self-inflicted: blocking BEFORE calling spawn() was the
+first draft, on the theory that it would also close the fork/exec handshake
+window. It does — by corrupting something else instead. fork() gives the
+CHILD a copy of the CALLER's signal mask; a child forked while we're blocked
+inherits HUP/INT/TERM as blocked for its ENTIRE LIFETIME, and nothing of ours
+ever unblocks it (only the child's own code could, and none of our stubs, nor
+`codex exec` itself, has any reason to). Verified directly: with block_signals()
+active across spawn(), a later `os.killpg(pid, SIGTERM)` reached the child,
+raised no exception, and had NO EFFECT — the child could not see a signal it
+had already received. Only the unmaskable SIGKILL still worked, silently
+defeating "TERM first, so the runtime can flush a partial transcript"
+everywhere, not just in one edge case. Fix: block AFTER spawn() returns, not
+before — the child has already forked with a normal mask by then, and this
+window is purely our own bookkeeping. The fork/exec handshake window itself
+(before spawn() returns at all — no handle exists yet to act on regardless of
+blocking) is accepted as a residual, folded into the one below.
+
+Known residual, not fixed by any of this: `subprocess.Popen()` itself
+performs a blocking read of the fork/exec handshake pipe. If the forked
+child stalls between fork() and exec() — a hung NFS/FUSE mount resolving the
+executable, in practice — Popen() does not return and the ceiling has not
+started yet. This is accepted, not engineered around: a thread-based bound
+around Popen() would trade one unbounded wait for "how do you forcibly stop
+a thread stuck in a blocking syscall", which is the same problem in a new
+costume.
+
 Fail-closed: a usage error, an unresolvable runtime, an unusable log path, or a
 lock held by another attempt exits 1 WITHOUT spawning anything — a half-started
 attempt would leave a zero-byte transcript that codex-mark would then stat as
@@ -282,19 +327,46 @@ class Lock:
             pass
 
 
+CAUGHT_SIGNALS = (signal.SIGHUP, signal.SIGINT, signal.SIGTERM)
+
+
 def install_signal_handlers():
-    """Turn HUP/INT/TERM into Interrupted so the single try/finally cleans up.
+    """Turn HUP/INT/TERM into Interrupted so a single try/finally can clean up.
+
+    Called as the FIRST statement in main(), before the lock is even
+    acquired: Python's default SIGINT disposition raises KeyboardInterrupt,
+    which is not caught anywhere in this file (it is not an Exception
+    subclass) and would otherwise skip cleanup entirely if it arrived during
+    lock acquisition. Installing our own handler first replaces that default
+    for the whole lifetime of the process.
 
     A second signal must not re-enter cleanup and skip the release, so the
     handler disarms itself first.
     """
     def handler(signum, _frame):
-        for sig in (signal.SIGHUP, signal.SIGINT, signal.SIGTERM):
+        for sig in CAUGHT_SIGNALS:
             signal.signal(sig, signal.SIG_IGN)
         raise Interrupted(signum)
 
-    for sig in (signal.SIGHUP, signal.SIGINT, signal.SIGTERM):
+    for sig in CAUGHT_SIGNALS:
         signal.signal(sig, handler)
+
+
+def block_signals():
+    """Defer (not drop) HUP/INT/TERM for the duration of an atomic region.
+
+    A blocked signal does not invoke the handler and does not raise
+    Interrupted — it is held pending by the kernel and delivered the moment
+    it is unblocked. Verified before use: a signal sent while blocked
+    produces zero handler invocations until unblock, then fires exactly
+    once. This is what makes spawn() and kill_ladder() atomic with respect
+    to these three signals without disabling Ctrl-C everywhere else.
+    """
+    signal.pthread_sigmask(signal.SIG_BLOCK, CAUGHT_SIGNALS)
+
+
+def unblock_signals():
+    signal.pthread_sigmask(signal.SIG_UNBLOCK, CAUGHT_SIGNALS)
 
 
 def spawn(cmd, log_path):
@@ -320,17 +392,31 @@ def spawn(cmd, log_path):
     stdin=DEVNULL is the documented deadlock, closed structurally: an open
     empty stdin makes the runtime wait forever on "Reading additional input
     from stdin...".
+
+    Cleanup ownership is scoped precisely: if os.open() itself raises (a
+    narrow TOCTOU — something now occupies log_path between the caller's
+    stale-log removal and this call), NO file was created by us and this
+    function must not touch that path at all. Only a Popen() failure AFTER
+    a successful open() unlinks — because only then did we create the inode
+    we're removing.
     """
     fd = os.open(log_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
     try:
-        return subprocess.Popen(cmd,
+        proc = subprocess.Popen(cmd,
                                 stdin=subprocess.DEVNULL,
                                 stdout=fd,
                                 stderr=subprocess.STDOUT,
                                 start_new_session=True,
                                 close_fds=True)
-    finally:
+    except BaseException:
         os.close(fd)
+        try:
+            os.unlink(log_path)     # safe: we created this exact inode above
+        except OSError:
+            pass
+        raise
+    os.close(fd)
+    return proc
 
 
 def signal_group(proc, sig):
@@ -354,6 +440,17 @@ def kill_ladder(proc):
     Returns True if the child was reaped, False if it survived SIGKILL. Total
     wall-clock cost is at most GRACE_SECONDS + REAP_SECONDS, unconditionally.
 
+    Runs under block_signals(): a review found that a signal arriving MID-
+    LADDER (say, during the grace sleep) raised Interrupted from inside the
+    caller's `except subprocess.TimeoutExpired:` clause, where it was NOT
+    caught by the sibling `except Interrupted:` — it escaped the whole
+    construct, leaving the child half-killed and the lock released. Blocking
+    the three caught signals for the ladder's duration makes it atomic: a
+    signal arriving here is deferred, not lost, and fires the moment the
+    caller unblocks — by which point the child's fate is already decided.
+    The caller (main()) owns the block/unblock pairing; this function never
+    calls either, so it composes correctly regardless of caller state.
+
     The grace is time.sleep, not proc.wait(timeout=GRACE), on purpose: grace is
     owed to the GROUP, and wait() returns the instant the LEADER exits, which
     would cut short a descendant still flushing a partial transcript. waitpid
@@ -373,6 +470,27 @@ def kill_ladder(proc):
         return True
     except subprocess.TimeoutExpired:
         return False
+
+
+def nudge_stragglers(proc):
+    """Best-effort, non-blocking TERM to the group after a clean reap.
+
+    proc.wait() only proves the LEADER exited — it cannot prove the whole
+    process group is quiet, because waitpid can only reap OUR OWN children,
+    and a grandchild (something codex's own process spawned, e.g. a tool
+    invocation) is not our child in the reaping sense, only in the
+    signalling sense. A review reproduced exactly this: leader exits 0,
+    a backgrounded descendant is still running, and the "ok" path signalled
+    nothing at all.
+
+    This does not wait for the result and is not part of the ceiling
+    contract — it cannot be, since we structurally cannot waitpid a
+    grandchild. It is a courtesy nudge so a straggler does not linger
+    indefinitely after we have already reported success and released the
+    lock. The leader is already dead by the time this runs, so killpg only
+    ever reaches actual survivors, never the (already-reaped) leader.
+    """
+    signal_group(proc, signal.SIGTERM)
 
 
 def shell_rc(rc):
@@ -431,10 +549,20 @@ def main(argv):
         raise Usage("cannot write the log directory %s — pass --log to a "
                     "writable path" % logdir)
 
+    # Handlers FIRST, before anything is acquired or created: Python's default
+    # SIGINT disposition (raise KeyboardInterrupt, which nothing here catches)
+    # would otherwise apply during lock acquisition and skip cleanup entirely.
+    install_signal_handlers()
+
     lock = Lock(log)
-    lock.acquire()
     try:
-        install_signal_handlers()
+        # A signal between mkdir() succeeding and `held` being observably
+        # true used to terminate the process (default disposition, handlers
+        # not yet installed) with the directory already on disk and no
+        # cleanup. Handlers are now live before this call, so any such
+        # signal raises Interrupted — caught below, and this try/finally
+        # already covers lock.acquire() itself.
+        lock.acquire()
 
         try:
             os.unlink(log)
@@ -450,31 +578,79 @@ def main(argv):
         if ceiling is None:
             ceiling = compute_ceiling(audit)
 
+        # Signals are DELIBERATELY NOT blocked across this call. fork() gives
+        # the CHILD a copy of the CALLER's current signal mask — if we were
+        # blocked here, the spawned process (and everything it backgrounds)
+        # would inherit HUP/INT/TERM as blocked for its entire lifetime, with
+        # no code of ours ever unblocking it, since only WE control our own
+        # mask. Verified directly: with block_signals() active across spawn(),
+        # a later `os.killpg(..., SIGTERM)` reached the child but produced NO
+        # effect, because the child itself could never see the signal it just
+        # received — only the unmaskable SIGKILL still worked. That would have
+        # silently defeated "TERM first, so the runtime can flush a partial
+        # transcript" everywhere, not just here.
         try:
             proc = spawn(cmd, log)
         except OSError as exc:
             # which() passed but exec did not: the binary vanished or lost +x
-            # between the two. Nothing is running, so the contract requires
-            # exit 1 with NO transcript — and this is the one place the wrapper
-            # unlinks a file it created (safe: we hold the lock and made that
-            # exact inode microseconds ago).
-            try:
-                os.unlink(log)
-            except OSError:
-                pass
+            # between the two, or the fork/exec handshake itself failed.
+            # spawn() has already cleaned up the inode it created (never one
+            # it didn't — see spawn()'s docstring); nothing is running.
             raise Usage("cannot start '%s': %s — check it is executable, then "
                         "re-run" % (cmd[0], exc))
+        # NOW block, immediately after Popen() has returned control — the
+        # child already forked with a normal mask, so this protects only OUR
+        # OWN bookkeeping for the trivial gap before the next line, without
+        # touching the child at all. (A signal landing INSIDE Popen()'s own
+        # fork/exec handshake, before we have `proc` in hand, is an accepted
+        # residual — there is no handle to act on yet regardless of blocking,
+        # the same shape as the Popen()-can-hang residual in this file's
+        # module docstring.)
+        block_signals()
 
         started = time.monotonic()   # monotonic: an NTP step cannot move the bound
         rc = None
+        klass = "ok"
         try:
+            # Unblock ONLY for the main wait: a long ceiling should still be
+            # Ctrl-C-interruptible, and this specific window has a correct,
+            # race-free handler right below (returncode is set by wait()
+            # before it returns, so "already reaped" is never a guess). This
+            # does not touch the CHILD's mask — only ours, and the child is
+            # long since forked by now.
+            unblock_signals()
             rc = proc.wait(timeout=ceiling)   # ONE call. No poll loop, no probe.
-            klass = "ok"
+            # Re-block THE MOMENT this returns, on the SUCCESS path too — not
+            # just in the except branches below. Without this line, a signal
+            # landing here (child reaped, but still inside the reporting code
+            # that follows: elapsed/head/nudge_stragglers/note/say) escaped to
+            # the outermost catch-all, which returns a bare 130 and discards a
+            # completed, valid result it never even looks at. It doesn't kill
+            # anything there (no misdirected signal — the outer catch never
+            # calls kill_ladder), but it does throw away real information for
+            # no reason. Blocking here removes the last unprotected window.
+            block_signals()
         except subprocess.TimeoutExpired:
+            block_signals()      # re-atomic: the ladder must run as one unit
             klass = "stall" if kill_ladder(proc) else "survivor"
         except Interrupted:
-            kill_ladder(proc)
-            return 130
+            block_signals()
+            if proc.returncode is not None:
+                # Already reaped by the time the signal fired (race-free:
+                # Popen sets returncode synchronously as part of a successful
+                # wait()) — the work is DONE. Report the real result instead
+                # of discarding a completed, valid transcript as an interrupt.
+                # klass stays "ok"; falls through to normal reporting below.
+                rc = proc.returncode
+            else:
+                # Still alive: the signal is ours to act on. A successful kill
+                # here is a USER-initiated stop, not a ceiling-initiated stall
+                # — report 130, not 4, so the caller isn't told "the ceiling
+                # elapsed" when it didn't. A survivor still needs its
+                # tombstone written below, which 130 alone wouldn't carry.
+                klass = "stall" if kill_ladder(proc) else "survivor"
+                if klass != "survivor":
+                    return 130
         elapsed = int(time.monotonic() - started)
         head = git_short_head()
 
@@ -485,6 +661,13 @@ def main(argv):
             # unkillable process is two Codex runs on one repo, interleaved git
             # operations, and a transcript being appended to by something
             # nobody can see.
+            #
+            # disown() runs FIRST, still under block_signals(), immediately
+            # adjacent to the kill_ladder() call that proved survival — not
+            # after git_short_head()/note()/emit(). A signal or a failure in
+            # any of those must not be able to release the lock before the
+            # tombstone is in place; disown() itself cannot fail.
+            lock.disown()
             note(attempts, "survivor", elapsed, ceiling, None, head)
             emit("SURVIVOR — pid %d outlived SIGKILL after %ss (ceiling %ss); "
                  "it is stuck in an uninterruptible wait. Do NOT retry: a "
@@ -492,13 +675,11 @@ def main(argv):
                  "in place on purpose so it cannot. Investigate that pid, then "
                  "remove the lock once it is gone. Transcript at %s."
                  % (proc.pid, elapsed, ceiling, lock.path, log))
-            # The lock stays as a tombstone; the next attempt's collision
-            # message already ends "If nothing is running, remove that
-            # directory." os._exit because an unreaped Popen can emit an
-            # UNPREFIXED ResourceWarning from __del__ at interpreter shutdown,
-            # which would break the stderr contract on the one path that
-            # matters most. It also skips the finally, which is the point.
-            lock.disown()
+            # os._exit because an unreaped Popen can emit an UNPREFIXED
+            # ResourceWarning from __del__ at interpreter shutdown, which
+            # would break the stderr contract on the one path that matters
+            # most. It also skips the finally, which is the point — disown()
+            # already made that a no-op.
             sys.stdout.flush()
             sys.stderr.flush()
             os._exit(6)
@@ -510,6 +691,15 @@ def main(argv):
                  "retry, then take the step-4 fallback in "
                  "references/pr-workflow.md." % (ceiling, ceiling, log))
             return 4
+
+        # klass == "ok": the leader is reaped, but that only proves the LEADER
+        # exited — waitpid cannot reap a grandchild (it isn't our child), so a
+        # backgrounded descendant could still be running. Signals are already
+        # unblocked here (the try above unblocked them for the wait, and
+        # neither exception branch re-entered this path), so this is a plain,
+        # non-atomic courtesy call — correct, because the leader is already
+        # dead and there is nothing left to race against.
+        nudge_stragglers(proc)
 
         if rc != 0:
             note(attempts, "exit-%d" % shell_rc(rc), elapsed, ceiling, rc, head)
@@ -524,6 +714,11 @@ def main(argv):
             "instead leaves the counter at zero and the cap never fires."
             % (elapsed, ceiling, log))
         return 0
+    except Interrupted:
+        # Reachable only before spawn() (lock acquisition, or the stale-log
+        # removal) or after a Usage()-raising branch already unblocked — no
+        # child exists yet on this path, so there is nothing to kill.
+        return 130
     finally:
         lock.release()
 
@@ -535,8 +730,15 @@ if __name__ == "__main__":
         emit(str(err))
         sys.exit(1)
     except Interrupted:
-        # Reached only before a child exists; the in-flight case is handled in
-        # main() so the group is killed first.
+        # Defensive only — main() now catches Interrupted internally on every
+        # path once install_signal_handlers() (its first statement) has run,
+        # so this should be unreachable. Kept as a backstop in case a future
+        # change reopens a gap; still exits the same way main() would.
+        sys.exit(130)
+    except KeyboardInterrupt:
+        # Belt-and-suspenders for the sliver of time before main()'s first
+        # statement installs our own SIGINT handler, where Python's built-in
+        # default (raise KeyboardInterrupt) still applies.
         sys.exit(130)
     except Exception as err:        # never let a traceback onto fd 2 unprefixed
         emit("internal error (%s: %s) — this is a bug in codex-run.py"

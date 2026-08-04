@@ -129,13 +129,50 @@ within the delegation budget (`references/delegation.md` § Bounded delegation).
   that authoritatively (see exit 6 below) rather than misreporting it, but
   detecting it is not preventing it. A group member that calls `setsid()`
   itself leaves the wrapper's session and escapes the `killpg` entirely — this,
-  not pid recycling, is the real remaining orphan hazard. And a `SIGKILL` to
-  the wrapper itself still strands the lock directory (the bash EXIT trap had
-  the identical hole).
-- **A killed run's exit status is not information.** On the stall path (exit
-  4) the wrapper kills the group and returns without waiting on a status —
-  what ended it is already known. On the survivor path (exit 6, below) there
-  is no status to collect at all: the process is still running.
+  not pid recycling, is the real remaining orphan hazard. `proc.wait()` on the
+  clean-exit path only proves the *leader* was reaped — `waitpid` cannot reap a
+  grandchild (it isn't the wrapper's child, only a member of its process
+  group), so a backgrounded descendant can outlive a successful exit. The
+  wrapper sends a best-effort, non-waited `SIGTERM` to the group after every
+  clean exit (`nudge_stragglers`) so a straggler doesn't linger indefinitely,
+  but this cannot be proof the way `kill_ladder`'s reap is — there is
+  structurally no syscall that would make it one. And a `SIGKILL` to the
+  wrapper itself still strands the lock directory (the bash EXIT trap had the
+  identical hole).
+- **The same bug class reappeared one level up, in signal timing, and got the
+  same treatment: remove the guesswork rather than add a guard.** A review
+  found that a signal landing in the gap between "the child's fate is decided"
+  and "the wrapper finishes acting on it" — after a successful reap but before
+  the function returns, or literally mid-`kill_ladder()` — could re-run the
+  kill ladder against a pid that might already belong to someone else, or
+  escape a nested `except` uncaught and abandon a half-killed child. Two fixes,
+  not a third `ps`-shaped guard: `proc.returncode is None` is the race-free
+  "already reaped?" check (`Popen` sets it synchronously as part of a
+  successful `wait()`), used before every `kill_ladder()` call reached from a
+  signal handler; and `signal.pthread_sigmask` blocks the three caught signals
+  (deferring, not dropping, them) around the trivial gap right after spawning
+  and around the kill ladder itself, so those regions are atomic. They stay
+  unblocked around the main ceiling wait on purpose — a long wait should
+  still be Ctrl-C-interruptible, and that window already has the race-free
+  handler. Building this surfaced a third instance of the same bug class,
+  self-inflicted: the first draft blocked signals *before* calling `spawn()`,
+  which — because `fork()` copies the caller's signal mask into the child —
+  made the spawned process (and everything it backgrounds) inherit TERM as
+  blocked for its *entire lifetime*. Verified directly: `killpg(..., TERM)`
+  reached such a child, raised no exception, and did nothing; only the
+  unmaskable `KILL` still worked. The fix blocks *after* `spawn()` returns,
+  once the child has already forked with a normal mask — a distinction with
+  no timing-based test coverage possible at all, since `kill_ladder`'s fixed
+  grace sleep makes the wrapper's total elapsed time identical whether TERM
+  worked or not; the dedicated pin (`codex-run.test.sh` T40) instead checks
+  the child's own liveness mid-grace, from outside the wrapper.
+- **A killed run's exit status is not information — but the wrapper does wait
+  to confirm the kill, then discards what it collected.** On the stall path
+  (exit 4), `kill_ladder`'s final step is `proc.wait(timeout=REAP_SECONDS)` —
+  that's what distinguishes a reaped stall from a proven survivor — but the
+  collected status is meaningless for a killed process and isn't reported.
+  On the survivor path (exit 6, below) there is no status to collect at all:
+  the process is still running.
 - **SURVIVOR (exit 6): the group did not die within grace+reap after
   SIGKILL.** Proven, not guessed — `waitpid` on the wrapper's own child times
   out, and that is authoritative in a way `ps` never was. Not reported as a

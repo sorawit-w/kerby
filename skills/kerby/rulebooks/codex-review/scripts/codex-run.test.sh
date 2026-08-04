@@ -421,9 +421,127 @@ t0=$(now); run --ceiling "$CEILING" -- "$WORK/stubborn.sh" "$WORK/spid2"; t1=$(n
   && pass "TERM-ignoring child bounded at ceiling+grace+reap ($((t1 - t0))s < ${BOUND}s)" \
   || fail "ladder unbounded: rc=$RC elapsed=$((t1 - t0))s bound=${BOUND}s"
 
+# --- Codex-review round 6 findings (the python rewrite's own first live
+# review — one P0, five P1, three P2, one P3), pinned ---
+
+# T37 — REGRESSION PIN. A signal arriving MID-kill_ladder() (during the 5s
+# TERM->KILL grace) used to raise Interrupted from inside the caller's
+# `except subprocess.TimeoutExpired:` clause, where the sibling
+# `except Interrupted:` could NOT catch it (it belongs to the same try, not a
+# nesting one) — it escaped uncaught, leaving the child half-killed and the
+# lock released. Reproduced by the reviewer: wrapper returned 130, the
+# TERM-ignoring child stayed alive, lock absent. block_signals() during
+# kill_ladder() makes this window zero-width: the external TERM below is sent
+# ~2s after the ceiling fires, landing inside the 5s grace sleep with margin
+# on both sides, so timing precision isn't load-bearing for the test.
+GRACE_SECONDS=5; CEILING=2
+rm -f "$LOG" "$WORK/spid3"; rmdir "$LOG.lock" 2>/dev/null
+bash "$RUN" --ceiling "$CEILING" -- "$WORK/stubborn.sh" "$WORK/spid3" \
+  >"$WORK/out.txt" 2>"$WORK/err.txt" &
+MPID=$!
+until [[ -s "$WORK/spid3" ]] || ! kill -0 "$MPID" 2>/dev/null; do sleep 1; done
+CPID3=$(cat "$WORK/spid3" 2>/dev/null)
+sleep "$((CEILING + 2))"          # land inside the grace window, not at its edges
+kill -TERM "$MPID" 2>/dev/null
+wait "$MPID" 2>/dev/null
+sleep 1
+if [[ -z "$CPID3" ]]; then
+  fail "mid-ladder pin inconclusive: never observed the child pid"
+elif kill -0 "$CPID3" 2>/dev/null; then
+  fail "signal mid-kill_ladder orphaned the child (pid=$CPID3 still alive)"
+  kill -KILL "$CPID3" 2>/dev/null
+elif [[ -d "$LOG.lock" ]]; then
+  fail "signal mid-kill_ladder left the lock stranded"
+  rmdir "$LOG.lock" 2>/dev/null
+else
+  pass "signal mid-kill_ladder still completes the ladder, lock released"
+fi
+
+# T40 — REGRESSION PIN, found and fixed while building the T38 pin above, not
+# by the review itself: block_signals() called BEFORE spawn() means fork()
+# copies the CALLER's mask into the child, so the spawned process (and
+# everything it backgrounds) would inherit HUP/INT/TERM as blocked for its
+# ENTIRE lifetime — only the unmaskable SIGKILL could ever reach it. Verified
+# directly against a bare Popen(): os.killpg(..., SIGTERM) reached the child,
+# raised no exception, and had NO EFFECT — the child never saw the signal it
+# had just received. That would have silently defeated "TERM first, so the
+# runtime can flush a partial transcript" everywhere, not just here.
+#
+# kill_ladder() sleeps the FULL grace period UNCONDITIONALLY regardless of
+# whether TERM already worked (deliberate — grace is owed to the group, see
+# kill_ladder's own docstring), so the wrapper's total elapsed time can't
+# distinguish "TERM worked" from "TERM was swallowed": both take ~5s by
+# design. The only way to observe the difference is to watch the CHILD's own
+# liveness from OUTSIDE the wrapper, mid-grace, before the wrapper's fixed
+# sleep even completes.
+GRACE_SECONDS=5; CEILING=2
+rm -f "$LOG" "$WORK/gchild6"; rmdir "$LOG.lock" 2>/dev/null
+bash "$RUN" --ceiling "$CEILING" -- "$WORK/forever.sh" "$WORK/gchild6" >/dev/null 2>&1 &
+TPID=$!
+until [[ -s "$WORK/gchild6" ]] || ! kill -0 "$TPID" 2>/dev/null; do sleep 1; done
+TGC=$(cat "$WORK/gchild6" 2>/dev/null || echo 0)
+# Poll shortly after the ceiling fires but well inside the grace window (the
+# wrapper is still asleep in kill_ladder's fixed sleep at this point).
+sleep "$((CEILING + 2))"
+if [[ "$TGC" -eq 0 ]]; then
+  fail "T40 inconclusive: never observed the descendant pid"
+elif kill -0 "$TGC" 2>/dev/null; then
+  fail "descendant still alive mid-grace — TERM had no effect (only KILL will finish it)"
+else
+  pass "TERM alone kills a normal child during the grace window (not blocked-then-KILLed)"
+fi
+kill -KILL "$TGC" 2>/dev/null
+wait "$TPID" 2>/dev/null
+
+# T38 — REGRESSION PIN. `proc.wait()` on the clean-exit path only proves the
+# LEADER was reaped, not the whole process group — waitpid cannot reap a
+# grandchild (it isn't the wrapper's child, only a group member). Reproduced
+# by the reviewer: leader exits 0, a backgrounded descendant is still alive,
+# and the "ok" path signalled nothing at all. leader-exits.sh backgrounds a
+# long sleep then exits immediately; nudge_stragglers' best-effort TERM after
+# a clean reap should reach it even though nothing waits for the result.
+cat > "$WORK/leader-exits.sh" <<'EOF'
+#!/bin/bash
+sleep 300 &
+echo $! > "$1"
+exit 0
+EOF
+chmod +x "$WORK/leader-exits.sh"
+rm -f "$WORK/lgchild"
+run -- "$WORK/leader-exits.sh" "$WORK/lgchild"
+LGC=$(cat "$WORK/lgchild" 2>/dev/null || echo 0)
+sleep 1
+if [[ "$RC" -ne 0 ]]; then
+  fail "leader-exits stub: rc=$RC (want 0)"
+elif [[ "$LGC" -eq 0 ]]; then
+  fail "descendant pin inconclusive: never observed its pid"
+elif kill -0 "$LGC" 2>/dev/null; then
+  fail "descendant survived a clean leader exit, never signalled (pid=$LGC)"
+  kill -KILL "$LGC" 2>/dev/null
+else
+  pass "nudge_stragglers reaches a descendant left running after a clean exit"
+fi
+
+# T39 — a signal arriving AFTER a clean reap but before the report finishes
+# must not discard the real result. Timed generously: fast.sh exits in well
+# under a second; the external TERM lands 2s later, comfortably after
+# block_signals() has already re-engaged on the success path.
+rm -f "$LOG"; rmdir "$LOG.lock" 2>/dev/null
+bash "$RUN" -- "$WORK/fast.sh" >"$WORK/out.txt" 2>"$WORK/err.txt" &
+NPID=$!
+sleep 2
+kill -TERM "$NPID" 2>/dev/null
+wait "$NPID" 2>/dev/null; NRC=$?
+# Either outcome is structurally sound (a signal this late almost certainly
+# lands after the process has already exited on its own) — what would FAIL
+# this pin is a hang, a crash, or a stranded lock, none of which involve any
+# process-kill call at all on this path.
+[[ -d "$LOG.lock" ]] && fail "post-reap signal left the lock stranded" \
+  || pass "post-reap signal handled cleanly (rc=$NRC), no stranded lock"
+
 # 20. No stub survived the suite.
 sleep 1
-LEFT=$(pgrep -f "$WORK/(forever|blocker|reader|stubborn)\.sh" 2>/dev/null | wc -l | tr -d ' ')
+LEFT=$(pgrep -f "$WORK/(forever|blocker|reader|stubborn|leader-exits)\.sh" 2>/dev/null | wc -l | tr -d ' ')
 [[ "$LEFT" -eq 0 ]] && pass "no orphaned stub processes" || fail "$LEFT orphaned stub(s)"
 
 # --- Static analysis: the machinery that caused rounds 1-5's defects must not
