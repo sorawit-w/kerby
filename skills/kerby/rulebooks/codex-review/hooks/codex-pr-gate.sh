@@ -99,6 +99,6 @@ if [ -f "$marker" ] && [ "$(cat "$marker")" = "$head" ]; then
 fi
 
 echo "Codex PR gate: no P0/P1-clean Codex review recorded for HEAD ($head)." >&2
-echo "Run the Codex review teed to \"$gitdir/codex-review.log\" (the brief must require the final CODEX_VERDICT line), then run this rulebook's scripts/codex-mark.sh — the only sanctioned marker writer." >&2
+echo "Run the review through this rulebook's scripts/codex-run.sh (it writes \"$gitdir/codex-review.log\" and bounds the attempt; the brief must require the final CODEX_VERDICT line), then run scripts/codex-mark.sh — the only sanctioned marker writer." >&2
 echo "codex-mark writes the marker only on PASS (P0=0 P1=0). To bypass deliberately (user-authorized only), prefix the gh invocation with CODEX_GATE_BYPASS=1. See kerby guardrails (hooks/codex-pr-gate.sh)." >&2
 exit 2

@@ -3,6 +3,53 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.14.0] — 2026-08-03
+
+**The watchdog** (codex-review 0.3.0): a headless Codex run can no longer wait
+forever, because "wait forever" was never a policy — it was an instruction the
+agent could not follow. New `scripts/codex-run.sh` bounds one attempt and says
+why it ended; every headless invocation routes through it.
+
+- **The bound was unimplementable, not just unenforced.** `pr-workflow.md` asked
+  for `codex … | tee log &` "with an explicit timeout." In that shape the
+  shell's `$!` is *tee's* pid — a timeout built on it kills `tee` and leaves the
+  runtime running — and macOS ships no `timeout(1)` to build one with anyway.
+  The receipt is in this repo's own audit log: `dur=85344s`, 23.7 hours, sitting
+  between reviews of 119s and 344s. codex-run takes an argv vector precisely so
+  the pipeline shape is unrepresentable.
+- **Fresh inode per attempt.** codex-mark derives `dur=` from the transcript's
+  filesystem *birth* time, and truncation does not reset birth — so a
+  never-marked leftover log silently bills the next attempt for both. Removing
+  it was prose; now it is step 1 of the wrapper, pinned by a test that fails at
+  `mtime−birth ≥ 3` the moment someone swaps `rm -f` for `>`.
+- **Kills the process group, not the pid.** Codex spawns children; signalling
+  only the top pid orphans them. macOS has no `setsid(1)`, so `set -m` earns the
+  child its own pgroup. Test 8 spawns a grandchild and checks the corpse.
+- **Classified endings, not just "it stopped":** 3 = parked at a known
+  block-point (fix the cause, retry once) · 4 = stalled to the ceiling (one
+  blind retry, then the fallback) · 5 = the runtime itself failed. Deliberately
+  starting at 3 so nothing reads them as codex-mark's PASS/DENIED/HELD.
+- **The ceiling is a median, and it is clamped.** 2× the observed-good `dur=`
+  median, ignoring `?`, held inside [5 min, 60 min]. A mean over this repo's log
+  would propose 4.8 hours; an uncapped median over a log full of hangs would
+  propose 47 and quietly stop being a watchdog.
+- **Killed runs leave a trace** in a new `$GIT_DIR/codex-run-attempts.log`, kept
+  out of the audit log so failures can never skew the median that bounds them.
+  The 23.7-hour entry was only ever visible because it happened to end in PASS.
+- **The documented runtime did not exist.** `codex-companion.mjs` is gone —
+  today's plugin is bundled into the host binary, with no on-disk footprint — so
+  the "verify on disk" preflight failed, concluded *plugin missing*, and sent
+  every PR to the GitHub fallback. The preflight now probes `command -v codex`;
+  plugin files are a secondary signal that can no longer cast a vote. The dead
+  `--scope branch` flag went with it (`codex exec review --base <branch>`).
+- **Honest instrument.** delegation.md said "flat CPU"; macOS `ps %cpu` is a
+  decayed lifetime average and cannot answer "idle right now." The rule now says
+  what the watchdog actually reads — a transcript that has not moved — rather
+  than letting a script quietly substitute.
+- Docs: `references/{delegation,pr-workflow,stance}.md`, `commands/pr-check.md`,
+  the gate hook's block message, the rulebook README (state files, ceilings,
+  provenance), and this repo's own `CLAUDE.md` § PR Workflow all moved together.
+
 ## [9.13.0] — 2026-07-15
 
 **Worktree as announced escalation** (swe 2.5.0): the branching default flips —

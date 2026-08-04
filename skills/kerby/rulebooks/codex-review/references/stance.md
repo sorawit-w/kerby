@@ -9,14 +9,19 @@ condition for a loop.
 
 ## Preflight — before claiming Codex is unavailable
 
-**Verify Codex on disk before asserting it is missing.** Most codex commands
-are `disable-model-invocation` (user-only), so they never appear in the
-session's skill list — absence-from-the-list is NOT absence. Check the plugin
-itself: `find <codex-plugin>/commands -name '*.md'` or locate
-`scripts/codex-companion.mjs`. A fallback path activates only for a genuinely
-missing/broken plugin — or a delegation budget exhausted with no verdict
-(`references/delegation.md` § Bounded delegation). `kerby pr-check` runs this
-preflight for you.
+**Verify Codex before asserting it is missing.** Most codex commands are
+`disable-model-invocation` (user-only), so they never appear in the session's
+skill list — absence-from-the-list is NOT absence.
+
+Probe the **runtime**, not the plugin files: `command -v codex`. That CLI is
+what the headless workflows actually invoke (`codex exec review`), and it is the
+only probe that answers the question being asked. Plugin files are a *secondary*
+signal at best — a plugin bundled into the host binary (an inline plugin) has no
+on-disk footprint at all, so `find <codex-plugin>/commands -name '*.md'` coming
+up empty proves nothing on its own. A missing **CLI**, not a missing file, is
+what activates a fallback path — that, or a delegation budget exhausted with no
+verdict (`references/delegation.md` § Bounded delegation). `kerby pr-check` runs
+this preflight for you.
 
 ## When to read what
 

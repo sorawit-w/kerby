@@ -6,12 +6,17 @@ When opening a PR (base = the repo's default branch):
    against the branch diff (`--base <default-branch> --scope branch`) and loop
    review → fix → re-review per the **Review loop (bounded)** rule below.
    `/codex:review` is user-only (`disable-model-invocation`) — the agent runs the
-   same engine headless instead: `node <codex-plugin>/scripts/codex-companion.mjs
-   review "--wait --base <default-branch> --scope branch" < /dev/null` via
-   background Bash with an explicit timeout (default timeout SIGTERMs), or
-   substitutes `/codex:rescue` with a review brief. Every attempt is bounded per
-   `references/delegation.md` § Bounded delegation — a budget exhausted with no
-   verdict activates the step-4 fallback. When the user-only caveat bites, also
+   same engine headless instead, always through this rulebook's watchdog:
+
+   ```
+   scripts/codex-run.sh -- codex exec review --base <default-branch>
+   ```
+
+   — or substitutes `/codex:rescue` with a review brief. Never invoke the runtime
+   bare or piped to `tee`: those forms cannot be bounded (`references/delegation.md`
+   § Bounded delegation explains why, and the wrapper is that section's mechanical
+   form). Every attempt is bounded there — a budget exhausted with no verdict
+   activates the step-4 fallback. When the user-only caveat bites, also
    offer the user the plugin's stop-time review gate once per repo per session —
    the cost caveat and mechanics are single-sourced in `references/delegation.md`. "Not in my Skill list" is NOT
    "no local Codex" — verify on disk first (see `references/stance.md` preflight);
@@ -35,11 +40,12 @@ When opening a PR (base = the repo's default branch):
    (`hooks/codex-pr-gate.sh`, registered by `kerby install`) blocks `gh pr create`
    unless a marker records a clean Codex review of the current HEAD. The marker is
    written ONLY by this rulebook's `scripts/codex-mark.sh` — never by hand;
-   hand-writing it is gate-dodging. Tee every review's output to
-   `$(git rev-parse --git-dir)/codex-review.log` — a fresh file per attempt
-   (remove any never-marked leftover first; the audit `dur=` is measured from
-   the log's creation, and codex-mark consumes the log whenever it parses a
-   verdict) — then run `scripts/codex-mark.sh`
+   hand-writing it is gate-dodging. `scripts/codex-run.sh` writes the transcript
+   to `$(git rev-parse --git-dir)/codex-review.log`, creating a fresh file per
+   attempt (the audit `dur=` is measured from that file's creation time, which
+   truncation does not reset — so a never-removed leftover silently inflates the
+   next attempt's duration; codex-mark consumes the log whenever it parses a
+   verdict). Then run `scripts/codex-mark.sh`
    (resolve it relative to this rulebook's root — the folder this file was loaded
    from): it verifies a clean `CODEX_VERDICT` (P0=0 P1=0) against a log newer than
    HEAD, enforces the round cap (PASS / DENIED / HELD), writes the marker, appends

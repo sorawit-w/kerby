@@ -7,7 +7,14 @@ stance: **Codex advises, Claude decides.**
 |---|---|---|
 | PR gate — review before `gh pr create`; P0/P1 block; 3-round cap; PASS/DENIED/HELD | `references/pr-workflow.md` | `hooks/codex-pr-gate.sh` (PreToolUse/Bash) + `scripts/codex-mark.sh` (sole marker writer) |
 | Plan review — adversarial pass on complex plans, dissent disclosed | `references/plan-review.md` | none (behavioral, `warn`) |
-| Rescue delegation — independent diagnosis before human escalation | `references/delegation.md` | none (behavioral, `info`) |
+| Rescue delegation — independent diagnosis before human escalation | `references/delegation.md` | `scripts/codex-run.sh` (bounds one headless attempt) |
+
+Every headless Codex invocation — review, scoped re-review, rescue — runs through
+`scripts/codex-run.sh`. It closes stdin, gives the runtime its own process group,
+kills it at a ceiling derived from the observed-good `dur=` median, and classifies
+the ending (0 clean · 3 hang · 4 stall · 5 runtime error). It bounds *one attempt*
+and never retries: the delegation budget and the verdict grammar stay with the
+prose and `codex-mark.sh` respectively.
 
 The root body (`references/stance.md`) is a thin eager index: stance, on-disk
 preflight, when-to-read pointers. The heavy references load on demand.
@@ -43,9 +50,10 @@ warn-severity checks — blunt; not recommended.
 | File | Written by | Meaning |
 |---|---|---|
 | `codex-reviewed` | `scripts/codex-mark.sh` ONLY | marker: the reviewed HEAD sha |
-| `codex-review.log` | the agent (tee of the review output) | evidence codex-mark verifies |
+| `codex-review.log` | `scripts/codex-run.sh` (fresh inode per attempt) | evidence codex-mark verifies |
 | `codex-review-rounds` | `scripts/codex-mark.sh` | branch + round counter (cap 3) |
-| `codex-review-audit.log` | `scripts/codex-mark.sh` | append-only PASS history |
+| `codex-review-audit.log` | `scripts/codex-mark.sh` | append-only PASS history; its `dur=` median sets the watchdog ceiling |
+| `codex-run-attempts.log` | `scripts/codex-run.sh` | append-only history of killed/failed attempts — deliberately NOT the audit log, so these can never skew the `dur=` median |
 
 ## Bypass
 
@@ -75,8 +83,24 @@ within the delegation budget (`references/delegation.md` § Bounded delegation).
   (`gh api repos/{o}/{r}/pulls -X POST …`), a user-defined `gh alias`, or a shell
   line-continuation split. These are the `CODEX_GATE_BYPASS` category by another
   name — an accepted ceiling, not a hole to plug.
-- **codex-mark trusts the teed log.** Forging a log is deliberate deception, not
-  drift; `$GIT_DIR/codex-review-audit.log` keeps history visible.
+- **codex-mark trusts the transcript.** Forging a log is deliberate deception,
+  not drift; `$GIT_DIR/codex-review-audit.log` keeps history visible.
+- **codex-run knows one block-point.** Hang classification matches a single
+  hardcoded pattern (`Reading additional input from stdin`) — the only one
+  documented and reproducible. A second pattern gets added when it exists, not
+  a config file for a set of size one. Anything else that wedges is caught by
+  the ceiling as a stall instead: slower, same outcome.
+- **"Flat CPU" is read as a frozen transcript.** macOS `ps %cpu` is a decayed
+  lifetime average, so it cannot answer "is this process idle right now."
+  codex-run substitutes a log mtime that has not moved for 5 polls. A runtime
+  that legitimately goes quiet for >5s *after* printing the block-point line
+  would be misread — no such case is known, and the ceiling would have killed
+  it anyway.
+- **codex-run bounds one attempt, not the budget.** It never retries. The
+  2-attempt delegation budget stays with the prose in
+  `references/delegation.md`, because budget consumption is defined by verdict
+  *parseability* — codex-mark's grammar, which must not be forked into a
+  second script.
 - **jq required for the gate hook.** Missing jq degrades to an announced ALLOW —
   the notice rides `additionalContext` JSON on stdout (the channel the agent
   reads on a PreToolUse exit 0; stderr there is invisible to the model). Install
@@ -98,3 +122,9 @@ codex-coupled remains global after migration. Hook hardened over the global
 original: whitespace-tolerant detection, per-invocation strip-then-residual
 bypass, explicit no-jq degrade. codex-mark hardened: all four `CODEX_VERDICT`
 counts required (fail-closed on a partial line).
+
+`scripts/codex-run.sh` added 2026-08-03 (0.3.0) — no upstream original. Written
+against a reproduced failure: a 23.7-hour attempt (`dur=85344s`) recorded in this
+repo's own audit log beside 2-minute reviews, caused by an invocation shape that
+could not be bounded (`… | tee log &` makes `$!` the *tee* pid) on a platform with
+no `timeout(1)`.

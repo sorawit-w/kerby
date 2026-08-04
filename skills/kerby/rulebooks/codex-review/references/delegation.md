@@ -14,20 +14,46 @@ if the independent pass doesn't break the deadlock, escalate as usual.
 Applies to every headless Codex invocation this rulebook triggers — review,
 scoped re-review, rescue.
 
-- **Close stdin.** Headless `codex exec` / companion runs MUST redirect
-  `< /dev/null` — an open empty stdin in a background shell deadlocks silently
-  on `Reading additional input from stdin...`. Run backgrounded with output
-  teed to a log, or the signals below don't exist.
-- **Classify before waiting.** Log tail at a known block-point + flat CPU =
-  deterministic hang → kill now, no grace. Alive and initialized but silent =
-  stall → grace to the attempt's ceiling, then kill — never earlier, never past.
-- **Wall-clock ceiling per attempt:** ~2× the observed-good duration (median of
-  the numeric `dur=` fields in `$GIT_DIR/codex-review-audit.log`, ignoring `?`);
-  no baseline → 15 min.
+**Run it through `scripts/codex-run.sh`** — never bare, never piped to `tee`:
+
+```
+scripts/codex-run.sh [--ceiling <seconds>] [--log <path>] -- <runtime> [args...]
+```
+
+The script is the mechanical form of the first three bounds below; it bounds one
+attempt and reports why that attempt ended. The bare/piped forms cannot be
+bounded at all: in `codex … | tee log &` the shell's `$!` is **tee's** pid, so a
+timeout built on it kills `tee` and leaves the runtime running — and macOS ships
+no `timeout(1)` to build one with. That combination is how a 23.7-hour attempt
+reached this repo's own audit log.
+
+- **Close stdin** (mechanical). An open empty stdin in a background shell
+  deadlocks silently on `Reading additional input from stdin...`. The wrapper
+  redirects `< /dev/null`; a hand-rolled invocation must too.
+- **Classify before waiting** (mechanical). Transcript parked at a known
+  block-point *and* not growing = deterministic hang → killed now, exit **3**.
+  Alive but silent = stall → grace to the ceiling, then killed, exit **4** —
+  never earlier, never past. (The wrapper reads a frozen transcript mtime as its
+  idle signal, not CPU: macOS `ps %cpu` is a decayed lifetime average, so "flat
+  CPU" is not observable there. Same intent, honest instrument.)
+- **Wall-clock ceiling per attempt** (mechanical): ~2× the observed-good duration
+  (median of the numeric `dur=` fields in `$GIT_DIR/codex-review-audit.log`,
+  ignoring `?`); no baseline → 15 min. The wrapper computes this, clamps it to
+  [5 min, 60 min] so neither one fast fluke nor an accumulation of hangs can
+  disable the bound, and prints the value it used. `--ceiling` overrides.
 - **Restart keyed to cause:** known cause → fix it, retry once; unknown stall →
-  at most one blind retry. Never loop identical restarts.
+  at most one blind retry. Never loop identical restarts. The wrapper's exit code
+  says which applies — **3** names the cause (fix it), **4** is the blind-retry
+  case, **5** means the runtime itself failed (read the transcript first).
+  Killed and failed attempts append a line to `$GIT_DIR/codex-run-attempts.log`;
+  a run that hangs and never marks leaves no other trace.
 - **Delegation budget: at most 2 attempts per requested verdict** (a run that
-  yields a *parseable* verdict never consumes it). Exhausted with no verdict →
+  yields a *parseable* verdict never consumes it). This one stays yours to
+  count — `codex-run.sh` bounds a single attempt and never retries, because
+  "parseable" is `codex-mark.sh`'s grammar (forking it into a second script is
+  how two authorities drift apart) and "keyed to cause" is a judgment a wrapper
+  could only ever discharge as the identical restart the rule forbids.
+  Exhausted with no verdict →
   treat Codex as unable to produce a verdict and take the invoking workflow's
   fallback path (for the PR gate: `pr-workflow.md` step 4). "No verdict" means
   no parseable `CODEX_VERDICT` line — a missing line **and** a malformed one
