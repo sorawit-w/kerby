@@ -402,13 +402,24 @@ class Lock:
         self.held = False
 
     def release(self):
-        if not self.held:
-            return                  # idempotent AND ownership-checked
-        self.held = False           # cleared BEFORE the rmdir: no double-release
+        # Same discipline as acquire(): a review found `held = False` running
+        # BEFORE `os.rmdir()` left a window where a signal could abort the
+        # removal with the flag already cleared, stranding the directory —
+        # fail-closed and manually recoverable (the collision message already
+        # says to remove it), but a real, avoidable gap. block_signals() here
+        # carries none of spawn()'s mask-inheritance risk: rmdir() forks
+        # nothing.
+        block_signals()
         try:
-            os.rmdir(self.path)
-        except OSError:
-            pass
+            if not self.held:
+                return              # idempotent AND ownership-checked
+            self.held = False       # cleared BEFORE the rmdir: no double-release
+            try:
+                os.rmdir(self.path)
+            except OSError:
+                pass
+        finally:
+            unblock_signals()
 
 
 CAUGHT_SIGNALS = (signal.SIGHUP, signal.SIGINT, signal.SIGTERM)
