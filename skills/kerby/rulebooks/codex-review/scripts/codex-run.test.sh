@@ -339,6 +339,45 @@ run -- "$WORK/fast.sh"
 [[ "$NOLOCK" -eq 1 && "$RC" -eq 0 ]] \
   && pass "signal path releases the lock once; next attempt acquires" || fail "lock after signal: present=$((1-NOLOCK)) next-rc=$RC"
 
+# --- Codex-review round 3 findings, pinned ---
+
+# 28. REGRESSION PIN — a transient failure of the OPENING ps must not strand the
+# run. With cstart empty, every later reading compares "different", the live
+# child is misread as a stranger's pid, never signalled, and waited on forever.
+# The fake ps fails once (its first call, which is the baseline read) and then
+# behaves, reproducing exactly that interleaving.
+mkdir -p "$WORK/fakebin"
+cat > "$WORK/fakebin/ps" <<EOF
+#!/bin/bash
+if [[ ! -f "$WORK/ps-called" ]]; then touch "$WORK/ps-called"; exit 1; fi
+exec /bin/ps "\$@"
+EOF
+chmod +x "$WORK/fakebin/ps"
+rm -f "$WORK/ps-called" "$LOG"; rmdir "$LOG.lock" 2>/dev/null
+t0=$(now)
+PATH="$WORK/fakebin:$PATH" bash "$RUN" --ceiling 2 -- "$WORK/forever.sh" "$WORK/gchild5" \
+  >"$WORK/out.txt" 2>"$WORK/err.txt" &
+QPID=$!
+until ! kill -0 "$QPID" 2>/dev/null || [[ $(( $(now) - t0 )) -gt 25 ]]; do sleep 1; done
+if kill -0 "$QPID" 2>/dev/null; then
+  fail "empty cstart stranded a live child (wrapper alive $(( $(now) - t0 ))s past a 2s ceiling)"
+  kill -KILL "$QPID" 2>/dev/null
+else
+  wait "$QPID" 2>/dev/null; QRC=$?
+  [[ "$QRC" -eq 4 ]] && pass "opening-ps failure still hits the ceiling (exit 4)" || fail "empty cstart: rc=$QRC"
+fi
+rm -rf "$WORK/fakebin" "$WORK/ps-called"
+
+# 29. The wall-clock contract, end to end: a TERM-ignoring child must not push
+# the wrapper past ceiling + grace + slack. This bounds the kill ladder itself.
+# NOTE: it does NOT reach the `unreaped` branch — that needs a process wedged in
+# an uninterruptible kernel wait (D-state), which cannot be created from a test.
+# That branch is reasoned, not exercised; this pin covers the bound around it.
+rm -f "$LOG" "$WORK/spid2"; rmdir "$LOG.lock" 2>/dev/null
+t0=$(now); run --ceiling 3 -- "$WORK/stubborn.sh" "$WORK/spid2"; t1=$(now)
+[[ "$RC" -eq 4 && $((t1 - t0)) -lt 20 ]] \
+  && pass "TERM-ignoring child bounded at ceiling+grace ($((t1 - t0))s)" || fail "ladder unbounded: rc=$RC elapsed=$((t1 - t0))"
+
 # 20. No stub survived the suite.
 sleep 1
 LEFT=$(pgrep -f "$WORK/(forever|blocker|reader|stubborn)\.sh" 2>/dev/null | wc -l | tr -d ' ')

@@ -37,7 +37,13 @@ When opening a PR (base = the repo's default branch):
    re-review ("verify these fixes + scan the fix diff" — never a fresh full-branch
    pass). P2/P3: fix in the same pass if trivial, otherwise log (issue or
    ponytail-debt) — they never trigger a re-review. Hard cap: 3 rounds —
-   `scripts/codex-mark.sh` (below) counts rounds per branch and enforces it. Cap hit
+   `scripts/codex-mark.sh` (below) counts rounds per branch and enforces it.
+   **Run codex-mark after EVERY round, including rounds you already know are
+   DENIED.** The counter only advances when codex-mark parses a verdict, so
+   reading `CODEX_VERDICT` by eye and going straight to the next round leaves
+   the count at zero and the cap silently never engages — the loop then runs on
+   nothing but the agent's own restraint, which is the thing the cap exists to
+   replace. (Observed: three unmarked rounds with the counter still at 0.) Cap hit
    with open P0/P1 → HELD: stop, escalate to the user, no merge, no marker. Severity
    is Codex's call; Claude may downgrade a finding only with a one-line reason
    recorded in the PR body. "Clean review" throughout this section means: no open

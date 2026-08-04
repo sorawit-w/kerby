@@ -12,7 +12,8 @@ stance: **Codex advises, Claude decides.**
 Every headless Codex invocation — review, scoped re-review, rescue — runs through
 `scripts/codex-run.sh`. It closes stdin, gives the runtime its own process group,
 kills it at a ceiling derived from the observed-good `dur=` median, and reports
-how it ended (0 clean · 4 killed at the ceiling · 5 runtime error). It bounds
+how it ended (0 clean · 4 killed at the ceiling · 5 runtime error · 6 outlived
+SIGKILL, do not retry). It bounds
 *one attempt* and never retries: the delegation budget and the verdict grammar
 stay with the prose and `codex-mark.sh` respectively.
 

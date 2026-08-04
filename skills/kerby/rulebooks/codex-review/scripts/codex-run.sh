@@ -26,6 +26,8 @@
 #   4 — STALL: still alive at the ceiling, killed. At most one blind retry, then
 #       the pr-workflow.md step-4 fallback.
 #   5 — exited on its own, non-zero. Read the log, fix, retry once.
+#   6 — UNREAPED: killed at the ceiling but the process outlived SIGKILL (stuck
+#       in an uninterruptible kernel wait). Do NOT retry — escalate.
 #   (3 is deliberately unused — see "no early classification" below.)
 #
 # Fail-closed: an unusable log path, an unresolvable runtime, or no git repo
@@ -209,19 +211,45 @@ tick=1
   if [ "$class" = stall ]; then
     if kill -0 "$child" 2>/dev/null; then
       cnow=$(ps -o lstart= -p "$child" 2>/dev/null)
-      if [ -n "$cnow" ] && [ "$cnow" != "$cstart" ]; then
+      # BOTH timestamps must exist before "different" means anything. If the
+      # opening ps failed, cstart is empty, every later reading compares unequal
+      # to it, and a live child gets misread as a stranger's pid — so we never
+      # signal it and then wait on it forever. An unknown baseline means fall
+      # through to the kill: killing our own child is recoverable, waiting on it
+      # is not.
+      if [ -n "$cstart" ] && [ -n "$cnow" ] && [ "$cnow" != "$cstart" ]; then
         class=recycled          # a stranger holds that pid now — never signal it
       else
         kill_group              # ours, or ps unusable: killing is the safe direction
+        # SIGKILL cannot be caught, but it CAN sit pending against a process
+        # wedged in an uninterruptible kernel wait (D-state: stuck NFS, bad
+        # disk). Such a process never reaps, and wait() on it never returns —
+        # which would put an unbounded wait back into the one script that must
+        # not have one.
+        #
+        # `kill -0` alone cannot make this call: it also succeeds on a ZOMBIE,
+        # and a zombie is the normal post-SIGKILL state — it is waiting for us
+        # to reap it, and wait() returns instantly. Treating that as unreapable
+        # reports every successful kill as a failure. Ask for the process state
+        # instead: Z (or no answer at all, where wait() is still the safe bet)
+        # means reap it; anything else still standing after SIGKILL does not.
+        if kill -0 "$child" 2>/dev/null; then
+          st=$(ps -o stat= -p "$child" 2>/dev/null | tr -d ' ')
+          case "$st" in
+            Z*|'') ;;                  # zombie / unknown — wait() will not block
+            *) class=unreaped ;;       # still runnable or stuck after SIGKILL
+          esac
+        fi
       fi
     else
       class=ok                  # finished between the last poll and this check
     fi
   fi
-  # Safe on every path, including recycled: bash keeps the background job's own
-  # exit status in its job table regardless of OS pid reuse, so this returns the
-  # REAL status immediately rather than a fabricated 0.
-  wait "$child"; rc=$?
+  # Safe on every path EXCEPT unreaped: bash keeps the background job's own exit
+  # status in its job table regardless of OS pid reuse, so this returns the REAL
+  # status immediately rather than a fabricated 0. An unreaped child has no
+  # status to collect and would block, so it is the one path that skips this.
+  if [ "$class" != unreaped ]; then wait "$child"; rc=$?; fi
 } 2>/dev/null
 
 elapsed=$(( $(date +%s) - started ))
@@ -240,6 +268,10 @@ note() {
 }
 
 case "$class" in
+  unreaped)
+    note unreaped
+    echo "codex-run: UNREAPED — killed at the ${ceiling}s ceiling but pid $child outlived SIGKILL (elapsed ${elapsed}s), so it is stuck in an uninterruptible kernel wait. Do NOT retry: a second attempt would run alongside it. Investigate the stuck process (ps -o stat= -p $child), then escalate. Transcript at $log." >&2
+    exit 6 ;;
   stall)
     note stall
     echo "codex-run: STALL — still running at the ${ceiling}s ceiling, killed (ceiling ${ceiling}s). Transcript kept at $log. At most one blind retry, then take the step-4 fallback in references/pr-workflow.md." >&2
@@ -258,5 +290,5 @@ if [ "$rc" -ne 0 ]; then
   exit 5
 fi
 
-echo "codex-run: OK — ${elapsed}s (ceiling ${ceiling}s). Transcript at $log; run codex-mark.sh to parse the verdict."
+echo "codex-run: OK — ${elapsed}s (ceiling ${ceiling}s). Transcript at $log. NEXT: run scripts/codex-mark.sh now — it is the only thing that parses the verdict AND advances the 3-round cap. Reading the verdict by eye instead leaves the counter at zero and the cap never fires."
 exit 0
