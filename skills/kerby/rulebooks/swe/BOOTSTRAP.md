@@ -175,9 +175,9 @@ Observations: [optional — neutral facts noticed during the task, e.g. "Build t
 
 **No completion claims without fresh evidence.** Never say "should work" or "probably passes."
 
-During iteration, use tiered checks for fast feedback (see `references/quality-gates.md`). Before committing, always run full gates:
+During iteration, use tiered checks for fast feedback. At commit time, re-pick the tier from the **staged diff** — never inherit the iteration check (`references/quality-gates.md` § At Commit Time is the single authority; usually Standard, Quick only when nothing staged feeds a gate):
 
-1. Run quality gates: `{build_command} && {lint_command} && {test_command}`
+1. Run quality gates at the selected tier — Standard is `{build_command} && {lint_command} && {test_command}`
 2. Read the full output — check exit code AND content
 3. State results with evidence: "Tests pass: 47 passed, 0 failed"
 

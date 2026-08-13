@@ -31,7 +31,7 @@ Match verification depth to the risk of the work. Over-verifying simple tasks wa
 
 You verify your own work. No sub-agent needed.
 
-1. Run quality gates (Standard tier — build + lint + test)
+1. Run quality gates at the tier the staged diff selects (`quality-gates.md` § At Commit Time — Standard unless nothing staged feeds a gate)
 2. Re-read your own diff with fresh eyes
 3. Confirm the change does what was requested
 4. Provide verification evidence in your completion report

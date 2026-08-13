@@ -24,9 +24,9 @@ You MUST complete these before writing any code:
    (A harness-provided worktree already satisfies its trigger — work in it; create nothing.)
    Worktree costs (npm `node_modules` duplication, Windows path limits): `references/git-worktrees.md`.
 4. **Baseline check** — establish which tests already fail vs. which are yours:
-   - If you just created this worktree or in-place branch from a known-good base: **skip full gates** — run only `{test_command}` to note any pre-existing failures
-   - If `git status` shows a clean working tree and the last commit's gates passed: **skip full gates**
-   - Otherwise, run full gates:
+   - If you just created this worktree or in-place branch from a known-good base: **skip the baseline gate** — run only `{test_command}` to note any pre-existing failures
+   - If `git status` shows a clean working tree and the last commit's gates passed: **skip the baseline gate**
+   - Otherwise, run Standard gates:
      ```bash
      {build_command} && {lint_command} && {test_command}
      ```
@@ -73,7 +73,7 @@ Execute these steps in order. Do NOT skip the commit.
 1. Write a failing test that captures the bug (the test MUST fail before your fix)
 2. Apply the minimal fix — don't refactor unrelated code
 3. **Iteration check** — run the failing test + related tests to confirm the fix works. This is fast feedback, not full verification.
-4. **Commit check** — run full quality gates before committing:
+4. **Commit check** — re-pick the tier from the staged diff (`references/quality-gates.md` § At Commit Time is the single authority); a bugfix diff lands on Standard or higher in practice:
    ```bash
    {build_command} && {lint_command} && {test_command}
    ```

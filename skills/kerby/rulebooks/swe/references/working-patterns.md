@@ -14,7 +14,7 @@ For every task:
 4. **Check dependencies** — Will this change break anything downstream?
 5. **Search before creating** — Before writing a new utility, helper, or module-level function, grep for the responsibility. If similar code exists, propose a refactor or note in the commit body why divergence is intentional. If code only *looks* similar, verify it's the same responsibility before consolidating — duplication beats premature abstraction.
 6. **Implement incrementally** — Small, reviewable changes over large rewrites
-7. **Verify after each change** — use tiered gates: lint-only for config/docs, full build+lint+test for logic changes (see `quality-gates.md`)
+7. **Verify after each change** — use tiered gates: lint-only for config/docs, Standard (build+lint+test) for logic changes (see `quality-gates.md`)
 8. **Commit with intent** — One logical change per commit
 
 > For a non-trivial feature where the problem itself is fuzzy, consider a pre-spec **interview pass** — let the agent ask *you* the shaping questions (who it's for and who it's *not* for, the key decisions) before planning. Deeper discovery lives in the `team-composer` / `brainstorming` siblings; route there rather than reimplementing it here.
@@ -110,7 +110,7 @@ This is especially common when adopting `kerby` into a project that predates the
 
 ### Relationship to Quality Gates
 
-TDD is *in addition to* quality gates, not a replacement. After your test passes, still run the full gate: `{build_command} && {lint_command} && {test_command}`. A passing unit test doesn't guarantee the build works or lint passes.
+TDD is *in addition to* quality gates, not a replacement. After your test passes, still run the Standard gate: `{build_command} && {lint_command} && {test_command}`. A passing unit test doesn't guarantee the build works or lint passes.
 
 ---
 
@@ -196,6 +196,7 @@ This lets the next iteration (or the next session) pick up exactly where you lef
 - **Make trade-offs explicit** — comment *why*, not *what*
 - **Name the upgrade trigger on deliberate shortcuts** — when you knowingly pick the simple solution over the robust one (O(n²) over O(n), in-memory over paginated, inline over extracted), leave an in-code comment naming *why it's fine now* and the *measurable condition that flips the decision*, so the next reader sees the expiry without re-deriving it. Example: `// shortcut: O(n²), fine for ~50 rows. Upgrade trigger: >~1k rows → switch to a Map keyed by id.` This is the in-code companion to `DEVELOPER_TODO.md` (which tracks human actions) — the trigger lives at the code site, not in a separate file.
 - **Handle edge cases** — null checks, empty arrays, network failures
+- **Never use binary floating point in an exact-decimal domain** — money, tax, billing, interest, quantities sold by the unit: anywhere a rounding error is a defect rather than noise. IEEE-754 is binary, so ordinary decimal values (`0.1`, `0.07`) have no exact representation and the error compounds silently across accumulation — it surfaces at reconciliation, long after the commit. Use the language's exact decimal type (`decimal.Decimal`, `BigDecimal`, a native `decimal`) or integer minor units — store cents, not dollars. If the language ships neither, that is a dependency decision, not a default: name the gap and get approval before adding a library, per `BOOTSTRAP.md` § 1b Decision Ladder (rung 4) and its install-approval guardrail. Reach for the exact type at the domain boundary, not after a float has already been through arithmetic.
 - **Log on error paths and key state transitions** — for application code, include enough context (correlation ID, request shape, decision branch) to diagnose without reproducing. Lighter-weight cousin of the platform-code logging discipline in Scope Discipline below.
 - **No dead code in your touched scope** — Remove unused imports, commented blocks, and orphaned files *that your changes made dead*. Don't sweep pre-existing dead code unless explicitly asked — janitorial sweeps inflate the diff and add unrelated risk.
   - **Platform-code caveat:** in libraries, SDKs, and published packages, exported symbols that look unused may have external callers you can't see. Treat unused *exports* as live unless you've verified no downstream consumer depends on them — removing them is a semver-breaking change, not dead-code cleanup.

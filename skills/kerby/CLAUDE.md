@@ -51,12 +51,17 @@ The checks below remove **different** biases and aren't equal strength, so they'
 
 | Check | Bias removed | Gate |
 |---|---|---|
-| `scripts/check-skill-compat.py` | — (mechanical) | **HARD, always** — the only mechanically-enforced gate |
+| `scripts/check-skill-compat.py` | — (mechanical) | **HARD, always** — frontmatter + version parity |
+| `rulebooks/swe/scripts/check-plan-gate-parity.sh` | — (mechanical) | **HARD when you touch the plan-gate constants** — catches numeric drift across the files that restate them |
 | In-session `skill-evaluator` (main loop, split executor/grader) | inner | **HARD for any rule-text change** — cheap, always doable in the authoring session |
 | Independent-model Codex review (local `/codex:review` run to clean, or on the PR) | author framing | **HARD for any rule-text change** — empirically catches internal contradictions both audits miss |
 | Fresh-session `skill-evaluator` | outer | **HARD for the higher-bar class** (safety / secrets / commit-discipline / protected-branch / new behavioral surface such as a sub-command); **recommended** for adherence-only patches |
 
 **A clean skill-evaluator result does NOT authorize merge by itself.** A 34/34 adherence pass has shipped with real bugs the Codex review then caught (v4.20.0: a read-only-claim-vs-edit contradiction + a Markdown-escape-ordering flaw — neither was an adherence failure, so the split-role harness couldn't see them). For any rule-text change, an independent-model Codex review must also be in the loop before merge — the venue doesn't matter (a local `/codex:review` run to clean satisfies this, per the root PR workflow); what matters is that Codex, not the authoring agent, cleared the diff. Trust the second pair of eyes, not the green number.
+
+**Guard a constant, not a sentence.** `check-plan-gate-parity.sh` works because the thing it protects is a *number* restated in known files — extract it, compare, done. A guard for the commit-time gate rule was attempted and removed: that rule is prose, and three versions (literal phrasings, broader phrasings, structural proximity within a character window) were each defeated by wording a rule author would write without thinking. The lesson is not "try harder on the regex" — it is that cross-file agreement between *sentences* is not mechanically checkable here, and the independent review is what catches it. Before writing a guard, ask what exactly it extracts; if the answer is "a phrasing", don't.
+
+**And if you do write one, write its test in the same commit.** The removed guard's first version matched three phrasings and reported a clean run on a tree still carrying four restatements — the review found them, not the guard. A guard that under-matches is the worst artifact this repo can hold: it converts *nobody checked* into *the check passed*, which is precisely the failure this gate table exists to prevent. A guard with no test is an untested claim of safety.
 
 ---
 

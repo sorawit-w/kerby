@@ -6,8 +6,8 @@ version = "1.2.0"
 
 [[rulebook]]
 id = "swe"                # builtin — resolves against the local install
-version = "2.5.0"
+version = "2.6.0"
 
 [[rulebook]]
 id = "codex-review"       # builtin — resolves against the local install
-version = "0.2.0"
+version = "0.4.0"

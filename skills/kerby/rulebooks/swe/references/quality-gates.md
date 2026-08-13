@@ -14,14 +14,14 @@ Not every change needs the full gate. Match verification effort to the risk of t
 
 | Tier | When to Use | What Runs |
 |------|------------|-----------|
-| **Quick** | Single-file edits, config, docs, comments, formatting | `{lint_command}` only |
+| **Quick** | Single-file edits, config, docs, comments, formatting — none of which any gate reads | `{lint_command}` only |
 | **Standard** | Multi-file changes, logic changes, new functions | `{build_command} && {lint_command} && {test_command}` |
 | **Full** | Cross-cutting changes, dependency updates, public API changes | Standard + E2E (if applicable) + manual spot-check |
 
 ### Choosing the Right Tier
 
 ```
-Is it config-only, docs, or formatting?  → Quick
+Is it docs/config/formatting no gate reads?  → Quick
 Does it change logic or touch 2+ files?  → Standard
 Does it cross module boundaries or change dependencies?  → Full
 ```
@@ -30,9 +30,13 @@ Does it cross module boundaries or change dependencies?  → Full
 
 ### At Commit Time
 
-Regardless of which tier you used during development, **always run Standard gates before committing.** A Quick-tier check during iteration is fine, but no commit goes out without build+lint+test passing.
+**Pick the tier from the staged diff, not from what you ran while iterating.** A Quick-tier check during development is fine, but it says nothing about what you are about to commit — re-pick against the staged changes at the moment you commit.
 
-Run the project's existing test suite **before AND after** your changes. Don't assume your changes are isolated.
+Quick applies at commit time only when **nothing staged feeds a gate**. Anything staged that the build, lint, or test run reads — source, config a build consumes, test fixtures, inputs to generated files — selects Standard or higher.
+
+**"Docs-only" means "no file any gate reads," never "only `.md` files."** Check what your gates actually consume before claiming the exemption: a docs file is often a gate input — a version string a compat check parses, a snapshot a test asserts on, a fixture the build embeds. When you cannot tell, use Standard.
+
+When Standard or higher is selected, run the project's existing test suite **before AND after** your changes. Don't assume your changes are isolated.
 
 ---
 

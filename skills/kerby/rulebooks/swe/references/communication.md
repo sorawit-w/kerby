@@ -156,7 +156,7 @@ Never hard-code placeholder secrets or skip integration steps silently. If the i
 
 ## Pull Requests
 
-Prefer **small PRs scoped to one feature or fix** and **squash-merge for linear history**. If a PR grows past your team's review-fatigue threshold, split it before requesting review — two reviewed PRs are healthier than one un-reviewed one.
+Prefer **small PRs scoped to one feature or fix** and **squash-merge for linear history** — squash is for a short-lived branch merging into its base. Merges **between two long-lived branches** use a merge commit instead: a squash records no ancestry, so the next merge between them re-diffs content the base already has and conflicts on files nobody touched. If a PR grows past your team's review-fatigue threshold, split it before requesting review — two reviewed PRs are healthier than one un-reviewed one.
 
 A small PR:
 - Has a single, statable purpose (can be summarized in one sentence without "and")
@@ -167,7 +167,7 @@ Source: principle distilled from `shanraisshan/claude-code-best-practice` (2026-
 
 ### PR Title & Body
 
-**The PR title follows the commit convention** — `<type>[optional scope]: <description>`. Under squash-merge (the strategy above) the title becomes the squashed commit's subject on the base branch, so a freeform title silently breaks the conventional-commit history the per-commit rule protects. When a PR squashes to a single commit, reuse that commit's subject verbatim.
+**The PR title follows the commit convention** — `<type>[optional scope]: <description>`. Under squash-merge (the default for a short-lived branch, above) the title becomes the squashed commit's subject on the base branch, so a freeform title silently breaks the conventional-commit history the per-commit rule protects. When a PR squashes to a single commit, reuse that commit's subject verbatim.
 
 **Body — minimal but present. Use these two headings verbatim** (keeps PR bodies greppable and lets a reviewer reuse the §Manual Verification block; ad-hoc sections like Summary/Changes/Testing defeat that consistency):
 

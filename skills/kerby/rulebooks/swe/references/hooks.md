@@ -62,11 +62,17 @@ Disable both with `CODING_RULES_HOOK_DISABLED=hollow-test-check` (the legacy `pr
 
 ---
 
-### Stop → Quality Gate Verification
+### No Stop hook — quality gates are not verified mechanically
 
-**Type:** Prompt hook (LLM evaluation)
-**Strictness:** Soft-verify
+**Nothing checks that a gate ran.** This rulebook ships no `Stop` hook, and none is
+registered by `kerby install` — grep the manifests: no check declares `event = "Stop"`.
+Earlier revisions of this file described a prompt hook that "checks whether quality gates
+were run during the turn"; that hook never existed, and the claim is removed rather than
+softened.
 
-When the agent finishes responding, a prompt hook checks whether quality gates (build, lint, test) were run during the turn. If the agent made code changes but skipped quality gates, it's flagged. This is advisory — it doesn't prevent the agent from stopping, but surfaces the gap.
+The only mechanical signal near the commit boundary is the soft advisory in (b) above,
+which arrives *after* the commit and is disablable. Running the gate at the tier the
+staged diff selects (`references/quality-gates.md` § At Commit Time) is **behavioral** —
+held by the rules and by review, not by a hook.
 
 ---

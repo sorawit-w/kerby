@@ -114,7 +114,7 @@ On `y`: record the approval in **two** places — pin `{id, version, origin, pat
 | **Progressive disclosure** | `BOOTSTRAP.md` is the index; `rulebooks/swe/references/*.md` carry the long-tail (debugging, knowledge-management, sub-agent-delegation, validation, etc.) loaded only when cited |
 | **Observable feedback loops** | base's `pre-commit-check.sh` (secret-scan floor) + swe's `hooks/hollow-test-check.sh`, `hooks/protect-env.sh`, `hooks/warn-env-read.sh`, `hooks/protect-git.sh`, quality gates from `references/quality-gates.md`, verification gates from `references/validation.md` |
 | **State preservation** | `.kerby/memory.log` (append-only session history) + `.kerby/STATUS.md` (current ephemeral state) + `.kerby/knowledge/` (curated wiki of decisions/conventions/lessons) + `.kerby/BLOCKERS.md` (created only when blocked) — all bootstrapped by `hooks/session-start-context.sh` and `hooks/knowledge-bootstrap.sh` |
-| **Eval discipline** | `references/quality-gates.md` + verification-before-completion pattern; pre-commit hook enforces gates mechanically rather than relying on agent memory |
+| **Eval discipline** | `references/quality-gates.md` + verification-before-completion pattern — **behavioral, not hook-enforced**: no hook checks that a gate ran (base blocks secrets; swe's reminder is advisory and post-commit) |
 
 This skill's job is the **loading** step — getting the selected rulebook's root body into context reliably so its rules and artifact conventions govern the session (for the bundled `swe`, that root body is `BOOTSTRAP.md`). Each rulebook carries its own references, workflows, and hooks, while the engine's machinery (validator, SessionStart state hooks, state templates) sits under `resources/`.
 
