@@ -265,6 +265,23 @@ run_form "git log --grep=commit" "$REPO"; rc=$?
 [[ "$rc" -eq 0 ]] && pass "false-block: 'git log --grep=commit' is not a commit" \
                   || fail "false-block: --grep=commit treated as a commit (got $rc)"
 
+# --- K2b. Wrapper-prefixed invocations ---------------------------------------
+# `env VAR=1 git commit` and `sudo git commit` reach a real commit, but the
+# token walk required the FIRST token to be git, so both walked past the floor.
+# The allowlist must not weaken detection: the first non-wrapper token still has
+# to BE git, so `env echo git commit` remains a mere mention.
+reset_index; stage_secret
+for wrapped in "env FOO=1 git commit -m x" "sudo git commit -m x" "command git commit -m x"; do
+  run_form "$wrapped" "$REPO"; rc=$?
+  [[ "$rc" -eq 2 ]] && pass "wrapper: '$wrapped' blocks" \
+                    || fail "wrapper: '$wrapped' walked past the floor (got $rc)"
+done
+for notcommit in "env echo git commit" "sudo echo git commit"; do
+  run_form "$notcommit" "$REPO"; rc=$?
+  [[ "$rc" -eq 0 ]] && pass "wrapper: '$notcommit' is not a commit" \
+                    || fail "wrapper: allowlist weakened detection — '$notcommit' blocked (got $rc)"
+done
+
 # --- K3. Known residuals — pinned so a change in behaviour is VISIBLE ---------
 # These are NOT passing behaviour. They record what this mechanism cannot do, so
 # that if a future change fixes (or worsens) one, the suite says so instead of

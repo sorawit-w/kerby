@@ -195,6 +195,10 @@ while IFS= read -r SEG; do
 "; continue ;;
         *=*) continue ;;
         git|*/git) SEEN_GIT=1; continue ;;
+        # Wrapper commands that merely prefix the real invocation. An explicit
+        # allowlist, not a generic skip: the first non-wrapper, non-assignment
+        # token must still BE git, so `env echo git commit` is still not a commit.
+        env|sudo|command|nice|time|/usr/bin/env|/usr/bin/sudo) continue ;;
         *) break ;;
       esac
     fi
