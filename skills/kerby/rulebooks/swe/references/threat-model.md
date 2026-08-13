@@ -21,18 +21,34 @@ These are **[behavioral]** by nature, not by neglect. The honest fix for them is
 | Edit `.env` | `protect-env.sh` (PreToolUse Edit\|Write) hard-block | `[enforced-when-installed]` | Edit/Write tool only |
 | Read `.env` | `warn-env-read.sh` (PreToolUse Read) soft reminder | `[enforced-partial]` | **Read tool only — a Bash `cat .env` / `grep KEY .env` is not seen.** Reading is allowed; the rule is about not *printing* values, which is [behavioral]. |
 | Destructive git (`push --force`, protected-branch push, `reset --hard`, `clean -f`, `branch -D`, wholesale discard) + commit while on a protected branch | `protect-git.sh` (PreToolUse Bash) hard-block | `[enforced-when-installed]` | Regex-matched on the command string; exotic shell obfuscation could evade — `protect-git.test.sh` covers the common forms. The commit gate parses the git subcommand (so `git log --grep=commit` is not a commit), reads the **target** repo's live branch (resolving a single `git -C <path>`), and is *escapable* via an inline `CODING_RULES_ALLOW_PROTECTED_COMMIT=1` prefix (workflow guard, not data loss) — the destructive blocks are not. **Residual:** a single PreToolUse pass can't fully model runtime git. Globals are matched by *shape* (any `--long[=val]`/`-X`) plus the finite set of value-taking globals enumerated for their space-separated form, and the target repo is resolved from `-C`/`--git-dir`. A leading `cd <path>` is honored for bare commits (the command is walked by `&&`/`||`/`;` segment, `cd` replayed in a subshell). What can still evade or mis-resolve: a `cd`/commit joined only by a pipe or inside a subshell, `cd -`/bare `cd`, a brand-new value-taking long global whose value has no `=` and isn't yet listed, multiple cumulative *relative* `-C`/`--git-dir`/`cd`, or a quoted path/separator containing spaces. A **branch switch chained into a commit** (`git switch main && git commit`, `git checkout main && git commit`) also evades: the switch is a runtime state change that happens *after* the hook runs (and may fail, or name a branch only at runtime), so the hook still sees the pre-switch branch. This is enforced behaviorally (BOOTSTRAP/guardrails: do branch changes and commits as separate commands), not mechanically. A git `pre-commit` hook (runs in-repo at commit time) would be bulletproof but is a different mechanism; not adopted here to keep one install model |
-| Commit secrets | `pre-commit-check.sh` (PreToolUse Bash `git commit`) hard-block — betterleaks or gitleaks if present (via stable `stdin` mode), else built-in regex | `[enforced-when-installed]` | Scans staged added lines only, not history; regex fallback is a narrow floor; an external scanner respects its own repo-local allowlist. **Command recognition is best-effort and deliberately narrow** (matcher parity-tested against protect-git). It resolves: bare `git commit`; globals before the subcommand (`-C`, `--git-dir`, `--work-tree`, `-c k=v`) in git's own order; `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE` env selectors; `cd X && git commit`; a quoted `git`/`commit` token — and it scans the index each invocation actually targets, not the caller's. It ignores `git commit` appearing inside a quoted argument, so it does not false-block `git log --format='… git commit …'`.
-
-**It does NOT see** (each fails open, by decision, and each is pinned as a test assertion so a change is visible): (a) anything staged by the same command — `git add x && git commit` — because the hook fires before the shell runs, and this is the most common commit shape an agent produces; (b) wrapper-prefixed invocations (`sudo git commit`, `env FOO=1 git commit`); (c) a git alias (`git ci`); (d) a *failed* conditional `cd` (`cd /missing || git commit`); (e) pipes, subshells, `cd -`, cumulative relative `-C`, quoted paths containing spaces.
-
-**(b) and (d) were implemented and then removed on purpose.** Handling them correctly needs a per-tool CLI model — `-n` takes a value for `nice` but not `sudo`, and a wrapper's option value can itself be the word `git` — and every attempt produced FALSE BLOCKS in a hook that cannot be disabled without editing settings.json. Over-blocking a floor is a worse failure than the gap it closes. Four review rounds each fixed a gap and introduced a new false block or fail-open; the loop was stopped rather than continued.
-
-**Treat this as a tripwire on already-staged content, not a boundary.** The mechanism that would actually close (a)–(d) is a repo-side `pre-commit` hook running at commit time against the real index — a second install model kerby has so far declined. Until v9.15 the matcher was a literal leading `git commit`, so every non-bare form skipped the scan entirely (issue #46) |
+| Commit secrets | `pre-commit-check.sh` (PreToolUse Bash `git commit`) hard-block — betterleaks or gitleaks if present (via stable `stdin` mode), else built-in regex | `[enforced-when-installed]` | Scans staged **added** lines only, not history; regex fallback is a narrow floor; an external scanner uses the target repo's own allowlist. Command recognition is deliberately narrow — see **Secret scan: what it sees** below |
 | Print a secret into chat | rule only | `[behavioral]` | No tool call carries chat output |
 | Prod-op safety / env crossing | rule only (`environment-safety.md`) | `[behavioral]` | The model judges the environment; no hook checks `NODE_ENV` |
 | Prompt-injection resistance (agent-authored / shared artifacts) | rule + `DATA>` provenance framing on SessionStart echoes | `[behavioral]` (framing is an aid) | Framing marks provenance; it does not *filter* — the agent must still apply the untrusted-input rule |
 
 "**-when-installed**" matters: the Phase-2 hooks are **opt-in** (`install` asks). A repo that declined them has *every* row above degrade to `[behavioral]`. Never assume enforcement without confirming the hooks are registered in `.claude/settings.json`.
+
+## Secret scan: what it sees, and what it does not
+
+Split out of the table above because it is the one row whose limits are easy to over-read.
+
+**Recognised** (matcher parity-tested against `protect-git.sh`): bare `git commit`; globals before the subcommand (`-C`, `--git-dir`, `--work-tree`, `-c k=v`) in git's own order; `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE` env selectors; `cd X && git commit`; `false || git commit`; a quoted `git`/`commit` token. It scans the index each invocation actually targets, not the caller's, and limits the scan to a pathspec when one is given.
+
+**Deliberately NOT blocked** (each would be a false block, and this hook cannot be disabled without editing `settings.json`): `git commit --dry-run`, `--help`, and a pathspec-limited commit whose paths are clean while another staged file is not.
+
+**Not seen — fails open** (a)–(d) are pinned as test assertions so a behaviour change is visible; (e) is not individually pinned:
+
+| # | Gap | Why |
+|---|---|---|
+| a | `git add x && git commit` | the hook fires *before* the shell runs, so nothing is staged yet — and this is the most common commit shape an agent produces |
+| b | wrappers — `sudo git commit`, `env FOO=1 git commit` | needs a per-tool CLI model |
+| c | a git alias — `git ci` | resolves at runtime |
+| d | a *failed* conditional `cd` — `cd /missing \|\| git commit` | the shell's cwd after a failed `cd` is not statically knowable |
+| e | pipes, subshells, `cd -`, cumulative relative `-C`, quoted paths with spaces | shared with `protect-git.sh`; not individually pinned |
+
+**(b) and (d) were implemented and then removed on purpose.** `-n` takes a value for `nice` but not `sudo`, and a wrapper's option value can itself be the word `git`; every attempt produced FALSE BLOCKS. Over-blocking a non-disablable floor is a worse failure than the gap it closes — successive review rounds each fixed a gap and introduced a new false block or fail-open, so the loop was stopped rather than continued.
+
+**Treat this as a tripwire on already-staged content, not a boundary.** The mechanism that would close (a)–(d) is a repo-side `pre-commit` hook running at commit time against the real index — a second install model kerby has so far declined. Before v9.15 the matcher was a literal leading `git commit`, so every non-bare form skipped the scan entirely (issue #46).
 
 ## The shared-artifact supply-chain path (the sharpest risk)
 

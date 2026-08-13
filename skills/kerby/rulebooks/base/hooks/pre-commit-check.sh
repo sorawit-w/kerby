@@ -97,14 +97,15 @@ git_at() { # $1=cdlist  $2=loc  $3=envassigns  $4.. = git args
 }
 
 # Scan one target. Echoes nothing; returns 0 = clean, 7 = finding.
-scan_target() { # $1=cdlist  $2=loc  $3=envassigns
+scan_target() { # $1=cdlist  $2=loc  $3=envassigns  $4=pathspec (optional)
   # The DIFF keeps the commit's full context (cd chain + globals + GIT_* env):
   # resolving to a toplevel and dropping the rest lost alternate state such as
   # GIT_INDEX_FILE, and a detached --git-dir/--work-tree pair. The toplevel is
   # used ONLY as the scanner's cwd, so it reads the target's .gitleaks.toml.
-  local cdlist="$1" loc="$2" envs="$3" rc names top diff
-  diff=$(git_at "$cdlist" "$loc" "$envs" diff --cached --diff-filter=ACMR -U0 \
-           | grep '^+' | grep -v '^+++ ')
+  local cdlist="$1" loc="$2" envs="$3" paths="${4:-}" rc names top diff
+  # shellcheck disable=SC2086
+  diff=$(git_at "$cdlist" "$loc" "$envs" diff --cached --diff-filter=ACMR -U0 ${paths:+-- $paths} \
+           | awk '/^--- /{prev=1;next} /^\+\+\+ /&&prev{prev=0;next} {prev=0} /^\+/')
   [ -n "$diff" ] || return 0
   top=$(git_at "$cdlist" "$loc" "$envs" rev-parse --show-toplevel)
 
@@ -169,10 +170,8 @@ SEGTXT="$COMMAND"
 # `&&` and `;` chain forward; `||` does NOT. For `cd /missing || git commit` the
 # real shell runs the commit in the ORIGINAL directory precisely because the cd
 # failed — carrying the failed cd forward would scan a path that does not exist
-# and report clean. A sentinel marks `||` so the walk can reset the chain there.
-SEGTXT="${SEGTXT//&&/$'\n'}"; SEGTXT="${SEGTXT//;/$'\n'}"
+SEGTXT="${SEGTXT//||/$'\n'}"; SEGTXT="${SEGTXT//&&/$'\n'}"; SEGTXT="${SEGTXT//;/$'\n'}"
 while IFS= read -r SEG; do
-  # After `||` the preceding command failed, so any directory it established did
   # not take effect. Reset to the invocation's cwd — conservative by design: a
   # wrong guess here scans cwd rather than silently scanning nothing.
   # `cd <path>` (not `cd -` / bare `cd`) → remember for later bare commits
@@ -191,7 +190,7 @@ while IFS= read -r SEG; do
   # shellcheck disable=SC2086
   set -- $SEG
   set +f
-  SEEN_GIT=0; LOC=""; IS_COMMIT=0; ENVS=""
+  SEEN_GIT=0; LOC=""; IS_COMMIT=0; ENVS=""; POST=""; shift_rest=0
   for rawtok in "$@"; do
     # Strip surrounding quotes: the shell removes them before git ever sees the
     # token, so `git 'commit'` is a commit and `'git' commit` is git.
@@ -214,10 +213,31 @@ while IFS= read -r SEG; do
     # trailing `-C HEAD` as a directory made the scan run against a nonexistent
     # path and report clean. Collecting the prefix in order also preserves git's
     # own semantics when several combine (`git -C repo --git-dir=.git commit`).
-    if [[ "$tok" == "commit" ]]; then IS_COMMIT=1; break; fi
+    if [[ "$tok" == "commit" ]]; then IS_COMMIT=1; shift_rest=1; continue; fi
+    if [[ "${shift_rest:-0}" -eq 1 ]]; then POST="$POST $tok"; continue; fi
     LOC="$LOC $tok"
   done
   [[ "$IS_COMMIT" -eq 1 ]] || continue
+
+  # Forms that never create a commit. Blocking them is a FALSE BLOCK, and this
+  # hook cannot be disabled without editing settings.json.
+  case " $POST " in *" --dry-run "*|*" --help "*|*" -h "*) continue ;; esac
+
+  # A pathspec-limited commit (`git commit file.txt`) commits ONLY those paths,
+  # so a secret staged elsewhere is not being committed and must not block. The
+  # option list is git-commit's own — one tool's documented CLI, not the
+  # open-ended per-wrapper modelling that was removed.
+  PATHSPEC=""; want_val=0; after_dashdash=0
+  for a in $POST; do
+    if [[ "$after_dashdash" -eq 1 ]]; then PATHSPEC="$PATHSPEC $a"; continue; fi
+    if [[ "$a" == "--" ]]; then after_dashdash=1; continue; fi
+    if [[ "$want_val" -eq 1 ]]; then want_val=0; continue; fi
+    case "$a" in
+      -m|--message|-F|--file|-C|--reuse-message|-c|--reedit-message|--author|--date|-t|--template|-S|--gpg-sign|-u|--untracked-files|--cleanup|--fixup|--squash) want_val=1 ;;
+      -*) ;;
+      *) PATHSPEC="$PATHSPEC $a" ;;
+    esac
+  done
 
   EFF_CD="$CDLIST"
 
@@ -225,7 +245,7 @@ while IFS= read -r SEG; do
   # the invocation's globals and git's env selectors. Everything downstream then
   # works with an absolute path, which is what removed the relative-`-C` class of
   # bug (cd into the target AND pass -C -> git resolved repo/repo and failed).
-  scan_target "$EFF_CD" "$LOC" "$ENVS" || exit 2   # Hard-block on findings
+  scan_target "$EFF_CD" "$LOC" "$ENVS" "$PATHSPEC" || exit 2   # Hard-block on findings
 done <<< "$SEGTXT"
 
 # Scan clean (or degraded to the regex floor, which found nothing). This is a

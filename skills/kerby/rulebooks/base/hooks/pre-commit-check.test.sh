@@ -24,7 +24,7 @@ BIN_NO="$TMP/bin_no"   # tools only, NO scanner (forces regex fallback)
 BIN_GL="$TMP/bin_gl"   # tools + stub gitleaks
 BIN_BL="$TMP/bin_bl"   # tools + stub betterleaks AND stub gitleaks (precedence)
 mkdir -p "$BIN_NO" "$BIN_GL" "$BIN_BL"
-for t in bash git jq grep sed cat head tail env tr; do
+for t in bash git jq grep sed cat head tail env tr awk; do
   real="$(command -v "$t")" && ln -s "$real" "$BIN_NO/$t" && ln -s "$real" "$BIN_GL/$t" && ln -s "$real" "$BIN_BL/$t"
 done
 ARGS_FILE="$TMP/scanner_args"
@@ -272,6 +272,83 @@ run_form "git log --grep=commit" "$REPO"; rc=$?
 [[ "$rc" -eq 0 ]] && pass "false-block: 'git log --grep=commit' is not a commit" \
                   || fail "false-block: --grep=commit treated as a commit (got $rc)"
 
+
+# --- K2e. Round-5 review findings --------------------------------------------
+# run_scan: the scanner DECIDES FROM STDIN (SCANNER_REAL), so a block proves the
+# right index was scanned rather than merely that a stub fired.
+run_scan() { # $1=command  $2=cwd
+  ( cd "$2" && jq -nc --arg c "$1" '{tool_input:{command:$c}}' \
+      | PATH="$BIN_GL" SCANNER_REAL=1 SCANNER_ARGS_FILE="$ARGS_FILE" \
+        bash "$HOOK" >/dev/null 2>&1 )
+}
+PARENT="$TMP/parent"; mkdir -p "$PARENT"
+
+# --- K2d. Kept behaviours that earlier rounds established ---------------------
+# These run the SCANNER path (stdin-deciding stub), so a block proves WHICH
+# index was read — the regex-only, absolute-path tests above cannot show that.
+reset_index; stage_secret
+run_scan "git -C repo commit -m x" "$TMP"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "kept: relative 'git -C repo commit' scans the target" \
+                  || fail "kept: relative -C failed open (got $rc)"
+run_scan "git 'commit' -m x" "$REPO"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "kept: quoted subcommand \"git 'commit'\" blocks" \
+                  || fail "kept: quoted subcommand missed (got $rc)"
+run_scan "'git' commit -m x" "$REPO"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "kept: quoted \"'git' commit\" blocks" \
+                  || fail "kept: quoted git missed (got $rc)"
+run_scan "git --work-tree=$REPO --git-dir=$REPO/.git commit -m x" "$PARENT"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "kept: detached --git-dir + --work-tree is honoured" \
+                  || fail "kept: detached git-dir/work-tree ignored (got $rc)"
+run_scan "GIT_INDEX_FILE=$REPO/.git/index git commit -m x" "$REPO"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "kept: GIT_INDEX_FILE is honoured" \
+                  || fail "kept: GIT_INDEX_FILE ignored (got $rc)"
+
+# Removing a secret must NOT block: `-G --name-only` also matched removals, so
+# the floor used to block the very commit taking a secret out.
+RMREPO="$TMP/rmrepo"; mkdir -p "$RMREPO"; git -C "$RMREPO" init -q
+printf 'k = "sk_live_ABCDEFG1234567890fake"\n' > "$RMREPO/s.py"; git -C "$RMREPO" add s.py
+git -C "$RMREPO" -c user.email=a@b -c user.name=x commit -q -m base
+printf 'k = os.environ["K"]\n' > "$RMREPO/s.py"; git -C "$RMREPO" add s.py
+( cd "$RMREPO" && jq -nc --arg c "git commit -m x" '{tool_input:{command:$c}}' | PATH="$BIN_NO" bash "$HOOK" >/dev/null 2>&1 ); rc=$?
+[[ "$rc" -eq 0 ]] && pass "kept: removing a secret does not block (added-lines-only)" \
+                  || fail "kept: blocked a commit that REMOVES a secret (got $rc)"
+reset_index; stage_secret
+# `||` must still SPLIT segments; removing the sentinel dropped it from the split
+# entirely, so `false || git commit` was one unparsed segment.
+run_scan "false || git commit -m x" "$REPO"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review5: 'false || git commit' is split and scanned" \
+                  || fail "review5: '||' not split — commit unseen (got $rc)"
+
+# Forms that never create a commit must NOT block. This hook is non-disablable.
+for nc in "git commit --dry-run" "git commit --help"; do
+  run_scan "$nc" "$REPO"; rc=$?
+  [[ "$rc" -eq 0 ]] && pass "review5: '$nc' does not block (no commit is created)" \
+                    || fail "review5: FALSE BLOCK on '$nc' (got $rc)"
+done
+
+# A pathspec-limited commit commits ONLY those paths, so a secret staged
+# elsewhere is not being committed and must not block — but a pathspec naming
+# the secret must still block.
+echo "ok" > "$REPO/plain.js"; git -C "$REPO" add plain.js
+run_scan "git commit plain.js -m x" "$REPO"; rc=$?
+[[ "$rc" -eq 0 ]] && pass "review5: pathspec-limited commit of an innocuous path does not block" \
+                  || fail "review5: FALSE BLOCK on a pathspec-limited commit (got $rc)"
+run_scan "git commit secret.js -m x" "$REPO"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review5: pathspec naming the SECRET still blocks" \
+                  || fail "review5: pathspec commit of the secret slipped through (got $rc)"
+run_scan "git commit -m x -- plain.js" "$REPO"; rc=$?
+[[ "$rc" -eq 0 ]] && pass "review5: '-- <innocuous path>' does not block" \
+                  || fail "review5: FALSE BLOCK after '--' (got $rc)"
+
+# `+++` is a diff HEADER only when it follows `--- `. Matching `^+++ ` alone also
+# ate added CONTENT beginning `++ `.
+for lead in '++sk_live_ABCDEFG1234567890fake' '++ sk_live_ABCDEFG1234567890fake'; do
+  PR="$TMP/plus$RANDOM"; mkdir -p "$PR"; git -C "$PR" init -q
+  printf '%s\n' "$lead" > "$PR/d.patch"; git -C "$PR" add d.patch
+  ( cd "$PR" && jq -nc --arg c "git commit -m x" '{tool_input:{command:$c}}' | PATH="$BIN_NO" bash "$HOOK" >/dev/null 2>&1 ); rc=$?
+  [[ "$rc" -eq 2 ]] && pass "review5: added content starting '${lead:0:3}' is scanned" \
+                    || fail "review5: diff filter ate content starting '${lead:0:3}' (got $rc)"
+done
 
 # --- K3. Known residuals — pinned so a change in behaviour is VISIBLE ---------
 # NOT passing behaviour. These record what a PreToolUse string parser cannot do,
