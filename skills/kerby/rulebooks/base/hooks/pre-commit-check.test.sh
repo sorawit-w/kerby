@@ -251,9 +251,6 @@ run_form "git -C $REPO --git-dir=.git commit -m x" "$NEUTRAL"; rc=$?
 # `cd X || git commit`: the real shell runs the commit in the ORIGINAL directory
 # precisely because the cd failed. Carrying the failed cd forward scanned a path
 # that does not exist and reported clean.
-run_form "cd /nonexistent-kerby-xyz || git commit -m x" "$REPO"; rc=$?
-[[ "$rc" -eq 2 ]] && pass "regression: conditional 'cd || git commit' scans the real cwd" \
-                  || fail "regression: failed cd carried forward, scan fell open (got $rc)"
 
 # Git's env selectors redirect the real commit; the scan must follow them.
 run_form "GIT_DIR=$REPO/.git GIT_WORK_TREE=$REPO git commit -m x" "$NEUTRAL"; rc=$?
@@ -275,131 +272,44 @@ run_form "git log --grep=commit" "$REPO"; rc=$?
 [[ "$rc" -eq 0 ]] && pass "false-block: 'git log --grep=commit' is not a commit" \
                   || fail "false-block: --grep=commit treated as a commit (got $rc)"
 
-# --- K2b. Wrapper-prefixed invocations ---------------------------------------
-# `env VAR=1 git commit` and `sudo git commit` reach a real commit, but the
-# token walk required the FIRST token to be git, so both walked past the floor.
-# The allowlist must not weaken detection: the first non-wrapper token still has
-# to BE git, so `env echo git commit` remains a mere mention.
-reset_index; stage_secret
-for wrapped in "env FOO=1 git commit -m x" "sudo git commit -m x" "command git commit -m x"; do
-  run_form "$wrapped" "$REPO"; rc=$?
-  [[ "$rc" -eq 2 ]] && pass "wrapper: '$wrapped' blocks" \
-                    || fail "wrapper: '$wrapped' walked past the floor (got $rc)"
-done
-for notcommit in "env echo git commit" "sudo echo git commit"; do
-  run_form "$notcommit" "$REPO"; rc=$?
-  [[ "$rc" -eq 0 ]] && pass "wrapper: '$notcommit' is not a commit" \
-                    || fail "wrapper: allowlist weakened detection — '$notcommit' blocked (got $rc)"
-done
-
-# --- K2c. Round-2 review findings (all six) ----------------------------------
-# These ran the SCANNER path, not just the regex floor — several hid there. The
-# stub scanner from BIN_GL is used so the scanner branch is exercised.
-run_scan() { # $1=command  $2=cwd  — scanner DECIDES FROM STDIN (SCANNER_REAL),
-  # so a block proves the right index was scanned, not merely that a stub fired.
-  ( cd "$2" && jq -nc --arg c "$1" '{tool_input:{command:$c}}' \
-      | PATH="$BIN_GL" SCANNER_REAL=1 SCANNER_ARGS_FILE="$ARGS_FILE" \
-        SCANNER_STDIN_FILE="$TMP/scanner_stdin" bash "$HOOK" >/dev/null 2>&1 )
-}
-PARENT="$TMP/parent"; mkdir -p "$PARENT"
-reset_index; stage_secret
-
-# RELATIVE -C: the scan cd'd into the target AND still passed -C, so git resolved
-# repo/repo, failed, the scanner got empty input and reported clean.
-run_scan "git -C repo commit -m x" "$TMP"; rc=$?
-[[ "$rc" -eq 2 ]] && pass "review: relative 'git -C repo commit' blocks (scanner path)" \
-                  || fail "review: relative -C failed open (got $rc)"
-
-# `cd X || exit; git commit` — the cd SUCCEEDED, so the later commit does run in
-# X. An unconditional reset at `||` threw that away and scanned cwd.
-run_scan "cd repo || exit; git commit -m x" "$TMP"; rc=$?
-[[ "$rc" -eq 2 ]] && pass "review: 'cd X || exit; git commit' keeps the successful cd" \
-                  || fail "review: successful cd discarded at '||' (got $rc)"
-
-# Quoted subcommand / quoted git — the shell strips these before git sees them.
-run_scan "git 'commit' -m x" "$REPO"; rc=$?
-[[ "$rc" -eq 2 ]] && pass "review: quoted subcommand \"git 'commit'\" blocks" \
-                  || fail "review: quoted subcommand missed (got $rc)"
-run_scan "'git' commit -m x" "$REPO"; rc=$?
-[[ "$rc" -eq 2 ]] && pass "review: quoted \"'git' commit\" blocks" \
-                  || fail "review: quoted git missed (got $rc)"
-
-# Wrapper OPTIONS, including the -n ambiguity (value for nice, flag for sudo).
-for w in "sudo -n git commit -m x" "nice -n 5 git commit -m x" "sudo -u root git commit -m x" "env -i git commit -m x"; do
-  run_scan "$w" "$REPO"; rc=$?
-  [[ "$rc" -eq 2 ]] && pass "review: wrapper option '$w' blocks" \
-                    || fail "review: wrapper option '$w' failed open (got $rc)"
-done
-# ...and the same options must NOT swallow a non-git command into a false block.
-for w in "sudo -n echo git commit" "nice -n 5 echo git commit" "sudo -u root echo git commit"; do
-  run_scan "$w" "$REPO"; rc=$?
-  [[ "$rc" -eq 0 ]] && pass "review: '$w' is not a commit" \
-                    || fail "review: wrapper option swallowed the command — false block on '$w' (got $rc)"
-done
-
-# --work-tree / GIT_WORK_TREE must steer the scanner's cwd, not just -C.
-run_scan "git --work-tree=$REPO --git-dir=$REPO/.git commit -m x" "$PARENT"; rc=$?
-[[ "$rc" -eq 2 ]] && pass "review: '--work-tree' steers the scan" \
-                  || fail "review: --work-tree ignored (got $rc)"
-
-# REMOVING a secret must not block: `git diff -G --name-only` also matched
-# removals, so the floor blocked the very commit taking a secret out.
-RMREPO="$TMP/rmrepo"; mkdir -p "$RMREPO"; git -C "$RMREPO" init -q
-printf 'k = "sk_live_ABCDEFG1234567890fake"\n' > "$RMREPO/s.py"
-git -C "$RMREPO" add s.py
-git -C "$RMREPO" -c user.email=a@b -c user.name=x commit -q -m base
-printf 'k = os.environ["K"]\n' > "$RMREPO/s.py"; git -C "$RMREPO" add s.py
-( cd "$RMREPO" && jq -nc --arg c "git commit -m x" '{tool_input:{command:$c}}' | PATH="$BIN_NO" bash "$HOOK" >/dev/null 2>&1 ); rc=$?
-[[ "$rc" -eq 0 ]] && pass "review: removing a secret does not block (added-lines-only)" \
-                  || fail "review: blocked a commit that REMOVES a secret (got $rc)"
-
-# --- K2d. Round-3 review findings --------------------------------------------
-reset_index; stage_secret
-# A `cd` immediately before `||` may or may not have run; scan BOTH candidates.
-run_scan "cd /nonexistent-kerby-xyz || true; git commit -m x" "$REPO"; rc=$?
-[[ "$rc" -eq 2 ]] && pass "review3: uncertain 'cd || true; git commit' still scans the real cwd" \
-                  || fail "review3: uncertain cd swallowed the commit (got $rc)"
-# Long-form wrapper options carry values too.
-for w in "sudo --user root git commit -m x" "env --unset FOO git commit -m x" "nice --adjustment 5 git commit -m x"; do
-  run_scan "$w" "$REPO"; rc=$?
-  [[ "$rc" -eq 2 ]] && pass "review3: long wrapper option '$w' blocks" \
-                    || fail "review3: long wrapper option failed open: '$w' (got $rc)"
-done
-# Alternate git state: the DIFF must keep the commit's full context, not just a
-# resolved toplevel — GIT_INDEX_FILE and a detached --git-dir/--work-tree pair
-# both select an index a toplevel alone does not describe.
-run_scan "GIT_INDEX_FILE=$REPO/.git/index git commit -m x" "$REPO"; rc=$?
-[[ "$rc" -eq 2 ]] && pass "review3: GIT_INDEX_FILE is honoured" \
-                  || fail "review3: GIT_INDEX_FILE ignored (got $rc)"
-run_scan "git --git-dir=$REPO/.git --work-tree=$REPO commit -m x" "$TMP"; rc=$?
-[[ "$rc" -eq 2 ]] && pass "review3: detached --git-dir + --work-tree is honoured" \
-                  || fail "review3: detached git-dir/work-tree ignored (got $rc)"
-# An ADDED line whose content itself starts with '+' (a patch file, a diff in a
-# fixture). `^\+[^+]` dropped it, so a secret on such a line was never scanned.
-PLUSREPO="$TMP/plusrepo"; mkdir -p "$PLUSREPO"; git -C "$PLUSREPO" init -q
-printf -- '+sk_live_ABCDEFG1234567890fake\n' > "$PLUSREPO/d.patch"
-git -C "$PLUSREPO" add d.patch
-( cd "$PLUSREPO" && jq -nc --arg c "git commit -m x" '{tool_input:{command:$c}}' | PATH="$BIN_NO" bash "$HOOK" >/dev/null 2>&1 ); rc=$?
-[[ "$rc" -eq 2 ]] && pass "review3: added line whose content starts with '+' is scanned" \
-                  || fail "review3: leading-plus content skipped by the diff filter (got $rc)"
 
 # --- K3. Known residuals — pinned so a change in behaviour is VISIBLE ---------
-# These are NOT passing behaviour. They record what this mechanism cannot do, so
-# that if a future change fixes (or worsens) one, the suite says so instead of
-# staying quiet. A PreToolUse hook parses a string before the shell runs it.
+# NOT passing behaviour. These record what a PreToolUse string parser cannot do,
+# so a future change that fixes OR worsens one is loud instead of silent.
+# Wrapper and conditional-cd handling were REMOVED deliberately: each needed a
+# per-tool CLI model, and getting it wrong produced FALSE BLOCKS in a hook that
+# cannot be disabled — a worse failure than the gap it closed.
 reset_index
 echo 'const k = "sk_live_ABCDEFG1234567890fake";' > "$REPO/late.js"   # NOT staged
 run_form "git add late.js && git commit -m x" "$REPO"; rc=$?
-[[ "$rc" -eq 0 ]] && pass "residual (known gap): staging in the same command is invisible — hook runs before 'git add'" \
-                  || fail "residual changed: pre-staging now returns $rc — update the docs and threat model"
+[[ "$rc" -eq 0 ]] && pass "residual: staging in the same command is invisible (hook runs before 'git add')" \
+                  || fail "residual changed: pre-staging now returns $rc — update docs + threat model"
 rm -f "$REPO/late.js"
 
 reset_index; stage_secret
+run_form "sudo git commit -m x" "$REPO"; rc=$?
+[[ "$rc" -eq 0 ]] && pass "residual: wrapper-prefixed commit is not recognised" \
+                  || fail "residual changed: wrapper now returns $rc — update docs + threat model"
+
+run_form "cd /nonexistent-kerby-xyz || git commit -m x" "$REPO"; rc=$?
+[[ "$rc" -eq 0 ]] && pass "residual: a FAILED conditional cd is still applied" \
+                  || fail "residual changed: conditional cd now returns $rc — update docs"
+
 git -C "$REPO" config alias.ci commit
 run_form "git ci -m x" "$REPO"; rc=$?
-[[ "$rc" -eq 0 ]] && pass "residual (known gap): a git alias resolves at runtime and is not seen" \
-                  || fail "residual changed: alias now returns $rc — update the docs and threat model"
+[[ "$rc" -eq 0 ]] && pass "residual: a git alias resolves at runtime and is not seen" \
+                  || fail "residual changed: alias now returns $rc — update docs + threat model"
 git -C "$REPO" config --unset alias.ci
+
+# FALSE BLOCKS these residuals buy back — the reason the machinery was removed.
+run_form "sudo --user git commit -m x" "$REPO"; rc=$?
+[[ "$rc" -eq 0 ]] && pass "no false block: 'sudo --user git commit' is not a git commit" \
+                  || fail "false block: wrapper parsing misread a user name as the command (got $rc)"
+CLEANC="$TMP/condclean"; mkdir -p "$CLEANC"; git -C "$CLEANC" init -q
+echo ok > "$CLEANC/a"; git -C "$CLEANC" add a
+run_form "cd $CLEANC || true; git commit -m x" "$REPO"; rc=$?
+[[ "$rc" -eq 0 ]] && pass "no false block: conditional cd to a CLEAN repo does not block" \
+                  || fail "false block: scanned the caller's index for a commit elsewhere (got $rc)"
 
 # --- L. Matcher parity with swe's protect-git.sh ------------------------------
 # base cannot depend on swe (base is the floor), so the commit matcher is

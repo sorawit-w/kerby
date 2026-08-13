@@ -104,7 +104,7 @@ scan_target() { # $1=cdlist  $2=loc  $3=envassigns
   # used ONLY as the scanner's cwd, so it reads the target's .gitleaks.toml.
   local cdlist="$1" loc="$2" envs="$3" rc names top diff
   diff=$(git_at "$cdlist" "$loc" "$envs" diff --cached --diff-filter=ACMR -U0 \
-           | grep '^+' | grep -v '^+++')
+           | grep '^+' | grep -v '^+++ ')
   [ -n "$diff" ] || return 0
   top=$(git_at "$cdlist" "$loc" "$envs" rev-parse --show-toplevel)
 
@@ -170,27 +170,11 @@ SEGTXT="$COMMAND"
 # real shell runs the commit in the ORIGINAL directory precisely because the cd
 # failed — carrying the failed cd forward would scan a path that does not exist
 # and report clean. A sentinel marks `||` so the walk can reset the chain there.
-SEGTXT="${SEGTXT//||/$'\n'__KERBY_OR__$'\n'}"
 SEGTXT="${SEGTXT//&&/$'\n'}"; SEGTXT="${SEGTXT//;/$'\n'}"
 while IFS= read -r SEG; do
   # After `||` the preceding command failed, so any directory it established did
   # not take effect. Reset to the invocation's cwd — conservative by design: a
   # wrong guess here scans cwd rather than silently scanning nothing.
-  if [[ "$SEG" == "__KERBY_OR__" ]]; then
-    # `A || B` runs B only when A failed, so a `cd` immediately before the `||`
-    # did NOT take effect for the segment right after it. Scope that to ONE
-    # segment: resetting the whole chain broke `cd repo || exit; git commit`,
-    # where the cd succeeded and the commit two segments later does run in repo.
-    SKIP_CD_ONCE=1
-    UNCERTAIN_CD="$CDLIST"     # the chain as it stood BEFORE the conditional
-    CDLIST="$PREV_CDLIST"      # ...and as it stood before the cd that may have failed
-    continue
-  fi
-  # Any real segment consumes the one-shot `||` skip — read it and clear it HERE,
-  # because the `continue`s below would otherwise jump past a reset placed at the
-  # end of the loop body (that bug made `cd repo || exit; git commit` scan cwd).
-  USE_SKIP=${SKIP_CD_ONCE:-0}; SKIP_CD_ONCE=0
-  PREV_CDLIST="$CDLIST"
   # `cd <path>` (not `cd -` / bare `cd`) → remember for later bare commits
   if printf '%s' "$SEG" | grep -qE '^[[:space:]]*cd[[:space:]]+[^[:space:]-]'; then
     CDLIST="${CDLIST}$(printf '%s' "$SEG" | sed -E 's/^[[:space:]]*cd[[:space:]]+//; s/[[:space:]].*$//')
@@ -207,7 +191,7 @@ while IFS= read -r SEG; do
   # shellcheck disable=SC2086
   set -- $SEG
   set +f
-  SEEN_GIT=0; SEEN_WRAPPER=0; SKIP_NEXT=0; WRAPPER=""; LOC=""; IS_COMMIT=0; ENVS=""
+  SEEN_GIT=0; LOC=""; IS_COMMIT=0; ENVS=""
   for rawtok in "$@"; do
     # Strip surrounding quotes: the shell removes them before git ever sees the
     # token, so `git 'commit'` is a commit and `'git' commit` is git.
@@ -215,39 +199,12 @@ while IFS= read -r SEG; do
     if [[ "$SEEN_GIT" -eq 0 ]]; then
       # The invocation must BE git, not merely mention it: `echo git commit` is
       # not a commit. Env assignments (VAR=val) may precede it.
-      # A skipped wrapper-option's ARGUMENT is never `git`. `-n` takes a value
-      # for nice but not for sudo, so a per-wrapper option table would be wrong
-      # either way; this rule needs no table and cannot swallow the invocation.
-      if [[ "${SKIP_NEXT:-0}" -eq 1 ]]; then
-        SKIP_NEXT=0
-        case "$tok" in git|*/git) ;; *) continue ;; esac
-      fi
       case "$tok" in
         GIT_DIR=*|GIT_WORK_TREE=*|GIT_INDEX_FILE=*|GIT_COMMON_DIR=*|GIT_OBJECT_DIRECTORY=*)
           ENVS="${ENVS}${tok}
 "; continue ;;
         *=*) continue ;;
         git|*/git) SEEN_GIT=1; continue ;;
-        # Wrapper commands that merely prefix the real invocation. An explicit
-        # allowlist, not a generic skip: the first non-wrapper, non-assignment
-        # token must still BE git, so `env echo git commit` is still not a commit.
-        env|sudo|command|nice|time|/usr/bin/env|/usr/bin/sudo)
-          SEEN_WRAPPER=1; WRAPPER="${tok##*/}"; continue ;;
-        # A wrapper's OWN options (`sudo -n`, `env -i`, `nice -n 5`, `command --`)
-        # sit between it and git. Skipped only AFTER a wrapper was seen, so a
-        # command that merely starts with an option is still not a git commit.
-        -*)
-          [[ "$SEEN_WRAPPER" -eq 1 ]] || break
-          # Whether an option consumes the next token depends on WHICH wrapper:
-          # `-n` takes a value for nice but not for sudo, so one shared list gets
-          # it wrong in one direction or the other (swallowing `git`, or reading
-          # a value as the command). Table it per wrapper.
-          case "${WRAPPER:-}:$tok" in
-            *:--*=*) ;;   # self-contained, consumes nothing
-            nice:-n|nice:--adjustment|sudo:-u|sudo:--user|sudo:-g|sudo:--group|sudo:-p|sudo:--prompt|sudo:-C|sudo:--close-from|sudo:-h|sudo:--host|sudo:-r|sudo:--role|sudo:-t|sudo:--type|sudo:-U|sudo:--other-user|env:-u|env:--unset|env:-C|env:--chdir|env:-S|env:--split-string)
-              SKIP_NEXT=1 ;;
-          esac
-          continue ;;
         *) break ;;
       esac
     fi
@@ -263,19 +220,12 @@ while IFS= read -r SEG; do
   [[ "$IS_COMMIT" -eq 1 ]] || continue
 
   EFF_CD="$CDLIST"
-  if [[ "$USE_SKIP" -eq 1 ]]; then EFF_CD=""; fi
 
   # Resolve the repo ONCE, from the caller's position, honouring the cd chain,
   # the invocation's globals and git's env selectors. Everything downstream then
   # works with an absolute path, which is what removed the relative-`-C` class of
   # bug (cd into the target AND pass -C -> git resolved repo/repo and failed).
   scan_target "$EFF_CD" "$LOC" "$ENVS" || exit 2   # Hard-block on findings
-  # A conditional `cd` leaves two possible working directories and a static pass
-  # cannot know which the shell took. Scan the other one too: over-scanning costs
-  # a redundant read, under-scanning costs a leaked secret.
-  if [[ -n "${UNCERTAIN_CD:-}" && "$UNCERTAIN_CD" != "$EFF_CD" ]]; then
-    scan_target "$UNCERTAIN_CD" "$LOC" "$ENVS" || exit 2
-  fi
 done <<< "$SEGTXT"
 
 # Scan clean (or degraded to the regex floor, which found nothing). This is a
