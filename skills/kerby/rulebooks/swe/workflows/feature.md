@@ -132,7 +132,7 @@ Pick the tier that matches your change. See `references/quality-gates.md` for de
 
 ### Commit Check (step 4)
 
-**Always run full gates before committing — no exceptions.** The iteration check is for fast feedback during coding. The commit check is your safety net.
+**Re-pick the tier from the staged diff — never inherit the iteration check.** That check gave fast feedback on a tree that has since moved; the commit check is your safety net and must be chosen against what is actually staged. `references/quality-gates.md` § At Commit Time is the single authority for the selection; a feature-sized diff lands on Standard or higher in practice.
 
 ```bash
 {build_command} && {lint_command} && {test_command}

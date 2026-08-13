@@ -22,10 +22,19 @@ tiers are decoration. Two smaller corrections ride along.
   extension. This repo's own `scripts/check-skill-compat.py` reads `CHANGELOG.md` and
   `README.md`, so the file you are reading is a gate input. When you cannot tell,
   Standard.
-- **`validation.md` had to move with it.** Its Low-complexity path independently
-  hardcoded "Standard tier — build + lint + test," so fixing `quality-gates.md` alone
-  would have relocated the contradiction rather than removed it. It now defers to the
-  commit-time selection. Medium's Check 2 keeps Standard: medium means logic changed.
+- **Four files stated the rule, not one.** `validation.md` (Low-complexity path),
+  `BOOTSTRAP.md` (§ Verification), `workflows/feature.md` (§ Commit Check) and
+  `workflows/quick-task.md` (step 3b) each independently hardcoded the absolute, so
+  fixing `quality-gates.md` alone would have relocated the contradiction rather than
+  removed it. All four now defer to the canonical section. Medium's Check 2 in
+  `validation.md` keeps Standard: medium means logic changed.
+- **A guard now enforces the "one authority" property.**
+  `scripts/check-commit-gate-parity.sh` fails if any rulebook file outside
+  `quality-gates.md` restates the commit gate as an absolute. It is a negative check —
+  the sibling `check-plan-gate-parity.sh` compares numeric constants, which does not
+  work for a prose rule. Worth the twenty lines: three manual greps found two of the
+  four restatements; the guard found the other two in under a second, one of them in
+  `BOOTSTRAP.md`, the file that loads eagerly into every session.
 - **Squash-merge is scoped to short-lived branches.** `communication.md` preferred
   squash unconditionally. A squash between two long-lived branches records no ancestry,
   so the next merge re-diffs content the base already has and conflicts on files nobody

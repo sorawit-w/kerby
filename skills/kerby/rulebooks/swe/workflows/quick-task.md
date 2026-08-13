@@ -52,13 +52,9 @@ If you can't state it cleanly, the task doesn't fit. Switch workflows.
 
    Escalation is not a setback — it's the system working. Do NOT commit a Tier-mismatched diff to escape the workflow change.
 
-   **3b. Quality-check (only if 3a passed):** choose gate tier based on what you changed (see `references/quality-gates.md`):
-   - Config, docs, comments, formatting → `{lint_command}` only
-   - Logic changes → `{lint_command}` + related tests
-   - Then **always run full gates before committing:**
-     ```bash
-     {build_command} && {lint_command} && {test_command}
-     ```
+   **3b. Quality-check (only if 3a passed):** while iterating, run the cheap check for what you are touching — `{lint_command}` for config/docs/comments/formatting, `{lint_command}` + related tests for logic.
+
+   At commit time the tier is re-picked from the **staged diff**, not inherited from the iteration check above. `references/quality-gates.md` § At Commit Time is the single authority for that selection — follow it there rather than restating it here. In practice a quick task usually lands on Standard (`{build_command} && {lint_command} && {test_command}`); Quick applies only when nothing staged feeds a gate, which is narrower than "the file ends in `.md`".
 4. **Commit:**
    ```bash
    git add <specific-files>

@@ -53,10 +53,14 @@ The checks below remove **different** biases and aren't equal strength, so they'
 |---|---|---|
 | `scripts/check-skill-compat.py` | — (mechanical) | **HARD, always** — the only mechanically-enforced gate |
 | In-session `skill-evaluator` (main loop, split executor/grader) | inner | **HARD for any rule-text change** — cheap, always doable in the authoring session |
-| Independent-model Codex review (on the PR — root `CLAUDE.md` § PR Workflow) | author framing | **HARD for any rule-text change** — empirically catches internal contradictions both audits miss |
+| Cross-file parity guards (`rulebooks/swe/scripts/check-*-parity.sh`) | — (mechanical) | **HARD when one exists for the rule you touched** — the only check that catches cross-file restatement drift now that no second model does |
 | Fresh-session `skill-evaluator` | outer | **HARD for the higher-bar class** (safety / secrets / commit-discipline / protected-branch / new behavioral surface such as a sub-command); **recommended** for adherence-only patches |
 
-**A clean skill-evaluator result does NOT authorize merge by itself.** A 34/34 adherence pass has shipped with real bugs the Codex review then caught (v4.20.0: a read-only-claim-vs-edit contradiction + a Markdown-escape-ordering flaw — neither was an adherence failure, so the split-role harness couldn't see them). For any rule-text change, an independent-model Codex review must also be in the loop before merge — what matters is that Codex, not the authoring agent, cleared the diff. This repo runs that review on the PR (root `CLAUDE.md` § PR Workflow); it does not use a local Codex loop. Trust the second pair of eyes, not the green number.
+**A clean skill-evaluator result does NOT authorize merge by itself.** A 34/34 adherence pass has shipped with real bugs (v4.20.0: a read-only-claim-vs-edit contradiction + a Markdown-escape-ordering flaw). Neither was an adherence failure, so the split-role harness could not see them — an independent-model review caught both.
+
+**Known residual risk: this repo no longer runs that review** (root `CLAUDE.md` § PR Workflow). Author-framing bias is unmitigated, and *internal contradiction between files* is the class most likely to slip: a rule restated in two files, edited in one. An adherence harness grades whether the agent followed the text, so two texts that disagree read as one passing test and one failing one — or, worse, as an agent "using judgment."
+
+**So the compensating control has to be mechanical.** When a rule ends up stated in more than one file, do not rely on a reviewer noticing — add a parity guard under `rulebooks/swe/scripts/` that turns the drift into a hard failure, and run every existing guard before merge. `check-plan-gate-parity.sh` does this for numeric constants; `check-commit-gate-parity.sh` does it for a prose rule by forbidding restatement outside one canonical file. The second guard was written after the same contradiction was found in **four** files; it located two of them that three manual greps had missed. That ratio is the argument.
 
 ---
 

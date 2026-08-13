@@ -88,6 +88,15 @@ those constants drift across the files that restate them — BOOTSTRAP, the
 workflows, working-patterns, the schema, the template; the checked set is listed
 in the script). If you add a new restatement, add the file to that set.
 
+Also run `bash skills/kerby/rulebooks/swe/scripts/check-commit-gate-parity.sh` after any
+change to the commit-time gate-tier rule. Unlike the plan-gate guard it is a *negative*
+check: `references/quality-gates.md` § At Commit Time is the sole authority, and the script
+fails if any other rulebook file restates the rule as an absolute ("always run full
+gates…"). Defer to the canonical section instead of repeating it. Both guards exist because
+cross-file restatement drift is the failure mode the corpus is most prone to and the one
+the adherence harness is blind to — the commit-gate rule had drifted into **four** files
+before the guard was written.
+
 Engine edits (`skills/kerby/SKILL.md`, `resources/`, repo-root `scripts/`) are
 additionally bound by the **engine-independence zoning rule** in
 [`docs/rulebook-contract.md`](docs/rulebook-contract.md) § Engine independence:
@@ -107,22 +116,24 @@ Defined here in full — the gate must never depend on unversioned, user-local c
 but this section is authoritative for kerby).
 
 1. Branch, commit.
-2. Open the PR, trigger a GitHub `@codex review`, and poll.
-   **Address every comment before merging** — fix it (a fix is a new push → new review
-   cycle) or push back with reasoning; never merge with an open, unaddressed comment. Merge
-   only on a green light **against the current head**: an approval / 👍 reaction dated after
-   the latest push, or a reasonable silence window once ≥1 completed review of HEAD exists —
-   never when Codex never reviewed HEAD at all. (Poll cadence is maintainer-personal tuning,
-   not part of this gate. Deliberately stricter than the shipped rulebook: this repo has no
-   self-review last rung — if the review never lands, escalate to the maintainer.)
+2. Open the PR. **Every merge-gating check is defined in
+   [`skills/kerby/CLAUDE.md`](skills/kerby/CLAUDE.md) § Gate tiers** — run those against the
+   exact tree you push, and report which ones ran in the PR body.
 3. `gh pr merge --squash --delete-branch`.
 
-**No local Codex run is expected here — review happens on the PR, one venue.** The
-`codex-review` builtin still ships for repos that want the headless local loop; this repo
-does not use it. kerby is mostly rule prose rather than application code, and at that ratio
-the local watchdog loop costs more than it returns. One consequence worth naming: nothing in
-this gate depends on a machine-local marker any more, so the workflow no longer varies by
-which machine you are sitting at.
+**No Codex review — local or on the PR — is part of this gate.** kerby is mostly rule prose
+rather than application code, and neither the headless local loop nor the GitHub round-trip
+returned enough at that ratio to keep. The `codex-review` builtin still ships for repos that
+want either; this repo does not use it, and nothing here depends on a machine-local marker,
+so the workflow no longer varies by which machine you are sitting at.
+
+**What that costs, stated plainly:** the independent-model review was the only check that
+removed *author framing* — it caught internal contradictions the adherence harness is
+structurally blind to (see `skills/kerby/CLAUDE.md` § Gate tiers for the incident). That bias
+is now unmitigated. The compensating control is mechanical, not judgmental: when a rule ends
+up stated in more than one file, add a parity guard under
+`skills/kerby/rulebooks/swe/scripts/` so the drift becomes a hard failure instead of
+something a reviewer has to notice.
 
 **Merge conventions:** squash is the default — one commit per PR on `main`; don't use
 `--merge` / `--rebase` without being asked. Always pass `--delete-branch` (this repo's
