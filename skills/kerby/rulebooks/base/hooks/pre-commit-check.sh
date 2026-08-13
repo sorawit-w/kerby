@@ -97,9 +97,16 @@ git_at() { # $1=cdlist  $2=loc  $3=envassigns  $4.. = git args
 }
 
 # Scan one target. Echoes nothing; returns 0 = clean, 7 = finding.
-scan_target() { # $1=absolute repo toplevel
-  local top="$1" rc names
-  [ -n "$top" ] || return 0   # not a repo / unresolvable -> nothing to scan
+scan_target() { # $1=cdlist  $2=loc  $3=envassigns
+  # The DIFF keeps the commit's full context (cd chain + globals + GIT_* env):
+  # resolving to a toplevel and dropping the rest lost alternate state such as
+  # GIT_INDEX_FILE, and a detached --git-dir/--work-tree pair. The toplevel is
+  # used ONLY as the scanner's cwd, so it reads the target's .gitleaks.toml.
+  local cdlist="$1" loc="$2" envs="$3" rc names top diff
+  diff=$(git_at "$cdlist" "$loc" "$envs" diff --cached --diff-filter=ACMR -U0 \
+           | grep '^+' | grep -v '^+++')
+  [ -n "$diff" ] || return 0
+  top=$(git_at "$cdlist" "$loc" "$envs" rev-parse --show-toplevel)
 
   if [[ -n "$SCANNER" ]]; then
     # Scan the staged diff's ADDED lines via `stdin` mode — the version-stable
@@ -119,12 +126,9 @@ scan_target() { # $1=absolute repo toplevel
     # version cd'd into a RELATIVE `-C` target and then still passed `-C`, so
     # git resolved repo/repo, failed, and the scanner saw empty input and
     # reported clean.
-    (
-      cd "$top" 2>/dev/null || exit 0
-      git diff --cached --diff-filter=ACMR -U0 2>/dev/null \
-        | grep -E '^\+[^+]' \
-        | "$SCANNER" stdin --no-banner --exit-code 7 >/dev/null 2>&1
-    )
+    printf '%s\n' "$diff" \
+      | ( cd "${top:-.}" 2>/dev/null || true
+          "$SCANNER" stdin --no-banner --exit-code 7 >/dev/null 2>&1 )
     rc=$?
     if [[ "$rc" -eq 7 ]]; then
       echo "WARNING: $SCANNER detected possible secrets in staged changes." >&2
@@ -141,11 +145,7 @@ scan_target() { # $1=absolute repo toplevel
   # ADDED lines only. `git diff -G --name-only` also selects a file when the
   # pattern appears in a REMOVED line, so it blocked the very commit that takes
   # a secret OUT — the opposite of the intent the scanner path already had.
-  names=$(
-    cd "$top" 2>/dev/null || exit 0
-    git diff --cached --diff-filter=ACMR -U0 2>/dev/null \
-      | grep -E '^\+[^+]' | grep -oE "$REGEX_FLOOR" | head -3
-  )
+  names=$(printf '%s\n' "$diff" | grep -oE "$REGEX_FLOOR" | head -3)
   if [[ -n "$names" ]]; then
     echo "WARNING: Possible secrets detected in staged changes." >&2
     echo "Matched the built-in secret pattern; inspect the staged diff locally." >&2
@@ -182,12 +182,15 @@ while IFS= read -r SEG; do
     # segment: resetting the whole chain broke `cd repo || exit; git commit`,
     # where the cd succeeded and the commit two segments later does run in repo.
     SKIP_CD_ONCE=1
+    UNCERTAIN_CD="$CDLIST"     # the chain as it stood BEFORE the conditional
+    CDLIST="$PREV_CDLIST"      # ...and as it stood before the cd that may have failed
     continue
   fi
   # Any real segment consumes the one-shot `||` skip — read it and clear it HERE,
   # because the `continue`s below would otherwise jump past a reset placed at the
   # end of the loop body (that bug made `cd repo || exit; git commit` scan cwd).
   USE_SKIP=${SKIP_CD_ONCE:-0}; SKIP_CD_ONCE=0
+  PREV_CDLIST="$CDLIST"
   # `cd <path>` (not `cd -` / bare `cd`) → remember for later bare commits
   if printf '%s' "$SEG" | grep -qE '^[[:space:]]*cd[[:space:]]+[^[:space:]-]'; then
     CDLIST="${CDLIST}$(printf '%s' "$SEG" | sed -E 's/^[[:space:]]*cd[[:space:]]+//; s/[[:space:]].*$//')
@@ -240,7 +243,8 @@ while IFS= read -r SEG; do
           # it wrong in one direction or the other (swallowing `git`, or reading
           # a value as the command). Table it per wrapper.
           case "${WRAPPER:-}:$tok" in
-            nice:-n|sudo:-u|sudo:-g|sudo:-p|sudo:-C|sudo:-h|sudo:-r|sudo:-t|sudo:-U|env:-u|env:-C|env:-S)
+            *:--*=*) ;;   # self-contained, consumes nothing
+            nice:-n|nice:--adjustment|sudo:-u|sudo:--user|sudo:-g|sudo:--group|sudo:-p|sudo:--prompt|sudo:-C|sudo:--close-from|sudo:-h|sudo:--host|sudo:-r|sudo:--role|sudo:-t|sudo:--type|sudo:-U|sudo:--other-user|env:-u|env:--unset|env:-C|env:--chdir|env:-S|env:--split-string)
               SKIP_NEXT=1 ;;
           esac
           continue ;;
@@ -265,8 +269,13 @@ while IFS= read -r SEG; do
   # the invocation's globals and git's env selectors. Everything downstream then
   # works with an absolute path, which is what removed the relative-`-C` class of
   # bug (cd into the target AND pass -C -> git resolved repo/repo and failed).
-  TOP=$(git_at "$EFF_CD" "$LOC" "$ENVS" rev-parse --show-toplevel)
-  scan_target "$TOP" || exit 2   # Hard-block on findings
+  scan_target "$EFF_CD" "$LOC" "$ENVS" || exit 2   # Hard-block on findings
+  # A conditional `cd` leaves two possible working directories and a static pass
+  # cannot know which the shell took. Scan the other one too: over-scanning costs
+  # a redundant read, under-scanning costs a leaked secret.
+  if [[ -n "${UNCERTAIN_CD:-}" && "$UNCERTAIN_CD" != "$EFF_CD" ]]; then
+    scan_target "$UNCERTAIN_CD" "$LOC" "$ENVS" || exit 2
+  fi
 done <<< "$SEGTXT"
 
 # Scan clean (or degraded to the regex floor, which found nothing). This is a

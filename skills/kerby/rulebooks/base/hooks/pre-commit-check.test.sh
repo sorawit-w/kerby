@@ -32,9 +32,19 @@ ARGS_FILE="$TMP/scanner_args"
 # Each stub records "<name> <args>" then exits the code the test asked for via the
 # named env var. Built line-by-line so $2/$3 expand now but $* / exit value don't.
 mk_scanner_stub() { # $1=path  $2=scanner-name  $3=rc-env-var-name
+  # The stub CONSUMES stdin and records both the payload and its cwd. An earlier
+  # version exited a fixed code without reading either, so every
+  # target-resolution assertion passed regardless of which repo was scanned —
+  # they proved "the hook blocked", never "the hook scanned the right index".
   {
     echo '#!/bin/bash'
+    echo "payload=\$(cat)"
     echo "printf '$2 %s\\n' \"\$*\" >> \"\${SCANNER_ARGS_FILE:-/dev/null}\""
+    echo "printf 'cwd=%s\\n' \"\$PWD\" >> \"\${SCANNER_ARGS_FILE:-/dev/null}\""
+    echo "printf '%s' \"\$payload\" > \"\${SCANNER_STDIN_FILE:-/dev/null}\""
+    echo 'if [[ -n "${SCANNER_REAL:-}" ]]; then'
+    echo '  if printf "%s" "$payload" | grep -q "sk_live_"; then exit 7; else exit 0; fi'
+    echo 'fi'
     echo "exit \"\${$3:-0}\""
   } > "$1"
   chmod +x "$1"
@@ -285,10 +295,11 @@ done
 # --- K2c. Round-2 review findings (all six) ----------------------------------
 # These ran the SCANNER path, not just the regex floor — several hid there. The
 # stub scanner from BIN_GL is used so the scanner branch is exercised.
-run_scan() { # $1=command  $2=cwd  -> echoes rc, scanner present
+run_scan() { # $1=command  $2=cwd  — scanner DECIDES FROM STDIN (SCANNER_REAL),
+  # so a block proves the right index was scanned, not merely that a stub fired.
   ( cd "$2" && jq -nc --arg c "$1" '{tool_input:{command:$c}}' \
-      | PATH="$BIN_GL" GITLEAKS_STUB_RC=7 SCANNER_ARGS_FILE="$ARGS_FILE" \
-        bash "$HOOK" >/dev/null 2>&1 )
+      | PATH="$BIN_GL" SCANNER_REAL=1 SCANNER_ARGS_FILE="$ARGS_FILE" \
+        SCANNER_STDIN_FILE="$TMP/scanner_stdin" bash "$HOOK" >/dev/null 2>&1 )
 }
 PARENT="$TMP/parent"; mkdir -p "$PARENT"
 reset_index; stage_secret
@@ -341,6 +352,36 @@ printf 'k = os.environ["K"]\n' > "$RMREPO/s.py"; git -C "$RMREPO" add s.py
 ( cd "$RMREPO" && jq -nc --arg c "git commit -m x" '{tool_input:{command:$c}}' | PATH="$BIN_NO" bash "$HOOK" >/dev/null 2>&1 ); rc=$?
 [[ "$rc" -eq 0 ]] && pass "review: removing a secret does not block (added-lines-only)" \
                   || fail "review: blocked a commit that REMOVES a secret (got $rc)"
+
+# --- K2d. Round-3 review findings --------------------------------------------
+reset_index; stage_secret
+# A `cd` immediately before `||` may or may not have run; scan BOTH candidates.
+run_scan "cd /nonexistent-kerby-xyz || true; git commit -m x" "$REPO"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review3: uncertain 'cd || true; git commit' still scans the real cwd" \
+                  || fail "review3: uncertain cd swallowed the commit (got $rc)"
+# Long-form wrapper options carry values too.
+for w in "sudo --user root git commit -m x" "env --unset FOO git commit -m x" "nice --adjustment 5 git commit -m x"; do
+  run_scan "$w" "$REPO"; rc=$?
+  [[ "$rc" -eq 2 ]] && pass "review3: long wrapper option '$w' blocks" \
+                    || fail "review3: long wrapper option failed open: '$w' (got $rc)"
+done
+# Alternate git state: the DIFF must keep the commit's full context, not just a
+# resolved toplevel — GIT_INDEX_FILE and a detached --git-dir/--work-tree pair
+# both select an index a toplevel alone does not describe.
+run_scan "GIT_INDEX_FILE=$REPO/.git/index git commit -m x" "$REPO"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review3: GIT_INDEX_FILE is honoured" \
+                  || fail "review3: GIT_INDEX_FILE ignored (got $rc)"
+run_scan "git --git-dir=$REPO/.git --work-tree=$REPO commit -m x" "$TMP"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review3: detached --git-dir + --work-tree is honoured" \
+                  || fail "review3: detached git-dir/work-tree ignored (got $rc)"
+# An ADDED line whose content itself starts with '+' (a patch file, a diff in a
+# fixture). `^\+[^+]` dropped it, so a secret on such a line was never scanned.
+PLUSREPO="$TMP/plusrepo"; mkdir -p "$PLUSREPO"; git -C "$PLUSREPO" init -q
+printf -- '+sk_live_ABCDEFG1234567890fake\n' > "$PLUSREPO/d.patch"
+git -C "$PLUSREPO" add d.patch
+( cd "$PLUSREPO" && jq -nc --arg c "git commit -m x" '{tool_input:{command:$c}}' | PATH="$BIN_NO" bash "$HOOK" >/dev/null 2>&1 ); rc=$?
+[[ "$rc" -eq 2 ]] && pass "review3: added line whose content starts with '+' is scanned" \
+                  || fail "review3: leading-plus content skipped by the diff filter (got $rc)"
 
 # --- K3. Known residuals — pinned so a change in behaviour is VISIBLE ---------
 # These are NOT passing behaviour. They record what this mechanism cannot do, so
