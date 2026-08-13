@@ -88,14 +88,15 @@ those constants drift across the files that restate them — BOOTSTRAP, the
 workflows, working-patterns, the schema, the template; the checked set is listed
 in the script). If you add a new restatement, add the file to that set.
 
-Also run `bash skills/kerby/rulebooks/swe/scripts/check-commit-gate-parity.sh` after any
-change to the commit-time gate-tier rule. Unlike the plan-gate guard it is a *negative*
-check: `references/quality-gates.md` § At Commit Time is the sole authority, and the script
-fails if any other rulebook file restates the rule as an absolute ("always run full
-gates…"). Defer to the canonical section instead of repeating it. These guards do not
-replace the Codex review below — they catch cross-file restatement drift earlier and for
-free, so the review can spend its attention on what a grep cannot see. The commit-gate rule
-had drifted into **four** files before the guard was written.
+**The commit-time gate-tier rule has no mechanical guard, deliberately.** Its sole
+authority is `references/quality-gates.md` § At Commit Time; every other rulebook file
+must defer to it rather than restate it. A parity guard for it was written and then
+removed: the rule is prose, not a constant, and three versions of the guard (literal
+phrasings, broader phrasings, structural proximity) were each defeated by ordinary
+authoring wording. Its real damage was reporting a clean run while missing restatements
+— it turned *nobody checked* into *the check passed*. When you touch this rule, grep the
+rulebook yourself for restatements and rely on the independent review below, which caught
+every one the guard missed.
 
 Engine edits (`skills/kerby/SKILL.md`, `resources/`, repo-root `scripts/`) are
 additionally bound by the **engine-independence zoning rule** in

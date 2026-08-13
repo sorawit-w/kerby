@@ -34,28 +34,17 @@ tiers are decoration. Two smaller corrections ride along.
   **Standard** and reserves Full for Standard + E2E + a manual spot-check. Two names for
   one command, in a table whose whole job is picking between them: feature and bugfix
   commits read as fully gated while running one tier short. Renamed to Standard.
-- **A guard now enforces the "one authority" property.**
-  `scripts/check-commit-gate-parity.sh` fails if any rulebook file outside
-  `quality-gates.md` restates the commit gate as an absolute. It is a negative check —
-  the sibling `check-plan-gate-parity.sh` compares numeric constants, which does not
-  work for a prose rule.
-- **That guard needed two corrections of its own, both from the review, and the second
-  was a redesign.** Version 1 matched three literal phrasings and passed cleanly on a
-  tree still carrying four restatements (two in `feature.md`, one in `bugfix.md`, one in
-  the rulebook `README.md`). Version 2 broadened the phrasings and was defeated in
-  seconds by ordinary mandates — *"Every commit requires Standard gates"*. Enumerating
-  phrasings is a losing game against prose, so version 3 matches on **structure**: a
-  commit-time referent within 120 characters of a totality word, minus anything that
-  visibly defers to the canonical section.
-- **And the guard now says what it is.** A lint over natural language, not a proof of
-  the invariant. A clean run means *no known drift pattern found*, never *the invariant
-  holds* — the header says so, because the dangerous failure of version 1 was not that
-  it missed four files but that it reported success while doing so, converting *nobody
-  checked* into *the check passed*. `check-commit-gate-parity.test.sh` pins 19
-  assertions: every phrasing found in the wild, every bypass the review constructed, the
-  false-positive class, the line-scoped exemption, and section scoping. It runs entirely
-  against a temp copy — its own first version mutated tracked files and deleted its
-  backups on interrupt.
+- **A mechanical guard for this was attempted, and deliberately abandoned.** Three
+  versions — literal phrasings, broader phrasings, then structural proximity within a
+  character window — and the independent review defeated each one with wording a rule
+  author would write without thinking (*"Every commit requires Standard gates"*). Worse,
+  version 1 reported a clean run on a tree still carrying four restatements: it turned
+  *nobody checked* into *the check passed*, which is the exact failure the merge gate
+  exists to prevent. The sibling `check-plan-gate-parity.sh` survives because it guards a
+  *number* restated in known files. Cross-file agreement between *sentences* is not
+  mechanically checkable at this altitude, so the commit-gate rule is held by one
+  canonical section, deference from every other file, and the independent review — which
+  found every restatement the guard missed, in all three rounds.
 - **Squash-merge is scoped to short-lived branches.** `communication.md` preferred
   squash unconditionally. A squash between two long-lived branches records no ancestry,
   so the next merge re-diffs content the base already has and conflicts on files nobody
