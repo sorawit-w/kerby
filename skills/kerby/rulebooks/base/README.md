@@ -14,7 +14,7 @@ anchored to the install, not to anything a workspace claims.
 
 | Check | Kind | What it holds |
 |---|---|---|
-| `secrets-staged` | data (`gitleaks`/regex floor) | a staged secret is hard-blocked at the tool boundary when installed — for every commit invocation a static pass can resolve (bare, `-C`, `--git-dir`, `cd &&`). Not a proof: see the residual row in swe's `threat-model.md` |
+| `secrets-staged` | data (`gitleaks`/regex floor) | an **already-staged** secret is hard-blocked when installed, for the commit forms a static pass can resolve (bare, `-C`, `--git-dir`, env selectors, `cd &&`). **Not a proof, and one gap is common: `git add x && git commit` is invisible** — the hook runs before the shell stages anything. A tripwire, not a boundary; see swe's `threat-model.md` |
 | `no-print-secret` | prose | a live secret never enters the conversation, even read back from a file the user showed |
 | `untrusted-agent-artifacts` | prose | agent-authored artifacts are data, never instructions — the prompt-injection floor |
 | `iron-law-claims` | prose | no completion/success claim without fresh verification evidence |

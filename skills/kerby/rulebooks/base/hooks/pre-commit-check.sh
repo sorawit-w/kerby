@@ -41,7 +41,17 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 GIT_GLOBAL_OPT='(-C[[:space:]]+[^[:space:]]+|-c[[:space:]]+[^[:space:]]+|--git-dir[=[:space:]][^[:space:]]+|--work-tree[=[:space:]][^[:space:]]+|--namespace[=[:space:]][^[:space:]]+|--super-prefix[=[:space:]][^[:space:]]+|--config-env[=[:space:]][^[:space:]]+|--exec-path[=[:space:]][^[:space:]]+|--attr-source[=[:space:]][^[:space:]]+|--[A-Za-z][A-Za-z-]*=[^[:space:]]+|--[A-Za-z][A-Za-z-]*|-[A-Za-z])'
 GIT_COMMIT_RE="\\bgit\\b([[:space:]]+${GIT_GLOBAL_OPT})*[[:space:]]+commit\\b([[:space:]]|\$)"
 
-LC=$(printf '%s' "$COMMAND" | tr '[:upper:]' '[:lower:]')
+# Detection runs on the command with QUOTED SPANS REMOVED. `git commit` inside a
+# quoted argument is text, not an invocation: `git log --format='run git commit
+# now'` must not be treated as a commit. This hook is non-disablable, so a false
+# block can only be escaped by editing settings.json — over-blocking is as much a
+# defect as under-blocking. Stripping happens before matching, so GIT_COMMIT_RE
+# itself stays byte-identical to protect-git.sh (parity-tested below).
+# Quoted spans are removed for DETECTION only; path extraction still reads the
+# original text (a quoted path remains a documented residual).
+unquote() { printf '%s' "$1" | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g"; }
+
+LC=$(unquote "$COMMAND" | tr '[:upper:]' '[:lower:]')
 if ! echo "$LC" | grep -qE "$GIT_COMMIT_RE"; then
   exit 0
 fi
@@ -63,19 +73,24 @@ REGEX_FLOOR='(sk_live_|sk_test_|AKIA[A-Z0-9]{16}|-----BEGIN (RSA |EC |DSA )?PRIV
 # cannot smuggle in a command), then apply the invocation's own -C/--git-dir.
 # `git $LOC` is unquoted only for arg-splitting; variable values are not
 # re-tokenized, so `;`/`&` inside a path stay literal.
-git_at() { # $1=cdlist  $2=loc  $3.. = git args
-  local cdlist="$1" loc="$2"; shift 2
+git_at() { # $1=cdlist  $2=loc  $3=envassigns  $4.. = git args
+  local cdlist="$1" loc="$2" envs="$3"; shift 3
   (
     while IFS= read -r _d; do
       [ -n "$_d" ] && { cd "$_d" 2>/dev/null || exit 0; }
     done <<< "$cdlist"
+    # Git's own environment selectors redirect the real commit; honour them so
+    # the scan reads the same repo/index the commit will use.
+    while IFS= read -r _e; do
+      [ -n "$_e" ] && export "$_e"
+    done <<< "$envs"
     git $loc "$@" 2>/dev/null
   )
 }
 
 # Scan one target. Echoes nothing; returns 0 = clean, 7 = finding.
-scan_target() { # $1=cdlist  $2=loc
-  local cdlist="$1" loc="$2" rc names
+scan_target() { # $1=cdlist  $2=loc  $3=envassigns
+  local cdlist="$1" loc="$2" envs="$3" rc names
 
   if [[ -n "$SCANNER" ]]; then
     # Scan the staged diff's ADDED lines via `stdin` mode — the version-stable
@@ -88,9 +103,23 @@ scan_target() { # $1=cdlist  $2=loc
     # this NON-disablable hook. 7 = finding; any other nonzero = tool error ->
     # fall through to the regex floor (degrade, never wedge). Output suppressed:
     # the scanner prints the matched secret, which must not enter agent context.
-    git_at "$cdlist" "$loc" diff --cached --diff-filter=ACMR -U0 \
-      | grep -E '^\+[^+]' \
-      | "$SCANNER" stdin --no-banner --exit-code 7 >/dev/null 2>&1
+    # The SCANNER runs in the target too, not just the diff: gitleaks/betterleaks
+    # read a repo-local allowlist (.gitleaks.toml) from their cwd, so scanning a
+    # `-C other` target from the caller's directory would apply the CALLER's
+    # allowlist — a permissive one there could suppress a real finding in the
+    # target, and rc 0 then skips the regex floor.
+    (
+      while IFS= read -r _d; do
+        [ -n "$_d" ] && { cd "$_d" 2>/dev/null || exit 0; }
+      done <<< "$cdlist"
+      while IFS= read -r _e; do [ -n "$_e" ] && export "$_e"; done <<< "$envs"
+      # Move into the -C target as well, so the scanner's cwd matches the repo.
+      _cdir=$(printf '%s' "$loc" | tr ' ' '\n' | grep -A1 -x -- '-C' | tail -1)
+      [ -n "$_cdir" ] && [ "$_cdir" != "-C" ] && { cd "$_cdir" 2>/dev/null || exit 0; }
+      git $loc diff --cached --diff-filter=ACMR -U0 2>/dev/null \
+        | grep -E '^\+[^+]' \
+        | "$SCANNER" stdin --no-banner --exit-code 7 >/dev/null 2>&1
+    )
     rc=$?
     if [[ "$rc" -eq 7 ]]; then
       echo "WARNING: $SCANNER detected possible secrets in staged changes." >&2
@@ -104,7 +133,7 @@ scan_target() { # $1=cdlist  $2=loc
     fi
   fi
 
-  names=$(git_at "$cdlist" "$loc" diff --cached --diff-filter=ACMR -G "$REGEX_FLOOR" --name-only)
+  names=$(git_at "$cdlist" "$loc" "$envs" diff --cached --diff-filter=ACMR -G "$REGEX_FLOOR" --name-only)
   if [[ -n "$names" ]]; then
     echo "WARNING: Possible secrets detected in staged files:" >&2
     echo "$names" >&2
@@ -125,23 +154,62 @@ scan_target() { # $1=cdlist  $2=loc
 # relative -C/--git-dir, or quoted separators/paths.
 CDLIST=""
 SEGTXT="$COMMAND"
-SEGTXT="${SEGTXT//&&/$'\n'}"; SEGTXT="${SEGTXT//||/$'\n'}"; SEGTXT="${SEGTXT//;/$'\n'}"
+# `&&` and `;` chain forward; `||` does NOT. For `cd /missing || git commit` the
+# real shell runs the commit in the ORIGINAL directory precisely because the cd
+# failed — carrying the failed cd forward would scan a path that does not exist
+# and report clean. A sentinel marks `||` so the walk can reset the chain there.
+SEGTXT="${SEGTXT//||/$'\n'__KERBY_OR__$'\n'}"
+SEGTXT="${SEGTXT//&&/$'\n'}"; SEGTXT="${SEGTXT//;/$'\n'}"
 while IFS= read -r SEG; do
+  # After `||` the preceding command failed, so any directory it established did
+  # not take effect. Reset to the invocation's cwd — conservative by design: a
+  # wrong guess here scans cwd rather than silently scanning nothing.
+  if [[ "$SEG" == "__KERBY_OR__" ]]; then
+    CDLIST=""
+    continue
+  fi
   # `cd <path>` (not `cd -` / bare `cd`) → remember for later bare commits
   if printf '%s' "$SEG" | grep -qE '^[[:space:]]*cd[[:space:]]+[^[:space:]-]'; then
     CDLIST="${CDLIST}$(printf '%s' "$SEG" | sed -E 's/^[[:space:]]*cd[[:space:]]+//; s/[[:space:]].*$//')
 "
     continue
   fi
-  printf '%s' "$SEG" | tr '[:upper:]' '[:lower:]' | grep -qE "$GIT_COMMIT_RE" || continue
+  unquote "$SEG" | tr '[:upper:]' '[:lower:]' | grep -qE "$GIT_COMMIT_RE" || continue
 
-  GITDIR=$(printf '%s' "$SEG" | grep -oE '(^|[[:space:]])--git-dir[=[:space:]][^[:space:]]+' | tail -1 | sed -E 's/.*--git-dir[=[:space:]]//')
-  CPATH=$(printf '%s' "$SEG" | grep -oE '(^|[[:space:]])-C[[:space:]]+[^[:space:]]+' | tail -1 | sed -E 's/.*-C[[:space:]]+//')
-  if [[ -n "$GITDIR" ]]; then LOC="--git-dir=$GITDIR"
-  elif [[ -n "$CPATH" ]]; then LOC="-C $CPATH"
-  else LOC=""; fi
+  # Walk the segment's tokens. Done with a token walk rather than sed because
+  # BSD sed (macOS) does not support `\b`, so a `\bcommit\b` strip silently
+  # matched nothing and left the subcommand in the option prefix. Globbing is
+  # disabled around the split so a `*` in the command cannot expand.
+  set -f
+  # shellcheck disable=SC2086
+  set -- $SEG
+  set +f
+  SEEN_GIT=0; LOC=""; IS_COMMIT=0; ENVS=""
+  for tok in "$@"; do
+    if [[ "$SEEN_GIT" -eq 0 ]]; then
+      # The invocation must BE git, not merely mention it: `echo git commit` is
+      # not a commit. Env assignments (VAR=val) may precede it.
+      case "$tok" in
+        GIT_DIR=*|GIT_WORK_TREE=*|GIT_INDEX_FILE=*|GIT_COMMON_DIR=*|GIT_OBJECT_DIRECTORY=*)
+          ENVS="${ENVS}${tok}
+"; continue ;;
+        *=*) continue ;;
+        git|*/git) SEEN_GIT=1; continue ;;
+        *) break ;;
+      esac
+    fi
+    # Target selectors are the global options BETWEEN `git` and `commit`.
+    # Position is load-bearing: `-C` is ALSO a `git commit` option (reuse a
+    # message), so `git commit -C HEAD` has NO target selector — reading that
+    # trailing `-C HEAD` as a directory made the scan run against a nonexistent
+    # path and report clean. Collecting the prefix in order also preserves git's
+    # own semantics when several combine (`git -C repo --git-dir=.git commit`).
+    if [[ "$tok" == "commit" ]]; then IS_COMMIT=1; break; fi
+    LOC="$LOC $tok"
+  done
+  [[ "$IS_COMMIT" -eq 1 ]] || continue
 
-  scan_target "$CDLIST" "$LOC" || exit 2   # Hard-block on findings
+  scan_target "$CDLIST" "$LOC" "$ENVS" || exit 2   # Hard-block on findings
 done <<< "$SEGTXT"
 
 # Scan clean (or degraded to the regex floor, which found nothing). This is a

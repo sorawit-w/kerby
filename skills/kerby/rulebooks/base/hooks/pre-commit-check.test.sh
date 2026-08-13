@@ -220,6 +220,69 @@ run_form "git -C $REPO commit -m x" "$CLEANREPO"; rc=$?
 [[ "$rc" -eq 2 ]] && pass "target: commit to a dirty repo blocks even from a clean cwd" \
                   || fail "target: missed the secret in the -C target (got $rc)"
 
+# --- K2. Regressions found by review of the #46 fix ---------------------------
+# The first version of this fix made two cases WORSE than the code it replaced.
+# Both are pinned so they cannot come back.
+reset_index; stage_secret
+
+# `-C` is ALSO a `git commit` option (reuse a message). Reading the trailing
+# `-C HEAD` as a directory made the scan run against a nonexistent path and
+# report clean — a regression: the old `^git commit` matcher scanned this
+# correctly. Target selectors are only the globals BEFORE the subcommand.
+run_form "git commit -C HEAD" "$REPO"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "regression: 'git commit -C HEAD' (commit-local -C) still scans the right repo" \
+                  || fail "regression: commit-local -C misread as a target (got $rc)"
+
+# Combined globals must keep git's own ordering, not pick one and drop the other.
+run_form "git -C $REPO --git-dir=.git commit -m x" "$NEUTRAL"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "regression: '-C' + '--git-dir' together resolve to the right repo" \
+                  || fail "regression: combined globals dropped one selector (got $rc)"
+
+# `cd X || git commit`: the real shell runs the commit in the ORIGINAL directory
+# precisely because the cd failed. Carrying the failed cd forward scanned a path
+# that does not exist and reported clean.
+run_form "cd /nonexistent-kerby-xyz || git commit -m x" "$REPO"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "regression: conditional 'cd || git commit' scans the real cwd" \
+                  || fail "regression: failed cd carried forward, scan fell open (got $rc)"
+
+# Git's env selectors redirect the real commit; the scan must follow them.
+run_form "GIT_DIR=$REPO/.git GIT_WORK_TREE=$REPO git commit -m x" "$NEUTRAL"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "env: GIT_DIR/GIT_WORK_TREE redirect the scan too" \
+                  || fail "env: GIT_DIR ignored, scanned the caller's index (got $rc)"
+
+# FALSE BLOCKS. This hook is non-disablable — a wrong block can only be escaped
+# by editing settings.json, so over-blocking is as much a defect as under-.
+# The old matcher ignored these; the first fix blocked them.
+run_form "git log --format='run git commit now'" "$REPO"; rc=$?
+[[ "$rc" -eq 0 ]] && pass "false-block: 'git commit' inside a quoted arg is not a commit" \
+                  || fail "false-block: quoted text treated as a commit (got $rc)"
+
+run_form "echo git commit" "$REPO"; rc=$?
+[[ "$rc" -eq 0 ]] && pass "false-block: 'echo git commit' is not a commit" \
+                  || fail "false-block: a mere mention treated as a commit (got $rc)"
+
+run_form "git log --grep=commit" "$REPO"; rc=$?
+[[ "$rc" -eq 0 ]] && pass "false-block: 'git log --grep=commit' is not a commit" \
+                  || fail "false-block: --grep=commit treated as a commit (got $rc)"
+
+# --- K3. Known residuals — pinned so a change in behaviour is VISIBLE ---------
+# These are NOT passing behaviour. They record what this mechanism cannot do, so
+# that if a future change fixes (or worsens) one, the suite says so instead of
+# staying quiet. A PreToolUse hook parses a string before the shell runs it.
+reset_index
+echo 'const k = "sk_live_ABCDEFG1234567890fake";' > "$REPO/late.js"   # NOT staged
+run_form "git add late.js && git commit -m x" "$REPO"; rc=$?
+[[ "$rc" -eq 0 ]] && pass "residual (known gap): staging in the same command is invisible — hook runs before 'git add'" \
+                  || fail "residual changed: pre-staging now returns $rc — update the docs and threat model"
+rm -f "$REPO/late.js"
+
+reset_index; stage_secret
+git -C "$REPO" config alias.ci commit
+run_form "git ci -m x" "$REPO"; rc=$?
+[[ "$rc" -eq 0 ]] && pass "residual (known gap): a git alias resolves at runtime and is not seen" \
+                  || fail "residual changed: alias now returns $rc — update the docs and threat model"
+git -C "$REPO" config --unset alias.ci
+
 # --- L. Matcher parity with swe's protect-git.sh ------------------------------
 # base cannot depend on swe (base is the floor), so the commit matcher is
 # duplicated. A regex literal is a constant, so the duplication is mechanically
