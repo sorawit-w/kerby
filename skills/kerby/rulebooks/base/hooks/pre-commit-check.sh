@@ -49,7 +49,15 @@ GIT_COMMIT_RE="\\bgit\\b([[:space:]]+${GIT_GLOBAL_OPT})*[[:space:]]+commit\\b([[
 # itself stays byte-identical to protect-git.sh (parity-tested below).
 # Quoted spans are removed for DETECTION only; path extraction still reads the
 # original text (a quoted path remains a documented residual).
-unquote() { printf '%s' "$1" | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g"; }
+# A quoted span holding ONE word is still that word: `git 'commit'` is a commit,
+# so the quotes are removed and the content kept. A span holding whitespace is a
+# message or format string, not an invocation, so it is dropped entirely — that
+# is what keeps `--format='run git commit now'` from reading as a commit.
+unquote() {
+  printf '%s' "$1" \
+    | sed -E "s/'([^' ]*)'/\1/g; s/\"([^\" ]*)\"/\1/g" \
+    | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g"
+}
 
 LC=$(unquote "$COMMAND" | tr '[:upper:]' '[:lower:]')
 if ! echo "$LC" | grep -qE "$GIT_COMMIT_RE"; then
@@ -89,8 +97,9 @@ git_at() { # $1=cdlist  $2=loc  $3=envassigns  $4.. = git args
 }
 
 # Scan one target. Echoes nothing; returns 0 = clean, 7 = finding.
-scan_target() { # $1=cdlist  $2=loc  $3=envassigns
-  local cdlist="$1" loc="$2" envs="$3" rc names
+scan_target() { # $1=absolute repo toplevel
+  local top="$1" rc names
+  [ -n "$top" ] || return 0   # not a repo / unresolvable -> nothing to scan
 
   if [[ -n "$SCANNER" ]]; then
     # Scan the staged diff's ADDED lines via `stdin` mode — the version-stable
@@ -103,20 +112,16 @@ scan_target() { # $1=cdlist  $2=loc  $3=envassigns
     # this NON-disablable hook. 7 = finding; any other nonzero = tool error ->
     # fall through to the regex floor (degrade, never wedge). Output suppressed:
     # the scanner prints the matched secret, which must not enter agent context.
-    # The SCANNER runs in the target too, not just the diff: gitleaks/betterleaks
-    # read a repo-local allowlist (.gitleaks.toml) from their cwd, so scanning a
-    # `-C other` target from the caller's directory would apply the CALLER's
-    # allowlist — a permissive one there could suppress a real finding in the
-    # target, and rc 0 then skips the regex floor.
+    # Both the diff AND the scanner run INSIDE the resolved repo: gitleaks reads
+    # its allowlist (.gitleaks.toml) from cwd, so scanning a `-C other` target
+    # from the caller's directory would apply the CALLER's allowlist. The
+    # toplevel is already resolved, so plain `git` is correct here — an earlier
+    # version cd'd into a RELATIVE `-C` target and then still passed `-C`, so
+    # git resolved repo/repo, failed, and the scanner saw empty input and
+    # reported clean.
     (
-      while IFS= read -r _d; do
-        [ -n "$_d" ] && { cd "$_d" 2>/dev/null || exit 0; }
-      done <<< "$cdlist"
-      while IFS= read -r _e; do [ -n "$_e" ] && export "$_e"; done <<< "$envs"
-      # Move into the -C target as well, so the scanner's cwd matches the repo.
-      _cdir=$(printf '%s' "$loc" | tr ' ' '\n' | grep -A1 -x -- '-C' | tail -1)
-      [ -n "$_cdir" ] && [ "$_cdir" != "-C" ] && { cd "$_cdir" 2>/dev/null || exit 0; }
-      git $loc diff --cached --diff-filter=ACMR -U0 2>/dev/null \
+      cd "$top" 2>/dev/null || exit 0
+      git diff --cached --diff-filter=ACMR -U0 2>/dev/null \
         | grep -E '^\+[^+]' \
         | "$SCANNER" stdin --no-banner --exit-code 7 >/dev/null 2>&1
     )
@@ -133,10 +138,17 @@ scan_target() { # $1=cdlist  $2=loc  $3=envassigns
     fi
   fi
 
-  names=$(git_at "$cdlist" "$loc" "$envs" diff --cached --diff-filter=ACMR -G "$REGEX_FLOOR" --name-only)
+  # ADDED lines only. `git diff -G --name-only` also selects a file when the
+  # pattern appears in a REMOVED line, so it blocked the very commit that takes
+  # a secret OUT — the opposite of the intent the scanner path already had.
+  names=$(
+    cd "$top" 2>/dev/null || exit 0
+    git diff --cached --diff-filter=ACMR -U0 2>/dev/null \
+      | grep -E '^\+[^+]' | grep -oE "$REGEX_FLOOR" | head -3
+  )
   if [[ -n "$names" ]]; then
-    echo "WARNING: Possible secrets detected in staged files:" >&2
-    echo "$names" >&2
+    echo "WARNING: Possible secrets detected in staged changes." >&2
+    echo "Matched the built-in secret pattern; inspect the staged diff locally." >&2
     echo "Review these files before committing. See kerby security guardrails." >&2
     return 7
   fi
@@ -165,9 +177,17 @@ while IFS= read -r SEG; do
   # not take effect. Reset to the invocation's cwd — conservative by design: a
   # wrong guess here scans cwd rather than silently scanning nothing.
   if [[ "$SEG" == "__KERBY_OR__" ]]; then
-    CDLIST=""
+    # `A || B` runs B only when A failed, so a `cd` immediately before the `||`
+    # did NOT take effect for the segment right after it. Scope that to ONE
+    # segment: resetting the whole chain broke `cd repo || exit; git commit`,
+    # where the cd succeeded and the commit two segments later does run in repo.
+    SKIP_CD_ONCE=1
     continue
   fi
+  # Any real segment consumes the one-shot `||` skip — read it and clear it HERE,
+  # because the `continue`s below would otherwise jump past a reset placed at the
+  # end of the loop body (that bug made `cd repo || exit; git commit` scan cwd).
+  USE_SKIP=${SKIP_CD_ONCE:-0}; SKIP_CD_ONCE=0
   # `cd <path>` (not `cd -` / bare `cd`) → remember for later bare commits
   if printf '%s' "$SEG" | grep -qE '^[[:space:]]*cd[[:space:]]+[^[:space:]-]'; then
     CDLIST="${CDLIST}$(printf '%s' "$SEG" | sed -E 's/^[[:space:]]*cd[[:space:]]+//; s/[[:space:]].*$//')
@@ -184,11 +204,21 @@ while IFS= read -r SEG; do
   # shellcheck disable=SC2086
   set -- $SEG
   set +f
-  SEEN_GIT=0; LOC=""; IS_COMMIT=0; ENVS=""
-  for tok in "$@"; do
+  SEEN_GIT=0; SEEN_WRAPPER=0; SKIP_NEXT=0; WRAPPER=""; LOC=""; IS_COMMIT=0; ENVS=""
+  for rawtok in "$@"; do
+    # Strip surrounding quotes: the shell removes them before git ever sees the
+    # token, so `git 'commit'` is a commit and `'git' commit` is git.
+    tok="${rawtok%\'}"; tok="${tok#\'}"; tok="${tok%\"}"; tok="${tok#\"}"
     if [[ "$SEEN_GIT" -eq 0 ]]; then
       # The invocation must BE git, not merely mention it: `echo git commit` is
       # not a commit. Env assignments (VAR=val) may precede it.
+      # A skipped wrapper-option's ARGUMENT is never `git`. `-n` takes a value
+      # for nice but not for sudo, so a per-wrapper option table would be wrong
+      # either way; this rule needs no table and cannot swallow the invocation.
+      if [[ "${SKIP_NEXT:-0}" -eq 1 ]]; then
+        SKIP_NEXT=0
+        case "$tok" in git|*/git) ;; *) continue ;; esac
+      fi
       case "$tok" in
         GIT_DIR=*|GIT_WORK_TREE=*|GIT_INDEX_FILE=*|GIT_COMMON_DIR=*|GIT_OBJECT_DIRECTORY=*)
           ENVS="${ENVS}${tok}
@@ -198,7 +228,22 @@ while IFS= read -r SEG; do
         # Wrapper commands that merely prefix the real invocation. An explicit
         # allowlist, not a generic skip: the first non-wrapper, non-assignment
         # token must still BE git, so `env echo git commit` is still not a commit.
-        env|sudo|command|nice|time|/usr/bin/env|/usr/bin/sudo) continue ;;
+        env|sudo|command|nice|time|/usr/bin/env|/usr/bin/sudo)
+          SEEN_WRAPPER=1; WRAPPER="${tok##*/}"; continue ;;
+        # A wrapper's OWN options (`sudo -n`, `env -i`, `nice -n 5`, `command --`)
+        # sit between it and git. Skipped only AFTER a wrapper was seen, so a
+        # command that merely starts with an option is still not a git commit.
+        -*)
+          [[ "$SEEN_WRAPPER" -eq 1 ]] || break
+          # Whether an option consumes the next token depends on WHICH wrapper:
+          # `-n` takes a value for nice but not for sudo, so one shared list gets
+          # it wrong in one direction or the other (swallowing `git`, or reading
+          # a value as the command). Table it per wrapper.
+          case "${WRAPPER:-}:$tok" in
+            nice:-n|sudo:-u|sudo:-g|sudo:-p|sudo:-C|sudo:-h|sudo:-r|sudo:-t|sudo:-U|env:-u|env:-C|env:-S)
+              SKIP_NEXT=1 ;;
+          esac
+          continue ;;
         *) break ;;
       esac
     fi
@@ -213,7 +258,15 @@ while IFS= read -r SEG; do
   done
   [[ "$IS_COMMIT" -eq 1 ]] || continue
 
-  scan_target "$CDLIST" "$LOC" "$ENVS" || exit 2   # Hard-block on findings
+  EFF_CD="$CDLIST"
+  if [[ "$USE_SKIP" -eq 1 ]]; then EFF_CD=""; fi
+
+  # Resolve the repo ONCE, from the caller's position, honouring the cd chain,
+  # the invocation's globals and git's env selectors. Everything downstream then
+  # works with an absolute path, which is what removed the relative-`-C` class of
+  # bug (cd into the target AND pass -C -> git resolved repo/repo and failed).
+  TOP=$(git_at "$EFF_CD" "$LOC" "$ENVS" rev-parse --show-toplevel)
+  scan_target "$TOP" || exit 2   # Hard-block on findings
 done <<< "$SEGTXT"
 
 # Scan clean (or degraded to the regex floor, which found nothing). This is a
