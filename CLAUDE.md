@@ -92,10 +92,10 @@ Also run `bash skills/kerby/rulebooks/swe/scripts/check-commit-gate-parity.sh` a
 change to the commit-time gate-tier rule. Unlike the plan-gate guard it is a *negative*
 check: `references/quality-gates.md` § At Commit Time is the sole authority, and the script
 fails if any other rulebook file restates the rule as an absolute ("always run full
-gates…"). Defer to the canonical section instead of repeating it. Both guards exist because
-cross-file restatement drift is the failure mode the corpus is most prone to and the one
-the adherence harness is blind to — the commit-gate rule had drifted into **four** files
-before the guard was written.
+gates…"). Defer to the canonical section instead of repeating it. These guards do not
+replace the Codex review below — they catch cross-file restatement drift earlier and for
+free, so the review can spend its attention on what a grep cannot see. The commit-gate rule
+had drifted into **four** files before the guard was written.
 
 Engine edits (`skills/kerby/SKILL.md`, `resources/`, repo-root `scripts/`) are
 additionally bound by the **engine-independence zoning rule** in
@@ -115,25 +115,40 @@ Defined here in full — the gate must never depend on unversioned, user-local c
 (a maintainer's personal `~/.claude/CLAUDE.md` may mirror this as a cross-repo default,
 but this section is authoritative for kerby).
 
+**Default path — local Codex available:**
 1. Branch, commit.
-2. Open the PR. **Every merge-gating check is defined in
-   [`skills/kerby/CLAUDE.md`](skills/kerby/CLAUDE.md) § Gate tiers** — run those against the
-   exact tree you push, and report which ones ran in the PR body.
-3. `gh pr merge --squash --delete-branch`.
+2. Run a local Codex review against the branch diff (`/codex:review --base main`);
+   loop review → fix → re-review until it returns clean. The final review must run
+   against the exact tree you push.
+   (`/codex:review` is user-only (`disable-model-invocation`) — an agent runs the
+   review headless through the `codex-review` rulebook's watchdog instead:
+   `scripts/codex-run.sh -- codex exec "<review brief scoped to git diff
+   main...HEAD>"` — `codex exec`, not `codex exec review`, which refuses `--base`
+   alongside a prompt and so can't carry the rubric — never bare and never piped
+   to `tee` (neither form can be bounded — see that rulebook's
+   `references/delegation.md` § Bounded delegation); or it substitutes
+   `/codex:rescue` with a review brief. On the maintainer's machine, a PreToolUse
+   gate additionally blocks `gh pr create` until a clean review of HEAD is recorded.
+   The marker is written ONLY by the rulebook's `scripts/codex-mark.sh` — run it
+   after codex-run; it verifies a clean `CODEX_VERDICT` (P0=0 P1=0), enforces the
+   3-round cap, and writes the marker. Never hand-write the marker — that is
+   gate-dodging. The gate is machine-local convenience, not part of this repo's gate.)
+3. Open the PR noting `Codex-reviewed locally at <sha>` (the reviewed branch HEAD), then
+   `gh pr merge --squash --delete-branch`. The local-clean review **authorizes the merge**
+   — it *is* the independent-model Codex review the rule-text gate in
+   `skills/kerby/CLAUDE.md` requires (Codex ≠ the authoring agent; venue doesn't matter,
+   so a second GitHub pass would only re-review identical bytes).
 
-**No Codex review — local or on the PR — is part of this gate.** kerby is mostly rule prose
-rather than application code, and neither the headless local loop nor the GitHub round-trip
-returned enough at that ratio to keep. The `codex-review` builtin still ships for repos that
-want either; this repo does not use it, and nothing here depends on a machine-local marker,
-so the workflow no longer varies by which machine you are sitting at.
-
-**What that costs, stated plainly:** the independent-model review was the only check that
-removed *author framing* — it caught internal contradictions the adherence harness is
-structurally blind to (see `skills/kerby/CLAUDE.md` § Gate tiers for the incident). That bias
-is now unmitigated. The compensating control is mechanical, not judgmental: when a rule ends
-up stated in more than one file, add a parity guard under
-`skills/kerby/rulebooks/swe/scripts/` so the drift becomes a hard failure instead of
-something a reviewer has to notice.
+**Fallback — no local Codex (or local Codex unable to produce a verdict within the
+delegation budget — see the codex-review rulebook's `references/delegation.md`
+§ Bounded delegation):** open the PR, trigger a GitHub `@codex review`, and poll.
+**Address every comment before merging** — fix it (a fix is a new push → new review
+cycle) or push back with reasoning; never merge with an open, unaddressed comment. Merge
+only on a green light **against the current head**: an approval / 👍 reaction dated after
+the latest push, or a reasonable silence window once ≥1 completed review of HEAD exists —
+never when Codex never reviewed HEAD at all. (Poll cadence is maintainer-personal tuning,
+not part of this gate. Deliberately stricter than the shipped rulebook: this repo has no
+self-review last rung — if both Codex venues fail, escalate to the maintainer.)
 
 **Merge conventions:** squash is the default — one commit per PR on `main`; don't use
 `--merge` / `--rebase` without being asked. Always pass `--delete-branch` (this repo's
