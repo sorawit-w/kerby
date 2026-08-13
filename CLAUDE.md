@@ -106,40 +106,23 @@ Defined here in full — the gate must never depend on unversioned, user-local c
 (a maintainer's personal `~/.claude/CLAUDE.md` may mirror this as a cross-repo default,
 but this section is authoritative for kerby).
 
-**Default path — local Codex available:**
 1. Branch, commit.
-2. Run a local Codex review against the branch diff (`/codex:review --base main`);
-   loop review → fix → re-review until it returns clean. The final review must run
-   against the exact tree you push.
-   (`/codex:review` is user-only (`disable-model-invocation`) — an agent runs the
-   review headless through the `codex-review` rulebook's watchdog instead:
-   `scripts/codex-run.sh -- codex exec "<review brief scoped to git diff
-   main...HEAD>"` — `codex exec`, not `codex exec review`, which refuses `--base`
-   alongside a prompt and so can't carry the rubric — never bare and never piped
-   to `tee` (neither form can be bounded — see that rulebook's
-   `references/delegation.md` § Bounded delegation); or it substitutes
-   `/codex:rescue` with a review brief. On the maintainer's machine, a PreToolUse
-   gate additionally blocks `gh pr create` until a clean review of HEAD is recorded.
-   The marker is written ONLY by the rulebook's `scripts/codex-mark.sh` — run it
-   after codex-run; it verifies a clean `CODEX_VERDICT` (P0=0 P1=0), enforces the
-   3-round cap, and writes the marker. Never hand-write the marker — that is
-   gate-dodging. The gate is machine-local convenience, not part of this repo's gate.)
-3. Open the PR noting `Codex-reviewed locally at <sha>` (the reviewed branch HEAD), then
-   `gh pr merge --squash --delete-branch`. The local-clean review **authorizes the merge**
-   — it *is* the independent-model Codex review the rule-text gate in
-   `skills/kerby/CLAUDE.md` requires (Codex ≠ the authoring agent; venue doesn't matter,
-   so a second GitHub pass would only re-review identical bytes).
+2. Open the PR, trigger a GitHub `@codex review`, and poll.
+   **Address every comment before merging** — fix it (a fix is a new push → new review
+   cycle) or push back with reasoning; never merge with an open, unaddressed comment. Merge
+   only on a green light **against the current head**: an approval / 👍 reaction dated after
+   the latest push, or a reasonable silence window once ≥1 completed review of HEAD exists —
+   never when Codex never reviewed HEAD at all. (Poll cadence is maintainer-personal tuning,
+   not part of this gate. Deliberately stricter than the shipped rulebook: this repo has no
+   self-review last rung — if the review never lands, escalate to the maintainer.)
+3. `gh pr merge --squash --delete-branch`.
 
-**Fallback — no local Codex (or local Codex unable to produce a verdict within the
-delegation budget — see the codex-review rulebook's `references/delegation.md`
-§ Bounded delegation):** open the PR, trigger a GitHub `@codex review`, and poll.
-**Address every comment before merging** — fix it (a fix is a new push → new review
-cycle) or push back with reasoning; never merge with an open, unaddressed comment. Merge
-only on a green light **against the current head**: an approval / 👍 reaction dated after
-the latest push, or a reasonable silence window once ≥1 completed review of HEAD exists —
-never when Codex never reviewed HEAD at all. (Poll cadence is maintainer-personal tuning,
-not part of this gate. Deliberately stricter than the shipped rulebook: this repo has no
-self-review last rung — if both Codex venues fail, escalate to the maintainer.)
+**No local Codex run is expected here — review happens on the PR, one venue.** The
+`codex-review` builtin still ships for repos that want the headless local loop; this repo
+does not use it. kerby is mostly rule prose rather than application code, and at that ratio
+the local watchdog loop costs more than it returns. One consequence worth naming: nothing in
+this gate depends on a machine-local marker any more, so the workflow no longer varies by
+which machine you are sitting at.
 
 **Merge conventions:** squash is the default — one commit per PR on `main`; don't use
 `--merge` / `--rebase` without being asked. Always pass `--delete-branch` (this repo's
