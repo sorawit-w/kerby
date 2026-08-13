@@ -11,7 +11,7 @@ Hooks are shell commands or LLM prompts that run automatically at specific lifec
 kerby ships with these hooks:
 
 > The coding enforcers (`.env` protection/read-warning, high-stakes routing,
-> pre-commit check, quality-gate verification) are documented in the coding
+> pre-commit secret scan) are documented in the coding
 > rulebook that declares them — e.g. the bundled `swe` rulebook's own
 > `references/hooks.md`. This engine reference covers only the engine-owned
 > SessionStart/knowledge hooks below.
@@ -132,16 +132,16 @@ Same opt-out as the other knowledge hooks — `agent-context.yaml: knowledge.ena
 
 ---
 
-### SessionEnd → Checkpoint Verification
+### No SessionEnd hook — checkpointing is not verified mechanically
 
-**Type:** Prompt hook (LLM evaluation)
-**Strictness:** Soft-verify
+**Nothing verifies that a checkpoint happened.** kerby registers exactly two events —
+`PreToolUse` and `SessionStart` (see the `install` derivation) — and no manifest declares
+any other. Earlier revisions of this file described a `SessionEnd` prompt hook that
+"verifies all code is committed" and that `.kerby/STATUS.md` or `.kerby/memory.log` was
+updated; no such hook was ever shipped, so the claim is removed rather than softened.
 
-When the session ends, a prompt hook verifies that:
-1. All code is committed (no uncommitted changes)
-2. `.kerby/STATUS.md` or `.kerby/memory.log` was updated during the session
-
-If the checkpoint is missing, the agent is reminded. This is advisory — it flags the gap but doesn't prevent session exit.
+Committing before the session ends and updating the checkpoint files
+(`references/context-management.md`) are **behavioral** — held by the rules, not by a hook.
 
 ---
 
@@ -229,7 +229,7 @@ You can extend kerby's hooks by adding to your project's `.claude/settings.json`
 | Keep `KNOWLEDGE.md` index in sync with entries | Agent must remember on every entry change | SessionStart reindexes; agent calls `knowledge-reindex.sh --force` for mid-session updates |
 | Never commit secrets | Agent must self-check | Hard-blocked before commit happens |
 | Never edit .env files | Agent must self-check | Hard-blocked before edit happens |
-| Run quality gates | Agent must remember | Soft-verified when agent stops |
-| Create checkpoints | Agent must remember | Soft-verified at session end |
+| Run quality gates | Agent must remember | **Still must remember** — no hook verifies this; swe's post-commit reminder is advisory and disablable |
+| Create checkpoints | Agent must remember | **Still must remember** — no hook verifies this |
 
 Hooks turn "the agent should do X" into "X happens automatically." The playbook's written instructions remain the source of truth — hooks enforce the most critical rules deterministically.

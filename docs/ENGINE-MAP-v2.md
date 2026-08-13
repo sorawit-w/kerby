@@ -120,8 +120,8 @@ line where sections left the engine file.
 | `### PreToolUse → Pre-Commit Check` | code (documents the base-owned enforcer from the coding session's perspective; script itself lives in `base/hooks/` per V14) |
 | `### git post-commit → Knowledge Reindex (Optional)` | engine |
 | `### Manual / git post-commit → Knowledge Integrity (Optional)` | engine |
-| `### Stop → Quality Gate Verification` | code (quality gates are coding-lane) |
-| `### SessionEnd → Checkpoint Verification` | engine (checkpointing = state preservation; the "code committed" line is incidental) |
+| `### No Stop hook — quality gates are not verified mechanically` | code (quality gates are coding-lane; the section now records that no such hook exists) |
+| `### No SessionEnd hook — checkpointing is not verified mechanically` | engine (checkpointing = state preservation; the section now records that no such hook exists) |
 | `## Customizing Hooks` (all subsections: runtime toggles, disabling, adding your own, strictness levels) | engine |
 | `## How Hooks Map to the Playbook` | engine (system-level philosophy table) |
 

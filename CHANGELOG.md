@@ -22,13 +22,17 @@ tiers are decoration. Two smaller corrections ride along.
   extension. This repo's own `scripts/check-skill-compat.py` reads `CHANGELOG.md` and
   `README.md`, so the file you are reading is a gate input. When you cannot tell,
   Standard.
-- **Six files stated the rule, not one.** `validation.md` (Low-complexity path),
-  `BOOTSTRAP.md` (§ Verification), `workflows/feature.md` (three separate spots),
-  `workflows/quick-task.md` (step 3b), `workflows/bugfix.md` (step 4) and the rulebook
-  `README.md` (feature-loop prose) each independently hardcoded the absolute, so fixing
-  `quality-gates.md` alone would have relocated the contradiction rather than removed
-  it. All six now defer to the canonical section. Medium's Check 2 in `validation.md`
-  keeps Standard: medium means logic changed.
+- **The rule was restated almost everywhere, and each review round found another
+  site.** `validation.md` (Low-complexity path), `BOOTSTRAP.md` (§ Verification),
+  `workflows/feature.md` (three separate spots), `workflows/quick-task.md` (step 3b),
+  `workflows/bugfix.md` (step 4), the rulebook `README.md` (feature-loop prose), **both
+  loop SVGs** (which labelled the commit gate `build · lint · test` unconditionally), and
+  the repo's own root `CLAUDE.md` (control-loop table: "full gate at the boundary"). Five
+  rounds of sweeps each declared the set complete and each was wrong — the misses were
+  always in a surface the previous sweep's scope excluded: first other files, then
+  diagrams, then outside the rulebook entirely. Every site now defers to the canonical
+  section. Medium's Check 2 in `validation.md` keeps Standard: medium means logic changed.
+  No count is given here on purpose; the count was restated wrongly three times.
 - **The tiers were also mislabelled.** `workflows/feature.md` called
   `build && lint && test` **Full**, while `quality-gates.md` calls that exact command
   **Standard** and reserves Full for Standard + E2E + a manual spot-check. Two names for
