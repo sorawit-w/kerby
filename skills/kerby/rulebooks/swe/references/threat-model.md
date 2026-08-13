@@ -32,9 +32,11 @@ These are **[behavioral]** by nature, not by neglect. The honest fix for them is
 
 Split out of the table above because it is the one row whose limits are easy to over-read.
 
-**Recognised** (matcher parity-tested against `protect-git.sh`): bare `git commit`; globals before the subcommand (`-C`, `--git-dir`, `--work-tree`, `-c k=v`) in git's own order; `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE` env selectors; `cd X && git commit`; `false || git commit`; a quoted `git`/`commit` token. It scans the index each invocation actually targets, not the caller's, and limits the scan to a pathspec when one is given.
+**Recognised** (matcher parity-tested against `protect-git.sh`): bare `git commit`; globals before the subcommand (`-C`, `--git-dir`, `--work-tree`, `-c k=v`) in git's own order; `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE` env selectors; `cd X && git commit`; `false || git commit`; a quoted `git`/`commit` token. Quoted and bundled arguments (`-m "two words"`, `-am msg`) do not derail the match. It scans the index each invocation actually targets, not the caller's.
 
-**Deliberately NOT blocked** (each would be a false block, and this hook cannot be disabled without editing `settings.json`): `git commit --dry-run`, `--help`, and a pathspec-limited commit whose paths are clean while another staged file is not.
+**Deliberately NOT blocked** (each would be a false block, and this hook cannot be disabled without editing `settings.json`): `git commit --dry-run` and `--help` — read from the *unquoted* text, so a message merely mentioning `--help` still gets scanned.
+
+**Deliberately OVER-blocked:** a pathspec-limited commit (`git commit path -m x`) scans the whole staged index, so a secret staged elsewhere blocks it. Scoping the scan to the pathspec was implemented and removed: `git commit <path>` commits **working-tree** content, not the index, so a `--cached` scan of those paths is wrong in both directions — and identifying the pathspec needs full `git commit` argument parsing (value-taking options, optional-argument `-S`/`-u`, bundled `-am`). Over-blocking is the safe direction for a floor; under-scanning is not.
 
 **Not seen — fails open** (a)–(d) are pinned as test assertions so a behaviour change is visible; (e) is not individually pinned:
 
@@ -46,7 +48,7 @@ Split out of the table above because it is the one row whose limits are easy to 
 | d | a *failed* conditional `cd` — `cd /missing \|\| git commit` | the shell's cwd after a failed `cd` is not statically knowable |
 | e | pipes, subshells, `cd -`, cumulative relative `-C`, quoted paths with spaces | shared with `protect-git.sh`; not individually pinned |
 
-**(b) and (d) were implemented and then removed on purpose.** `-n` takes a value for `nice` but not `sudo`, and a wrapper's option value can itself be the word `git`; every attempt produced FALSE BLOCKS. Over-blocking a non-disablable floor is a worse failure than the gap it closes — successive review rounds each fixed a gap and introduced a new false block or fail-open, so the loop was stopped rather than continued.
+**(b) and (d) — and pathspec scoping — were implemented and then removed on purpose.** `-n` takes a value for `nice` but not `sudo`, and a wrapper's option value can itself be the word `git`; every attempt produced FALSE BLOCKS. Over-blocking a non-disablable floor is a worse failure than the gap it closes — successive review rounds each fixed a gap and introduced a new false block or fail-open, so the loop was stopped rather than continued.
 
 **Treat this as a tripwire on already-staged content, not a boundary.** The mechanism that would close (a)–(d) is a repo-side `pre-commit` hook running at commit time against the real index — a second install model kerby has so far declined. Before v9.15 the matcher was a literal leading `git commit`, so every non-bare form skipped the scan entirely (issue #46).
 

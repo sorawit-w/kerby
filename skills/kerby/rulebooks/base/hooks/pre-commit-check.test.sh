@@ -326,19 +326,31 @@ for nc in "git commit --dry-run" "git commit --help"; do
                     || fail "review5: FALSE BLOCK on '$nc' (got $rc)"
 done
 
-# A pathspec-limited commit commits ONLY those paths, so a secret staged
-# elsewhere is not being committed and must not block — but a pathspec naming
-# the secret must still block.
+# Round 5 added pathspec handling; round 6 showed it was built on a false premise
+# — `git commit <path>` commits WORKING-TREE content, not the index — and that
+# identifying the pathspec needs full git-commit arg parsing. It was removed.
+# A pathspec commit now scans the whole staged index: it can OVER-block, which is
+# the safe direction for a floor. These pin that removal.
 echo "ok" > "$REPO/plain.js"; git -C "$REPO" add plain.js
 run_scan "git commit plain.js -m x" "$REPO"; rc=$?
-[[ "$rc" -eq 0 ]] && pass "review5: pathspec-limited commit of an innocuous path does not block" \
-                  || fail "review5: FALSE BLOCK on a pathspec-limited commit (got $rc)"
-run_scan "git commit secret.js -m x" "$REPO"; rc=$?
-[[ "$rc" -eq 2 ]] && pass "review5: pathspec naming the SECRET still blocks" \
-                  || fail "review5: pathspec commit of the secret slipped through (got $rc)"
-run_scan "git commit -m x -- plain.js" "$REPO"; rc=$?
-[[ "$rc" -eq 0 ]] && pass "review5: '-- <innocuous path>' does not block" \
-                  || fail "review5: FALSE BLOCK after '--' (got $rc)"
+[[ "$rc" -eq 2 ]] && pass "review6: pathspec commit scans the whole index (over-blocks by design)" \
+                  || fail "review6: pathspec commit skipped the scan (got $rc)"
+
+# Quoted and bundled arguments must not derail the git-invocation match.
+for q in 'git commit -m "two words"' "git commit -am 'two words'" 'git commit -S -m msg' \
+         'git commit --author="A U <a@b>" -m x'; do
+  run_scan "$q" "$REPO"; rc=$?
+  [[ "$rc" -eq 2 ]] && pass "review6: '$q' is recognised as a commit" \
+                    || fail "review6: MISSED commit in '$q' (got $rc)"
+done
+
+# --dry-run/--help are read from the UNQUOTED text: a message that merely
+# mentions them is not a help invocation, and must not skip the scan.
+for fake in 'git commit -m "use --help"' 'git commit -m "try --dry-run first"'; do
+  run_scan "$fake" "$REPO"; rc=$?
+  [[ "$rc" -eq 2 ]] && pass "review6: '$fake' is not treated as help/dry-run" \
+                    || fail "review6: FAIL-OPEN — '$fake' skipped the scan (got $rc)"
+done
 
 # `+++` is a diff HEADER only when it follows `--- `. Matching `^+++ ` alone also
 # ate added CONTENT beginning `++ `.
