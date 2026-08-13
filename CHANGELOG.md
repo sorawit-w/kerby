@@ -3,6 +3,43 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.15.0] — 2026-08-13
+
+**The gate stops arguing with itself** (swe 2.6.0): `quality-gates.md` exempted docs
+from the full gate in its tier table, then revoked the exemption twelve lines later for
+every commit. Both statements shipped, and both were load-bearing. An agent that read
+them in order did the safe thing — build+lint+test on a typo fix — and learned that the
+tiers are decoration. Two smaller corrections ride along.
+
+- **The tier is picked from the staged diff, not from what you ran while iterating.**
+  That was always the point of the commit-time rule: a Quick check during development
+  says nothing about what is about to be committed. But it was written as *always run
+  Standard*, which is a different instruction and the wrong one. Re-picking at commit
+  time keeps the anti-stale guarantee and gives the tiers back their teeth.
+- **"Docs-only" now means "no file any gate reads," never "only `.md` files."** The
+  loose reading is the one that breaks a build: a version string a compat check parses,
+  a snapshot a test asserts on, a fixture the build embeds — gate inputs wearing a docs
+  extension. This repo's own `scripts/check-skill-compat.py` reads `CHANGELOG.md` and
+  `README.md`, so the file you are reading is a gate input. When you cannot tell,
+  Standard.
+- **`validation.md` had to move with it.** Its Low-complexity path independently
+  hardcoded "Standard tier — build + lint + test," so fixing `quality-gates.md` alone
+  would have relocated the contradiction rather than removed it. It now defers to the
+  commit-time selection. Medium's Check 2 keeps Standard: medium means logic changed.
+- **Squash-merge is scoped to short-lived branches.** `communication.md` preferred
+  squash unconditionally. A squash between two long-lived branches records no ancestry,
+  so the next merge re-diffs content the base already has and conflicts on files nobody
+  touched. Long-lived to long-lived takes a merge commit.
+- **Exact-decimal domains never use binary floating point.** Money, tax, billing,
+  interest. IEEE-754 is binary; `0.1` has no exact representation and the error
+  compounds in silence until reconciliation. Use the language's exact decimal type or
+  integer minor units. No library is named — naming one would skip the Decision
+  Ladder's cheaper rungs and mandate an install the guardrails already gate.
+- **Left alone, deliberately:** the commit hook's lint/test/build reminder still fires
+  on every commit. It is advisory, non-blocking, and arrives *after* the commit as a
+  safety net — making it docs-aware means staged-diff classification in shell for a
+  cosmetic gain.
+
 ## [9.14.0] — 2026-08-04
 
 **The watchdog** (codex-review 0.4.0): a headless Codex run can no longer wait
