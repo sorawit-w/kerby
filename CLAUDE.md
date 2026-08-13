@@ -26,7 +26,7 @@ state, evaluation. Naming the primitives lets edits be deliberate instead of acc
 | **Progressive disclosure** | Load detail on demand instead of front-loading everything. | `BOOTSTRAP.md` is the index; `rulebooks/swe/references/*.md` carry the long-tail, loaded only when cited. |
 | **Observable feedback loops** | Prefer machine-checkable signal over aspirational prose. | `rulebooks/base/hooks/pre-commit-check.sh`, `protect-env.sh`, `warn-env-read.sh`, `protect-git.sh` + gates in `references/quality-gates.md` and `references/validation.md`. |
 | **State preservation** | Carry useful context across session boundaries. | `.kerby/memory.log` (append-only history) + `.kerby/STATUS.md` (current state) + `.kerby/knowledge/` (curated wiki) + `.kerby/BLOCKERS.md`, bootstrapped by `session-start-context.sh` + `knowledge-bootstrap.sh`. |
-| **Eval discipline** | Decide what "working" means before shipping. | `references/quality-gates.md` + the verification-before-completion pattern; the pre-commit hook enforces gates mechanically rather than relying on agent memory. |
+| **Eval discipline** | Decide what "working" means before shipping. | `references/quality-gates.md` + the verification-before-completion pattern. **Behavioral, not enforced:** no hook checks that a gate ran — the base hook blocks secrets, and swe's reminder is advisory, post-commit and disablable. Do not read the hooks as a gate backstop. |
 
 **External reading:** Anthropic ([effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents), [harness design for long-running apps](https://www.anthropic.com/engineering/harness-design-long-running-apps)); OpenAI ([harness engineering](https://openai.com/index/harness-engineering/)); the [`AGENTS.md`](https://agents.md/) convention.
 
@@ -46,7 +46,7 @@ primitives; this table is the map — each row points to where the primitive is 
 
 | Primitive | One-line meaning | Lives in |
 |---|---|---|
-| Inner / outer check split | cheap check while coding, full gate at the boundary | `rulebooks/swe/workflows/feature.md` (iteration-check tiers vs commit check) |
+| Inner / outer check split | cheap check while coding; at the boundary, re-pick the tier from the staged diff | `rulebooks/swe/references/quality-gates.md` § At Commit Time (the authority) — `workflows/feature.md` shows the loop |
 | Termination condition | what must be true to exit the loop | `rulebooks/swe/references/validation.md` (Iron Law: no claim without fresh evidence) |
 | Retry budget / circuit breaker | bounded retries per failure type, then escalate | `rulebooks/swe/references/error-handling.md` (build 5 / test 3 / lint 5 → BLOCKED) |
 | Bounded search | cap the hypothesis count so the loop can't flail | `rulebooks/swe/references/debugging.md` (max 3 hypotheses) |

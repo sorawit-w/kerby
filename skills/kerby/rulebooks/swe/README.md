@@ -62,7 +62,7 @@ to task type.
 
 **Feature loop** — `Plan → Do → Check → Commit gate → Log → repeat → Validate + finish`. Test-first is a preference *inside* `Do`, not a leading phase; the commit gate runs on **every** iteration, not once at the end, at whichever tier the staged diff selects.
 
-![kerby's place in the agent's feature task loop: the agent runs plan, do, check, commit gate, log, repeat, then validate and finish; kerby shapes each step as a rule (teal) and hard-blocks at the amber commit gate via hooks; a failing gate triggers a retry budget then revert.](assets/feature-loop.svg)
+![kerby's place in the agent's feature task loop: the agent runs plan, do, check, commit gate, log, repeat, then validate and finish; kerby shapes each step as a rule (teal); the amber commit gate is behavioral, not hook-enforced — hooks block secrets and protected-branch commits, not a skipped gate; a failing gate triggers a retry budget then revert.](assets/feature-loop.svg)
 
 **Bugfix loop** — same commit gate and failure branch, different front half: `Reproduce → Diagnose (root cause) → Fix (failing test → minimal fix) → commit gate → finish`. It does **not** start by writing tests; the failing test comes after diagnosis, inside `Fix`.
 
