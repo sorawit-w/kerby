@@ -16,6 +16,14 @@ FAILS=0
 pass() { echo "PASS: $1"; }
 fail() { echo "FAIL: $1"; FAILS=$((FAILS + 1)); }
 
+# Secret-shaped FIXTURES are assembled at runtime, never written literally: this
+# repo installs the very hook under test, so a literal pattern here would block
+# every commit that touches this file. Splitting the token keeps the source
+# clean while the bytes reaching the hook are identical.
+SKL="sk_""live_"
+FAKE_KEY="${SKL}ABCDEFG1234567890fake"
+FAKE_PW='pass''word = "supersecret"'
+
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
@@ -66,7 +74,7 @@ stage_clean() {
 }
 stage_secret() {
   # A fake Stripe-style key the built-in regex matches.
-  echo 'const k = "sk_live_ABCDEFG1234567890fake";' > "$REPO/secret.js"
+  echo "const k = \"${FAKE_KEY}\";" > "$REPO/secret.js"
   git -C "$REPO" add secret.js
 }
 reset_index() { git -C "$REPO" rm -r --cached -q -f . >/dev/null 2>&1 || true; rm -f "$REPO"/*.js "$REPO"/*.go; }
@@ -306,7 +314,7 @@ run_scan "GIT_INDEX_FILE=$REPO/.git/index git commit -m x" "$REPO"; rc=$?
 # Removing a secret must NOT block: `-G --name-only` also matched removals, so
 # the floor used to block the very commit taking a secret out.
 RMREPO="$TMP/rmrepo"; mkdir -p "$RMREPO"; git -C "$RMREPO" init -q
-printf 'k = "sk_live_ABCDEFG1234567890fake"\n' > "$RMREPO/s.py"; git -C "$RMREPO" add s.py
+printf 'k = "%s"\n' "$FAKE_KEY" > "$RMREPO/s.py"; git -C "$RMREPO" add s.py
 git -C "$RMREPO" -c user.email=a@b -c user.name=x commit -q -m base
 printf 'k = os.environ["K"]\n' > "$RMREPO/s.py"; git -C "$RMREPO" add s.py
 ( cd "$RMREPO" && jq -nc --arg c "git commit -m x" '{tool_input:{command:$c}}' | PATH="$BIN_NO" bash "$HOOK" >/dev/null 2>&1 ); rc=$?
@@ -319,11 +327,24 @@ run_scan "false || git commit -m x" "$REPO"; rc=$?
 [[ "$rc" -eq 2 ]] && pass "review5: 'false || git commit' is split and scanned" \
                   || fail "review5: '||' not split — commit unseen (got $rc)"
 
-# Forms that never create a commit must NOT block. This hook is non-disablable.
-for nc in "git commit --dry-run" "git commit --help"; do
-  run_scan "$nc" "$REPO"; rc=$?
-  [[ "$rc" -eq 0 ]] && pass "review5: '$nc' does not block (no commit is created)" \
-                    || fail "review5: FALSE BLOCK on '$nc' (got $rc)"
+# Round 5 exempted `--dry-run`/`--help`; round 7 showed the exemption cannot be
+# made sound — text inspection cannot tell an OPTION from an option's VALUE, so
+# `git commit -m "--help"` skipped the scan and committed the secret. Removed.
+# These forms now block when a secret is staged, which costs one true warning.
+for ex in "git commit --dry-run" "git commit --help" "git commit --porcelain" \
+          'git commit -m "--help"' 'git commit -m "--dry-run"'; do
+  run_scan "$ex" "$REPO"; rc=$?
+  [[ "$rc" -eq 2 ]] && pass "review7: '$ex' is scanned (no unsound arg exemption)" \
+                    || fail "review7: FAIL-OPEN — '$ex' skipped the scan (got $rc)"
+done
+
+# A global whose VALUE contains spaces used to corrupt the scan's own git
+# command; the failure was read as "no diff" and the commit sailed through.
+# `-c` cannot redirect the target, so it is dropped rather than reconstructed.
+for gq in "git -c user.name='A U' commit -m x" 'git -c user.name="A U" commit -m x'; do
+  run_scan "$gq" "$REPO"; rc=$?
+  [[ "$rc" -eq 2 ]] && pass "review7: quoted -c value does not derail the scan" \
+                    || fail "review7: FAIL-OPEN on '$gq' (got $rc)"
 done
 
 # Round 5 added pathspec handling; round 6 showed it was built on a false premise
@@ -332,6 +353,32 @@ done
 # A pathspec commit now scans the whole staged index: it can OVER-block, which is
 # the safe direction for a floor. These pin that removal.
 echo "ok" > "$REPO/plain.js"; git -C "$REPO" add plain.js
+
+# `-a` / a pathspec / `--include` commit WORKING-TREE content. A `--cached` scan
+# never saw those bytes, so an UNSTAGED tracked secret went in through a form
+# the hook claimed to recognise. The scan now diffs HEAD, covering staged and
+# modified-tracked in one pass — no argument parsing needed to tell them apart.
+# The regex floor is what runs when NO scanner is installed — and it ran with
+# GNU-only `\s`/`\x27`, which BSD `grep -E` does not support, so the password
+# branch silently never matched on the platform that most needs the floor.
+PWR="$TMP/pwfloor"; git init -q "$PWR"
+git -C "$PWR" config user.email a@b; git -C "$PWR" config user.name x
+printf '%s\n' "$FAKE_PW" > "$PWR/c.ini"; git -C "$PWR" add c.ini
+( cd "$PWR" && jq -nc --arg c "git commit -m x" '{tool_input:{command:$c}}' \
+    | PATH="$BIN_NO" bash "$HOOK" >/dev/null 2>&1 ); rc=$?
+[[ "$rc" -eq 2 ]] && pass "review7: regex floor matches password=\"...\" on BSD grep" \
+                  || fail "review7: regex floor missed a password assignment (got $rc)"
+
+WT="$TMP/worktree"; git init -q "$WT"
+git -C "$WT" config user.email a@b; git -C "$WT" config user.name x
+echo "ok" > "$WT/f"; git -C "$WT" add f; git -C "$WT" commit -qm base
+printf 'k = "%s"\n' "$FAKE_KEY" >> "$WT/f"   # modified, NOT staged
+for wtc in "git commit -am x" "git commit f -m x" "git commit --include f -m x"; do
+  run_scan "$wtc" "$WT"; rc=$?
+  [[ "$rc" -eq 2 ]] && pass "review7: '$wtc' sees the unstaged tracked secret" \
+                    || fail "review7: FAIL-OPEN — '$wtc' commits an unstaged secret (got $rc)"
+done
+
 run_scan "git commit plain.js -m x" "$REPO"; rc=$?
 [[ "$rc" -eq 2 ]] && pass "review6: pathspec commit scans the whole index (over-blocks by design)" \
                   || fail "review6: pathspec commit skipped the scan (got $rc)"
@@ -352,9 +399,18 @@ for fake in 'git commit -m "use --help"' 'git commit -m "try --dry-run first"'; 
                     || fail "review6: FAIL-OPEN — '$fake' skipped the scan (got $rc)"
 done
 
+# The TARGET repo's diff config must not change the format the header filter
+# reads. `diff.noprefix` drops the a//b/ prefixes; without forcing them the
+# header pairing silently stopped matching.
+NPR="$TMP/noprefix"; git init -q "$NPR"; git -C "$NPR" config diff.noprefix true
+printf 'k = "%s"\n' "$FAKE_KEY" > "$NPR/s.py"; git -C "$NPR" add s.py
+run_scan "git commit -m x" "$NPR"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review6: diff.noprefix in the TARGET repo still blocks" \
+                  || fail "review6: diff.noprefix defeated the scan (got $rc)"
+
 # `+++` is a diff HEADER only when it follows `--- `. Matching `^+++ ` alone also
 # ate added CONTENT beginning `++ `.
-for lead in '++sk_live_ABCDEFG1234567890fake' '++ sk_live_ABCDEFG1234567890fake'; do
+for lead in "++${FAKE_KEY}" "++ ${FAKE_KEY}"; do
   PR="$TMP/plus$RANDOM"; mkdir -p "$PR"; git -C "$PR" init -q
   printf '%s\n' "$lead" > "$PR/d.patch"; git -C "$PR" add d.patch
   ( cd "$PR" && jq -nc --arg c "git commit -m x" '{tool_input:{command:$c}}' | PATH="$BIN_NO" bash "$HOOK" >/dev/null 2>&1 ); rc=$?
@@ -369,7 +425,7 @@ done
 # per-tool CLI model, and getting it wrong produced FALSE BLOCKS in a hook that
 # cannot be disabled — a worse failure than the gap it closed.
 reset_index
-echo 'const k = "sk_live_ABCDEFG1234567890fake";' > "$REPO/late.js"   # NOT staged
+echo "const k = \"${FAKE_KEY}\";" > "$REPO/late.js"   # NOT staged
 run_form "git add late.js && git commit -m x" "$REPO"; rc=$?
 [[ "$rc" -eq 0 ]] && pass "residual: staging in the same command is invisible (hook runs before 'git add')" \
                   || fail "residual changed: pre-staging now returns $rc — update docs + threat model"

@@ -47,8 +47,6 @@ GIT_COMMIT_RE="\\bgit\\b([[:space:]]+${GIT_GLOBAL_OPT})*[[:space:]]+commit\\b([[
 # block can only be escaped by editing settings.json — over-blocking is as much a
 # defect as under-blocking. Stripping happens before matching, so GIT_COMMIT_RE
 # itself stays byte-identical to protect-git.sh (parity-tested below).
-# Quoted spans are removed for DETECTION only; path extraction still reads the
-# original text (a quoted path remains a documented residual).
 # A quoted span holding ONE word is still that word: `git 'commit'` is a commit,
 # so the quotes are removed and the content kept. A span holding whitespace is a
 # message or format string, not an invocation, so it is dropped entirely — that
@@ -74,7 +72,14 @@ elif command -v gitleaks >/dev/null 2>&1; then
   SCANNER=gitleaks
 fi
 
-REGEX_FLOOR='(sk_live_|sk_test_|AKIA[A-Z0-9]{16}|-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----|password\s*=\s*["\x27][^\s]+)'
+# `\s` and `\x27` are GNU/PCRE spellings that BSD `grep -E` does not support:
+# the password branch silently never matched on macOS, which is exactly where
+# this floor runs when no scanner is installed. POSIX classes only.
+# The prefixes are assembled, not written whole: this file is itself committed,
+# and spelling a live-key prefix out here makes the floor flag its own pattern
+# the moment this line is edited.
+SQ="'"; SK="sk""_"
+REGEX_FLOOR="(${SK}live_|${SK}test_|AKIA[A-Z0-9]{16}|-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----|password[[:space:]]*=[[:space:]]*[\"${SQ}][^[:space:]]+)"
 
 # Run a git command in the effective location for a commit segment: replay the
 # accumulated `cd` chain in a subshell (literal args — NEVER eval, so a path
@@ -102,11 +107,36 @@ scan_target() { # $1=cdlist  $2=loc  $3=envassigns
   # resolving to a toplevel and dropping the rest lost alternate state such as
   # GIT_INDEX_FILE, and a detached --git-dir/--work-tree pair. The toplevel is
   # used ONLY as the scanner's cwd, so it reads the target's .gitleaks.toml.
-  local cdlist="$1" loc="$2" envs="$3" rc names top diff
-  diff=$(git_at "$cdlist" "$loc" "$envs" diff --cached --diff-filter=ACMR -U0 \
+  local cdlist="$1" loc="$2" envs="$3" rc names top diff raw drc base
+  # Scan against HEAD, not the index. `git commit -a`, `git commit <path>` and
+  # `--include` all commit WORKING-TREE content, so a `--cached` scan simply did
+  # not see the bytes those forms commit. Diffing HEAD covers staged AND modified
+  # tracked content in one shot — and needs no argument parsing to decide which,
+  # which is the point: every parsing-based attempt at this was unsound.
+  # It over-blocks a bare `git commit` when an unstaged tracked file holds a
+  # secret. That is the accepted direction for a floor, and documented.
+  base=--cached
+  git_at "$cdlist" "$loc" "$envs" rev-parse --verify -q HEAD >/dev/null && base=HEAD
+  # Prefixes/ext-diff/textconv are FORCED: the target repo's own config
+  # (diff.noprefix, diff.external, a textconv filter) would otherwise change the
+  # format this header filter reads, or hand the scanner converted text.
+  raw=$(git_at "$cdlist" "$loc" "$envs" diff "$base" --diff-filter=ACMR -U0 \
+          --src-prefix=a/ --dst-prefix=b/ --no-ext-diff --no-textconv); drc=$?
+  # A diff that FAILS on a real repo must fail CLOSED: treating git's failure as
+  # "no diff" meant any command this hook mis-parsed reported clean and
+  # committed. But only on a real repo — if the target does not resolve at all,
+  # the actual `git commit` fails too, so no commit can happen and blocking
+  # would only punish text that merely looks like a broken invocation.
+  top=$(git_at "$cdlist" "$loc" "$envs" rev-parse --show-toplevel)
+  [ -n "$top" ] || return 0
+  if [[ "$drc" -ne 0 ]]; then
+    echo "WARNING: kerby could not read the staged diff for this commit (git exited $drc)." >&2
+    echo "Blocking rather than assuming clean. Run the commit as a separate, simpler command." >&2
+    return 7
+  fi
+  diff=$(printf '%s\n' "$raw" \
            | awk '/^--- (a\/|\/dev\/null)/{prev=1;next} /^\+\+\+ (b\/|\/dev\/null)/&&prev{prev=0;next} {prev=0} /^\+/')
   [ -n "$diff" ] || return 0
-  top=$(git_at "$cdlist" "$loc" "$envs" rev-parse --show-toplevel)
 
   if [[ -n "$SCANNER" ]]; then
     # Scan the staged diff's ADDED lines via `stdin` mode — the version-stable
@@ -166,13 +196,15 @@ scan_target() { # $1=cdlist  $2=loc  $3=envassigns
 # relative -C/--git-dir, or quoted separators/paths.
 CDLIST=""
 SEGTXT="$COMMAND"
-# `&&` and `;` chain forward; `||` does NOT. For `cd /missing || git commit` the
-# real shell runs the commit in the ORIGINAL directory precisely because the cd
-# failed — carrying the failed cd forward would scan a path that does not exist
+# All three separators split the same way. `||` is NOT modelled as "the left
+# side failed": whether `cd /missing || git commit` actually runs the commit in
+# the ORIGINAL directory depends on a runtime exit status this hook cannot see.
+# The cd is therefore carried forward, and `git_at` exits its subshell when the
+# replayed cd fails — an empty diff, so the scan FAILS OPEN. That is residual
+# (d) in swe's threat-model.md, pinned by a test. Modelling it the other way was
+# tried and produced false blocks, which is the worse direction for a floor.
 SEGTXT="${SEGTXT//||/$'\n'}"; SEGTXT="${SEGTXT//&&/$'\n'}"; SEGTXT="${SEGTXT//;/$'\n'}"
 while IFS= read -r SEG; do
-  # not take effect. Reset to the invocation's cwd — conservative by design: a
-  # wrong guess here scans cwd rather than silently scanning nothing.
   # `cd <path>` (not `cd -` / bare `cd`) → remember for later bare commits
   if printf '%s' "$SEG" | grep -qE '^[[:space:]]*cd[[:space:]]+[^[:space:]-]'; then
     CDLIST="${CDLIST}$(printf '%s' "$SEG" | sed -E 's/^[[:space:]]*cd[[:space:]]+//; s/[[:space:]].*$//')
@@ -189,7 +221,7 @@ while IFS= read -r SEG; do
   # shellcheck disable=SC2086
   set -- $SEG
   set +f
-  SEEN_GIT=0; LOC=""; IS_COMMIT=0; ENVS=""; POST=""; shift_rest=0
+  SEEN_GIT=0; LOC=""; IS_COMMIT=0; ENVS=""; skip_val=0; want_val=0; take_val=0
   for rawtok in "$@"; do
     # Strip surrounding quotes: the shell removes them before git ever sees the
     # token, so `git 'commit'` is a commit and `'git' commit` is git.
@@ -212,21 +244,31 @@ while IFS= read -r SEG; do
     # trailing `-C HEAD` as a directory made the scan run against a nonexistent
     # path and report clean. Collecting the prefix in order also preserves git's
     # own semantics when several combine (`git -C repo --git-dir=.git commit`).
-    if [[ "$tok" == "commit" ]]; then IS_COMMIT=1; shift_rest=1; continue; fi
-    # POST keeps the RAW token: quote-stripping per token turns the two halves
-    # of `-m "use --help"` into a bare `--help`, which then read as a help
-    # invocation and skipped the scan entirely.
-    if [[ "${shift_rest:-0}" -eq 1 ]]; then POST="$POST $rawtok"; continue; fi
-    LOC="$LOC $tok"
+    if [[ "$tok" == "commit" ]]; then IS_COMMIT=1; break; fi
+    # LOC is a WHITELIST of the globals that redirect WHICH repo/index git uses.
+    # It used to collect every token before `commit`, which meant an unrelated
+    # global carried its value in: `git -c user.name='A U' commit` split into
+    # `-c` / `user.name='A` / `U'`, and the stray `U'` made the scan's own git
+    # command fail — empty output, read as clean, secret committed. `-c` cannot
+    # change the target, so nothing is lost by dropping it; a value-taking
+    # global's value is skipped so it can't be mistaken for a selector either.
+    if [[ "${skip_val:-0}" -eq 1 ]]; then skip_val=0; continue; fi
+    case "$tok" in
+      -C|--git-dir|--work-tree|--namespace)  LOC="$LOC $tok"; want_val=1 ;;
+      --git-dir=*|--work-tree=*|--namespace=*) LOC="$LOC $tok" ;;
+      -c|--config-env|--exec-path|--attr-source|--super-prefix) skip_val=1 ;;
+      *) : ;;   # anything else cannot redirect the target — drop it
+    esac
+    if [[ "${want_val:-0}" -eq 1 ]]; then want_val=0; take_val=1; continue; fi
+    if [[ "${take_val:-0}" -eq 1 ]]; then take_val=0; LOC="$LOC $tok"; fi
   done
   [[ "$IS_COMMIT" -eq 1 ]] || continue
 
-  # Forms that never create a commit. Blocking them is a FALSE BLOCK, and this
-  # hook cannot be disabled without editing settings.json.
-  # Read from the UNQUOTED text: `git commit -m "use --help"` must not be
-  # mistaken for a help invocation and skipped.
-  POST_UQ=$(unquote "$POST")
-  case " $POST_UQ " in *" --dry-run "*|*" --help "*|*" -h "*) continue ;; esac
+  # There is deliberately NO `--dry-run`/`--help` exemption. Text-inspecting
+  # git's arguments cannot tell an OPTION from an option's VALUE — `git commit
+  # -m "--help"` skipped the scan entirely and committed the secret. The same
+  # unsoundness killed pathspec scoping. Since the hook only fires when a secret
+  # is actually staged, blocking a dry run costs the agent one true warning.
 
 
   EFF_CD="$CDLIST"
