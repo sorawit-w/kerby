@@ -24,7 +24,7 @@ BIN_NO="$TMP/bin_no"   # tools only, NO scanner (forces regex fallback)
 BIN_GL="$TMP/bin_gl"   # tools + stub gitleaks
 BIN_BL="$TMP/bin_bl"   # tools + stub betterleaks AND stub gitleaks (precedence)
 mkdir -p "$BIN_NO" "$BIN_GL" "$BIN_BL"
-for t in bash git jq grep sed cat head tail env; do
+for t in bash git jq grep sed cat head tail env tr; do
   real="$(command -v "$t")" && ln -s "$real" "$BIN_NO/$t" && ln -s "$real" "$BIN_GL/$t" && ln -s "$real" "$BIN_BL/$t"
 done
 ARGS_FILE="$TMP/scanner_args"
@@ -162,6 +162,84 @@ OUT=$( cd "$REPO" && echo "$COMMIT_INPUT" | PATH="$BIN_NO" bash "$HOOK" 2>&1 ); 
 { [[ "$rc" -eq 0 ]] && ! printf '%s' "$OUT" | grep -qE 'REMINDER \(kerby\)|HOLLOW-TEST CHECK'; } \
   && pass "floor emits no REMINDER/HOLLOW-TEST even with staged test files (no re-bundling)" \
   || fail "floor must not emit coding advisories (rc=$rc, out='$OUT')"
+
+# --- J. Invocation forms (issue #46) -----------------------------------------
+# The hook used to match `^git commit`, so any git global option before the
+# subcommand — or a `cd` first — skipped the scan entirely and a staged secret
+# went through a check documented as a hard floor. Each form below is pinned.
+#
+# run_form runs the hook from a NEUTRAL cwd (not $REPO) for the -C/--git-dir
+# cases, so a pass cannot come from the hook happening to sit in the right repo.
+run_form() { # $1=command-string  $2=cwd
+  ( cd "$2" && printf '{"tool_input":{"command":"%s"}}' "$1" \
+      | PATH="$BIN_NO" bash "$HOOK" >/dev/null 2>&1 )
+}
+
+NEUTRAL="$TMP/neutral"; mkdir -p "$NEUTRAL"
+
+reset_index; stage_secret
+run_form "git commit -m x" "$REPO"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "form: bare 'git commit' blocks a staged secret" \
+                  || fail "form: bare 'git commit' should block (got $rc)"
+
+run_form "git -C $REPO commit -m x" "$NEUTRAL"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "form: 'git -C <repo> commit' blocks (was the #46 bypass)" \
+                  || fail "form: 'git -C <repo> commit' should block (got $rc)"
+
+run_form "git --git-dir=$REPO/.git --work-tree=$REPO commit -m x" "$NEUTRAL"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "form: 'git --git-dir=… commit' blocks" \
+                  || fail "form: 'git --git-dir=… commit' should block (got $rc)"
+
+run_form "cd $REPO && git commit -m x" "$NEUTRAL"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "form: 'cd <repo> && git commit' blocks" \
+                  || fail "form: 'cd <repo> && git commit' should block (got $rc)"
+
+run_form "git -c user.name=x commit -m x" "$REPO"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "form: value-taking global ('-c k=v') before commit blocks" \
+                  || fail "form: '-c k=v commit' should block (got $rc)"
+
+# Must NOT over-match: `commit-graph`/`commit-tree` are different subcommands.
+run_form "git commit-graph write" "$REPO"; rc=$?
+[[ "$rc" -eq 0 ]] && pass "form: 'git commit-graph' is not a commit (no block)" \
+                  || fail "form: 'git commit-graph' must not block (got $rc)"
+
+# --- K. Target resolution: scan the repo the commit actually targets ---------
+# The dangerous half-fix is recognising `git -C other commit` but still scanning
+# the cwd — a check that runs, reports clean, and proves nothing. These two
+# assertions fail that half-fix in both directions.
+CLEANREPO="$TMP/cleanrepo"; mkdir -p "$CLEANREPO"; git -C "$CLEANREPO" init -q
+echo "const port = 3000;" > "$CLEANREPO/app.js"; git -C "$CLEANREPO" add app.js
+
+# secret is staged in $REPO; committing to the CLEAN repo must not block
+run_form "git -C $CLEANREPO commit -m x" "$REPO"; rc=$?
+[[ "$rc" -eq 0 ]] && pass "target: commit to a clean repo does not block on another repo's secret" \
+                  || fail "target: scanned the wrong repo — blocked a clean target (got $rc)"
+
+# inverse: cwd is clean, target holds the secret -> must block
+run_form "git -C $REPO commit -m x" "$CLEANREPO"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "target: commit to a dirty repo blocks even from a clean cwd" \
+                  || fail "target: missed the secret in the -C target (got $rc)"
+
+# --- L. Matcher parity with swe's protect-git.sh ------------------------------
+# base cannot depend on swe (base is the floor), so the commit matcher is
+# duplicated. A regex literal is a constant, so the duplication is mechanically
+# checkable — unlike a prose invariant. This is the guard that keeps the two
+# copies from drifting; see skills/kerby/CLAUDE.md § Guard a constant.
+SWE_HOOK="$SCRIPT_DIR/../../swe/hooks/protect-git.sh"
+if [[ -f "$SWE_HOOK" ]]; then
+  base_re=$(grep -m1 '^GIT_GLOBAL_OPT=' "$HOOK")
+  swe_re=$(grep -m1 '^GIT_GLOBAL_OPT=' "$SWE_HOOK")
+  { [[ -n "$base_re" && "$base_re" == "$swe_re" ]]; } \
+    && pass "parity: GIT_GLOBAL_OPT identical to protect-git.sh" \
+    || fail "parity: GIT_GLOBAL_OPT drifted from protect-git.sh"
+  base_c=$(grep -m1 '^GIT_COMMIT_RE=' "$HOOK")
+  swe_c=$(grep -m1 '^GIT_COMMIT_RE=' "$SWE_HOOK")
+  { [[ -n "$base_c" && "$base_c" == "$swe_c" ]]; } \
+    && pass "parity: GIT_COMMIT_RE identical to protect-git.sh" \
+    || fail "parity: GIT_COMMIT_RE drifted from protect-git.sh"
+else
+  echo "SKIP: swe rulebook not present — matcher parity not checked"
+fi
 
 # --- Summary -----------------------------------------------------------------
 echo "---"
