@@ -60,7 +60,7 @@ hard-blocks a few irreversible actions (hooks); it never writes the test or impl
 the change. The diagrams below show *where it sits* inside the agent's own loop, keyed
 to task type.
 
-**Feature loop** — `Plan → Do → Check → Commit gate → Log → repeat → Validate + finish`. Test-first is a preference *inside* `Do`, not a leading phase; the commit gate runs the full `build · lint · test` on **every** iteration, not once at the end.
+**Feature loop** — `Plan → Do → Check → Commit gate → Log → repeat → Validate + finish`. Test-first is a preference *inside* `Do`, not a leading phase; the commit gate runs on **every** iteration, not once at the end, at whichever tier the staged diff selects.
 
 ![kerby's place in the agent's feature task loop: the agent runs plan, do, check, commit gate, log, repeat, then validate and finish; kerby shapes each step as a rule (teal) and hard-blocks at the amber commit gate via hooks; a failing gate triggers a retry budget then revert.](assets/feature-loop.svg)
 

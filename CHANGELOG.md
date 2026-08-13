@@ -22,19 +22,32 @@ tiers are decoration. Two smaller corrections ride along.
   extension. This repo's own `scripts/check-skill-compat.py` reads `CHANGELOG.md` and
   `README.md`, so the file you are reading is a gate input. When you cannot tell,
   Standard.
-- **Four files stated the rule, not one.** `validation.md` (Low-complexity path),
-  `BOOTSTRAP.md` (§ Verification), `workflows/feature.md` (§ Commit Check) and
-  `workflows/quick-task.md` (step 3b) each independently hardcoded the absolute, so
-  fixing `quality-gates.md` alone would have relocated the contradiction rather than
-  removed it. All four now defer to the canonical section. Medium's Check 2 in
-  `validation.md` keeps Standard: medium means logic changed.
+- **Six files stated the rule, not one.** `validation.md` (Low-complexity path),
+  `BOOTSTRAP.md` (§ Verification), `workflows/feature.md` (three separate spots),
+  `workflows/quick-task.md` (step 3b), `workflows/bugfix.md` (step 4) and the rulebook
+  `README.md` (feature-loop prose) each independently hardcoded the absolute, so fixing
+  `quality-gates.md` alone would have relocated the contradiction rather than removed
+  it. All six now defer to the canonical section. Medium's Check 2 in `validation.md`
+  keeps Standard: medium means logic changed.
+- **The tiers were also mislabelled.** `workflows/feature.md` called
+  `build && lint && test` **Full**, while `quality-gates.md` calls that exact command
+  **Standard** and reserves Full for Standard + E2E + a manual spot-check. Two names for
+  one command, in a table whose whole job is picking between them: feature and bugfix
+  commits read as fully gated while running one tier short. Renamed to Standard.
 - **A guard now enforces the "one authority" property.**
   `scripts/check-commit-gate-parity.sh` fails if any rulebook file outside
   `quality-gates.md` restates the commit gate as an absolute. It is a negative check —
   the sibling `check-plan-gate-parity.sh` compares numeric constants, which does not
-  work for a prose rule. Worth the twenty lines: three manual greps found two of the
-  four restatements; the guard found the other two in under a second, one of them in
-  `BOOTSTRAP.md`, the file that loads eagerly into every session.
+  work for a prose rule.
+- **That guard's first version was itself wrong, and the review caught it.** It matched
+  three literal phrasings and passed cleanly on a tree carrying four more — including
+  one in `BOOTSTRAP.md`, which loads eagerly into every session. A guard that
+  under-matches is worse than none: it converts *nobody checked* into *the check
+  passed*. The pattern set is now phrase-family based, the canonical-presence test is
+  scoped to the section rather than the file, a grep error is a failure instead of a
+  silent pass, and the shutdown-ritual exception is pinned to its one documented line
+  rather than exempting a whole file. `check-commit-gate-parity.test.sh` pins every
+  phrasing found in the wild as a must-catch case.
 - **Squash-merge is scoped to short-lived branches.** `communication.md` preferred
   squash unconditionally. A squash between two long-lived branches records no ancestry,
   so the next merge re-diffs content the base already has and conflicts on files nobody

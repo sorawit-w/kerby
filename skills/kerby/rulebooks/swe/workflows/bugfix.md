@@ -73,7 +73,7 @@ Execute these steps in order. Do NOT skip the commit.
 1. Write a failing test that captures the bug (the test MUST fail before your fix)
 2. Apply the minimal fix — don't refactor unrelated code
 3. **Iteration check** — run the failing test + related tests to confirm the fix works. This is fast feedback, not full verification.
-4. **Commit check** — run full quality gates before committing:
+4. **Commit check** — re-pick the tier from the staged diff (`references/quality-gates.md` § At Commit Time is the single authority); a bugfix diff lands on Standard or higher in practice:
    ```bash
    {build_command} && {lint_command} && {test_command}
    ```

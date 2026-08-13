@@ -107,7 +107,7 @@ Whether you implement yourself or coordinate sub-agents, repeat this loop for ea
 │   2. DO     — Implement (prefer TDD: failing test → minimal code → pass)
 │   3. CHECK  — Iteration check (fast feedback):
 │              Choose tier based on what you changed (see below)
-│   4. COMMIT — Commit check (full gates) + commit:
+│   4. COMMIT — Commit check (tier from the staged diff) + commit:
 │              {build_command} && {lint_command} && {test_command}
 │              git add <specific-files>
 │              git commit -m "<type>(<scope>): <description>"
@@ -126,7 +126,7 @@ Pick the tier that matches your change. See `references/quality-gates.md` for de
 |-----------|----------------|-----|
 | Config, docs, comments, formatting only | `{lint_command}` | No logic changed — lint catches typos/format |
 | Logic in 1–2 files | `{lint_command}` + related tests only | Fast feedback on what you just touched |
-| 3+ files, cross-cutting, or dependency changes | Full: `{build_command} && {lint_command} && {test_command}` | Too risky to skip — run everything |
+| 3+ files, cross-cutting, or dependency changes | Standard: `{build_command} && {lint_command} && {test_command}` | Too risky to skip — run everything |
 
 **"Related tests only"** = run the test file(s) that cover the module you changed. If unsure which tests are related, run the full suite.
 
@@ -142,7 +142,7 @@ If gates fail, fix the issue and re-run before committing.
 
 **Rules for this loop:**
 - Do NOT batch commits at the end. Each piece of completed work gets its own commit.
-- Do NOT skip the commit check. Full gates must pass before every commit.
+- Do NOT skip the commit check. The tier it selects must pass before every commit.
 - If stuck after 3 attempts on one task, log what you tried, mark BLOCKED, move to the next task.
 - If a ROADMAP item is blocked mid-loop, flip `[~]` → `[!]` with a one-line reason and continue. Resume by flipping back to `[~]` when the blocker clears.
 - Match existing patterns in the codebase — consistency over local optimization.

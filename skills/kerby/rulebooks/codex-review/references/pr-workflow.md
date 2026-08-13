@@ -77,9 +77,12 @@ user-defined `gh alias` shortcuts are not resolved (documented deliberate-bypass
 ceiling). The **final** review must run
    against the exact tree you push — fix churn on the branch is throwaway (the
    squash-merge collapses it), but nothing may change after that last clean review.
-2. **Open the PR**, then merge with `--squash --delete-branch` (squash keeps one
-   commit per PR; `--delete-branch` because a repo may have `deleteBranchOnMerge`
-   off).
+2. **Open the PR**, then merge. For the ordinary case — a short-lived branch into its
+   base — that is `--squash --delete-branch` (squash keeps one commit per PR;
+   `--delete-branch` because a repo may have `deleteBranchOnMerge` off). A PR **between
+   two long-lived branches** takes a merge commit instead and keeps its source branch: a
+   squash records no ancestry, so the next merge between them re-diffs content the base
+   already has.
 3. **Local Codex clean → merge immediately**, pasting the PR-note line printed by
    `scripts/codex-mark.sh` into the PR body: `Codex-reviewed locally at <sha> ·
    rounds=<n> · P0/P1=0 · P2/P3 logged=<n>` — `<sha>` is the branch HEAD you
