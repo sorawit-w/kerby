@@ -39,15 +39,23 @@ tiers are decoration. Two smaller corrections ride along.
   `quality-gates.md` restates the commit gate as an absolute. It is a negative check —
   the sibling `check-plan-gate-parity.sh` compares numeric constants, which does not
   work for a prose rule.
-- **That guard's first version was itself wrong, and the review caught it.** It matched
-  three literal phrasings and passed cleanly on a tree carrying four more — including
-  one in `BOOTSTRAP.md`, which loads eagerly into every session. A guard that
-  under-matches is worse than none: it converts *nobody checked* into *the check
-  passed*. The pattern set is now phrase-family based, the canonical-presence test is
-  scoped to the section rather than the file, a grep error is a failure instead of a
-  silent pass, and the shutdown-ritual exception is pinned to its one documented line
-  rather than exempting a whole file. `check-commit-gate-parity.test.sh` pins every
-  phrasing found in the wild as a must-catch case.
+- **That guard needed two corrections of its own, both from the review, and the second
+  was a redesign.** Version 1 matched three literal phrasings and passed cleanly on a
+  tree still carrying four restatements (two in `feature.md`, one in `bugfix.md`, one in
+  the rulebook `README.md`). Version 2 broadened the phrasings and was defeated in
+  seconds by ordinary mandates — *"Every commit requires Standard gates"*. Enumerating
+  phrasings is a losing game against prose, so version 3 matches on **structure**: a
+  commit-time referent within 120 characters of a totality word, minus anything that
+  visibly defers to the canonical section.
+- **And the guard now says what it is.** A lint over natural language, not a proof of
+  the invariant. A clean run means *no known drift pattern found*, never *the invariant
+  holds* — the header says so, because the dangerous failure of version 1 was not that
+  it missed four files but that it reported success while doing so, converting *nobody
+  checked* into *the check passed*. `check-commit-gate-parity.test.sh` pins 19
+  assertions: every phrasing found in the wild, every bypass the review constructed, the
+  false-positive class, the line-scoped exemption, and section scoping. It runs entirely
+  against a temp copy — its own first version mutated tracked files and deleted its
+  backups on interrupt.
 - **Squash-merge is scoped to short-lived branches.** `communication.md` preferred
   squash unconditionally. A squash between two long-lived branches records no ancestry,
   so the next merge re-diffs content the base already has and conflicts on files nobody

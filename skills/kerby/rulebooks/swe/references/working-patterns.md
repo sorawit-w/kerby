@@ -14,7 +14,7 @@ For every task:
 4. **Check dependencies** — Will this change break anything downstream?
 5. **Search before creating** — Before writing a new utility, helper, or module-level function, grep for the responsibility. If similar code exists, propose a refactor or note in the commit body why divergence is intentional. If code only *looks* similar, verify it's the same responsibility before consolidating — duplication beats premature abstraction.
 6. **Implement incrementally** — Small, reviewable changes over large rewrites
-7. **Verify after each change** — use tiered gates: lint-only for config/docs, full build+lint+test for logic changes (see `quality-gates.md`)
+7. **Verify after each change** — use tiered gates: lint-only for config/docs, Standard (build+lint+test) for logic changes (see `quality-gates.md`)
 8. **Commit with intent** — One logical change per commit
 
 > For a non-trivial feature where the problem itself is fuzzy, consider a pre-spec **interview pass** — let the agent ask *you* the shaping questions (who it's for and who it's *not* for, the key decisions) before planning. Deeper discovery lives in the `team-composer` / `brainstorming` siblings; route there rather than reimplementing it here.
@@ -110,7 +110,7 @@ This is especially common when adopting `kerby` into a project that predates the
 
 ### Relationship to Quality Gates
 
-TDD is *in addition to* quality gates, not a replacement. After your test passes, still run the full gate: `{build_command} && {lint_command} && {test_command}`. A passing unit test doesn't guarantee the build works or lint passes.
+TDD is *in addition to* quality gates, not a replacement. After your test passes, still run the Standard gate: `{build_command} && {lint_command} && {test_command}`. A passing unit test doesn't guarantee the build works or lint passes.
 
 ---
 

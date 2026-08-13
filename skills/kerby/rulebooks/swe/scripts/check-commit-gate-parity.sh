@@ -1,27 +1,27 @@
 #!/bin/bash
-# Parity: the commit-time gate rule must be stated in exactly ONE place.
+# Lint: the commit-time gate rule should be stated in exactly ONE place.
 #
 # `references/quality-gates.md` § At Commit Time is the single authority for
-# which gate tier a commit runs. The rule is prose, not a numeric constant, so
-# the sibling guard (check-plan-gate-parity.sh) cannot cover it — but the drift
-# mode is identical and has bitten repeatedly: another file restates the rule as
-# an absolute ("always run full gates before committing"), the two disagree, and
-# an agent reading both adjudicates a live rule conflict mid-task.
+# which gate tier a commit runs. Every other rulebook file should DEFER to it,
+# never restate it. This script catches the restatement drift that has bitten
+# this corpus repeatedly (six files at its worst, one of them BOOTSTRAP.md,
+# which loads eagerly into every session).
 #
-# NEGATIVE check: no file other than the canonical one may assert an
-# unconditional full/Standard gate at commit time. It also asserts the canonical
-# section still states the rule, so the rule cannot silently vanish.
+# WHAT THIS IS, HONESTLY: a heuristic lint over natural-language prose, not a
+# proof of the invariant. Two earlier versions claimed more than they delivered
+# — the first matched three literal phrasings and passed on a tree carrying four
+# more; the second was bypassed by ordinary mandates an independent review wrote
+# in seconds ("Every commit requires Standard gates"). Enumerating phrasings is
+# a losing game, so this version matches on STRUCTURE instead: a commit-time
+# referent within a couple of lines of a totality word, minus anything that
+# visibly defers to the canonical section. That is meaningfully harder to trip
+# over by accident. It is still defeatable by someone trying. Treat a clean run
+# as "no known drift pattern found", never as "the invariant holds" — the
+# independent review remains the check that actually reads for meaning.
 #
 # Run: bash skills/kerby/rulebooks/swe/scripts/check-commit-gate-parity.sh
-# Exit 0 = one authority, rule present; non-zero = a restatement reappeared, the
-# canonical statement went missing, or a scan failed.
-#
-# History: the first version of this guard matched only three phrasings and
-# passed on a tree carrying four more restatements ("Full gates must pass before
-# every commit", "Commit check (full gates)", "run full quality gates before
-# committing", "runs the full build · lint · test"). An independent review caught
-# them. The pattern set below is deliberately phrase-family-based, not
-# literal-string-based, for that reason.
+# Exit 0 = no drift pattern found; non-zero = a probable restatement, the
+# canonical rule went missing, or a scan failed.
 
 set -u
 
@@ -32,83 +32,128 @@ FAILS=0
 pass() { echo "PASS: $1"; }
 fail() { echo "FAIL: $1"; FAILS=$((FAILS + 1)); }
 
-# The one file allowed to state the commit-time tier rule.
 CANONICAL="references/quality-gates.md"
-CANONICAL_SECTION="### At Commit Time"
+CANONICAL_HEADER="### At Commit Time"
 
 # Deliberate, documented exception: the shutdown ritual overrides tier gating on
-# purpose (that file explains why in its own prose). Scoped to the ONE known
-# line, not the whole file — a different restatement appearing there must still
-# fail, which a blanket file exemption would hide.
+# purpose. Pinned to the ONE known sentence — not the whole file, and not a bare
+# substring: an ADDITIONAL absolute appended to the same line must still fail.
 EXEMPT="references/context-management.md"
-EXEMPT_ALLOW='Verify — always run full quality gates'
+EXEMPT_LINE_MATCH='Verify — always run full quality gates\.\*\* Execute'
 
-# Phrasings asserting an UNCONDITIONAL full/Standard gate at commit time.
-# Phrase-family based: each alternative is a way of saying "the commit gate is
-# always the full one", not one literal sentence.
-ABSOLUTES='always run (the )?full (quality )?gates?'
-ABSOLUTES="$ABSOLUTES"'|always run Standard'
-ABSOLUTES="$ABSOLUTES"'|full (quality )?gates? must (pass|run)'
-ABSOLUTES="$ABSOLUTES"'|run full (quality )?gates? before committ'
-ABSOLUTES="$ABSOLUTES"'|commit check \(full gates\)'
-ABSOLUTES="$ABSOLUTES"'|runs the full .?build'
-# Narrowed: requires a gate-ish object nearby, so "no commit goes out without a
-# signed-off ticket" no longer matches.
-ABSOLUTES="$ABSOLUTES"'|no commit goes out without[^.]{0,60}(gate|build|lint|test)'
+# A commit-time referent: the line is talking about the gate at commit time.
+COMMIT_REF='commit gate|commit check|before committ|before every commit|every commit|at commit time|no commit goes out|prior to committ'
+# A totality claim: it says the gate is the whole thing, unconditionally.
+TOTALITY='always|full gate|full quality gate|full suite|complete gate|no exceptions|standard gates|the full .?build|build.{0,12}lint.{0,12}test'
+# Deferral markers: the line (or its neighbours) points at the authority instead
+# of restating it. Presence of any of these clears the line.
+DEFERS='quality-gates\.md|At Commit Time|staged diff|single authority|re-pick the tier|tier the staged|selected tier|tier from the'
 
-echo "Canonical authority: $CANONICAL ($CANONICAL_SECTION)"
-echo "Scoped exception:    $EXEMPT — only the documented shutdown line"
+echo "Canonical authority: $CANONICAL ($CANONICAL_HEADER)"
+echo "Scoped exception:    $EXEMPT — the documented shutdown sentence only"
+echo "Nature:              heuristic lint, not a proof — see header comment"
 echo "---"
 
-# 1. The canonical SECTION must still state the rule. Scoped to the section, not
-#    the whole file: a stray mention elsewhere (or a negated one) must not
-#    satisfy this.
-SECTION=$(awk -v h="$CANONICAL_SECTION" '
-  index($0,h)==1 {f=1; next}
-  f && /^### / {exit}
-  f {print}
+# ---------------------------------------------------------------------------
+# 1. The canonical SECTION must still state the rule.
+#    Section = from an EXACT `### At Commit Time` line to the next header of the
+#    same OR higher level (`## ` or `### `). Stopping only at `### ` let the
+#    section bleed into every following `##` section, which made the scoping
+#    fake — phrases could live anywhere later in the file and still pass.
+# ---------------------------------------------------------------------------
+SECTION=$(awk -v h="$CANONICAL_HEADER" '
+  $0 == h { f = 1; next }
+  f && (/^## / || /^### /) { exit }
+  f { print }
 ' "$RES/$CANONICAL" 2>/dev/null)
 
 if [ -z "$SECTION" ]; then
-  fail "canonical section '$CANONICAL_SECTION' not found in $CANONICAL"
+  fail "canonical section '$CANONICAL_HEADER' not found (or empty) in $CANONICAL"
 else
   for phrase in "from the staged diff" "no file any gate reads"; do
     if printf '%s' "$SECTION" | grep -qF "$phrase"; then
       pass "canonical section states \"$phrase\""
     else
-      fail "canonical section no longer states \"$phrase\" — the rule went missing"
+      fail "canonical section no longer states \"$phrase\" — the rule moved or vanished"
     fi
   done
 fi
 
-# 2. No other rulebook prose may restate the absolute form.
+# ---------------------------------------------------------------------------
+# 2. No other rulebook prose may restate the rule as an absolute.
+#    Structural match with a 2-line deferral window: a restatement that cites
+#    the authority on the same line or immediately around it is a pointer, not
+#    a second source of truth.
+# ---------------------------------------------------------------------------
+FILES=$(find "$RES" -name '*.md' -type f 2>/dev/null); FIND_RC=$?
+if [ "$FIND_RC" -ne 0 ]; then
+  fail "tree scan failed (find exit $FIND_RC) — results would be incomplete"
+fi
+
 OFFENDERS=""
 while IFS= read -r f; do
+  [ -n "$f" ] || continue
   rel="${f#"$RES"/}"
   [ "$rel" = "$CANONICAL" ] && continue
-  hits=$(grep -nEi "$ABSOLUTES" "$f" 2>/dev/null); rc=$?
-  # grep: 0 = matched, 1 = no match, >1 = real error. Never treat an error as clean.
-  if [ "$rc" -gt 1 ]; then
-    fail "scan failed on $rel (grep exit $rc)"
+
+  hits=$(awk -v cref="$COMMIT_REF" -v tot="$TOTALITY" -v def="$DEFERS" '
+    # A totality word must sit within PROX characters of a commit-time referent.
+    # Line-level co-occurrence is too coarse: one 3000-char reference-table row
+    # paired "before committing to a swap" with "always-on-hook" and tripped it.
+    function near(line,   s, pos, absstart, winstart, win) {
+      s = line; pos = 0
+      while (match(s, cref)) {
+        absstart = pos + RSTART
+        winstart = absstart - PROX; if (winstart < 1) winstart = 1
+        win = substr(line, winstart, (2 * PROX) + RLENGTH)
+        if (win ~ tot) return 1
+        pos = pos + RSTART + RLENGTH - 1
+        s = substr(s, RSTART + RLENGTH)
+        if (s == "") break
+      }
+      return 0
+    }
+    BEGIN { PROX = 120 }
+    { lines[NR] = $0 }
+    END {
+      for (i = 1; i <= NR; i++) {
+        if (near(tolower(lines[i]))) {
+          # deferral window: this line and its immediate neighbours
+          w = tolower(lines[i-1] "\n" lines[i] "\n" lines[i+1])
+          if (w ~ def) continue
+          printf "%d:%s\n", i, lines[i]
+        }
+      }
+    }
+  ' "$f" 2>/dev/null); rc=$?
+  if [ "$rc" -ne 0 ]; then
+    fail "scan failed on $rel (awk exit $rc)"
     continue
   fi
-  [ "$rc" -eq 0 ] || continue
+  [ -n "$hits" ] || continue
+
   while IFS= read -r line; do
     [ -n "$line" ] || continue
-    # Scoped exception: allowed only for the documented line in the exempt file.
-    if [ "$rel" = "$EXEMPT" ] && printf '%s' "$line" | grep -qE "$EXEMPT_ALLOW"; then
+    if [ "$rel" = "$EXEMPT" ] && printf '%s' "$line" | grep -qE "$EXEMPT_LINE_MATCH"; then
+      # Allowed only if the line is the documented sentence and carries no
+      # SECOND absolute beyond it.
+      rest=$(printf '%s' "$line" | sed -E 's/.*Verify — always run full quality gates\.\*\* Execute//')
+      if printf '%s' "$rest" | grep -qEi "$TOTALITY"; then
+        OFFENDERS="${OFFENDERS}${rel}:${line}"$'\n'
+      fi
       continue
     fi
     OFFENDERS="${OFFENDERS}${rel}:${line}"$'\n'
   done <<< "$hits"
-done < <(find "$RES" -name '*.md' -type f)
+done <<< "$FILES"
 
 if [ -n "$OFFENDERS" ]; then
-  fail "commit-gate rule restated outside $CANONICAL:"
+  fail "commit-gate rule appears restated outside $CANONICAL:"
   printf '%s' "$OFFENDERS" | sed 's/^/       /'
-  echo "       -> defer to $CANONICAL $CANONICAL_SECTION instead of restating it."
+  echo "       -> defer to $CANONICAL $CANONICAL_HEADER instead of restating it."
+  echo "       (If a hit is a false positive, cite the authority on or beside the line.)"
 else
-  pass "no restatement of the absolute commit-gate form outside the canonical file"
+  pass "no restatement pattern found outside the canonical file"
 fi
 
 echo "---"

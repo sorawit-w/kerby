@@ -75,8 +75,9 @@ so it catches every gh invocation syntax but also over-blocks a matching string
 in quoted prose (safe direction); the raw REST path (`gh api …/pulls`) and
 user-defined `gh alias` shortcuts are not resolved (documented deliberate-bypass
 ceiling). The **final** review must run
-   against the exact tree you push — fix churn on the branch is throwaway (the
-   squash-merge collapses it), but nothing may change after that last clean review.
+   against the exact tree you push — on a short-lived branch fix churn is throwaway
+   (the squash collapses it); on a long-lived-to-long-lived merge it is permanent
+   history, so keep it tidy. Either way nothing may change after that last clean review.
 2. **Open the PR**, then merge. For the ordinary case — a short-lived branch into its
    base — that is `--squash --delete-branch` (squash keeps one commit per PR;
    `--delete-branch` because a repo may have `deleteBranchOnMerge` off). A PR **between

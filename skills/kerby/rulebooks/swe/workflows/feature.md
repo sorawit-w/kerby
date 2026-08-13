@@ -27,7 +27,7 @@ You MUST complete these before writing any code:
 5. **Baseline check** — confirm you're starting from a clean state:
    - If you just created this worktree or in-place branch from a known-good base (main/develop passed CI): **skip baseline gates**
    - If `git status` shows a clean working tree and the last commit's gates passed: **skip baseline gates**
-   - Otherwise, run full gates to establish baseline:
+   - Otherwise, run Standard gates to establish baseline:
      ```bash
      {build_command} && {lint_command} && {test_command}
      ```
