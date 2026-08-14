@@ -448,6 +448,40 @@ run_scan "$(printf 'cat <<EOF >/dev/null\ngit commit -m x\nEOF')" "$ESC"; rc=$?
 [[ "$rc" -eq 0 ]] && pass "review12: a heredoc body is data, not commands" \
                   || fail "review12: FALSE BLOCK on a heredoc body (got $rc)"
 
+# Residual (d) covers ANY cd that fails at runtime, not just the `||` form the
+# doc used to name. Pinned as a KNOWN fail-open so it stays visible: the hook
+# replays the cd, the replay fails, and it scans nothing. Falling back to the
+# caller's cwd would catch these but false-block `cd /missing && git commit`,
+# where the commit never runs.
+for fcd in "cd /nonexistent-xyz ; git commit -m x" "cd '~' ; git commit -m x"; do
+  run_scan "$fcd" "$ESC"; rc=$?
+  [[ "$rc" -eq 0 ]] && pass "residual (d): failed cd scans nothing — '$fcd' (known fail-open)" \
+                    || fail "residual (d): unexpected behaviour for '$fcd' (got $rc)"
+done
+
+# A heredoc body is skipped, but a REAL commit after its terminator is not.
+run_scan "$(printf 'cat <<EOF >/dev/null\ngit commit -m fake\nEOF\ngit commit -m real')" "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review12: a real commit AFTER a heredoc is still seen" \
+                  || fail "review12: FAIL-OPEN — heredoc skipping swallowed a real commit (got $rc)"
+run_scan "$(printf 'cat <<-EOF >/dev/null\n\tgit commit -m fake\n\tEOF\ngit commit -m real')" "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review12: <<- with an indented terminator resumes correctly" \
+                  || fail "review12: FAIL-OPEN — <<- swallowed the rest (got $rc)"
+
+# Regressions the round-12 fixes themselves introduced. Same lesson a third
+# time: a new capability's blind spot is found by comparing against the parent.
+( cd "$TMP" && jq -nc '{tool_input:{command:"git -C ~/\"hrepo\" commit -m x"}}' \
+    | HOME="$HOMEDIR" PATH="$BIN_GL" SCANNER_REAL=1 bash "$HOOK" >/dev/null 2>&1 ); rc=$?
+[[ "$rc" -eq 2 ]] && pass "review13: a PARTLY quoted word still tilde-expands (~/\"x\")" \
+                  || fail "review13: FAIL-OPEN — token-wide provenance blocked expansion (got $rc)"
+
+# The heredoc BODY is data, but the rest of the OPENER LINE is live code.
+run_scan "$(printf 'cat <<EOF >/dev/null; git commit -m x\nbody\nEOF')" "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review13: a commit on the heredoc opener line still runs" \
+                  || fail "review13: FAIL-OPEN — opener line was swallowed (got $rc)"
+run_scan "$(printf 'cat <<\\EOF >/dev/null\nbody\nEOF\ngit commit -m x')" "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review13: an escaped delimiter (<<\\EOF) still terminates" \
+                  || fail "review13: FAIL-OPEN — escaped delimiter never matched (got $rc)"
+
 # The mirror image: forms that must NOT block. A separator is a separator by
 # POSITION, not by spelling — an escaped or quoted `;` is an ordinary word.
 NB="$TMP/noblock"; git init -q "$NB"

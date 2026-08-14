@@ -56,6 +56,9 @@ Split out of the table above because it is the one row whose limits are easy to 
 | `cat <<EOF` … `git commit` … `EOF` | a heredoc BODY read as commands → **false block** |
 | `git -C '~' commit` | a *quoted* `~` is a literal directory; expanding it lost the target |
 | `git --shallow-file x commit` | a value-taking global's VALUE taken for the subcommand |
+| `git -C ~/"repo" commit` | quote provenance read per-WORD; bash expands a tilde whose own character is unquoted |
+| `cat <<EOF; git commit` | the rest of the heredoc's OPENER line is live code, not body |
+| `cat <<\EOF` … `EOF` | an escaped delimiter must be dequoted or the terminator never matches |
 
 `protect-git.sh` still uses the text matcher and still has this weakness. That is tracked separately rather than silently changed here — this issue is scoped to the secret scan.
 
@@ -82,7 +85,7 @@ Split out of the table above because it is the one row whose limits are easy to 
 | a | `git add x && git commit` | the hook fires *before* the shell runs, so nothing is staged yet — and this is the most common commit shape an agent produces |
 | b | wrappers — `sudo git commit`, `env FOO=1 git commit` | needs a per-tool CLI model |
 | c | a git alias — `git ci` | resolves at runtime |
-| d | a *failed* conditional `cd` — `cd /missing \|\| git commit` | the shell's cwd after a failed `cd` is not statically knowable |
+| d | **any `cd` that fails at runtime** — `cd /missing \|\| git commit`, `cd /missing ; git commit`, `cd '~' ; git commit` | the cwd after a failed `cd` is not statically knowable. The hook replays the `cd` and, when the replay fails, scans nothing. Falling back to the caller's cwd would catch the `;`/`\|\|` forms but FALSE-BLOCK the `&&` form, where the commit never runs — and a false block in a non-disablable floor is the worse failure |
 | e | subshells, bare `cd`/`cd -`, cumulative relative `-C` | a static pass cannot resolve them |
 | f | a target named by a **variable** — `git -C "$TARGET_REPO" commit` | the value exists only at runtime. The hook copies `$TARGET_REPO` literally, scans a path that does not exist, and reports clean. **Structurally unfixable by any static parser**; pinned as a test so it stays visible |
 

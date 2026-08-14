@@ -45,7 +45,7 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 # newlines — so every newline comparison silently compared against "".
 NL=$'\n'; TAB=$'\t'
 tokenize() {
-  local s="$1" i=0 n=${#1} c d q="" cur="" open=0 qseen=0 hd hdq
+  local s="$1" i=0 n=${#1} c d q="" cur="" open=0 qseen=0 hd hdq HD_PENDING=""
   # TOKSEP marks which entries are SEPARATORS. A separator cannot be identified
   # by its text: `echo x \; git commit` yields a literal `;` WORD, and matching
   # on the string alone cut the command there and hard-blocked a line that only
@@ -77,16 +77,20 @@ tokenize() {
       if [ "${s:$((i+1)):1}" = "$NL" ]; then i=$((i+1))
       else i=$((i+1)); cur="$cur${s:$i:1}"; open=1; fi
     elif [ "$c" = '"' ] || [ "$c" = "'" ]; then
-      # Remember that this word was QUOTED. `git -C '~' commit` names a
-      # directory literally called `~`; expanding it there scanned the wrong
-      # path and reported clean.
-      q="$c"; open=1; qseen=1
+      # Provenance is about the word's FIRST character, not the whole word:
+      # bash expands the `~/` in `~/"hrepo"` because the tilde itself is
+      # unquoted, but leaves `'~'` alone. Recording "any quote appeared"
+      # suppressed expansion on the first form and lost the target.
+      [ -z "$cur" ] && [ "$open" = 0 ] && qseen=1
+      q="$c"; open=1
     elif [ "$c" = " " ] || [ "$c" = "$TAB" ]; then
       _emit
     elif [ "$c" = "<" ] && [ "${s:$((i+1)):1}" = "<" ]; then
-      # A HEREDOC body is DATA. Raw-newline splitting turned every body line
-      # into a command, so `cat <<EOF` … `git commit -m x` … `EOF` hard-blocked
-      # a script that only writes text. Skip to the terminator line.
+      # A HEREDOC body is DATA, but the REST OF THE OPENER LINE is not:
+      # `cat <<EOF; git commit -m x` really does run that commit. So only the
+      # delimiter is consumed here; the body is skipped later, when the newline
+      # that ends the opener line is reached. Skipping it immediately swallowed
+      # the rest of the line and hid the commit.
       _emit
       i=$((i+2)); [ "${s:$i:1}" = "-" ] && i=$((i+1))
       while [ "$i" -lt "$n" ] && { [ "${s:$i:1}" = " " ] || [ "${s:$i:1}" = "$TAB" ]; }; do i=$((i+1)); done
@@ -95,25 +99,33 @@ tokenize() {
         hdq="${s:$i:1}"
         case "$hdq" in
           " "|"$TAB"|"$NL"|";"|"&"|"|"|">"|"<") break ;;
-          '"'|"'") i=$((i+1)) ;;
+          # `<<\EOF` and `<<'EOF'` both quote the delimiter; the delimiter LINE
+          # is still the bare word. Leaving the backslash in meant the
+          # terminator never matched and everything after it was swallowed.
+          '"'|"'"|"\\") i=$((i+1)) ;;
           *) hd="$hd$hdq"; i=$((i+1)) ;;
         esac
       done
-      [ -z "$hd" ] && continue
-      # Advance past the body: find a line whose sole content is the delimiter.
-      while [ "$i" -lt "$n" ] && [ "${s:$i:1}" != "$NL" ]; do i=$((i+1)); done
-      while [ "$i" -lt "$n" ]; do
-        i=$((i+1)); hdq=""
-        while [ "$i" -lt "$n" ] && [ "${s:$i:1}" != "$NL" ]; do hdq="$hdq${s:$i:1}"; i=$((i+1)); done
-        case "${hdq#"${hdq%%[![:space:]]*}"}" in "$hd") break ;; esac
-        [ "$i" -ge "$n" ] && break
-      done
+      [ -n "$hd" ] && HD_PENDING="${HD_PENDING}${hd}
+"
       continue
     elif [ "$c" = "$NL" ]; then
       # A raw newline SEPARATES commands. Treating it as plain whitespace merged
       # `true<newline>git commit` into one segment whose first word was `true`,
       # so the commit was never examined.
       _emit; _sep "$NL"
+      # Any heredocs opened on the line just ended consume their bodies now, in
+      # the order they were opened.
+      while [ -n "$HD_PENDING" ]; do
+        hd="${HD_PENDING%%$NL*}"; HD_PENDING="${HD_PENDING#*$NL}"
+        [ -z "$hd" ] && { HD_PENDING=""; break; }
+        while [ "$i" -lt "$n" ]; do
+          i=$((i+1)); hdq=""
+          while [ "$i" -lt "$n" ] && [ "${s:$i:1}" != "$NL" ]; do hdq="$hdq${s:$i:1}"; i=$((i+1)); done
+          case "${hdq#"${hdq%%[![:space:]]*}"}" in "$hd") break ;; esac
+          [ "$i" -ge "$n" ] && break
+        done
+      done
     elif [ "$c" = "#" ] && [ -z "$cur" ] && [ "$open" = 0 ]; then
       # `#` at the start of a word begins a COMMENT: skip to end of line. Without
       # this, `echo ok # ; git commit` saw a separator inside a comment and
