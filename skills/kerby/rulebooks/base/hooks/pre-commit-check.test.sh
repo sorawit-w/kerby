@@ -354,6 +354,46 @@ done
 # the safe direction for a floor. These pin that removal.
 echo "ok" > "$REPO/plain.js"; git -C "$REPO" add plain.js
 
+# A single `git diff HEAD` compares HEAD to the WORKING TREE, so staging a
+# secret and then restoring the file to its HEAD contents nets to an EMPTY diff
+# while the index still commits the secret. The scan is the UNION of index-vs-
+# HEAD and worktree-vs-index precisely so neither side can hide behind the other.
+# Quoting a path that contains NO spaces is ordinary, not exotic. Keeping the
+# quotes made the replayed `cd` target a directory literally named `"/p"`, which
+# failed — and a failed cd yields an empty diff, read as clean. Same for the
+# value half of an attached selector.
+QP="$TMP/quoted"; git init -q "$QP"
+git -C "$QP" config user.email a@b; git -C "$QP" config user.name x
+printf 'k = "%s"\n' "$FAKE_KEY" > "$QP/s.py"; git -C "$QP" add s.py
+for qc in "cd \"$QP\" && git commit -m x" \
+          "git --git-dir=\"$QP/.git\" --work-tree=\"$QP\" commit -m x" \
+          "GIT_DIR=\"$QP/.git\" GIT_WORK_TREE=\"$QP\" git commit -m x"; do
+  ( cd "$TMP" && jq -nc --arg c "$qc" '{tool_input:{command:$c}}' \
+      | PATH="$BIN_GL" SCANNER_REAL=1 bash "$HOOK" >/dev/null 2>&1 ); rc=$?
+  [[ "$rc" -eq 2 ]] && pass "review8: quoted no-space path resolves (${qc%% *}…)" \
+                    || fail "review8: FAIL-OPEN on quoted path — '$qc' (got $rc)"
+done
+
+IDX="$TMP/indexonly"; git init -q "$IDX"
+git -C "$IDX" config user.email a@b; git -C "$IDX" config user.name x
+echo "clean" > "$IDX/f"; git -C "$IDX" add f; git -C "$IDX" commit -qm base
+printf 'k = "%s"\n' "$FAKE_KEY" > "$IDX/f"; git -C "$IDX" add f   # secret in the INDEX
+echo "clean" > "$IDX/f"                                           # worktree back to HEAD
+run_scan "git commit -m x" "$IDX"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review8: staged secret is seen though the worktree matches HEAD" \
+                  || fail "review8: FAIL-OPEN — index-only secret hidden by a clean worktree (got $rc)"
+
+# An UNBORN HEAD must still scan worktree content: the old `git diff HEAD`
+# fallback dropped to --cached, so the very first commit of a repo missed
+# everything `-a` / a pathspec would have added from the working tree.
+UNB="$TMP/unborn"; git init -q "$UNB"
+git -C "$UNB" config user.email a@b; git -C "$UNB" config user.name x
+echo "clean" > "$UNB/f"; git -C "$UNB" add f      # staged, never committed
+printf 'k = "%s"\n' "$FAKE_KEY" >> "$UNB/f"       # worktree secret, unstaged
+run_scan "git commit -am x" "$UNB"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review8: unborn HEAD still scans worktree content" \
+                  || fail "review8: FAIL-OPEN — initial commit missed a worktree secret (got $rc)"
+
 # `-a` / a pathspec / `--include` commit WORKING-TREE content. A `--cached` scan
 # never saw those bytes, so an UNSTAGED tracked secret went in through a form
 # the hook claimed to recognise. The scan now diffs HEAD, covering staged and

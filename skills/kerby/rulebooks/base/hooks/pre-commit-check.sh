@@ -57,6 +57,25 @@ unquote() {
     | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g"
 }
 
+# Take the FIRST shell word of a string, honouring quotes: `"/a b" rest` -> `/a b`,
+# `/a rest` -> `/a`. Used for `cd <path>` and for the value half of an attached
+# selector, both of which are ordinarily written quoted.
+deq_first() {
+  case "$1" in
+    \"*) local v="${1#\"}"; printf '%s' "${v%%\"*}" ;;
+    \'*) local v="${1#\'}"; printf '%s' "${v%%\'*}" ;;
+    *)   printf '%s' "${1%%[[:space:]]*}" ;;
+  esac
+}
+
+# Strip quotes from the value half of `key=value` (`--git-dir="/p"`, `GIT_DIR='/p'`).
+deq_val() {
+  case "$1" in
+    *=*) printf '%s=%s' "${1%%=*}" "$(deq_first "${1#*=}")" ;;
+    *)   printf '%s' "$1" ;;
+  esac
+}
+
 LC=$(unquote "$COMMAND" | tr '[:upper:]' '[:lower:]')
 if ! echo "$LC" | grep -qE "$GIT_COMMIT_RE"; then
   exit 0
@@ -107,21 +126,29 @@ scan_target() { # $1=cdlist  $2=loc  $3=envassigns
   # resolving to a toplevel and dropping the rest lost alternate state such as
   # GIT_INDEX_FILE, and a detached --git-dir/--work-tree pair. The toplevel is
   # used ONLY as the scanner's cwd, so it reads the target's .gitleaks.toml.
-  local cdlist="$1" loc="$2" envs="$3" rc names top diff raw drc base
-  # Scan against HEAD, not the index. `git commit -a`, `git commit <path>` and
-  # `--include` all commit WORKING-TREE content, so a `--cached` scan simply did
-  # not see the bytes those forms commit. Diffing HEAD covers staged AND modified
-  # tracked content in one shot — and needs no argument parsing to decide which,
-  # which is the point: every parsing-based attempt at this was unsound.
+  local cdlist="$1" loc="$2" envs="$3" rc names top diff raw drc rawi rci raww rcw
+  # Scan the UNION of two diffs, because a commit can draw from either side and
+  # no single diff covers both:
+  #   --cached  index vs HEAD      — what a bare `git commit` writes
+  #   (bare)    worktree vs index  — what `-a`, a pathspec or `--include` adds
+  # A single `git diff HEAD` was tried and is WRONG: it compares HEAD to the
+  # working tree, so staging a secret and then restoring the file to its HEAD
+  # contents nets to an EMPTY diff while the index still commits the secret.
+  # The union also needs no argument parsing to decide which side a form uses,
+  # and works on an unborn HEAD where `git diff HEAD` cannot run at all.
   # It over-blocks a bare `git commit` when an unstaged tracked file holds a
   # secret. That is the accepted direction for a floor, and documented.
-  base=--cached
-  git_at "$cdlist" "$loc" "$envs" rev-parse --verify -q HEAD >/dev/null && base=HEAD
+  #
   # Prefixes/ext-diff/textconv are FORCED: the target repo's own config
   # (diff.noprefix, diff.external, a textconv filter) would otherwise change the
   # format this header filter reads, or hand the scanner converted text.
-  raw=$(git_at "$cdlist" "$loc" "$envs" diff "$base" --diff-filter=ACMR -U0 \
-          --src-prefix=a/ --dst-prefix=b/ --no-ext-diff --no-textconv); drc=$?
+  rawi=$(git_at "$cdlist" "$loc" "$envs" diff --cached --diff-filter=ACMR -U0 \
+          --src-prefix=a/ --dst-prefix=b/ --no-ext-diff --no-textconv); rci=$?
+  raww=$(git_at "$cdlist" "$loc" "$envs" diff --diff-filter=ACMR -U0 \
+          --src-prefix=a/ --dst-prefix=b/ --no-ext-diff --no-textconv); rcw=$?
+  raw="$rawi
+$raww"
+  drc=$(( rci | rcw ))
   # A diff that FAILS on a real repo must fail CLOSED: treating git's failure as
   # "no diff" meant any command this hook mis-parsed reported clean and
   # committed. But only on a real repo — if the target does not resolve at all,
@@ -193,7 +220,8 @@ scan_target() { # $1=cdlist  $2=loc  $3=envassigns
 #
 # Residual, shared with protect-git.sh and recorded in swe's threat-model.md: a
 # static pass cannot model pipes, subshells, `cd -`/bare `cd`, cumulative
-# relative -C/--git-dir, or quoted separators/paths.
+# relative -C/--git-dir, or a quoted path spanning a separator. Quoted paths
+# that contain no separator ARE handled (deq_first).
 CDLIST=""
 SEGTXT="$COMMAND"
 # All three separators split the same way. `||` is NOT modelled as "the left
@@ -205,9 +233,14 @@ SEGTXT="$COMMAND"
 # tried and produced false blocks, which is the worse direction for a floor.
 SEGTXT="${SEGTXT//||/$'\n'}"; SEGTXT="${SEGTXT//&&/$'\n'}"; SEGTXT="${SEGTXT//;/$'\n'}"
 while IFS= read -r SEG; do
-  # `cd <path>` (not `cd -` / bare `cd`) → remember for later bare commits
+  # `cd <path>` (not `cd -` / bare `cd`) → remember for later bare commits.
+  # The path is DEQUOTED. Keeping the quotes made `cd "/tmp/x" && git commit`
+  # replay a cd to a directory literally named `"/tmp/x"`, which failed — and a
+  # failed cd yields an empty diff, read as clean. Quoting a path with no spaces
+  # in it is ordinary, so this was a live fail-open, not an exotic form.
   if printf '%s' "$SEG" | grep -qE '^[[:space:]]*cd[[:space:]]+[^[:space:]-]'; then
-    CDLIST="${CDLIST}$(printf '%s' "$SEG" | sed -E 's/^[[:space:]]*cd[[:space:]]+//; s/[[:space:]].*$//')
+    CDARG=$(printf '%s' "$SEG" | sed -E 's/^[[:space:]]*cd[[:space:]]+//')
+    CDLIST="${CDLIST}$(deq_first "$CDARG")
 "
     continue
   fi
@@ -231,7 +264,7 @@ while IFS= read -r SEG; do
       # not a commit. Env assignments (VAR=val) may precede it.
       case "$tok" in
         GIT_DIR=*|GIT_WORK_TREE=*|GIT_INDEX_FILE=*|GIT_COMMON_DIR=*|GIT_OBJECT_DIRECTORY=*)
-          ENVS="${ENVS}${tok}
+          ENVS="${ENVS}$(deq_val "$tok")
 "; continue ;;
         *=*) continue ;;
         git|*/git) SEEN_GIT=1; continue ;;
@@ -255,12 +288,12 @@ while IFS= read -r SEG; do
     if [[ "${skip_val:-0}" -eq 1 ]]; then skip_val=0; continue; fi
     case "$tok" in
       -C|--git-dir|--work-tree|--namespace)  LOC="$LOC $tok"; want_val=1 ;;
-      --git-dir=*|--work-tree=*|--namespace=*) LOC="$LOC $tok" ;;
+      --git-dir=*|--work-tree=*|--namespace=*) LOC="$LOC $(deq_val "$tok")" ;;
       -c|--config-env|--exec-path|--attr-source|--super-prefix) skip_val=1 ;;
       *) : ;;   # anything else cannot redirect the target — drop it
     esac
     if [[ "${want_val:-0}" -eq 1 ]]; then want_val=0; take_val=1; continue; fi
-    if [[ "${take_val:-0}" -eq 1 ]]; then take_val=0; LOC="$LOC $tok"; fi
+    if [[ "${take_val:-0}" -eq 1 ]]; then take_val=0; LOC="$LOC $tok"; fi   # tok already dequoted
   done
   [[ "$IS_COMMIT" -eq 1 ]] || continue
 
