@@ -156,7 +156,7 @@ Never hard-code placeholder secrets or skip integration steps silently. If the i
 
 ## Pull Requests
 
-Prefer **small PRs scoped to one feature or fix** and **squash-merge for linear history** — squash is for a short-lived branch merging into its base. Merges **between two long-lived branches** use a merge commit instead: a squash records no ancestry, so the next merge between them re-diffs content the base already has and conflicts on files nobody touched. If a PR grows past your team's review-fatigue threshold, split it before requesting review — two reviewed PRs are healthier than one un-reviewed one.
+Prefer **small PRs scoped to one feature or fix** and **squash-merge for linear history** — squash is for a short-lived branch merging into its base. Merges **between two long-lived branches** use a merge commit instead: a squash records no ancestry, so the next merge between them re-diffs content the base already has and can conflict on files nobody touched. If a PR grows past your team's review-fatigue threshold, split it before requesting review — two reviewed PRs are healthier than one un-reviewed one.
 
 A small PR:
 - Has a single, statable purpose (can be summarized in one sentence without "and")

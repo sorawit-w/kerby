@@ -141,7 +141,7 @@ any other. Earlier revisions of this file described a `SessionEnd` prompt hook t
 updated; no such hook was ever shipped, so the claim is removed rather than softened.
 
 Committing before the session ends and updating the checkpoint files
-(`references/context-management.md`) are **behavioral** — held by the rules, not by a hook.
+(swe's `references/context-management.md`) are **behavioral** — held by the rules, not by a hook.
 
 ---
 

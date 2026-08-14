@@ -51,10 +51,10 @@ tiers are decoration. Two smaller corrections ride along.
   found every restatement the guard missed, in all three rounds.
 - **Squash-merge is scoped to short-lived branches.** `communication.md` preferred
   squash unconditionally. A squash between two long-lived branches records no ancestry,
-  so the next merge re-diffs content the base already has and conflicts on files nobody
-  touched. Long-lived to long-lived takes a merge commit.
+  so the next merge re-diffs content the base already has and can conflict on files
+  nobody touched. Long-lived to long-lived takes a merge commit.
 - **Exact-decimal domains never use binary floating point.** Money, tax, billing,
-  interest. IEEE-754 is binary; `0.1` has no exact representation and the error
+  interest. In binary floating point `0.1` has no exact representation, and the error
   compounds in silence until reconciliation. Use the language's exact decimal type or
   integer minor units. No library is named — naming one would skip the Decision
   Ladder's cheaper rungs and mandate an install the guardrails already gate.

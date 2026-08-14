@@ -107,6 +107,10 @@ Source: `resources/references/hooks.md` (284 lines). The ONLY non-moved lines pe
 one new title heading + one pointer line at the top of the swe-side file, and a pointer
 line where sections left the engine file.
 
+This table records the **v7 split as it happened**. Headings edited by later releases are
+listed under their v7 spelling with the rename noted in the Destination column — rewriting
+the source heading in place would make the historical record false.
+
 | Section (heading) | Destination |
 |---|---|
 | `# Hooks — Automated Enforcement` (title + intro, incl. multi-tool note) | engine |
@@ -117,11 +121,11 @@ line where sections left the engine file.
 | `### PreToolUse → .env File Protection` | swe |
 | `### PreToolUse → .env Read Warning` | swe |
 | `### PreToolUse → High-Stakes Path Routing` | swe |
-| `### PreToolUse → Pre-Commit Check` | code (documents the base-owned enforcer from the coding session's perspective; script itself lives in `base/hooks/` per V14) |
+| `### PreToolUse → Pre-Commit Check` | code (documents the base-owned enforcer from the coding session's perspective; script itself lives in `base/hooks/` per V14). **Renamed in 9.3.0** to `### PreToolUse → git commit (two independent hooks)` when the hollow-test heuristic moved out of the base floor into swe |
 | `### git post-commit → Knowledge Reindex (Optional)` | engine |
 | `### Manual / git post-commit → Knowledge Integrity (Optional)` | engine |
-| `### No Stop hook — quality gates are not verified mechanically` | code (quality gates are coding-lane; the section now records that no such hook exists) |
-| `### No SessionEnd hook — checkpointing is not verified mechanically` | engine (checkpointing = state preservation; the section now records that no such hook exists) |
+| `### Stop → Quality Gate Verification` | code (quality gates are coding-lane). **Renamed in 9.15.0** to `### No Stop hook — quality gates are not verified mechanically`: no such hook was ever shipped, so the section now records its absence. The v7 heading is kept here because this table is a historical record of the move-only split |
+| `### SessionEnd → Checkpoint Verification` | engine (checkpointing = state preservation). **Renamed in 9.15.0** to `### No SessionEnd hook — checkpointing is not verified mechanically`, for the same reason |
 | `## Customizing Hooks` (all subsections: runtime toggles, disabling, adding your own, strictness levels) | engine |
 | `## How Hooks Map to the Playbook` | engine (system-level philosophy table) |
 
