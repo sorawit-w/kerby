@@ -554,6 +554,13 @@ run_scan ">marker\\> git commit -m x" "$ESC"; rc=$?
 [[ "$rc" -eq 2 ]] && pass "review17: a filename ending in an escaped > is not an operator" \
                   || fail "review17: FAIL-OPEN — filename swallowed the invocation (got $rc)"
 
+# A quote after `>` begins a FILENAME, so the redirection operator is finished
+# and a following separator really separates. Shared tokenizer, so it reached
+# the secret scan too.
+run_scan 'true >"x" && git commit -m x' "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review18: a quoted redirection filename ends the operator" \
+                  || fail "review18: FAIL-OPEN — quoted filename absorbed the separator (got $rc)"
+
 # The mirror image: forms that must NOT block. A separator is a separator by
 # POSITION, not by spelling — an escaped or quoted `;` is an ordinary word.
 NB="$TMP/noblock"; git init -q "$NB"

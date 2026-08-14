@@ -183,7 +183,7 @@ tokenize() {
       # QUOTING. Treating `$` as a plain character left `$'commit'` tokenized as
       # `$commit`, so the subcommand was never recognised.
       qseen="$qseen ${#cur}"
-      i=$((i+1)); q="${s:$i:1}"; open=1
+      i=$((i+1)); q="${s:$i:1}"; open=1; lastmeta=0
     elif [ "$c" = '"' ] || [ "$c" = "'" ]; then
       # Record WHERE the first quote fell. Bash suppresses tilde expansion when
       # anything in the TILDE-PREFIX (the `~` up to the first `/`) is quoted —
@@ -192,8 +192,11 @@ tokenize() {
       # EVERY quote-open position is recorded. Keeping only the first meant a
       # quote in the KEY half of `--git-"dir"="~/x"` erased the value's
       # provenance and the tilde expanded when bash would not have.
+      # Opening a quote ends any pending redirection operator: after `>` the
+      # quote begins a FILENAME, so the token no longer ends in an unquoted
+      # meta character and a following `&` really does separate commands.
       qseen="$qseen ${#cur}"
-      q="$c"; open=1
+      q="$c"; open=1; lastmeta=0
     elif [ "$c" = " " ] || [ "$c" = "$TAB" ]; then
       _emit
     elif [ "$c" = "<" ] && [ "${s:$((i+1)):1}" = "<" ]; then

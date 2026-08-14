@@ -366,6 +366,21 @@ run_in "$R2" "$OV=\$((1)) git commit --allow-empty -m x"
 [[ "$RC" -eq 2 ]] && pass "#48 override: an evaluated value does not authorize (deliberate)" || fail "#48 \$((1)) authorized (got $RC)"
 
 
+# Opening a quote ends a pending redirection operator: after `>` a quote begins
+# a FILENAME, so a following `&`/`&&` really does separate commands. Without
+# that, `true >"x" && git commit` absorbed the separator and hid the invocation.
+R3="$TMPROOT/round3"; repo_with_commit "$R3" main
+for rq in 'true >"x" && git commit --allow-empty -m z' \
+          "true >'x' && git commit --allow-empty -m z" \
+          'true >$"x" && git commit --allow-empty -m z' \
+          "true >\$'x' && git commit --allow-empty -m z" \
+          'true >"x" & git commit --allow-empty -m z'; do
+  run_in "$R3" "$rq"
+  [[ "$RC" -eq 2 ]] && pass "#48 blocks: quoted redirection filename then separator" \
+                    || fail "#48 quoted redirection filename: '$rq' (got $RC)"
+done
+
+
 echo "---"
 
 # --- Shared-tokenizer parity -------------------------------------------------
