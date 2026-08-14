@@ -46,8 +46,17 @@ Split out of the table above because it is the one row whose limits are easy to 
 | `true & git commit` | only `&&`/`\|\|`/`;` split → the commit was never a segment |
 | `echo x \; git commit` | split on an *escaped* separator → **false block** |
 | `git log -- git commit` | `--` ends option parsing; a later `commit` is not a subcommand |
+| `true`⏎`git commit` | a raw newline was plain whitespace, not a separator |
+| `git \`⏎`commit` | the escaped newline was glued into the token |
+| `< /dev/null git commit` | the walk stopped at the redirection |
+| `cd -P /t && git commit` | `cd`'s option was taken for the path |
+| `git -C ~/repo commit` | `~` scanned literally; `$HOME` *is* knowable, unlike an arbitrary variable |
+| `git log --grep commit` | any later `commit` token was accepted → **false block** |
+| `echo ok # ; git commit` | a separator inside a comment → **false block** |
 
 `protect-git.sh` still uses the text matcher and still has this weakness. That is tracked separately rather than silently changed here — this issue is scoped to the secret scan.
+
+**Where this stops.** Detection now models quoting, escaping, line continuations, newlines, comments, redirections and subcommand position — and each of those was added only after a review found a real bypass. That history is the argument against going further: the surface is shell grammar, which is unbounded, and residual (f) proves the mechanism can never be *sound* no matter how much of the grammar is modelled, because a variable's value does not exist until runtime. The scan is therefore a **tripwire that keeps getting better**, never a boundary. The mechanism that would be sound is a repo-side git `pre-commit` hook running at commit time against the real index, with no parsing at all — a second install model kerby has so far declined. That trade-off deserves re-deciding; it is a product call, not something to keep grinding at here.
 
 **It scans the union of two diffs**, because a commit can draw from either side and no single diff covers both: `--cached` (index vs `HEAD` — what a bare `git commit` writes) plus the bare worktree-vs-index diff (what `-a`, a pathspec or `--include` adds). A single `git diff HEAD` was tried and is wrong twice over: it compares `HEAD` to the *working tree*, so staging a secret and then restoring the file to its `HEAD` contents nets to an empty diff while the index still commits the secret — and it cannot run at all on an unborn `HEAD`, which silently dropped the first commit of every repo back to an index-only scan. The union needs no argument parsing to decide which side a given form uses, which is the whole point.
 

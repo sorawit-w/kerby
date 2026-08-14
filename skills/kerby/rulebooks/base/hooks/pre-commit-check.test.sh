@@ -392,13 +392,44 @@ run_scan "true & git commit -m x" "$ESC"; rc=$?
 [[ "$rc" -eq 2 ]] && pass "review10: single & separates commands too" \
                   || fail "review10: FAIL-OPEN — '&' not a separator (got $rc)"
 
+# More shell grammar the tokenizer must model. Each of these let a real commit
+# through, or blocked a command that creates nothing.
+HOMEDIR="$TMP/home"; mkdir -p "$HOMEDIR/hrepo"; git init -q "$HOMEDIR/hrepo"
+git -C "$HOMEDIR/hrepo" config user.email a@b; git -C "$HOMEDIR/hrepo" config user.name x
+printf 'k = "%s"\n' "$FAKE_KEY" > "$HOMEDIR/hrepo/s.py"; git -C "$HOMEDIR/hrepo" add s.py
+CDT="$TMP/cdtarget"; git init -q "$CDT"
+git -C "$CDT" config user.email a@b; git -C "$CDT" config user.name x
+printf 'k = "%s"\n' "$FAKE_KEY" > "$CDT/s.py"; git -C "$CDT" add s.py
+
+run_scan "$(printf 'true\ngit commit -m x')" "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review11: a raw newline separates commands" \
+                  || fail "review11: FAIL-OPEN — newline treated as plain whitespace (got $rc)"
+run_scan "$(printf 'git \\\ncommit -m x')" "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review11: a line continuation is removed, not glued into the token" \
+                  || fail "review11: FAIL-OPEN — line continuation hid the commit (got $rc)"
+run_scan "< /dev/null git commit -m x" "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review11: a leading redirection does not hide the command" \
+                  || fail "review11: FAIL-OPEN — stopped at the redirection (got $rc)"
+
+# `cd` OPTIONS must be skipped to reach the path, and `~` is expanded by the
+# shell before git sees it — $HOME is knowable here, unlike an arbitrary var.
+( cd "$TMP" && jq -nc --arg c "cd -P $CDT && git commit -m x" '{tool_input:{command:$c}}' \
+    | PATH="$BIN_GL" SCANNER_REAL=1 bash "$HOOK" >/dev/null 2>&1 ); rc=$?
+[[ "$rc" -eq 2 ]] && pass "review11: cd options are skipped to reach the path" \
+                  || fail "review11: FAIL-OPEN — 'cd -P <path>' scanned the option (got $rc)"
+( cd "$TMP" && jq -nc '{tool_input:{command:"git -C ~/hrepo commit -m x"}}' \
+    | HOME="$HOMEDIR" PATH="$BIN_GL" SCANNER_REAL=1 bash "$HOOK" >/dev/null 2>&1 ); rc=$?
+[[ "$rc" -eq 2 ]] && pass "review11: a tilde in the target is expanded" \
+                  || fail "review11: FAIL-OPEN — '~' scanned literally (got $rc)"
+
 # The mirror image: forms that must NOT block. A separator is a separator by
 # POSITION, not by spelling — an escaped or quoted `;` is an ordinary word.
 NB="$TMP/noblock"; git init -q "$NB"
 git -C "$NB" config user.email a@b; git -C "$NB" config user.name x
 printf 'k = "%s"\n' "$FAKE_KEY" > "$NB/s.py"; git -C "$NB" add s.py
 for nb in 'echo x \; git commit -m x' 'git log -- git commit' 'echo git commit' \
-          "git log --format='run git commit now'" 'git commit-graph write'; do
+          "git log --format='run git commit now'" 'git commit-graph write' \
+          'git log --grep commit' 'echo ok # ; git commit -m x'; do
   run_scan "$nb" "$NB"; rc=$?
   [[ "$rc" -eq 0 ]] && pass "review10: no false block — '$nb'" \
                     || fail "review10: FALSE BLOCK on '$nb' (got $rc)"
