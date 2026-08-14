@@ -101,14 +101,20 @@ That last row is why both are kept. Deleting either one opens a hole the other d
 is the availability argument, and it is separate from the coverage argument above: even if
 one caught strictly more than the other, it still would not be a replacement.
 
-| | Absent when |
+| | Not enforcing when |
 |---|---|
-| PreToolUse hook | Phase 2 was declined, or its entry was removed from `settings.json` |
-| git hook | Phase 3 was declined; or this is a fresh clone (git hooks are never cloned); or `core.hooksPath` points git at a different hooks dir, so the one kerby writes to `.git/hooks` is not the one git runs |
+| PreToolUse hook | Phase 2 was never accepted here, or its entry was later removed from the settings file |
+| git hook | Phase 3 was never accepted here; or this is a fresh clone (git hooks are never cloned); or `core.hooksPath` sends git to a different hooks dir, so the file kerby wrote is not the one git runs |
 
-Note what the `core.hooksPath` row does *not* say: git still runs hooks, just from
-elsewhere. A husky user can wire the scanner into their own `.husky/pre-commit` by hand —
-kerby will not do it for them, and will not clean it up either.
+Two things that table is careful *not* to say. **Declining a phase does not remove
+anything** — if a hook is already installed, saying no on a later run leaves it exactly
+where it is; removal is `uninstall`'s job alone. And **`core.hooksPath` shadows rather
+than disables**: git still runs hooks, just from elsewhere, so a husky user can wire the
+scanner into their own `.husky/pre-commit` by hand. kerby will not do that for them, and
+will not clean it up afterwards.
+
+The list is the common cases, not a proof of exhaustiveness — `kerby status` is the
+authority on what is actually bound in a given repo.
 
 Unlike the post-commit reindex below, this one is **offered by `install`** (Phase 3) rather
 than pasted by hand — a security floor earns an installer; a convenience reindex does not.
@@ -126,9 +132,11 @@ Behaviour worth knowing:
   line and falls back to the built-in regex floor. This matters more here than in the
   PreToolUse path: a GUI git client runs hooks with a launchd `PATH` of
   `/usr/bin:/bin:/usr/sbin:/sbin`, where an installed scanner is invisible.
-- **`core.hooksPath` shadows it entirely.** If that config is set (husky does), git never
-  runs `.git/hooks/*`; `install` refuses rather than writing a file that cannot fire, and
-  `status` reports the shadowing.
+- **`core.hooksPath` shadows it entirely.** If that config is set (husky does), git runs
+  hooks from there instead, so the file kerby would write is never the one executed;
+  `install` refuses rather than writing a file that cannot fire, and `status` reports the
+  shadowing. (The hooks dir is resolved with `git rev-parse --git-path hooks`, never
+  assumed to be `.git/hooks` — in a worktree or submodule it is not.)
 
 Remove it with `kerby uninstall`. It deletes the file only when kerby wrote every byte of
 it — byte-identical to the template, or differing *only* in the enforcer path (the state a
