@@ -353,6 +353,19 @@ for pv in "git --version commit" "git --html-path commit" "git --man-path commit
 done
 
 
+# --- Round-2 findings on #48 (regressions from the round-1 fixes) ------------
+R2="$TMPROOT/round2"; repo_with_commit "$R2" main
+run_in "$R2" "true '>'& git commit --allow-empty -m x"
+[[ "$RC" -eq 2 ]] && pass "#48 blocks: a QUOTED > before & is not a redirection" || fail "#48 quoted > before & (got $RC)"
+run_in "$R2" ">marker\\> git commit --allow-empty -m x"
+[[ "$RC" -eq 2 ]] && pass "#48 blocks: a filename ending in an escaped > is not an operator" || fail "#48 filename ending in > (got $RC)"
+run_in "$R2" "git --shallow-file --help commit --allow-empty -m x"
+[[ "$RC" -eq 2 ]] && pass "#48 blocks: --help as a value-taking option's VALUE is not print-and-exit" || fail "#48 --help as a value (got $RC)"
+# Deliberate over-block: the override value must be the LITERAL 1.
+run_in "$R2" "$OV=\$((1)) git commit --allow-empty -m x"
+[[ "$RC" -eq 2 ]] && pass "#48 override: an evaluated value does not authorize (deliberate)" || fail "#48 \$((1)) authorized (got $RC)"
+
+
 echo "---"
 
 # --- Shared-tokenizer parity -------------------------------------------------

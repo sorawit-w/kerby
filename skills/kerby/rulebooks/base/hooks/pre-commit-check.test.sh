@@ -546,6 +546,14 @@ run_scan "2>&1 git commit -m x" "$ESC"; rc=$?
 [[ "$rc" -eq 2 ]] && pass "review16: a 2>&1 prefix does not hide the command" \
                   || fail "review16: FAIL-OPEN — redirection swallowed the invocation (got $rc)"
 
+# The same two tokenizer regressions reach the secret scan.
+run_scan "true '>'& git commit -m x" "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review17: a QUOTED > before & does not absorb the separator" \
+                  || fail "review17: FAIL-OPEN — quoted > absorbed the & (got $rc)"
+run_scan ">marker\\> git commit -m x" "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review17: a filename ending in an escaped > is not an operator" \
+                  || fail "review17: FAIL-OPEN — filename swallowed the invocation (got $rc)"
+
 # The mirror image: forms that must NOT block. A separator is a separator by
 # POSITION, not by spelling — an escaped or quoted `;` is an ordinary word.
 NB="$TMP/noblock"; git init -q "$NB"
