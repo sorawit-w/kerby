@@ -35,6 +35,13 @@
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
+# --- BEGIN SHARED SHELL TOKENIZER ------------------------------------------
+# KEEP BYTE-IDENTICAL to rulebooks/swe/hooks/protect-git.sh's copy of this block.
+# Two copies exist because `base` is the floor and cannot depend on `swe`, nor swe
+# on base. The duplication is held by a parity assertion in BOTH test files, which
+# fails if the blocks drift — the same arrangement the old GIT_COMMIT_RE constant
+# used, extended to a function body. A shared helper in the engine would break
+# rulebook self-containment (docs/rulebook-contract.md), so this is the trade.
 # Split the WHOLE command into shell words AND separator tokens in one pass,
 # honouring quotes and backslash escapes. Separators (`;` `&` `&&` `|` `||`) are
 # emitted as their own tokens ONLY when unquoted and unescaped, so `echo x \; git
@@ -216,6 +223,7 @@ untilde_val() { # $1=key=value  $2=quote-open positions within the whole token
 }
 
 is_sep() { [ "${TOKSEP[$1]:-0}" = 1 ]; }   # $1 = index, not text
+# --- END SHARED SHELL TOKENIZER --------------------------------------------
 
 tokenize "$COMMAND"
 # Detection is STRUCTURAL, not a regex over de-quoted text. The old pre-filter

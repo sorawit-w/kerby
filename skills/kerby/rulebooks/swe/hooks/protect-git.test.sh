@@ -15,7 +15,7 @@ pass() { echo "PASS: $1"; }
 fail() { echo "FAIL: $1"; FAILS=$((FAILS + 1)); }
 
 run() { # $1 = command string -> sets RC
-  printf '{"tool_input":{"command":%s}}' "$(printf '%s' "$1" | jq -R .)" | bash "$HOOK" >/dev/null 2>&1
+  printf '{"tool_input":{"command":%s}}' "$(printf '%s' "$1" | jq -Rs .)" | bash "$HOOK" >/dev/null 2>&1
   RC=$?
 }
 
@@ -76,7 +76,7 @@ repo_with_commit() { # $1 = dir, $2 = branch to end on
 }
 
 run_in() { # $1 = dir, $2 = command -> sets RC
-  printf '{"tool_input":{"command":%s}}' "$(printf '%s' "$2" | jq -R .)" \
+  printf '{"tool_input":{"command":%s}}' "$(printf '%s' "$2" | jq -Rs .)" \
     | ( cd "$1" && bash "$HOOK" ) >/dev/null 2>&1
   RC=$?
 }
@@ -236,7 +236,90 @@ run_in "$CWD_FEAT" "cd $TGT_FEAT && git commit -m x"
 run_in "$CWD_FEAT" "cd $TGT_MAIN ; git commit -m x"
 [[ "$RC" -eq 2 ]] && pass "blocks: cd <repo-on-main> ; git commit" || fail "cd ; commit must block (got $RC)"
 
+# --- Issue #48: the commit gate no longer reads the command as TEXT ----------
+# Every form below defeated the old regex matcher — some skipped the gate (a
+# commit landed on a protected branch unchecked), some blocked a command that
+# creates no commit. Detection is structural now: tokenize once, then an exact
+# `git` … `commit` token pair.
+SPC="$TMPROOT/repo with space";  repo_with_commit "$SPC" main
+QUO="$TMPROOT/has\"quote";        repo_with_commit "$QUO" main
+NAMED="$TMPROOT/commit";          repo_with_commit "$NAMED" main
+FAKEHOME="$TMPROOT/home";        mkdir -p "$FAKEHOME"
+HREPO="$FAKEHOME/hrepo";          repo_with_commit "$HREPO" main
+
+run_home() { # $1=cwd  $2=command — with HOME pinned so `~` is resolvable
+  printf '{"tool_input":{"command":%s}}' "$(printf '%s' "$2" | jq -Rs .)" \
+    | ( cd "$1" && HOME="$FAKEHOME" bash "$HOOK" >/dev/null 2>&1 ); RC=$?
+}
+
+esc_spc="${SPC// /\\ }"
+run_in "$CWD_FEAT" "git -C $esc_spc commit -m x"
+[[ "$RC" -eq 2 ]] && pass "#48 blocks: escaped spaces in the -C target" || fail "#48 escaped spaces (got $RC)"
+run_in "$CWD_FEAT" "$(printf 'git \\\n  -C "%s" commit -m x' "$SPC")"
+[[ "$RC" -eq 2 ]] && pass "#48 blocks: line continuation before the selector" || fail "#48 line continuation (got $RC)"
+run_in "$CWD_FEAT" "$(printf 'true\ngit -C "%s" commit -m x' "$SPC")"
+[[ "$RC" -eq 2 ]] && pass "#48 blocks: a raw newline separates commands" || fail "#48 raw newline (got $RC)"
+run_in "$CWD_FEAT" "git -C \"${QUO//\"/\\\"}\" commit -m x"
+[[ "$RC" -eq 2 ]] && pass "#48 blocks: escaped quote inside a quoted path" || fail "#48 escaped quote (got $RC)"
+run_in "$CWD_FEAT" "git --git-dir=\"$SPC/.git\" --work-tree=\"$SPC\" commit -m x"
+[[ "$RC" -eq 2 ]] && pass "#48 blocks: quoted selector value containing a space" || fail "#48 quoted selector (got $RC)"
+run_in "$TMPROOT" "git -C commit commit -m x"
+[[ "$RC" -eq 2 ]] && pass "#48 blocks: a selector VALUE that is the word commit" || fail "#48 repo named commit (got $RC)"
+run_in "$SPC" "true & git commit -m x"
+[[ "$RC" -eq 2 ]] && pass "#48 blocks: a lone & separates commands" || fail "#48 lone & (got $RC)"
+run_in "$SPC" "< /dev/null git commit -m x"
+[[ "$RC" -eq 2 ]] && pass "#48 blocks: a leading redirection does not hide the command" || fail "#48 leading redirection (got $RC)"
+run_in "$CWD_FEAT" "cd -P \"$SPC\" && git commit -m x"
+[[ "$RC" -eq 2 ]] && pass "#48 blocks: cd -P <path> reaches the path" || fail "#48 cd -P (got $RC)"
+run_in "$CWD_FEAT" "cd -- \"$SPC\" && git commit -m x"
+[[ "$RC" -eq 2 ]] && pass "#48 blocks: cd -- <path>" || fail "#48 cd -- (got $RC)"
+run_home "$CWD_FEAT" "git -C ~/hrepo commit -m x"
+[[ "$RC" -eq 2 ]] && pass "#48 blocks: a tilde in the -C target is expanded" || fail "#48 tilde -C (got $RC)"
+
+# The mirror image — none of these creates a commit, so none may block.
+for nb in 'git log --grep commit' 'echo ok # ; git commit -m x' 'echo x \; git commit -m x' \
+          'git log -- git commit' 'echo git commit' "git log --format='run git commit now'" \
+          'git commit-graph write'; do
+  run_in "$SPC" "$nb"
+  [[ "$RC" -eq 0 ]] && pass "#48 no false block: $nb" || fail "#48 FALSE BLOCK on '$nb' (got $RC)"
+done
+run_in "$SPC" "$(printf 'cat <<EOF >/dev/null\ngit commit -m x\nEOF')"
+[[ "$RC" -eq 0 ]] && pass "#48 no false block: a heredoc body is data" || fail "#48 FALSE BLOCK on a heredoc body (got $RC)"
+
+# The override is read STRUCTURALLY now — an assignment leading THIS invocation.
+run_in "$SPC" "CODING_RULES_ALLOW_PROTECTED_COMMIT=1 git commit -m x"
+[[ "$RC" -eq 0 ]] && pass "#48 override still authorizes its own invocation" || fail "#48 override broke (got $RC)"
+run_in "$SPC" "git commit -m a && CODING_RULES_ALLOW_PROTECTED_COMMIT=1 git commit -m b"
+[[ "$RC" -eq 2 ]] && pass "#48 override stays per-invocation (earlier bare commit still blocked)" || fail "#48 override leaked backwards (got $RC)"
+run_in "$SPC" "git commit -m \"CODING_RULES_ALLOW_PROTECTED_COMMIT=1 git commit\""
+[[ "$RC" -eq 2 ]] && pass "#48 override inside a commit MESSAGE does not authorize" || fail "#48 override text in a message authorized the commit (got $RC)"
+
+
 echo "---"
+
+# --- Shared-tokenizer parity -------------------------------------------------
+# The tokenizer is DUPLICATED between base/hooks/pre-commit-check.sh and
+# swe/hooks/protect-git.sh because base cannot depend on swe, nor swe on base
+# (docs/rulebook-contract.md: rulebooks are self-contained). Duplication is only
+# honest if drift FAILS LOUDLY, so both suites assert the blocks are byte-
+# identical. An untested second copy of a security-relevant parser is exactly the
+# "reports checked while checking nothing" failure this repo has already had.
+OTHER="$SCRIPT_DIR/../../base/hooks/pre-commit-check.sh"
+if [[ -f "$OTHER" ]]; then
+  extract() { sed -n '/^# --- BEGIN SHARED SHELL TOKENIZER/,/^# --- END SHARED SHELL TOKENIZER/p' "$1" \
+                | grep -v 'KEEP BYTE-IDENTICAL to'; }
+  a=$(extract "$HOOK"); b=$(extract "$OTHER")
+  if [[ -z "$a" || -z "$b" ]]; then
+    fail "parity: shared-tokenizer block missing from one of the two hooks"
+  elif [[ "$a" == "$b" ]]; then
+    pass "parity: shared tokenizer byte-identical across base and swe"
+  else
+    fail "parity: shared tokenizer DRIFTED between base and swe ($(printf '%s' "$a" | wc -l) vs $(printf '%s' "$b" | wc -l) lines)"
+  fi
+else
+  fail "parity: could not locate the other hook at $OTHER"
+fi
+
 if [[ "$FAILS" -eq 0 ]]; then
   echo "All assertions passed."
   exit 0

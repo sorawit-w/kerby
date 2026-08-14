@@ -728,7 +728,9 @@ if [[ -f "$SWE_HOOK" ]]; then
   # The regex parity guard is gone WITH the regex: this hook detects structurally
   # (tokenize + exact token match), protect-git.sh still matches text. They no
   # longer share a mechanism, so asserting byte-identity would guard nothing.
-  grep -q 'GIT_COMMIT_RE' "$HOOK" \
+  # Test for the ASSIGNMENT, not a mention: the shared-tokenizer banner refers to
+  # the old constant by name when explaining what replaced it.
+  grep -qE '^GIT_(COMMIT_RE|GLOBAL_OPT)=' "$HOOK" \
     && fail "hook still carries the dead regex matcher" \
     || pass "detection is structural — no text regex left in the hook"
 else
@@ -737,6 +739,30 @@ fi
 
 # --- Summary -----------------------------------------------------------------
 echo "---"
+
+# --- Shared-tokenizer parity -------------------------------------------------
+# The tokenizer is DUPLICATED between base/hooks/pre-commit-check.sh and
+# swe/hooks/protect-git.sh because base cannot depend on swe, nor swe on base
+# (docs/rulebook-contract.md: rulebooks are self-contained). Duplication is only
+# honest if drift FAILS LOUDLY, so both suites assert the blocks are byte-
+# identical. An untested second copy of a security-relevant parser is exactly the
+# "reports checked while checking nothing" failure this repo has already had.
+OTHER="$SCRIPT_DIR/../../swe/hooks/protect-git.sh"
+if [[ -f "$OTHER" ]]; then
+  extract() { sed -n '/^# --- BEGIN SHARED SHELL TOKENIZER/,/^# --- END SHARED SHELL TOKENIZER/p' "$1" \
+                | grep -v 'KEEP BYTE-IDENTICAL to'; }
+  a=$(extract "$HOOK"); b=$(extract "$OTHER")
+  if [[ -z "$a" || -z "$b" ]]; then
+    fail "parity: shared-tokenizer block missing from one of the two hooks"
+  elif [[ "$a" == "$b" ]]; then
+    pass "parity: shared tokenizer byte-identical across base and swe"
+  else
+    fail "parity: shared tokenizer DRIFTED between base and swe ($(printf '%s' "$a" | wc -l) vs $(printf '%s' "$b" | wc -l) lines)"
+  fi
+else
+  fail "parity: could not locate the other hook at $OTHER"
+fi
+
 if [[ "$FAILS" -eq 0 ]]; then
   echo "All assertions passed."
   exit 0
