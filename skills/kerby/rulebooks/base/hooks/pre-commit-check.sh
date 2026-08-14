@@ -24,72 +24,83 @@
 # the cwd would be worse than the original bug: a check that runs, reports clean,
 # and proves nothing.
 #
-# GIT_COMMIT_RE below is byte-identical to protect-git.sh's. Two copies exist
-# because `base` is the floor and cannot depend on `swe`; the duplication is held
-# by a parity assertion in pre-commit-check.test.sh, which fails if they drift.
-# A regex literal is a constant, so that guard is mechanically checkable — unlike
-# a prose invariant, which is not (see skills/kerby/CLAUDE.md § Guard a constant).
+# It no longer shares protect-git.sh's regex matcher. That matcher reads the
+# command as TEXT, and text cannot model shell quoting: escaped spaces, a line
+# continuation and an attached selector whose quoted value held a space each
+# skipped the scan entirely. Detection here is structural — the command is
+# tokenized once, and a token that IS `git` followed by a token that IS `commit`
+# is the whole test. protect-git.sh still uses the regex and has the same
+# weakness; that is tracked separately, not silently fixed here.
 
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
-# Subcommand matcher: `git`, zero or more global options (some take an arg), then
-# `commit` as the subcommand (\b…([[:space:]]|$) so `commit-graph`/`commit-tree`
-# don't match). Matches option SHAPES, not a hardcoded list, so an unlisted or
-# future global before `commit` is still skipped.
-# KEEP BYTE-IDENTICAL to rulebooks/swe/hooks/protect-git.sh (parity-tested).
-GIT_GLOBAL_OPT='(-C[[:space:]]+[^[:space:]]+|-c[[:space:]]+[^[:space:]]+|--git-dir[=[:space:]][^[:space:]]+|--work-tree[=[:space:]][^[:space:]]+|--namespace[=[:space:]][^[:space:]]+|--super-prefix[=[:space:]][^[:space:]]+|--config-env[=[:space:]][^[:space:]]+|--exec-path[=[:space:]][^[:space:]]+|--attr-source[=[:space:]][^[:space:]]+|--[A-Za-z][A-Za-z-]*=[^[:space:]]+|--[A-Za-z][A-Za-z-]*|-[A-Za-z])'
-GIT_COMMIT_RE="\\bgit\\b([[:space:]]+${GIT_GLOBAL_OPT})*[[:space:]]+commit\\b([[:space:]]|\$)"
-
-# Detection runs on the command with QUOTED SPANS REMOVED. `git commit` inside a
-# quoted argument is text, not an invocation: `git log --format='run git commit
-# now'` must not be treated as a commit. This hook is non-disablable, so a false
-# block can only be escaped by editing settings.json — over-blocking is as much a
-# defect as under-blocking. Stripping happens before matching, so GIT_COMMIT_RE
-# itself stays byte-identical to protect-git.sh (parity-tested below).
-# A quoted span holding ONE word is still that word: `git 'commit'` is a commit,
-# so the quotes are removed and the content kept. A span holding whitespace is a
-# message or format string, not an invocation, so it is dropped entirely — that
-# is what keeps `--format='run git commit now'` from reading as a commit.
-unquote() {
-  printf '%s' "$1" \
-    | sed -E "s/'([^' ]*)'/\1/g; s/\"([^\" ]*)\"/\1/g" \
-    | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g"
-}
-
-# Split a command segment into shell WORDS, honouring quotes and backslash
-# escapes. `set -- $SEG` was used before and word-splits on whitespace whatever
-# the quoting, so `git -C "/p with space" commit` produced the fragments `/p`,
-# `with`, `space` — the scan then ran against a path that does not exist,
-# returned empty, and the secret was read as clean. Every previous attempt to
-# patch around that with per-token quote stripping failed on the next form.
+# Split the WHOLE command into shell words AND separator tokens in one pass,
+# honouring quotes and backslash escapes. Separators (`;` `&` `&&` `|` `||`) are
+# emitted as their own tokens ONLY when unquoted and unescaped, so `echo x \; git
+# commit` is one command that prints text (it used to be split by a blind string
+# replacement and hard-blocked) while `true & git commit` is correctly two.
 # Sets the global TOKENS array. No eval: characters are copied, never executed.
 tokenize() {
-  local s="$1" i=0 n=${#1} c q="" cur="" open=0
-  TOKENS=()
+  local s="$1" i=0 n=${#1} c d q="" cur="" open=0
+  # TOKSEP marks which entries are SEPARATORS. A separator cannot be identified
+  # by its text: `echo x \; git commit` yields a literal `;` WORD, and matching
+  # on the string alone cut the command there and hard-blocked a line that only
+  # prints text. Position, not spelling, is what makes a token a separator.
+  TOKENS=(); TOKSEP=()
+  _emit() { if [ -n "$cur" ] || [ "$open" = 1 ]; then TOKSEP[${#TOKENS[@]}]=0; TOKENS[${#TOKENS[@]}]="$cur"; fi; cur=""; open=0; }
+  _sep()  { TOKSEP[${#TOKENS[@]}]=1; TOKENS[${#TOKENS[@]}]="$1"; }
   while [ "$i" -lt "$n" ]; do
     c="${s:$i:1}"
-    if [ -n "$q" ]; then
-      if [ "$c" = "$q" ]; then q=""; else cur="$cur$c"; fi
+    if [ "$q" = "'" ]; then
+      if [ "$c" = "'" ]; then q=""; else cur="$cur$c"; fi
+    elif [ "$q" = '"' ]; then
+      # Inside double quotes bash still processes `\"` and `\\`. Treating a
+      # backslash as literal here ended the token early, so a path containing a
+      # quote resolved to nothing and the scan reported clean.
+      if [ "$c" = "\\" ]; then
+        d="${s:$((i+1)):1}"
+        case "$d" in '"'|"\\"|'$'|'`') cur="$cur$d"; i=$((i+1)) ;; *) cur="$cur$c" ;; esac
+      elif [ "$c" = '"' ]; then q=""
+      else cur="$cur$c"; fi
     elif [ "$c" = "\\" ]; then
       i=$((i+1)); cur="$cur${s:$i:1}"; open=1
     elif [ "$c" = '"' ] || [ "$c" = "'" ]; then
       q="$c"; open=1
-    elif [ "$c" = " " ] || [ "$c" = "$(printf '\t')" ]; then
-      if [ -n "$cur" ] || [ "$open" = 1 ]; then TOKENS[${#TOKENS[@]}]="$cur"; fi
-      cur=""; open=0
+    elif [ "$c" = " " ] || [ "$c" = "$(printf '\t')" ] || [ "$c" = "$(printf '\n')" ]; then
+      _emit
+    elif [ "$c" = ";" ]; then
+      _emit; _sep ";"
+    elif [ "$c" = "&" ] || [ "$c" = "|" ]; then
+      _emit
+      if [ "${s:$((i+1)):1}" = "$c" ]; then _sep "$c$c"; i=$((i+1))
+      else _sep "$c"; fi
     else
       cur="$cur$c"
     fi
     i=$((i+1))
   done
-  if [ -n "$cur" ] || [ "$open" = 1 ]; then TOKENS[${#TOKENS[@]}]="$cur"; fi
+  _emit
 }
 
-LC=$(unquote "$COMMAND" | tr '[:upper:]' '[:lower:]')
-if ! echo "$LC" | grep -qE "$GIT_COMMIT_RE"; then
-  exit 0
-fi
+is_sep() { [ "${TOKSEP[$1]:-0}" = 1 ]; }   # $1 = index, not text
+
+tokenize "$COMMAND"
+# Detection is STRUCTURAL, not a regex over de-quoted text. The old pre-filter
+# ran `unquote | grep -E` and therefore missed every form whose quoting or
+# escaping it did not model — `git -C repo\ with\ space commit`, a line
+# continuation, an attached selector whose quoted value contained a space — each
+# of which skipped the scan entirely. A token that IS `git` followed by a token
+# that IS `commit` is the whole test, and it is exact.
+HAS_GIT=0
+_i=0
+while [ "$_i" -lt "${#TOKENS[@]}" ]; do
+  if ! is_sep "$_i"; then
+    case "${TOKENS[$_i]}" in git|*/git) HAS_GIT=1; break ;; esac
+  fi
+  _i=$((_i+1))
+done
+[ "$HAS_GIT" -eq 1 ] || exit 0
 
 # Pick a scanner by BINARY presence, not vendor (capability-gated). Prefer
 # betterleaks (gitleaks' feature-frozen successor, same author) when installed,
@@ -241,41 +252,47 @@ $raww"
 # relative -C/--git-dir, or a quoted path that itself contains a separator.
 # Quoted paths and paths with spaces ARE handled (see tokenize).
 CDLIST=""
-SEGTXT="$COMMAND"
-# All three separators split the same way. `||` is NOT modelled as "the left
-# side failed": whether `cd /missing || git commit` actually runs the commit in
-# the ORIGINAL directory depends on a runtime exit status this hook cannot see.
-# The cd is therefore carried forward, and `git_at` exits its subshell when the
-# replayed cd fails — an empty diff, so the scan FAILS OPEN. That is residual
-# (d) in swe's threat-model.md, pinned by a test. Modelling it the other way was
-# tried and produced false blocks, which is the worse direction for a floor.
-SEGTXT="${SEGTXT//||/$'\n'}"; SEGTXT="${SEGTXT//&&/$'\n'}"; SEGTXT="${SEGTXT//;/$'\n'}"
-while IFS= read -r SEG; do
-  tokenize "$SEG"
-  NTOK=${#TOKENS[@]}
-  [ "$NTOK" -eq 0 ] && continue
+# Walk the token stream, cutting a new segment at each separator token. The old
+# version replaced `&&`/`||`/`;` in the raw string, which both MISSED a
+# single `&` (`true & git commit` ran a real commit the hook never saw) and
+# split on an ESCAPED or quoted separator (`echo x \; git commit` was hard-
+# blocked though it only prints text).
+#
+# `||` is NOT modelled as "the left side failed": whether `cd /missing || git
+# commit` runs the commit in the ORIGINAL directory depends on a runtime exit
+# status this hook cannot see. The cd is carried forward, and `git_at` exits its
+# subshell when the replayed cd fails — an empty diff, so the scan FAILS OPEN.
+# That is residual (d) in swe's threat-model.md, pinned by a test.
+SEG_TOKS=()
+TI=0; NALL=${#TOKENS[@]}
+while [ "$TI" -le "$NALL" ]; do
+  if [ "$TI" -lt "$NALL" ] && ! is_sep "$TI"; then
+    SEG_TOKS[${#SEG_TOKS[@]}]="${TOKENS[$TI]}"; TI=$((TI+1)); continue
+  fi
+  TI=$((TI+1))
+  NTOK=${#SEG_TOKS[@]}
+  if [ "$NTOK" -eq 0 ]; then continue; fi
 
   # `cd <path>` → remember for later bare commits. `cd --` is a real form and
   # was rejected by an "argument must not start with -" test, so `cd -- <repo>
   # && git commit` scanned the caller's repo and let the secret through. Bare
   # `cd` and `cd -` stay unhandled on purpose: neither names a directory the
   # hook can resolve statically.
-  if [ "${TOKENS[0]}" = "cd" ]; then
+  if [ "${SEG_TOKS[0]}" = "cd" ]; then
     CDARG=""
-    [ "$NTOK" -ge 2 ] && CDARG="${TOKENS[1]}"
-    [ "$CDARG" = "--" ] && [ "$NTOK" -ge 3 ] && CDARG="${TOKENS[2]}"
+    [ "$NTOK" -ge 2 ] && CDARG="${SEG_TOKS[1]}"
+    [ "$CDARG" = "--" ] && [ "$NTOK" -ge 3 ] && CDARG="${SEG_TOKS[2]}"
     case "$CDARG" in
       ""|-|--) : ;;
       *) CDLIST="${CDLIST}${CDARG}
 " ;;
     esac
-    continue
+    SEG_TOKS=(); continue
   fi
-  unquote "$SEG" | tr '[:upper:]' '[:lower:]' | grep -qE "$GIT_COMMIT_RE" || continue
 
   SEEN_GIT=0; IS_COMMIT=0; ENVS=""; skip_val=0; take_val=0
   LOC_ARR=()
-  for tok in ${TOKENS[@]+"${TOKENS[@]}"}; do
+  for tok in ${SEG_TOKS[@]+"${SEG_TOKS[@]}"}; do
     if [[ "$SEEN_GIT" -eq 0 ]]; then
       # The invocation must BE git, not merely mention it: `echo git commit` is
       # not a commit. Env assignments (VAR=val) may precede it.
@@ -288,14 +305,20 @@ while IFS= read -r SEG; do
         *) break ;;
       esac
     fi
+    # A selector's VALUE is consumed before anything else. `git -C commit
+    # commit` (a repo literally named `commit`) was read as the subcommand
+    # arriving early, so the target was never applied and the scan ran on the
+    # caller's repo. It also stops `git log -- git commit` from being taken for
+    # a commit: `--` ends option parsing, so nothing after it is a subcommand.
+    if [[ "$take_val" -eq 1 ]]; then take_val=0; LOC_ARR[${#LOC_ARR[@]}]="$tok"; continue; fi
+    if [[ "$skip_val" -eq 1 ]]; then skip_val=0; continue; fi
+    [[ "$tok" == "--" ]] && break
     # Target selectors are the global options BETWEEN `git` and `commit`.
     # Position is load-bearing: `-C` is ALSO a `git commit` option (reuse a
     # message), so `git commit -C HEAD` has NO target selector — reading that
     # trailing `-C HEAD` as a directory made the scan run against a nonexistent
     # path and report clean.
     if [[ "$tok" == "commit" ]]; then IS_COMMIT=1; break; fi
-    if [[ "$take_val" -eq 1 ]]; then take_val=0; LOC_ARR[${#LOC_ARR[@]}]="$tok"; continue; fi
-    if [[ "$skip_val" -eq 1 ]]; then skip_val=0; continue; fi
     # LOC_ARR is a WHITELIST of the globals that redirect WHICH repo/index git
     # uses. Collecting every pre-`commit` token instead dragged unrelated
     # globals' values in and broke the scan's own git command; anything that
@@ -309,6 +332,7 @@ while IFS= read -r SEG; do
       *) : ;;
     esac
   done
+  SEG_TOKS=()
   [[ "$IS_COMMIT" -eq 1 ]] || continue
 
   # There is deliberately NO `--dry-run`/`--help` exemption. Text-inspecting
@@ -325,7 +349,7 @@ while IFS= read -r SEG; do
   # works with an absolute path, which is what removed the relative-`-C` class of
   # bug (cd into the target AND pass -C -> git resolved repo/repo and failed).
   scan_target "$EFF_CD" "$ENVS" || exit 2   # Hard-block on findings
-done <<< "$SEGTXT"
+done
 
 # Scan clean (or degraded to the regex floor, which found nothing). This is a
 # pure floor: no additionalContext, no reminder — those coding-specific soft

@@ -358,6 +358,59 @@ echo "ok" > "$REPO/plain.js"; git -C "$REPO" add plain.js
 # secret and then restoring the file to its HEAD contents nets to an EMPTY diff
 # while the index still commits the secret. The scan is the UNION of index-vs-
 # HEAD and worktree-vs-index precisely so neither side can hide behind the other.
+# Forms that defeated the old TEXT matcher. Detection is structural now: the
+# command is tokenized once and an exact `git` … `commit` token pair is the
+# whole test, so quoting and escaping no longer decide whether the scan runs.
+ESC="$TMP/esc space"; mkdir -p "$ESC"; git init -q "$ESC"
+git -C "$ESC" config user.email a@b; git -C "$ESC" config user.name x
+printf 'k = "%s"\n' "$FAKE_KEY" > "$ESC/s.py"; git -C "$ESC" add s.py
+QUO="$TMP/has\"quote"; mkdir -p "$QUO"; git init -q "$QUO"
+git -C "$QUO" config user.email a@b; git -C "$QUO" config user.name x
+printf 'k = "%s"\n' "$FAKE_KEY" > "$QUO/s.py"; git -C "$QUO" add s.py
+NAMED="$TMP/commit"; mkdir -p "$NAMED"; git init -q "$NAMED"
+git -C "$NAMED" config user.email a@b; git -C "$NAMED" config user.name x
+printf 'k = "%s"\n' "$FAKE_KEY" > "$NAMED/s.py"; git -C "$NAMED" add s.py
+esc_path="${ESC// /\\ }"
+quo_path="${QUO//\"/\\\"}"
+
+# Run from a NON-repo cwd so only a correctly resolved target can produce a hit.
+at_tmp() { # $1=label  $2=command
+  ( cd "$TMP" && jq -nc --arg c "$2" '{tool_input:{command:$c}}' \
+      | PATH="$BIN_GL" SCANNER_REAL=1 bash "$HOOK" >/dev/null 2>&1 ); local rc=$?
+  [[ "$rc" -eq 2 ]] && pass "review10: $1" || fail "review10: FAIL-OPEN — $1 (got $rc)"
+}
+at_tmp "backslash-escaped spaces in the path" "git -C $esc_path commit -m x"
+at_tmp "line continuation before the selector" "$(printf 'git \\\n  -C "%s" commit -m x' "$ESC")"
+at_tmp "escaped quote inside a quoted path"    "git -C \"$quo_path\" commit -m x"
+at_tmp "attached selector whose quoted value has a space" \
+       "git --git-dir=\"$ESC/.git\" --work-tree=\"$ESC\" commit -m x"
+at_tmp "a selector VALUE that is the word commit" "git -C commit commit -m x"
+
+# `&` is a command separator too. Splitting only on `&&`/`||`/`;` meant
+# `true & git commit` was one unparsed segment and the commit was never seen.
+run_scan "true & git commit -m x" "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review10: single & separates commands too" \
+                  || fail "review10: FAIL-OPEN — '&' not a separator (got $rc)"
+
+# The mirror image: forms that must NOT block. A separator is a separator by
+# POSITION, not by spelling — an escaped or quoted `;` is an ordinary word.
+NB="$TMP/noblock"; git init -q "$NB"
+git -C "$NB" config user.email a@b; git -C "$NB" config user.name x
+printf 'k = "%s"\n' "$FAKE_KEY" > "$NB/s.py"; git -C "$NB" add s.py
+for nb in 'echo x \; git commit -m x' 'git log -- git commit' 'echo git commit' \
+          "git log --format='run git commit now'" 'git commit-graph write'; do
+  run_scan "$nb" "$NB"; rc=$?
+  [[ "$rc" -eq 0 ]] && pass "review10: no false block — '$nb'" \
+                    || fail "review10: FALSE BLOCK on '$nb' (got $rc)"
+done
+
+# A target named by a VARIABLE is unknowable to a static pass — the hook copies
+# `$TARGET` literally and scans a path that does not exist. Pinned as a KNOWN
+# fail-open so the gap stays visible; see threat-model.md residual (f).
+run_scan 'git -C "$TARGET_REPO" commit -m x' "$NB"; rc=$?
+[[ "$rc" -eq 0 ]] && pass "residual (f): a variable target is not resolvable (known fail-open)" \
+                  || fail "residual (f): unexpected behaviour for a variable target (got $rc)"
+
 # A target path containing SPACES survives only if the segment is tokenized with
 # quote awareness. `set -- $SEG` word-split it into fragments, the scan ran
 # against a path that does not exist, and the empty result was read as clean.
@@ -529,16 +582,12 @@ run_form "cd $CLEANC || true; git commit -m x" "$REPO"; rc=$?
 # copies from drifting; see skills/kerby/CLAUDE.md § Guard a constant.
 SWE_HOOK="$SCRIPT_DIR/../../swe/hooks/protect-git.sh"
 if [[ -f "$SWE_HOOK" ]]; then
-  base_re=$(grep -m1 '^GIT_GLOBAL_OPT=' "$HOOK")
-  swe_re=$(grep -m1 '^GIT_GLOBAL_OPT=' "$SWE_HOOK")
-  { [[ -n "$base_re" && "$base_re" == "$swe_re" ]]; } \
-    && pass "parity: GIT_GLOBAL_OPT identical to protect-git.sh" \
-    || fail "parity: GIT_GLOBAL_OPT drifted from protect-git.sh"
-  base_c=$(grep -m1 '^GIT_COMMIT_RE=' "$HOOK")
-  swe_c=$(grep -m1 '^GIT_COMMIT_RE=' "$SWE_HOOK")
-  { [[ -n "$base_c" && "$base_c" == "$swe_c" ]]; } \
-    && pass "parity: GIT_COMMIT_RE identical to protect-git.sh" \
-    || fail "parity: GIT_COMMIT_RE drifted from protect-git.sh"
+  # The regex parity guard is gone WITH the regex: this hook detects structurally
+  # (tokenize + exact token match), protect-git.sh still matches text. They no
+  # longer share a mechanism, so asserting byte-identity would guard nothing.
+  grep -q 'GIT_COMMIT_RE' "$HOOK" \
+    && fail "hook still carries the dead regex matcher" \
+    || pass "detection is structural — no text regex left in the hook"
 else
   echo "SKIP: swe rulebook not present — matcher parity not checked"
 fi
