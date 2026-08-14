@@ -45,14 +45,14 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 # newlines — so every newline comparison silently compared against "".
 NL=$'\n'; TAB=$'\t'
 tokenize() {
-  local s="$1" i=0 n=${#1} c d q="" cur="" open=0
+  local s="$1" i=0 n=${#1} c d q="" cur="" open=0 qseen=0 hd hdq
   # TOKSEP marks which entries are SEPARATORS. A separator cannot be identified
   # by its text: `echo x \; git commit` yields a literal `;` WORD, and matching
   # on the string alone cut the command there and hard-blocked a line that only
   # prints text. Position, not spelling, is what makes a token a separator.
-  TOKENS=(); TOKSEP=()
-  _emit() { if [ -n "$cur" ] || [ "$open" = 1 ]; then TOKSEP[${#TOKENS[@]}]=0; TOKENS[${#TOKENS[@]}]="$cur"; fi; cur=""; open=0; }
-  _sep()  { TOKSEP[${#TOKENS[@]}]=1; TOKENS[${#TOKENS[@]}]="$1"; }
+  TOKENS=(); TOKSEP=(); TOKQ=()
+  _emit() { if [ -n "$cur" ] || [ "$open" = 1 ]; then TOKSEP[${#TOKENS[@]}]=0; TOKQ[${#TOKENS[@]}]=$qseen; TOKENS[${#TOKENS[@]}]="$cur"; fi; cur=""; open=0; qseen=0; }
+  _sep()  { TOKSEP[${#TOKENS[@]}]=1; TOKQ[${#TOKENS[@]}]=0; TOKENS[${#TOKENS[@]}]="$1"; }
   while [ "$i" -lt "$n" ]; do
     c="${s:$i:1}"
     if [ "$q" = "'" ]; then
@@ -77,9 +77,38 @@ tokenize() {
       if [ "${s:$((i+1)):1}" = "$NL" ]; then i=$((i+1))
       else i=$((i+1)); cur="$cur${s:$i:1}"; open=1; fi
     elif [ "$c" = '"' ] || [ "$c" = "'" ]; then
-      q="$c"; open=1
+      # Remember that this word was QUOTED. `git -C '~' commit` names a
+      # directory literally called `~`; expanding it there scanned the wrong
+      # path and reported clean.
+      q="$c"; open=1; qseen=1
     elif [ "$c" = " " ] || [ "$c" = "$TAB" ]; then
       _emit
+    elif [ "$c" = "<" ] && [ "${s:$((i+1)):1}" = "<" ]; then
+      # A HEREDOC body is DATA. Raw-newline splitting turned every body line
+      # into a command, so `cat <<EOF` … `git commit -m x` … `EOF` hard-blocked
+      # a script that only writes text. Skip to the terminator line.
+      _emit
+      i=$((i+2)); [ "${s:$i:1}" = "-" ] && i=$((i+1))
+      while [ "$i" -lt "$n" ] && { [ "${s:$i:1}" = " " ] || [ "${s:$i:1}" = "$TAB" ]; }; do i=$((i+1)); done
+      hd=""
+      while [ "$i" -lt "$n" ]; do
+        hdq="${s:$i:1}"
+        case "$hdq" in
+          " "|"$TAB"|"$NL"|";"|"&"|"|"|">"|"<") break ;;
+          '"'|"'") i=$((i+1)) ;;
+          *) hd="$hd$hdq"; i=$((i+1)) ;;
+        esac
+      done
+      [ -z "$hd" ] && continue
+      # Advance past the body: find a line whose sole content is the delimiter.
+      while [ "$i" -lt "$n" ] && [ "${s:$i:1}" != "$NL" ]; do i=$((i+1)); done
+      while [ "$i" -lt "$n" ]; do
+        i=$((i+1)); hdq=""
+        while [ "$i" -lt "$n" ] && [ "${s:$i:1}" != "$NL" ]; do hdq="$hdq${s:$i:1}"; i=$((i+1)); done
+        case "${hdq#"${hdq%%[![:space:]]*}"}" in "$hd") break ;; esac
+        [ "$i" -ge "$n" ] && break
+      done
+      continue
     elif [ "$c" = "$NL" ]; then
       # A raw newline SEPARATES commands. Treating it as plain whitespace merged
       # `true<newline>git commit` into one segment whose first word was `true`,
@@ -299,10 +328,11 @@ CDLIST=""
 # status this hook cannot see. The cd is carried forward, and `git_at` exits its
 # subshell when the replayed cd fails — an empty diff, so the scan FAILS OPEN.
 # That is residual (d) in swe's threat-model.md, pinned by a test.
-SEG_TOKS=()
+SEG_TOKS=(); SEG_Q=()
 TI=0; NALL=${#TOKENS[@]}
 while [ "$TI" -le "$NALL" ]; do
   if [ "$TI" -lt "$NALL" ] && ! is_sep "$TI"; then
+    SEG_Q[${#SEG_TOKS[@]}]="${TOKQ[$TI]:-0}"
     SEG_TOKS[${#SEG_TOKS[@]}]="${TOKENS[$TI]}"; TI=$((TI+1)); continue
   fi
   TI=$((TI+1))
@@ -333,12 +363,14 @@ while [ "$TI" -le "$NALL" ]; do
       *) CDLIST="${CDLIST}$(untilde "$CDARG")
 " ;;
     esac
-    SEG_TOKS=(); continue
+    SEG_TOKS=(); SEG_Q=(); continue
   fi
 
-  SEEN_GIT=0; IS_COMMIT=0; ENVS=""; skip_val=0; take_val=0; redir_val=0
+  SEEN_GIT=0; IS_COMMIT=0; ENVS=""; skip_val=0; take_val=0; redir_val=0; prev_opt_valueless=1
   LOC_ARR=()
+  TOKI=-1
   for tok in ${SEG_TOKS[@]+"${SEG_TOKS[@]}"}; do
+    TOKI=$((TOKI+1))
     if [[ "$SEEN_GIT" -eq 0 ]]; then
       # The invocation must BE git, not merely mention it: `echo git commit` is
       # not a commit. Env assignments (VAR=val) may precede it.
@@ -365,7 +397,12 @@ while [ "$TI" -le "$NALL" ]; do
     # arriving early, so the target was never applied and the scan ran on the
     # caller's repo. It also stops `git log -- git commit` from being taken for
     # a commit: `--` ends option parsing, so nothing after it is a subcommand.
-    if [[ "$take_val" -eq 1 ]]; then take_val=0; LOC_ARR[${#LOC_ARR[@]}]="$(untilde "$tok")"; continue; fi
+    if [[ "$take_val" -eq 1 ]]; then
+      take_val=0
+      if [ "${SEG_Q[$TOKI]:-0}" = 1 ]; then LOC_ARR[${#LOC_ARR[@]}]="$tok"
+      else LOC_ARR[${#LOC_ARR[@]}]="$(untilde "$tok")"; fi
+      continue
+    fi
     if [[ "$skip_val" -eq 1 ]]; then skip_val=0; continue; fi
     [[ "$tok" == "--" ]] && break
     # Target selectors are the global options BETWEEN `git` and `commit`.
@@ -373,13 +410,26 @@ while [ "$TI" -le "$NALL" ]; do
     # message), so `git commit -C HEAD` has NO target selector — reading that
     # trailing `-C HEAD` as a directory made the scan run against a nonexistent
     # path and report clean.
-    # The FIRST non-option token after `git` IS the subcommand — whatever it is.
-    # Accepting any later token named `commit` hard-blocked `git log --grep
-    # commit`, a read-only command that creates nothing.
+    # The FIRST non-option token after `git` IS the subcommand — but only when
+    # we can be sure it is not the VALUE of the option before it. `git
+    # --shallow-file missing commit` stopped at `missing` and let the commit
+    # through, because that global is not in the value-taking list. So: a
+    # non-option token is the subcommand only if the token before it was `git`
+    # itself or an option KNOWN to take no value. Otherwise it is ambiguous and
+    # the walk keeps looking — over-blocking, the safe direction, and it still
+    # lets `git log --grep commit` past because `log` follows `git` directly.
     case "$tok" in
-      -*) : ;;
+      -*) case "$tok" in
+            --no-pager|--paginate|-p|-P|--bare|--no-replace-objects|--literal-pathspecs|\
+            --glob-pathspecs|--noglob-pathspecs|--icase-pathspecs|--no-optional-locks|\
+            --no-lazy-fetch|--no-advice|--html-path|--man-path|--info-path|--version|--help)
+              prev_opt_valueless=1 ;;
+            *) prev_opt_valueless=0 ;;
+          esac
+          ;;
       commit) IS_COMMIT=1; break ;;
-      *) break ;;
+      *) if [ "${prev_opt_valueless:-1}" -eq 1 ]; then break; fi
+         prev_opt_valueless=1 ;;   # consumed as the previous option's value
     esac
     # LOC_ARR is a WHITELIST of the globals that redirect WHICH repo/index git
     # uses. Collecting every pre-`commit` token instead dragged unrelated
@@ -389,12 +439,13 @@ while [ "$TI" -le "$NALL" ]; do
       -C|--git-dir|--work-tree|--namespace)
         LOC_ARR[${#LOC_ARR[@]}]="$tok"; take_val=1 ;;
       --git-dir=*|--work-tree=*|--namespace=*)
-        LOC_ARR[${#LOC_ARR[@]}]="$(untilde_val "$tok")" ;;
+        if [ "${SEG_Q[$TOKI]:-0}" = 1 ]; then LOC_ARR[${#LOC_ARR[@]}]="$tok"
+        else LOC_ARR[${#LOC_ARR[@]}]="$(untilde_val "$tok")"; fi ;;
       -c|--config-env|--exec-path|--attr-source|--super-prefix) skip_val=1 ;;
       *) : ;;
     esac
   done
-  SEG_TOKS=()
+  SEG_TOKS=(); SEG_Q=()
   [[ "$IS_COMMIT" -eq 1 ]] || continue
 
   # There is deliberately NO `--dry-run`/`--help` exemption. Text-inspecting

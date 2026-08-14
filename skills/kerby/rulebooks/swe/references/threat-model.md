@@ -53,6 +53,9 @@ Split out of the table above because it is the one row whose limits are easy to 
 | `git -C ~/repo commit` | `~` scanned literally; `$HOME` *is* knowable, unlike an arbitrary variable |
 | `git log --grep commit` | any later `commit` token was accepted → **false block** |
 | `echo ok # ; git commit` | a separator inside a comment → **false block** |
+| `cat <<EOF` … `git commit` … `EOF` | a heredoc BODY read as commands → **false block** |
+| `git -C '~' commit` | a *quoted* `~` is a literal directory; expanding it lost the target |
+| `git --shallow-file x commit` | a value-taking global's VALUE taken for the subcommand |
 
 `protect-git.sh` still uses the text matcher and still has this weakness. That is tracked separately rather than silently changed here — this issue is scoped to the secret scan.
 

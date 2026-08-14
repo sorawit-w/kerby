@@ -422,6 +422,32 @@ run_scan "< /dev/null git commit -m x" "$ESC"; rc=$?
 [[ "$rc" -eq 2 ]] && pass "review11: a tilde in the target is expanded" \
                   || fail "review11: FAIL-OPEN — '~' scanned literally (got $rc)"
 
+# Regressions introduced by the round-11 fixes themselves, caught by running the
+# new behaviour against the old. Each new capability had a blind spot.
+TILDE="$TMP/~"; mkdir -p "$TILDE"; git init -q "$TILDE"
+git -C "$TILDE" config user.email a@b; git -C "$TILDE" config user.name x
+printf 'k = "%s"\n' "$FAKE_KEY" > "$TILDE/s.py"; git -C "$TILDE" add s.py
+( cd "$TMP" && jq -nc '{tool_input:{command:"git -C '"'"'~'"'"' commit -m x"}}' \
+    | HOME="$HOMEDIR" PATH="$BIN_GL" SCANNER_REAL=1 bash "$HOOK" >/dev/null 2>&1 ); rc=$?
+[[ "$rc" -eq 2 ]] && pass "review12: a QUOTED ~ is a literal directory, not \$HOME" \
+                  || fail "review12: FAIL-OPEN — expanded a quoted ~ (got $rc)"
+
+# The subcommand-position rule must not mistake a value-taking global's VALUE
+# for the subcommand. The list of such globals is open-ended, so an ambiguous
+# token keeps the walk going rather than ending it.
+run_scan "git --shallow-file missing commit -m x" "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review12: a global's value is not mistaken for the subcommand" \
+                  || fail "review12: FAIL-OPEN — stopped at an unlisted global's value (got $rc)"
+run_scan "git --no-pager log --grep commit" "$ESC"; rc=$?
+[[ "$rc" -eq 0 ]] && pass "review12: a valueless global still lets the real subcommand rule apply" \
+                  || fail "review12: FALSE BLOCK after a valueless global (got $rc)"
+
+# A heredoc BODY is data. Raw-newline splitting turned each body line into a
+# command and hard-blocked a script that only writes text.
+run_scan "$(printf 'cat <<EOF >/dev/null\ngit commit -m x\nEOF')" "$ESC"; rc=$?
+[[ "$rc" -eq 0 ]] && pass "review12: a heredoc body is data, not commands" \
+                  || fail "review12: FALSE BLOCK on a heredoc body (got $rc)"
+
 # The mirror image: forms that must NOT block. A separator is a separator by
 # POSITION, not by spelling — an escaped or quoted `;` is an ordinary word.
 NB="$TMP/noblock"; git init -q "$NB"
