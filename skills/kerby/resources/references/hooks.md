@@ -104,7 +104,7 @@ one caught strictly more than the other, it still would not be a replacement.
 | | Not enforcing when |
 |---|---|
 | PreToolUse hook | Phase 2 was never accepted here, or its entry was later removed from the settings file |
-| git hook | Phase 3 was never accepted here; or this is a fresh clone (git hooks are never cloned); or `core.hooksPath` sends git to a *different* hooks dir, so the file kerby wrote is not the one git runs; or the hook or its scanner is not executable, in which case it runs but exits 0 |
+| git hook | Phase 3 was never accepted here; or this is a fresh clone (git hooks are never cloned); or `core.hooksPath` sends git to a *different* hooks dir, so the file kerby wrote is not the one git runs; or the hook file is not executable, in which case git skips it entirely; or its scanner is not executable, in which case the hook runs and its own guard exits 0 |
 
 Two things that table is careful *not* to say. **Declining a phase does not remove
 anything** — if a hook is already installed, saying no on a later run leaves it exactly
