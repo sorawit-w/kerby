@@ -97,6 +97,29 @@ Not a duplicate and not a replacement — they see different things:
 
 That last row is why both are kept. Deleting either one opens a hole the other does not cover.
 
+**Neither is guaranteed present, and they fail to be present for different reasons.** That
+is the availability argument, and it is separate from the coverage argument above: even if
+one caught strictly more than the other, it still would not be a replacement.
+
+| | Not enforcing when |
+|---|---|
+| PreToolUse hook | Phase 2 was never accepted here, or its entry was later removed from the settings file |
+| git hook | Phase 3 was never accepted here; or this is a fresh clone (git hooks are never cloned); or `core.hooksPath` sends git to a *different* hooks dir, so the file kerby wrote is not the one git runs; or the hook file is not executable, in which case git skips it entirely; or its scanner is not executable, in which case the hook runs and its own guard exits 0 |
+
+Two things that table is careful *not* to say. **Declining a phase does not remove
+anything** — if a hook is already installed, saying no on a later run leaves it exactly
+where it is; removal is `uninstall`'s job alone. And **`core.hooksPath` shadows rather
+than disables**: git still runs hooks, just from elsewhere, so a husky user can wire the
+scanner into their own `.husky/pre-commit` by hand. kerby will not do that for them.
+
+If you wire it in yourself, that file stays yours: kerby reads and writes only the repo's
+default hooks dir, never the one `core.hooksPath` points at, so `uninstall` will not touch
+your `.husky/pre-commit` even if you pasted kerby's template into it verbatim.
+
+The list is the common cases, not a proof of exhaustiveness. `kerby status` reports what
+**kerby** has bound; it does not survey every hook in the repo, so it can say "kerby is
+not enforcing here" while some other tool's hook is running fine.
+
 Unlike the post-commit reindex below, this one is **offered by `install`** (Phase 3) rather
 than pasted by hand — a security floor earns an installer; a convenience reindex does not.
 It is per-clone: git hooks are never cloned, so teammates are not covered by your install.
@@ -113,12 +136,18 @@ Behaviour worth knowing:
   line and falls back to the built-in regex floor. This matters more here than in the
   PreToolUse path: a GUI git client runs hooks with a launchd `PATH` of
   `/usr/bin:/bin:/usr/sbin:/sbin`, where an installed scanner is invisible.
-- **`core.hooksPath` shadows it entirely.** If that config is set (husky does), git never
-  runs `.git/hooks/*`; `install` refuses rather than writing a file that cannot fire, and
-  `status` reports the shadowing.
+- **`core.hooksPath` sends git elsewhere.** If that config is set to a *different* dir than
+  the repo's default (husky does; set to the default dir itself it changes nothing), git
+  runs hooks from there instead, so a file kerby wrote would sit dormant. `install` refuses rather than write one; `uninstall` and `status` still
+  look at the **default** dir, so a hook that went dormant when the config was added later
+  is still found and removable. None of this means nothing is enforcing — a hook wired
+  into the configured dir by hand runs perfectly well; kerby simply reports only on its
+  own. (The default dir is resolved from git, never assumed to be `.git/hooks` — in a
+  worktree or submodule it is not.)
 
-Remove it with `kerby uninstall`, which deletes it only if it is byte-identical to what
-`install` wrote.
+Remove it with `kerby uninstall`. It removes any hook carrying kerby's `kerby-managed:`
+marker — including one an older kerby wrote, or one written against an install root that
+has since moved. A hook without that marker is someone else's and is never touched.
 
 ---
 

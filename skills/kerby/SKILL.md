@@ -240,15 +240,17 @@ Check whether the rules are currently loaded.
 
    - Read `.kerby/rulebooks.lock` if present and each selected rulebook's manifest, **merging in `base` first exactly like `load` does** — `selected` deliberately omits `base` (it's implicit per merge rule 1), so reading only the selected manifests would silently drop the floor's own checks (`secrets-staged`, `no-print-secret`, …) from the panel. Header line: the same literal announcement format as `load`, with `source: pinned` (or "no pin — next load selects by builtin-marker detection, or asks"). **The `commands` render-trust rule applies here too:** an external rulebook's manifest fields (check ids, `gap` strings) render in the panel **iff** its current hash matches the project pin and appears in the user-local approval store; a changed/unapproved external gets one identity-only row — `reapproval required (run load to re-trigger the trust prompt)` — never its manifest text.
    - Per check, one row: `<id> — <kind> — declared: <enforcement> — effective: <enforcement>` plus the `gap` text for `partial` checks. **Effective enforcement**: for `hard`/`partial` checks, the declared level holds only if the check's enforcer is actually registered — detect it with the **exact-tuple test** (`install` § Detect already-managed entries): the check is bound iff a settings entry matches this enforcer's resolved `(event, matcher, script-path)` tuple — compare the **exact resolved script path**, not just the filename, so two external rulebooks that share a hook basename are tracked independently. **An external rulebook's enforcer bound from its own folder counts as bound** (not degraded). Unregistered → effective is `behavioral` (degraded); mark it `degraded — run install to bind`. **A registered entry whose script is gone is flagged, never counted bound:** if a settings entry matches a kerby-managed root (the `install` § 5 "managed?" predicate) but its command path no longer resolves to an existing script — the state a builtin rename can leave behind (see § Migration residue) — list it as `registered script missing — re-run kerby install`, and report its check's effective enforcement as `behavioral` (degraded). `behavioral` checks show `behavioral (by design)`.
-   - **Git-hook binding (only for checks declaring `git_hook`).** Same doctrine as above — degrade must be *visible*, never assumed. One extra clause on that check's row, resolved against `git rev-parse --git-path hooks`:
-     - `git-hook: installed` — the file is there, ours, executable, and its exec target resolves.
-     - `git-hook: not installed` — offered by `install`, declined or never run.
-     - `git-hook: SHADOWED by core.hooksPath=<value> (<origin>)` — the file exists but git never runs it. **Reported as not enforcing**, because it isn't.
-     - `git-hook: present but not kerby's` — someone else owns that path; kerby left it alone.
-     - `git-hook: installed but not executable` — git skips it silently; `re-run kerby install`.
-     - `git-hook: installed but its target is missing` — the install moved; the hook fails open by design. `re-run kerby install`.
+   - **Git-hook binding (only for checks declaring `git_hook`).** Degrade must be visible, but **every state must name who acts on it** — kerby, via `install` or `uninstall`, or the user, with the specific thing to do. A label with no actor is the loop this section already shipped once; "kerby cannot fix this, here is what you do" is an actor, "re-run install" when install does nothing is not. Check `core.hooksPath` with `git config --get --show-origin core.hooksPath` **first and directly**; do not resolve it with `git rev-parse --git-path hooks`, which returns the *configured* dir and therefore can never find a dormant file in `.git/hooks` to report on.
+     **Which file:** always the repo's **default** hooks dir (`<git-common-dir>/hooks`), never the dir `core.hooksPath` points at. Compare the two as resolved paths before calling anything shadowed: `core.hooksPath` set *to the default dir itself* changes nothing, and reporting that as dormant would be wrong in both directions — git is running kerby's hook. kerby writes there and only there — Phase 3 refuses when `core.hooksPath` points somewhere *else* — so that is the only place its hook can be, and looking through the config instead would both miss a dormant hook left from before the config changed and pick up files kerby never wrote.
+     - `git-hook: installed but not running — core.hooksPath=<value> (<origin>)` — git runs hooks from that dir instead, so kerby's file is dormant. It is not gone; removing the config makes git run it again **provided it passes the enforcing test** — a dormant hook that is `0644`, or whose scanner is not `-x`, will come back still failing open. `kerby uninstall` removes it — ownership is the marker, so a dormant hook from an older kerby is still kerby's to clear. `install` will not add one while the config points elsewhere.
+     - `git-hook: not enforcing — core.hooksPath=<value> (<origin>)` — the config is set and kerby has no hook here. Note this says nothing about whether *some* hook runs: a manually wired one in the configured dir may well be enforcing. kerby only reports on its own. **You** decide whether that dir's hooks cover you; kerby will not add one there, and `install` will keep refusing while the config points elsewhere.
+     - `git-hook: installed` — present, byte-identical, executable, and its scanner passes `-x`.
+     - `git-hook: installed but its scanner is not executable` — the hook is ours and runs, but the enforcer it points at is missing or not `-x`, so the hook's own guard exits 0 on every commit. **You** fix this, not kerby: `chmod +x` the scanner if it is merely mis-permissioned, otherwise reinstall whatever ships it — the kerby skill for a builtin rulebook's enforcer, or the external rulebook itself for one of theirs. Re-running `kerby install` cannot restore a file that is not there. Test `-x`, never mere existence — a `0644` scanner passes an existence check and still fails the guard.
+     - `git-hook: installed but not executable` — git skips it silently. `re-run kerby install` (which chmods it).
+     - `git-hook: not installed` — nothing at that path. `kerby install` offers it.
+     - `git-hook: installed, but not the current template` — carries kerby's marker, bytes differ (an older kerby wrote it, or it was hand-edited). It still runs. `re-run kerby install` rewrites it after showing you the diff.
+     - `git-hook: a different pre-commit hook is present` — no kerby marker, so not ours whoever wrote it. kerby will not modify or remove it; that file is yours.
 
-     The last four all look like "protected" to a user who only checks that the file exists, which is why each gets its own words rather than a boolean.
    - **Stale builtin pin (report-only):** when a `selected` entry with install-resolved builtin identity carries a `version` differing from the installed manifest's, render its header row as `<id>@<pin-version> (builtin — install has <new-version>; next load re-pins)`. `status` never writes the lockfile — the reconcile itself belongs to `load`/`reload`.
    - A check whose `needs` the current subject type cannot satisfy is listed as `skipped (needs: <views>)` — visible, never silent.
    - If the last load failed (invalid manifest, declined trust prompt), say which rulebook and why, and that gated work in the meantime is **HELD**.
@@ -473,9 +475,14 @@ Offered only when **at least one in-scope check declares `git_hook`** (contract 
 
 **Preconditions — check in this order, and skip with a reason rather than writing a file that cannot work:**
 
-1. **`core.hooksPath` is set** (`git config --get --show-origin core.hooksPath`) → git ignores `.git/hooks` entirely, so an installed hook would never run while `status` reported it installed. Skip, naming the config origin. This is how a **husky** repo presents: there is no file at `.git/hooks/pre-commit` at all, so a "does a hook already exist?" test would wrongly say the coast is clear.
+1. **`core.hooksPath` is set to a different dir than the default** (`git config --get --show-origin core.hooksPath`, then compare resolved paths — set to the default dir itself is a no-op, not shadowing) → git runs hooks from there, so a file written to the default dir would sit dormant. Skip, naming the config origin. A **husky** repo usually presents with nothing at the default `pre-commit` path, so an existence-first test would wrongly read that as a free slot; note it can also present *with* a dormant hook, if kerby installed before husky was enabled.
 2. **Resolve the hooks dir with `git rev-parse --git-path hooks`** — never the literal `.git/hooks`. In a worktree or submodule `.git` is a *file*, and a literal path writes a hook git never runs. Note the consequence in the offer: hooks live in the **common** dir, so installing from one worktree installs for **all** worktrees of that repo.
-3. **A hook already exists there** → read it. **Ours** (marker present) and byte-identical to what we would write → `already installed`, no diff, no prompt (Phase 3 is idempotent, like the others). **Ours but drifted** (hand-edited) → report and leave it. **Not ours** → refuse, print its first line, and continue the rest of install. Never chain, never replace, never back up and overwrite.
+3. **A hook already exists there** → read it. **Ownership is the marker; currency is the bytes.** Keeping those separate is what makes upgrades work:
+   - **No `kerby-managed:` marker** → not ours. Do not touch it, ever. Report the path and its first line and continue the rest of install.
+   - **Marker present, byte-identical** to what we would write → ours and current. Nothing to write.
+   - **Marker present, bytes differ** → ours but not current. Show a diff and ask; on `y`, **rewrite it wholesale** to the current template. This one branch covers every way that happens — a kerby upgrade that changed the template, an install root that moved, or someone hand-editing the file — and it does not need to tell them apart, because the answer is the same and the user sees the diff before it happens.
+
+   **Why ownership is not byte-identity.** An earlier draft made it so, and every template change then orphaned every hook the previous version installed: no longer byte-identical, therefore "not ours", therefore install would not repair it and uninstall would not remove it. Marker-for-ownership plus a confirmed rewrite is what lets kerby maintain its own file across versions. The marker is the claim of authorship; the bytes only say whether it is up to date.
 
 **The prompt** (literal — install copy carries no persona, per `VOICE.md` § Zoning):
 
@@ -487,7 +494,7 @@ Offered only when **at least one in-scope check declares `git_hook`** (contract 
 #!/bin/sh
 # kerby-managed:<check-id> — remove with `kerby uninstall`
 # bypass once: git commit --no-verify
-[ -x "<abs enforcer path>" ] || { echo "kerby: scanner missing at <abs enforcer path> — skipping (run kerby install)" >&2; exit 0; }
+[ -x "<abs enforcer path>" ] || { echo "kerby: scanner missing or not executable at <abs enforcer path> — NOT scanning this commit. Repair your kerby install (reinstall the skill); re-running 'kerby install' cannot restore it." >&2; exit 0; }
 exec "<abs enforcer path>" --git-hook
 ```
 
@@ -496,6 +503,25 @@ Three deliberate properties:
 - **The existence guard is not optional.** A bare `exec` at a path that later moves makes git abort *every* commit with 127 — the worst outcome available here, with a non-obvious escape. Warn and `exit 0` instead: failing open on a vanished scanner beats wedging a repo. Same shape the shim rule already prescribes for enforcers.
 - **`chmod +x`, then verify the mode took.** Git skips a non-executable hook **silently** — a fail-open that reports success.
 - **The file names its own escape**, so a user facing an unexpected block finds the answer in the file rather than the docs.
+
+**The enforcing test — one place, every outcome.** Before Phase 3 reports a hook as
+installed *by any route* — freshly written, already present, or just `chmod`ed — verify
+both of these. Never as a clause inside one branch: this check has now been omitted from a
+new branch four separate times, each omission a state that reported green while the hook
+exited 0 on every commit. It is a postcondition on the phase, not a step in a path.
+
+1. **The hook file is executable** (`[ -x <hook> ]`). Git skips a non-executable hook
+   silently.
+2. **The enforcer it points at is executable** (`[ -x <enforcer> ]`) — *exactly* what the
+   hook's own guard tests, never mere existence. A scanner at mode `0644` exists, fails
+   the guard, and the hook exits 0. **Any check weaker than the guard it stands in for is
+   a false green by construction**, which is why this mirrors the guard rather than
+   approximating it.
+
+Either failing → do **not** report installed. Name the path and say the hook is failing
+open until it is fixed. `chmod` on the hook is install's to do; a non-executable or
+missing *enforcer* means the kerby install itself is broken, and rewriting the hook cannot
+fix that.
 
 **Summarize:**
 
@@ -557,11 +583,10 @@ If `y`:
 
 ### Git `pre-commit` hook
 
-For each in-scope check declaring `git_hook`, look at `<git-path hooks>/<name>`. Removal is **byte-exact**, the same doctrine as the `.gitignore` marker block below: regenerate the content `install` would write and compare.
+For each in-scope check declaring `git_hook`, look at the hook at the resolved hooks dir. Look in the same place `install` writes — the repo's **default** hooks dir, never the one `core.hooksPath` points at — and use the same ownership test: **the `kerby-managed:` marker**, not byte-identity. A hook kerby wrote with an older template, or against an install root that has since moved, is still kerby's to remove; requiring byte-identity would strand exactly the hooks an upgrade leaves behind.
 
-- **Identical** → show it as a removal and include it in the confirmation.
-- **Marker present but content drifted** (hand-edited after install) → **leave it** and report: `<path> was modified after install — left in place; remove it yourself.` kerby never deletes a file whose current content it did not author.
-- **No marker** → not ours, never touched, never mentioned in the removal set.
+- **Marker present** → include it in the removal confirmation, showing its content.
+- **No marker** → not ours. Left in place, never mentioned in the removal set.
 
 A scoped `uninstall <rulebook>` removes only the git hooks whose marker names a check from *that* rulebook — the marker carries the check id precisely so this is decidable.
 
