@@ -145,10 +145,9 @@ Behaviour worth knowing:
   own. (The default dir is resolved from git, never assumed to be `.git/hooks` — in a
   worktree or submodule it is not.)
 
-Remove it with `kerby uninstall`. It deletes the file only when it is byte-identical to
-what `install` writes. Anything else — hand-edited, another tool's, or kerby's own from an
-install root that has since moved — is reported and left in place, because kerby cannot
-tell those apart and does not guess.
+Remove it with `kerby uninstall`. It removes any hook carrying kerby's `kerby-managed:`
+marker — including one an older kerby wrote, or one written against an install root that
+has since moved. A hook without that marker is someone else's and is never touched.
 
 ---
 
