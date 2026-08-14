@@ -35,6 +35,13 @@
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
+# --- BEGIN SHARED SHELL TOKENIZER ------------------------------------------
+# KEEP BYTE-IDENTICAL to rulebooks/swe/hooks/protect-git.sh's copy of this block.
+# Two copies exist because `base` is the floor and cannot depend on `swe`, nor swe
+# on base. The duplication is held by a parity assertion in BOTH test files, which
+# fails if the blocks drift — the same arrangement the old GIT_COMMIT_RE constant
+# used, extended to a function body. A shared helper in the engine would break
+# rulebook self-containment (docs/rulebook-contract.md), so this is the trade.
 # Split the WHOLE command into shell words AND separator tokens in one pass,
 # honouring quotes and backslash escapes. Separators (`;` `&` `&&` `|` `||`) are
 # emitted as their own tokens ONLY when unquoted and unescaped, so `echo x \; git
@@ -45,18 +52,18 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 # newlines — so every newline comparison silently compared against "".
 NL=$'\n'; TAB=$'\t'
 tokenize() {
-  local s="$1" i=0 n=${#1} c d q="" cur="" open=0 qseen="" hd hdq hdstate HD_PENDING=""
+  local s="$1" i=0 n=${#1} c d q="" cur="" open=0 qseen="" lastmeta=0 hd hdq hdstate HD_PENDING=""
   # TOKSEP marks which entries are SEPARATORS. A separator cannot be identified
   # by its text: `echo x \; git commit` yields a literal `;` WORD, and matching
   # on the string alone cut the command there and hard-blocked a line that only
   # prints text. Position, not spelling, is what makes a token a separator.
   TOKENS=(); TOKSEP=(); TOKQ=()
-  _emit() { if [ -n "$cur" ] || [ "$open" = 1 ]; then TOKSEP[${#TOKENS[@]}]=0; TOKQ[${#TOKENS[@]}]="$qseen"; TOKENS[${#TOKENS[@]}]="$cur"; fi; cur=""; open=0; qseen=""; }
+  _emit() { if [ -n "$cur" ] || [ "$open" = 1 ]; then TOKSEP[${#TOKENS[@]}]=0; TOKQ[${#TOKENS[@]}]="$qseen"; TOKENS[${#TOKENS[@]}]="$cur"; fi; cur=""; open=0; qseen=""; lastmeta=0; }
   _sep()  { TOKSEP[${#TOKENS[@]}]=1; TOKQ[${#TOKENS[@]}]=""; TOKENS[${#TOKENS[@]}]="$1"; }
   while [ "$i" -lt "$n" ]; do
     c="${s:$i:1}"
     if [ "$q" = "'" ]; then
-      if [ "$c" = "'" ]; then q=""; else cur="$cur$c"; fi
+      if [ "$c" = "'" ]; then q=""; else cur="$cur$c"; lastmeta=0; fi
     elif [ "$q" = '"' ]; then
       # Inside double quotes bash still processes `\"` and `\\`. Treating a
       # backslash as literal here ended the token early, so a path containing a
@@ -69,13 +76,24 @@ tokenize() {
           *) cur="$cur$c" ;;
         esac
       elif [ "$c" = '"' ]; then q=""
-      else cur="$cur$c"; fi
+      else cur="$cur$c"; lastmeta=0; fi
     elif [ "$c" = "\\" ]; then
       # `\` + newline is a LINE CONTINUATION: both characters vanish. Keeping the
       # newline glued it into the token, so `git \<newline>commit` produced one
       # token that was neither `git` nor `commit` and the scan never ran.
       if [ "${s:$((i+1)):1}" = "$NL" ]; then i=$((i+1))
-      else i=$((i+1)); cur="$cur${s:$i:1}"; open=1; fi
+      else
+        # An escape is QUOTING: `VAR\=1 git …` is a command name, not an
+        # assignment, so its position is recorded like a quote's.
+        qseen="$qseen ${#cur}"
+        i=$((i+1)); cur="$cur${s:$i:1}"; open=1; lastmeta=0
+      fi
+    elif [ "$c" = '$' ] && { [ "${s:$((i+1)):1}" = "'" ] || [ "${s:$((i+1)):1}" = '"' ]; }; then
+      # `$'...'` is ANSI-C quoting and `$"..."` is locale translation; both are
+      # QUOTING. Treating `$` as a plain character left `$'commit'` tokenized as
+      # `$commit`, so the subcommand was never recognised.
+      qseen="$qseen ${#cur}"
+      i=$((i+1)); q="${s:$i:1}"; open=1; lastmeta=0
     elif [ "$c" = '"' ] || [ "$c" = "'" ]; then
       # Record WHERE the first quote fell. Bash suppresses tilde expansion when
       # anything in the TILDE-PREFIX (the `~` up to the first `/`) is quoted —
@@ -84,8 +102,11 @@ tokenize() {
       # EVERY quote-open position is recorded. Keeping only the first meant a
       # quote in the KEY half of `--git-"dir"="~/x"` erased the value's
       # provenance and the tilde expanded when bash would not have.
+      # Opening a quote ends any pending redirection operator: after `>` the
+      # quote begins a FILENAME, so the token no longer ends in an unquoted
+      # meta character and a following `&` really does separate commands.
       qseen="$qseen ${#cur}"
-      q="$c"; open=1
+      q="$c"; open=1; lastmeta=0
     elif [ "$c" = " " ] || [ "$c" = "$TAB" ]; then
       _emit
     elif [ "$c" = "<" ] && [ "${s:$((i+1)):1}" = "<" ]; then
@@ -156,11 +177,19 @@ tokenize() {
       continue
     elif [ "$c" = ";" ]; then
       _emit; _sep ";"
+    elif [ "$c" = "&" ] && [ "$lastmeta" = 1 ]; then
+      # `2>&1` is ONE redirection. Reading its `&` as a separator split the
+      # command and the invocation after it was never examined. The preceding
+      # `>`/`<` must be UNQUOTED: `true '>'& git commit` ends a command at the
+      # `&`, and reading the quoted `>` as an operator absorbed it and hid the
+      # invocation that followed.
+      cur="$cur$c"
     elif [ "$c" = "&" ] || [ "$c" = "|" ]; then
       _emit
       if [ "${s:$((i+1)):1}" = "$c" ]; then _sep "$c$c"; i=$((i+1))
       else _sep "$c"; fi
     else
+      case "$c" in '>'|'<') lastmeta=1 ;; *) lastmeta=0 ;; esac
       cur="$cur$c"
     fi
     i=$((i+1))
@@ -216,6 +245,7 @@ untilde_val() { # $1=key=value  $2=quote-open positions within the whole token
 }
 
 is_sep() { [ "${TOKSEP[$1]:-0}" = 1 ]; }   # $1 = index, not text
+# --- END SHARED SHELL TOKENIZER --------------------------------------------
 
 tokenize "$COMMAND"
 # Detection is STRUCTURAL, not a regex over de-quoted text. The old pre-filter
@@ -447,7 +477,15 @@ while [ "$TI" -le "$NALL" ]; do
       if [ "$redir_val" -eq 1 ]; then redir_val=0; continue; fi
       case "$tok" in
         [0-9]*'>'*|[0-9]*'<'*|'>'*|'<'*|'&>'*)
-          case "$tok" in *[!0-9\<\>\&]*) : ;; *) redir_val=1 ;; esac
+            # An operator awaiting an operand is ONLY digits and redirection
+            # characters, ending in > or <: `>` `2>` `>>` `2>>` `&>` `<<<`.
+            # `2>&1` and `>&2` are self-contained, and `>marker\>` is `>` plus a
+            # FILENAME — matching on the last character alone made that filename
+            # look like an operator and swallowed the `git` token after it.
+            case "$tok" in
+              *'>'|*'<') case "$tok" in *[!0-9\&\<\>]*) : ;; *) redir_val=1 ;; esac ;;
+              *) : ;;
+            esac
           continue ;;
       esac
       case "$tok" in

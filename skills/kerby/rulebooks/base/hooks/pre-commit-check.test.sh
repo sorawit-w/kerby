@@ -534,6 +534,33 @@ run_scan "$(printf 'cat <<"E\\OF" >/dev/null\nbody\nE\\OF\ngit commit -m real')"
 [[ "$rc" -eq 2 ]] && pass 'review15: <<"E\OF" keeps the backslash in the delimiter' \
                   || fail "review15: FAIL-OPEN — consumed a non-special backslash (got $rc)"
 
+# `$'...'` is ANSI-C quoting and `2>&1` is one redirection — both are shell
+# grammar the tokenizer did not model. `$'commit'` tokenized as `$commit` so the
+# subcommand was never recognised; the `&` in `2>&1` was read as a separator,
+# which swallowed the `git` token after it. Both were fail-opens here as well as
+# in protect-git.sh, since the tokenizer is shared.
+run_scan "git \$'commit' -m x" "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review16: ANSI-C quoted subcommand is recognised" \
+                  || fail "review16: FAIL-OPEN — \$'commit' unrecognised (got $rc)"
+run_scan "2>&1 git commit -m x" "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review16: a 2>&1 prefix does not hide the command" \
+                  || fail "review16: FAIL-OPEN — redirection swallowed the invocation (got $rc)"
+
+# The same two tokenizer regressions reach the secret scan.
+run_scan "true '>'& git commit -m x" "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review17: a QUOTED > before & does not absorb the separator" \
+                  || fail "review17: FAIL-OPEN — quoted > absorbed the & (got $rc)"
+run_scan ">marker\\> git commit -m x" "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review17: a filename ending in an escaped > is not an operator" \
+                  || fail "review17: FAIL-OPEN — filename swallowed the invocation (got $rc)"
+
+# A quote after `>` begins a FILENAME, so the redirection operator is finished
+# and a following separator really separates. Shared tokenizer, so it reached
+# the secret scan too.
+run_scan 'true >"x" && git commit -m x' "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review18: a quoted redirection filename ends the operator" \
+                  || fail "review18: FAIL-OPEN — quoted filename absorbed the separator (got $rc)"
+
 # The mirror image: forms that must NOT block. A separator is a separator by
 # POSITION, not by spelling — an escaped or quoted `;` is an ordinary word.
 NB="$TMP/noblock"; git init -q "$NB"
@@ -728,7 +755,9 @@ if [[ -f "$SWE_HOOK" ]]; then
   # The regex parity guard is gone WITH the regex: this hook detects structurally
   # (tokenize + exact token match), protect-git.sh still matches text. They no
   # longer share a mechanism, so asserting byte-identity would guard nothing.
-  grep -q 'GIT_COMMIT_RE' "$HOOK" \
+  # Test for the ASSIGNMENT, not a mention: the shared-tokenizer banner refers to
+  # the old constant by name when explaining what replaced it.
+  grep -qE '^GIT_(COMMIT_RE|GLOBAL_OPT)=' "$HOOK" \
     && fail "hook still carries the dead regex matcher" \
     || pass "detection is structural — no text regex left in the hook"
 else
@@ -737,6 +766,30 @@ fi
 
 # --- Summary -----------------------------------------------------------------
 echo "---"
+
+# --- Shared-tokenizer parity -------------------------------------------------
+# The tokenizer is DUPLICATED between base/hooks/pre-commit-check.sh and
+# swe/hooks/protect-git.sh because base cannot depend on swe, nor swe on base
+# (docs/rulebook-contract.md: rulebooks are self-contained). Duplication is only
+# honest if drift FAILS LOUDLY, so both suites assert the blocks are byte-
+# identical. An untested second copy of a security-relevant parser is exactly the
+# "reports checked while checking nothing" failure this repo has already had.
+OTHER="$SCRIPT_DIR/../../swe/hooks/protect-git.sh"
+if [[ -f "$OTHER" ]]; then
+  extract() { sed -n '/^# --- BEGIN SHARED SHELL TOKENIZER/,/^# --- END SHARED SHELL TOKENIZER/p' "$1" \
+                | grep -v 'KEEP BYTE-IDENTICAL to'; }
+  a=$(extract "$HOOK"); b=$(extract "$OTHER")
+  if [[ -z "$a" || -z "$b" ]]; then
+    fail "parity: shared-tokenizer block missing from one of the two hooks"
+  elif [[ "$a" == "$b" ]]; then
+    pass "parity: shared tokenizer byte-identical across base and swe"
+  else
+    fail "parity: shared tokenizer DRIFTED between base and swe ($(printf '%s' "$a" | wc -l) vs $(printf '%s' "$b" | wc -l) lines)"
+  fi
+else
+  fail "parity: could not locate the other hook at $OTHER"
+fi
+
 if [[ "$FAILS" -eq 0 ]]; then
   echo "All assertions passed."
   exit 0
