@@ -262,11 +262,14 @@ def check_fields(check: dict, idx: int, res: Result) -> str:
     # unvalidated and a typo would install a hook pointing at nothing.
     gh = check.get("git_hook")
     if gh is not None:
+        # Two INDEPENDENT checks, deliberately not an elif chain: an unknown hook
+        # name is a warning, and chaining let it swallow the required-enforcer
+        # ERROR, so `git_hook = "typo-hook"` with no enforcer validated clean.
         if not isinstance(gh, str) or not gh.strip():
             res.error("E09", f"check '{cid}': 'git_hook' must be a non-empty string naming a git hook (e.g. 'pre-commit')")
         elif gh not in KNOWN_GIT_HOOKS:
             res.warn("E09", f"check '{cid}': git_hook '{gh}' is not a known git hook ({', '.join(sorted(KNOWN_GIT_HOOKS))}) — install would write a file git never runs")
-        elif "enforcer" not in check:
+        if "enforcer" not in check:
             res.error("E09", f"check '{cid}': 'git_hook' needs an 'enforcer' — the git hook execs that script with --git-hook")
     if "enforcer" in check and ev is None:
         res.warn("E09", f"check '{cid}': enforcer declared without 'event' — install cannot auto-register this hook until the manifest declares its trigger")

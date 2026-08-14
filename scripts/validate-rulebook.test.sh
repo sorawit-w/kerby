@@ -443,6 +443,60 @@ else
   fail "E13 check-updates — expected non-zero exit + 'E13', got exit $RC: $OUT"
 fi
 
+# --- git_hook (contract 2, additive) -----------------------------------------
+# The name check and the required-enforcer check are INDEPENDENT. They were an
+# elif chain once, so an unknown hook name warned and then swallowed the error:
+# `git_hook = "typo-hook"` with no enforcer validated clean.
+mk_gh() { # $1=dir  $2=git_hook value  $3=extra toml lines
+  mkdir -p "$1/hooks"
+  printf '#!/bin/bash\nexit 0\n' > "$1/hooks/e.sh"; chmod +x "$1/hooks/e.sh"
+  { echo 'id = "ghfix"'; echo 'version = "1.0.0"'; echo 'contract = 2'
+    echo 'accepts = ["*"]'; echo 'description = "git_hook fixture"'
+    echo '[[check]]'; echo 'id = "c"'; echo 'kind = "prose"'
+    echo 'enforcement = "behavioral"'; echo "git_hook = $2"; echo "$3"
+  } > "$1/rulebook.toml"
+}
+
+TMP_GH="$(mktemp -d)"; mk_gh "$TMP_GH" '"typo-hook"' ''
+run "$TMP_GH"; rm -rf "$TMP_GH"
+if [[ "$RC" -ne 0 ]] && echo "$OUT" | grep -q "needs an 'enforcer'"; then
+  pass "git_hook: an UNKNOWN name still errors on the missing enforcer (no elif swallow)"
+else
+  fail "git_hook unknown-name + no-enforcer — expected nonzero + enforcer error, got exit $RC: $OUT"
+fi
+
+TMP_GH="$(mktemp -d)"; mk_gh "$TMP_GH" '"pre-commit"' ''
+run "$TMP_GH"; rm -rf "$TMP_GH"
+if [[ "$RC" -ne 0 ]] && echo "$OUT" | grep -q "needs an 'enforcer'"; then
+  pass "git_hook: a KNOWN name without an enforcer errors"
+else
+  fail "git_hook known-name + no-enforcer — expected nonzero + enforcer error, got exit $RC: $OUT"
+fi
+
+TMP_GH="$(mktemp -d)"; mk_gh "$TMP_GH" '""' 'enforcer = "hooks/e.sh"'
+run "$TMP_GH"; rm -rf "$TMP_GH"
+if [[ "$RC" -ne 0 ]] && echo "$OUT" | grep -q "must be a non-empty string"; then
+  pass "git_hook: an empty string errors"
+else
+  fail "git_hook empty-string — expected nonzero + shape error, got exit $RC: $OUT"
+fi
+
+TMP_GH="$(mktemp -d)"; mk_gh "$TMP_GH" '"typo-hook"' 'enforcer = "hooks/e.sh"'
+run "$TMP_GH"; rm -rf "$TMP_GH"
+if echo "$OUT" | grep -q "warning E09:.*not a known git hook"; then
+  pass "git_hook: an unknown name warns (install would write a file git never runs)"
+else
+  fail "git_hook unknown-name — expected an E09 warning, got exit $RC: $OUT"
+fi
+
+TMP_GH="$(mktemp -d)"; mk_gh "$TMP_GH" '"pre-commit"' 'enforcer = "hooks/e.sh"'
+run "$TMP_GH"; rm -rf "$TMP_GH"
+if ! echo "$OUT" | grep -q "git_hook"; then
+  pass "git_hook: a well-formed declaration is silent"
+else
+  fail "git_hook well-formed — expected no git_hook diagnostics, got: $OUT"
+fi
+
 # --- Validator stays stdlib-only ----------------------------------------------
 BAD_IMPORTS="$(grep -E '^(import|from) ' "$VALIDATOR" | grep -vE '^(import|from) (argparse|hashlib|re|sys|tomllib|pathlib)\b')"
 if [[ -z "$BAD_IMPORTS" ]]; then
