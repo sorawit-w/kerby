@@ -59,6 +59,8 @@ Split out of the table above because it is the one row whose limits are easy to 
 | `git -C ~/"repo" commit` | quote provenance read per-WORD; bash expands a tilde whose own character is unquoted |
 | `cat <<EOF; git commit` | the rest of the heredoc's OPENER line is live code, not body |
 | `cat <<\EOF` … `EOF` | an escaped delimiter must be dequoted or the terminator never matches |
+| `git -C ~"" commit` | tilde expansion turns on quoting *within the tilde-prefix*, not the word's first character |
+| `cat <<'E\OF'` | inside single quotes a backslash is LITERAL; stripping it queued a delimiter that never matched |
 
 `protect-git.sh` still uses the text matcher and still has this weakness. That is tracked separately rather than silently changed here — this issue is scoped to the secret scan.
 

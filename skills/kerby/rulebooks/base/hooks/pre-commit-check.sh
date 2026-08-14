@@ -45,14 +45,14 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 # newlines — so every newline comparison silently compared against "".
 NL=$'\n'; TAB=$'\t'
 tokenize() {
-  local s="$1" i=0 n=${#1} c d q="" cur="" open=0 qseen=0 hd hdq HD_PENDING=""
+  local s="$1" i=0 n=${#1} c d q="" cur="" open=0 qseen=-1 hd hdq hdstate HD_PENDING=""
   # TOKSEP marks which entries are SEPARATORS. A separator cannot be identified
   # by its text: `echo x \; git commit` yields a literal `;` WORD, and matching
   # on the string alone cut the command there and hard-blocked a line that only
   # prints text. Position, not spelling, is what makes a token a separator.
   TOKENS=(); TOKSEP=(); TOKQ=()
-  _emit() { if [ -n "$cur" ] || [ "$open" = 1 ]; then TOKSEP[${#TOKENS[@]}]=0; TOKQ[${#TOKENS[@]}]=$qseen; TOKENS[${#TOKENS[@]}]="$cur"; fi; cur=""; open=0; qseen=0; }
-  _sep()  { TOKSEP[${#TOKENS[@]}]=1; TOKQ[${#TOKENS[@]}]=0; TOKENS[${#TOKENS[@]}]="$1"; }
+  _emit() { if [ -n "$cur" ] || [ "$open" = 1 ]; then TOKSEP[${#TOKENS[@]}]=0; TOKQ[${#TOKENS[@]}]=$qseen; TOKENS[${#TOKENS[@]}]="$cur"; fi; cur=""; open=0; qseen=-1; }
+  _sep()  { TOKSEP[${#TOKENS[@]}]=1; TOKQ[${#TOKENS[@]}]=0; TOKENS[${#TOKENS[@]}]="$1"; }   # 0 = quoted at pos 0
   while [ "$i" -lt "$n" ]; do
     c="${s:$i:1}"
     if [ "$q" = "'" ]; then
@@ -77,11 +77,11 @@ tokenize() {
       if [ "${s:$((i+1)):1}" = "$NL" ]; then i=$((i+1))
       else i=$((i+1)); cur="$cur${s:$i:1}"; open=1; fi
     elif [ "$c" = '"' ] || [ "$c" = "'" ]; then
-      # Provenance is about the word's FIRST character, not the whole word:
-      # bash expands the `~/` in `~/"hrepo"` because the tilde itself is
-      # unquoted, but leaves `'~'` alone. Recording "any quote appeared"
-      # suppressed expansion on the first form and lost the target.
-      [ -z "$cur" ] && [ "$open" = 0 ] && qseen=1
+      # Record WHERE the first quote fell. Bash suppresses tilde expansion when
+      # anything in the TILDE-PREFIX (the `~` up to the first `/`) is quoted —
+      # so `~/"x"` expands but `~""` and `"~"/x` do not. "Did the word start
+      # quoted" got `~""` wrong; "did any quote appear" got `~/"x"` wrong.
+      [ "$qseen" -lt 0 ] && qseen=${#cur}
       q="$c"; open=1
     elif [ "$c" = " " ] || [ "$c" = "$TAB" ]; then
       _emit
@@ -94,15 +94,27 @@ tokenize() {
       _emit
       i=$((i+2)); [ "${s:$i:1}" = "-" ] && i=$((i+1))
       while [ "$i" -lt "$n" ] && { [ "${s:$i:1}" = " " ] || [ "${s:$i:1}" = "$TAB" ]; }; do i=$((i+1)); done
-      hd=""
+      # Read the delimiter with the SAME quoting rules as a word: inside single
+      # quotes a backslash is LITERAL, so `<<'E\OF'` really does have the
+      # delimiter `E\OF`. Stripping backslashes unconditionally queued `EOF`,
+      # which then matched the wrong line and swallowed a real commit after it.
+      hd=""; hdstate=""
       while [ "$i" -lt "$n" ]; do
         hdq="${s:$i:1}"
+        if [ "$hdstate" = "'" ]; then
+          if [ "$hdq" = "'" ]; then hdstate=""; else hd="$hd$hdq"; fi
+          i=$((i+1)); continue
+        fi
+        if [ "$hdstate" = '"' ]; then
+          if [ "$hdq" = '"' ]; then hdstate=""
+          elif [ "$hdq" = "\\" ]; then i=$((i+1)); hd="$hd${s:$i:1}"
+          else hd="$hd$hdq"; fi
+          i=$((i+1)); continue
+        fi
         case "$hdq" in
           " "|"$TAB"|"$NL"|";"|"&"|"|"|">"|"<") break ;;
-          # `<<\EOF` and `<<'EOF'` both quote the delimiter; the delimiter LINE
-          # is still the bare word. Leaving the backslash in meant the
-          # terminator never matched and everything after it was swallowed.
-          '"'|"'"|"\\") i=$((i+1)) ;;
+          "'"|'"') hdstate="$hdq"; i=$((i+1)) ;;
+          "\\") i=$((i+1)); hd="$hd${s:$i:1}"; i=$((i+1)) ;;
           *) hd="$hd$hdq"; i=$((i+1)) ;;
         esac
       done
@@ -150,15 +162,30 @@ tokenize() {
 # unlike an arbitrary variable. Leaving it literal made `git -C ~/repo commit`
 # scan a directory named `~` and report clean. `~user` needs a passwd lookup and
 # is left alone.
-untilde() {
+untilde() { # $1=word  $2=index of the word's first quote, -1 if unquoted
+  local pre
+  case "$1" in
+    "~"|"~/"*) : ;;
+    *) printf '%s' "$1"; return ;;
+  esac
+  # Quoting anywhere in the tilde-prefix (`~` up to the first `/`) suppresses
+  # expansion: `~""` is a literal `~`, while `~/"x"` is $HOME/x.
+  pre="${1%%/*}"
+  if [ "${2:--1}" -ge 0 ] && [ "$2" -le "${#pre}" ]; then printf '%s' "$1"; return; fi
   case "$1" in
     "~") printf '%s' "$HOME" ;;
-    "~/"*) printf '%s%s' "$HOME" "${1#\~}" ;;
-    *) printf '%s' "$1" ;;
+    *) printf '%s%s' "$HOME" "${1#\~}" ;;
   esac
 }
 
-untilde_val() { case "$1" in *=*) printf '%s=%s' "${1%%=*}" "$(untilde "${1#*=}")" ;; *) printf '%s' "$1" ;; esac; }
+untilde_val() { # $1=key=value  $2=first-quote index within the whole token
+  case "$1" in
+    *=*) local k="${1%%=*}" v="${1#*=}" vq="${2:--1}"
+         [ "$vq" -ge 0 ] && vq=$(( vq - ${#k} - 1 ))
+         printf '%s=%s' "$k" "$(untilde "$v" "$vq")" ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
 
 is_sep() { [ "${TOKSEP[$1]:-0}" = 1 ]; }   # $1 = index, not text
 
@@ -372,7 +399,7 @@ while [ "$TI" -le "$NALL" ]; do
     [ "$CDI" -lt "$NTOK" ] && CDARG="${SEG_TOKS[$CDI]}"
     case "$CDARG" in
       ""|-) : ;;
-      *) CDLIST="${CDLIST}$(untilde "$CDARG")
+      *) CDLIST="${CDLIST}$(untilde "$CDARG" "${SEG_Q[$CDI]:--1}")
 " ;;
     esac
     SEG_TOKS=(); SEG_Q=(); continue
@@ -397,7 +424,7 @@ while [ "$TI" -le "$NALL" ]; do
       esac
       case "$tok" in
         GIT_DIR=*|GIT_WORK_TREE=*|GIT_INDEX_FILE=*|GIT_COMMON_DIR=*|GIT_OBJECT_DIRECTORY=*)
-          ENVS="${ENVS}$(untilde_val "$tok")
+          ENVS="${ENVS}$(untilde_val "$tok" "${SEG_Q[$TOKI]:--1}")
 "; continue ;;
         *=*) continue ;;
         git|*/git) SEEN_GIT=1; continue ;;
@@ -411,8 +438,7 @@ while [ "$TI" -le "$NALL" ]; do
     # a commit: `--` ends option parsing, so nothing after it is a subcommand.
     if [[ "$take_val" -eq 1 ]]; then
       take_val=0
-      if [ "${SEG_Q[$TOKI]:-0}" = 1 ]; then LOC_ARR[${#LOC_ARR[@]}]="$tok"
-      else LOC_ARR[${#LOC_ARR[@]}]="$(untilde "$tok")"; fi
+      LOC_ARR[${#LOC_ARR[@]}]="$(untilde "$tok" "${SEG_Q[$TOKI]:--1}")"
       continue
     fi
     if [[ "$skip_val" -eq 1 ]]; then skip_val=0; continue; fi
@@ -451,8 +477,7 @@ while [ "$TI" -le "$NALL" ]; do
       -C|--git-dir|--work-tree|--namespace)
         LOC_ARR[${#LOC_ARR[@]}]="$tok"; take_val=1 ;;
       --git-dir=*|--work-tree=*|--namespace=*)
-        if [ "${SEG_Q[$TOKI]:-0}" = 1 ]; then LOC_ARR[${#LOC_ARR[@]}]="$tok"
-        else LOC_ARR[${#LOC_ARR[@]}]="$(untilde_val "$tok")"; fi ;;
+        LOC_ARR[${#LOC_ARR[@]}]="$(untilde_val "$tok" "${SEG_Q[$TOKI]:--1}")" ;;
       -c|--config-env|--exec-path|--attr-source|--super-prefix) skip_val=1 ;;
       *) : ;;
     esac

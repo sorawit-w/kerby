@@ -482,6 +482,34 @@ run_scan "$(printf 'cat <<\\EOF >/dev/null\nbody\nEOF\ngit commit -m x')" "$ESC"
 [[ "$rc" -eq 2 ]] && pass "review13: an escaped delimiter (<<\\EOF) still terminates" \
                   || fail "review13: FAIL-OPEN — escaped delimiter never matched (got $rc)"
 
+# Tilde expansion depends on quoting WITHIN the tilde-prefix (`~` up to the
+# first `/`), not on the word's first character: `~/"x"` expands, `~""` does
+# not. Two earlier rules — "word started quoted" and "any quote appeared" —
+# each got one of these wrong.
+tilde_case() { # $1=label  $2=command  $3=want
+  ( cd "$TMP" && jq -nc --arg c "$2" '{tool_input:{command:$c}}' \
+      | HOME="$HOMEDIR" PATH="$BIN_GL" SCANNER_REAL=1 bash "$HOOK" >/dev/null 2>&1 ); local rc=$?
+  [[ "$rc" -eq "$3" ]] && pass "review14: $1" || fail "review14: $1 (got $rc want $3)"
+}
+tilde_case 'a quoted empty string in the prefix keeps ~ literal (~"")' \
+           'git -C ~"" commit -m x' 2
+tilde_case "a quoted empty string in the prefix keeps ~ literal (~'')" \
+           "git -C ~'' commit -m x" 2
+tilde_case '~/"x" still expands — only the prefix matters' \
+           'git -C ~/"hrepo" commit -m x' 2
+
+# The heredoc delimiter follows word quoting rules: inside single quotes a
+# backslash is LITERAL. Stripping backslashes unconditionally queued the wrong
+# delimiter, which then matched no line and swallowed a real commit after it.
+for hdc in "$(printf 'cat <<\\EOF >/dev/null\nbody\nEOF\ngit commit -m real')" \
+           "$(printf "cat <<'EOF' >/dev/null\nbody\nEOF\ngit commit -m real")" \
+           "$(printf 'cat <<"EOF" >/dev/null\nbody\nEOF\ngit commit -m real')" \
+           "$(printf "cat <<'E\\\\OF' >/dev/null\nbody\nE\\\\OF\ngit commit -m real")"; do
+  run_scan "$hdc" "$ESC"; rc=$?
+  [[ "$rc" -eq 2 ]] && pass "review14: heredoc delimiter dequoted correctly (${hdc%%$'\n'*})" \
+                    || fail "review14: FAIL-OPEN — delimiter mis-read in '${hdc%%$'\n'*}' (got $rc)"
+done
+
 # The mirror image: forms that must NOT block. A separator is a separator by
 # POSITION, not by spelling — an escaped or quoted `;` is an ordinary word.
 NB="$TMP/noblock"; git init -q "$NB"
