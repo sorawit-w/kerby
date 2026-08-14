@@ -443,6 +443,109 @@ else
   fail "E13 check-updates — expected non-zero exit + 'E13', got exit $RC: $OUT"
 fi
 
+# --- git_hook (contract 2, additive) -----------------------------------------
+# The name check and the required-enforcer check are INDEPENDENT. They were an
+# elif chain once, so an unknown hook name warned and then SWALLOWED the error:
+# `git_hook = "typo-hook"` with no enforcer validated clean.
+#
+# The fixture must be VALID except for the thing under test. An earlier version
+# omitted `body`/`severity`, so every fixture was independently invalid, the
+# positive assertions never verified exit 0, and only one of five actually
+# caught the elif — a guard that reported more than it checked. `gh_control`
+# below is the proof that the base fixture is clean on its own.
+mk_gh() { # $1=dir  $2=check lines (the whole [[check]] body)
+  mkdir -p "$1/rules" "$1/hooks"
+  printf '#!/bin/bash\nexit 0\n' > "$1/hooks/e.sh"; chmod +x "$1/hooks/e.sh"
+  printf 'A rule body.\n' > "$1/rules/r.md"
+  { echo 'id = "ghfix"'; echo 'version = "1.0.0"'; echo 'contract = 2'
+    echo 'accepts = ["*"]'; echo 'description = "git_hook fixture"'
+    echo '[[check]]'; echo 'id = "c"'; printf '%s\n' "$2"
+  } > "$1/rulebook.toml"
+}
+PROSE='kind = "prose"
+body = "rules/r.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"'
+CODE='kind = "code"
+enforcer = "hooks/e.sh"
+event = "PreToolUse"
+matcher = "Bash"
+enforcement = "hard"
+severity = "block"'
+
+# CONTROL: the fixture with NO git_hook must validate clean, or every assertion
+# below is measuring the wrong thing.
+TMP_GH="$(mktemp -d)"; mk_gh "$TMP_GH" "$PROSE"
+run "$TMP_GH"; rm -rf "$TMP_GH"
+if [[ "$RC" -eq 0 ]]; then
+  pass "git_hook control (prose): the base fixture is valid without git_hook"
+else
+  fail "git_hook control (prose) — base fixture is independently invalid, so the git_hook assertions prove nothing: $OUT"
+fi
+
+# The CODE base needs its own control: the cases below split across two bases
+# (prose for the no-enforcer cases, code for the rest), so proving only the
+# prose one clean would leave every code-based assertion unanchored.
+TMP_GH="$(mktemp -d)"; mk_gh "$TMP_GH" "$CODE"
+run "$TMP_GH"; rm -rf "$TMP_GH"
+if [[ "$RC" -eq 0 ]]; then
+  pass "git_hook control (code): the enforcer base fixture is valid without git_hook"
+else
+  fail "git_hook control (code) — enforcer base fixture is independently invalid: $OUT"
+fi
+
+TMP_GH="$(mktemp -d)"; mk_gh "$TMP_GH" "$CODE
+git_hook = \"pre-commit\""
+run "$TMP_GH"; rm -rf "$TMP_GH"
+# NOTE this one cannot prove the validation EXISTS — "no diagnostics" is also
+# what deleting the branch produces. It is a guard against the validation
+# becoming over-eager and rejecting a legal declaration. The seven assertions
+# below are what prove the branch is present and doing work.
+if [[ "$RC" -eq 0 ]] && ! echo "$OUT" | grep -q "git_hook"; then
+  pass "git_hook: a well-formed declaration validates clean and silently (over-eagerness guard — NOT an existence proof; the 7 below are)"
+else
+  fail "git_hook well-formed — expected exit 0 with no git_hook diagnostics, got exit $RC: $OUT"
+fi
+
+TMP_GH="$(mktemp -d)"; mk_gh "$TMP_GH" "$PROSE
+git_hook = \"typo-hook\""
+run "$TMP_GH"; rm -rf "$TMP_GH"
+if [[ "$RC" -ne 0 ]] && echo "$OUT" | grep -q "needs an 'enforcer'"; then
+  pass "git_hook: an UNKNOWN name still errors on the missing enforcer (no elif swallow)"
+else
+  fail "git_hook unknown-name + no-enforcer — expected nonzero + enforcer error, got exit $RC: $OUT"
+fi
+
+TMP_GH="$(mktemp -d)"; mk_gh "$TMP_GH" "$PROSE
+git_hook = \"pre-commit\""
+run "$TMP_GH"; rm -rf "$TMP_GH"
+if [[ "$RC" -ne 0 ]] && echo "$OUT" | grep -q "needs an 'enforcer'"; then
+  pass "git_hook: a KNOWN name without an enforcer errors"
+else
+  fail "git_hook known-name + no-enforcer — expected nonzero + enforcer error, got exit $RC: $OUT"
+fi
+
+TMP_GH="$(mktemp -d)"; mk_gh "$TMP_GH" "$CODE
+git_hook = \"typo-hook\""
+run "$TMP_GH"; rm -rf "$TMP_GH"
+if [[ "$RC" -eq 0 ]] && echo "$OUT" | grep -q "warning E09:.*not a known git hook"; then
+  pass "git_hook: an unknown name WARNS but still validates (install would write a dead file)"
+else
+  fail "git_hook unknown-name — expected exit 0 + an E09 warning, got exit $RC: $OUT"
+fi
+
+for bad in '""' '1' '["pre-commit"]' '{ name = "pre-commit" }'; do
+  TMP_GH="$(mktemp -d)"; mk_gh "$TMP_GH" "$CODE
+git_hook = $bad"
+  run "$TMP_GH"; rm -rf "$TMP_GH"
+  if [[ "$RC" -ne 0 ]] && echo "$OUT" | grep -q "must be a non-empty string"; then
+    pass "git_hook: a non-string/empty value ($bad) errors"
+  else
+    fail "git_hook bad value $bad — expected nonzero + shape error, got exit $RC: $OUT"
+  fi
+done
+
 # --- Validator stays stdlib-only ----------------------------------------------
 BAD_IMPORTS="$(grep -E '^(import|from) ' "$VALIDATOR" | grep -vE '^(import|from) (argparse|hashlib|re|sys|tomllib|pathlib)\b')"
 if [[ -z "$BAD_IMPORTS" ]]; then

@@ -767,6 +767,100 @@ fi
 # --- Summary -----------------------------------------------------------------
 echo "---"
 
+# --- --git-hook mode: a REAL git hook running REAL commits -------------------
+# The JSON harness above cannot test this path at all — it proves the hook
+# blocked, never that git aborted a commit. Every case here is decided by
+# whether HEAD actually moved.
+#
+# GIT_CONFIG_GLOBAL=/dev/null is load-bearing, not tidiness: a developer whose
+# global config sets core.hooksPath would otherwise get a green suite that
+# tested nothing, because git would never run .git/hooks/pre-commit.
+gh_repo() { # $1=dir -> a repo with kerby's git hook installed
+  GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null git init -q -b main "$1"
+  git -C "$1" config user.email t@t.t; git -C "$1" config user.name t
+  mkdir -p "$1/.git/hooks"
+  printf '#!/bin/sh\nexec "%s" --git-hook\n' "$HOOK" > "$1/.git/hooks/pre-commit"
+  chmod +x "$1/.git/hooks/pre-commit"
+}
+gh_count() { git -C "$1" rev-list --count HEAD 2>/dev/null || echo 0; }
+gh_try() { # $1=repo $2=want(block|pass) $3=label $4=command
+  local before after got; before=$(gh_count "$1")
+  ( cd "$1" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null eval "$4" ) >/dev/null 2>&1
+  after=$(gh_count "$1"); got=pass; [ "$before" = "$after" ] && got=block
+  [[ "$got" == "$2" ]] && pass "git-hook: $3" || fail "git-hook: $3 (got $got, want $2)"
+}
+
+# THE headline case — residual (a). The PreToolUse hook structurally cannot see
+# this (nothing is staged when it runs); the git hook sees it by construction.
+G="$TMP/gh-add-and-commit"; gh_repo "$G"
+echo base > "$G/f"; git -C "$G" add f; git -C "$G" commit -qm base
+printf 'k = "%s"\n' "$FAKE_KEY" > "$G/s.txt"
+gh_try "$G" block "git add x && git commit is caught (residual (a))" 'git add s.txt && git commit -m x'
+
+# Pins the UNDOCUMENTED behaviour the index-only scan rests on: git writes a
+# temporary index and points GIT_INDEX_FILE at it BEFORE running the hook, so
+# `--cached` sees what `-a` will commit. If this ever became false, index-only
+# scanning would fail OPEN here — which is why it is a test, not a comment.
+G="$TMP/gh-commit-a"; gh_repo "$G"
+echo base > "$G/f"; git -C "$G" add f; git -C "$G" commit -qm base
+printf 'k = "%s"\n' "$FAKE_KEY" >> "$G/f"
+gh_try "$G" block "git commit -a sees the secret (GIT_INDEX_FILE pinned)" 'git commit -a -m x'
+
+# The other half of index-only: a dirty tracked file the commit does NOT include
+# must not block it. The union would block here, and the only way out is
+# --no-verify — the one habit that disables this hook permanently.
+G="$TMP/gh-unstaged"; gh_repo "$G"
+echo base > "$G/f"; echo other > "$G/g"; git -C "$G" add f g; git -C "$G" commit -qm base
+echo clean > "$G/f"; git -C "$G" add f
+printf 'k = "%s"\n' "$FAKE_KEY" >> "$G/g"
+gh_try "$G" pass "an UNSTAGED secret elsewhere does not block" 'git commit -m x'
+
+G="$TMP/gh-unborn"; gh_repo "$G"
+printf 'k = "%s"\n' "$FAKE_KEY" > "$G/s.txt"; git -C "$G" add s.txt
+gh_try "$G" block "the first commit of a fresh repo is scanned" 'git commit -m x'
+
+G="$TMP/gh-clean"; gh_repo "$G"; echo hello > "$G/f"; git -C "$G" add f
+gh_try "$G" pass "a clean first commit passes" 'git commit -m x'
+echo more > "$G/f"; git -C "$G" add f
+gh_try "$G" pass "a clean later commit passes" 'git commit -m x'
+
+G="$TMP/gh-amend"; gh_repo "$G"
+echo base > "$G/f"; git -C "$G" add f; git -C "$G" commit -qm base
+printf 'k = "%s"\n' "$FAKE_KEY" > "$G/s.txt"; git -C "$G" add s.txt
+before_sha=$(git -C "$G" rev-parse HEAD)
+( cd "$G" && GIT_CONFIG_GLOBAL=/dev/null git commit --amend -m x ) >/dev/null 2>&1
+[[ "$(git -C "$G" rev-parse HEAD)" == "$before_sha" ]] \
+  && pass "git-hook: --amend with a staged secret is blocked" \
+  || fail "git-hook: --amend let a staged secret through"
+
+# --no-verify is the documented escape. Asserted so it stays TRUE and honest —
+# the docs promise it, and a hook that trapped the user would be worse.
+G="$TMP/gh-noverify"; gh_repo "$G"
+echo base > "$G/f"; git -C "$G" add f; git -C "$G" commit -qm base
+printf 'k = "%s"\n' "$FAKE_KEY" > "$G/s.txt"; git -C "$G" add s.txt
+gh_try "$G" pass "--no-verify bypasses, as documented" 'git commit --no-verify -m x'
+
+# THE fail-open this mode exists to avoid. A GUI git client runs hooks with a
+# launchd PATH that has no jq; the JSON front door would read an empty command,
+# find no git token, and exit 0 SILENTLY on a security control.
+G="$TMP/gh-nojq"; gh_repo "$G"
+echo base > "$G/f"; git -C "$G" add f; git -C "$G" commit -qm base
+printf 'k = "%s"\n' "$FAKE_KEY" > "$G/s.txt"; git -C "$G" add s.txt
+before=$(gh_count "$G")
+( cd "$G" && PATH=/usr/bin:/bin:/usr/sbin:/sbin GIT_CONFIG_GLOBAL=/dev/null git commit -m x ) >/dev/null 2>&1
+[[ "$(gh_count "$G")" == "$before" ]] \
+  && pass "git-hook: blocks with NO jq on PATH (the GUI-client case)" \
+  || fail "git-hook: FAIL-OPEN without jq on PATH"
+
+# The secret must never be echoed, in either mode.
+G="$TMP/gh-quiet"; gh_repo "$G"
+printf 'k = "%s"\n' "$FAKE_KEY" > "$G/s.txt"; git -C "$G" add s.txt
+out=$( ( cd "$G" && GIT_CONFIG_GLOBAL=/dev/null git commit -m x ) 2>&1 )
+printf '%s' "$out" | grep -q "$FAKE_KEY" \
+  && fail "git-hook: the secret was echoed into hook output" \
+  || pass "git-hook: the secret is never echoed"
+
+
 # --- Shared-tokenizer parity -------------------------------------------------
 # The tokenizer is DUPLICATED between base/hooks/pre-commit-check.sh and
 # swe/hooks/protect-git.sh because base cannot depend on swe, nor swe on base

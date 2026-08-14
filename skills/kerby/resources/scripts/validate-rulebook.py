@@ -68,6 +68,12 @@ RESERVED_COMMANDS = {"load", "unload", "reload", "status", "install", "uninstall
                      "check-updates"}
 # Claude Code lifecycle events install can register hooks for. Unknown events
 # warn rather than fail — the harness may add events faster than this list.
+# git hook kinds `install` can write. Deliberately NOT reusing KNOWN_EVENTS:
+# `event` means a Claude Code lifecycle event, and an unknown value there warns
+# and then MISREGISTERS into settings.json as a hook that never fires. The two
+# namespaces stay separate so neither can silently absorb the other's values.
+KNOWN_GIT_HOOKS = {"pre-commit", "commit-msg", "pre-push", "prepare-commit-msg", "post-commit"}
+
 KNOWN_EVENTS = {"PreToolUse", "PostToolUse", "SessionStart", "SessionEnd", "Stop",
                 "UserPromptSubmit", "Notification", "SubagentStop", "PreCompact"}
 
@@ -249,6 +255,22 @@ def check_fields(check: dict, idx: int, res: Result) -> str:
         res.warn("E02", f"check '{cid}': event '{ev}' is not a known lifecycle event ({', '.join(sorted(KNOWN_EVENTS))}) — registered as declared")
     if ma is not None and not isinstance(ma, str):
         res.error("E02", f"check '{cid}': 'matcher' must be a string (tool-name pattern; empty = all)")
+    # git_hook: this check's ENFORCER also supports running as a git hook of the
+    # named kind. Deliberately one string reusing the already-validated
+    # `enforcer`, not a sub-table carrying its own path — `[[check]]` has no
+    # unknown-key rejection, so a second path field would be entirely
+    # unvalidated and a typo would install a hook pointing at nothing.
+    gh = check.get("git_hook")
+    if gh is not None:
+        # Two INDEPENDENT checks, deliberately not an elif chain: an unknown hook
+        # name is a warning, and chaining let it swallow the required-enforcer
+        # ERROR, so `git_hook = "typo-hook"` with no enforcer validated clean.
+        if not isinstance(gh, str) or not gh.strip():
+            res.error("E09", f"check '{cid}': 'git_hook' must be a non-empty string naming a git hook (e.g. 'pre-commit')")
+        elif gh not in KNOWN_GIT_HOOKS:
+            res.warn("E09", f"check '{cid}': git_hook '{gh}' is not a known git hook ({', '.join(sorted(KNOWN_GIT_HOOKS))}) — install would write a file git never runs")
+        if "enforcer" not in check:
+            res.error("E09", f"check '{cid}': 'git_hook' needs an 'enforcer' — the git hook execs that script with --git-hook")
     if "enforcer" in check and ev is None:
         res.warn("E09", f"check '{cid}': enforcer declared without 'event' — install cannot auto-register this hook until the manifest declares its trigger")
     if enf == "partial" and "gap" not in check:

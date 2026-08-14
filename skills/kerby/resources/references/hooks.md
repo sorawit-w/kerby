@@ -78,6 +78,50 @@ Defaults to enabled when the section is missing.
 
 ---
 
+### git pre-commit → Secret Scan (Optional, offered by `install`)
+
+**Script:** the declaring check's own enforcer, run as `<enforcer> --git-hook`
+**Strictness:** Blocking (aborts the commit)
+**Trigger:** git's native `pre-commit` hook (not Claude Code lifecycle)
+
+**This is the same scanner as the `PreToolUse` secret check, through a different door.**
+Not a duplicate and not a replacement — they see different things:
+
+| | PreToolUse hook | git `pre-commit` hook |
+|---|---|---|
+| Runs | before the Bash command | during the commit |
+| Decides from | the command **text** | the **real index** git is committing |
+| Sees `git add x && git commit` | **no** — nothing is staged yet | yes |
+| Sees `git -C "$VAR" commit`, aliases, wrappers | **no** — they resolve at runtime | yes |
+| Sees `git commit --no-verify` | yes | **no** — git skips its hooks |
+
+That last row is why both are kept. Deleting either one opens a hole the other does not cover.
+
+Unlike the post-commit reindex below, this one is **offered by `install`** (Phase 3) rather
+than pasted by hand — a security floor earns an installer; a convenience reindex does not.
+It is per-clone: git hooks are never cloned, so teammates are not covered by your install.
+
+Behaviour worth knowing:
+
+- **Index-only.** It scans `git diff --cached`, not the working tree. Git writes a temporary
+  index and points `GIT_INDEX_FILE` at it *before* running the hook, so `--cached` sees
+  exactly what will be committed — for `-a`, `-i`, a pathspec and `--only` alike. A dirty
+  tracked file the commit does not include will **not** block it.
+- **Fails open if the scanner is gone.** If kerby's install moves, the hook warns and exits
+  0 rather than aborting every commit with 127.
+- **Says so when it degrades.** With no `betterleaks`/`gitleaks` on `PATH` it prints one
+  line and falls back to the built-in regex floor. This matters more here than in the
+  PreToolUse path: a GUI git client runs hooks with a launchd `PATH` of
+  `/usr/bin:/bin:/usr/sbin:/sbin`, where an installed scanner is invisible.
+- **`core.hooksPath` shadows it entirely.** If that config is set (husky does), git never
+  runs `.git/hooks/*`; `install` refuses rather than writing a file that cannot fire, and
+  `status` reports the shadowing.
+
+Remove it with `kerby uninstall`, which deletes it only if it is byte-identical to what
+`install` wrote.
+
+---
+
 ### git post-commit → Knowledge Reindex (Optional)
 
 **Script:** `hooks/knowledge-reindex.sh`

@@ -3,6 +3,42 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.16.0] — 2026-08-14
+
+**The secret scan gets a door git opens** (base 1.2.0): the floor has always run as a
+Claude Code `PreToolUse` hook — it fires *before* a Bash command and reads the command
+text. Issues #46 and #48 spent sixteen review rounds making that text-reading correct, and
+`threat-model.md` recorded the ceiling honestly: it can never be *sound*, because
+`git -C "$VAR" commit` has no value until runtime and `git add x && git commit` stages
+nothing until after the hook has already run and passed. That second one is the most
+common commit shape an agent produces.
+
+`install` now offers a git `pre-commit` hook (Phase 3, opt-in per repo). Same enforcer,
+second front door: git hands it the real index, so there is nothing to parse and those
+holes close by construction.
+
+- **One enforcer, two front doors.** `pre-commit-check.sh --git-hook` skips the JSON/stdin
+  path entirely. That is not tidiness: a GUI git client runs hooks with a launchd `PATH`
+  that has no `jq`, and the JSON door would have read an empty command, found no git
+  token, and exited 0 **silently** — a fail-open in exactly the case a git hook exists for.
+- **Index-only in git-hook mode.** Git writes a temp index and points `GIT_INDEX_FILE` at
+  it before running the hook, so `--cached` sees precisely what will be committed, for
+  `-a` and pathspec commits too. Keeping the PreToolUse union would have blocked commits
+  whose staged content is clean — the fastest route to `--no-verify` becoming a habit.
+  That behaviour is undocumented in `githooks(5)`, so it is pinned by a test, not a comment.
+- **New optional manifest field `git_hook`** (contract 2, additive). One string reusing the
+  already-validated `enforcer` — `[[check]]` has no unknown-key rejection, so a sub-table
+  with its own path would have been entirely unvalidated.
+- **Refuses rather than guesses.** `core.hooksPath` set → skip, naming the origin (a hook
+  there never runs). A hook already present that is not ours → left alone. Hand-edited
+  after install → `uninstall` leaves it. The hooks dir comes from `git rev-parse
+  --git-path hooks`, so worktrees and submodules work.
+- **Fails open if the scanner vanishes**, warns when it degrades to the regex floor, and
+  names its own escape hatch in the file it writes.
+
+Not a boundary: `git commit --no-verify` skips it, which is why the PreToolUse hook stays.
+Two layers, different reach.
+
 ## [9.15.0] — 2026-08-13
 
 **The gate stops arguing with itself** (swe 2.6.0): `quality-gates.md` exempted docs
