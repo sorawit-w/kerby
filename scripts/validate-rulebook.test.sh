@@ -503,7 +503,7 @@ run "$TMP_GH"; rm -rf "$TMP_GH"
 # becoming over-eager and rejecting a legal declaration. The seven assertions
 # below are what prove the branch is present and doing work.
 if [[ "$RC" -eq 0 ]] && ! echo "$OUT" | grep -q "git_hook"; then
-  pass "git_hook: a well-formed declaration validates clean and silently (over-eagerness guard)"
+  pass "git_hook: a well-formed declaration validates clean and silently (over-eagerness guard — NOT an existence proof; the 7 below are)"
 else
   fail "git_hook well-formed — expected exit 0 with no git_hook diagnostics, got exit $RC: $OUT"
 fi
