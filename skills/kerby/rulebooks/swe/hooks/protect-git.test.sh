@@ -295,6 +295,43 @@ run_in "$SPC" "git commit -m \"CODING_RULES_ALLOW_PROTECTED_COMMIT=1 git commit\
 [[ "$RC" -eq 2 ]] && pass "#48 override inside a commit MESSAGE does not authorize" || fail "#48 override text in a message authorized the commit (got $RC)"
 
 
+# --- The override is a SELF-BYPASS switch: probe it adversarially ------------
+# It is read as an assignment leading THIS invocation. bash only treats an
+# UNQUOTED `VAR=1` as an assignment — `"VAR=1" git commit` runs a command
+# literally named `VAR=1` — so the name must be unquoted while a quoted VALUE
+# is still valid. The name length is computed, never hardcoded: a literal also
+# rejected `VAR="1"`, which bash accepts.
+OV=CODING_RULES_ALLOW_PROTECTED_COMMIT
+OVREPO="$TMPROOT/override"; repo_with_commit "$OVREPO" main
+
+while IFS='|' read -r want label cmd; do
+  [ -z "$want" ] && continue
+  run_in "$OVREPO" "$cmd"
+  [[ "$RC" -eq "$want" ]] && pass "#48 override: $label" \
+                          || fail "#48 override: $label (got $RC want $want)"
+done <<EOF
+2|text inside a commit message does not authorize|git commit -m "$OV=1 git commit"
+2|text as the whole message does not authorize|git commit -m '$OV=1'
+2|an echo argument does not authorize|echo $OV=1 && git commit -m x
+2|an override on a DIFFERENT command does not authorize|$OV=1 echo hi && git commit -m x
+2|an override on an earlier git NON-commit does not authorize|$OV=1 git status && git commit -m x
+2|an override on a LATER invocation does not authorize an earlier one|git commit -m a && $OV=1 git commit -m b
+2|value 0 does not authorize|$OV=0 git commit -m x
+2|an unexpected value does not authorize|$OV=2 git commit -m x
+2|a value with a suffix does not authorize|${OV}=1x git commit -m x
+2|a name with a prefix does not authorize|X$OV=1 git commit -m x
+2|a QUOTED name is a command, not an assignment|"$OV=1" git commit -m x
+2|a partially quoted name is not an assignment|"$OV"=1 git commit -m x
+2|inside an option value does not authorize|git -c x=y commit -m x --author="$OV=1"
+0|a plain inline override authorizes|$OV=1 git commit -m x
+0|a quoted VALUE is still a valid assignment|$OV="1" git commit -m x
+0|a single-quoted value is still valid|$OV='1' git commit -m x
+0|an override with a -C target authorizes|$OV=1 git -C $OVREPO commit -m x
+0|an override after a cd authorizes|cd $OVREPO && $OV=1 git commit -m x
+0|every invocation overridden authorizes|$OV=1 git commit -m a && $OV=1 git commit -m b
+EOF
+
+
 echo "---"
 
 # --- Shared-tokenizer parity -------------------------------------------------

@@ -385,7 +385,20 @@ if [ "$HAS_GIT" -eq 1 ]; then
           # invocation. A sed strip over the raw string could be fooled by the
           # same token inside a message or a different segment, and it is a
           # self-bypass switch, so precision matters more here than anywhere.
-          CODING_RULES_ALLOW_PROTECTED_COMMIT=1) OVERRIDE=1; continue ;;
+          # The NAME must be unquoted, because bash only treats an unquoted
+          # `VAR=1` as an assignment — `"VAR=1" git commit` runs a command
+          # LITERALLY named `VAR=1`, so honouring it would grant the bypass to
+          # a form the shell never treats as one.
+          CODING_RULES_ALLOW_PROTECTED_COMMIT=1)
+            _ovq=0; _ovname=${tok%%=*}
+            for _qp in ${SEG_Q[$TOKI]:-}; do
+              # A quote at or before the `=` means the NAME was quoted. Computed,
+              # never a literal: a hardcoded length also rejected `VAR="1"`,
+              # which bash does treat as a valid assignment.
+              [ "$_qp" -le "${#_ovname}" ] && _ovq=1
+            done
+            [ "$_ovq" -eq 0 ] && OVERRIDE=1
+            continue ;;
           *=*) continue ;;
           git|*/git) SEEN_GIT=1; continue ;;
           *) break ;;
