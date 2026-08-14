@@ -21,7 +21,12 @@ anchored to the install, not to anything a workspace claims.
 | `approval-for-irreversible` | prose | human sign-off before irreversible or externally visible actions |
 
 `hooks/pre-commit-check.sh` is the floor's one enforcer: a pure, non-disablable
-secret scan, nothing else. The `swe` rulebook's hollow-test heuristic is its own
+secret scan, nothing else. It has **two front doors, one scanner** — the Claude Code
+`PreToolUse` hook (default), and git's own `pre-commit` hook (`--git-hook`, offered by
+`install` Phase 3 and declared by the check's `git_hook` field). The git door needs no
+command parsing at all: git hands it the real index, which is what closes `git add x &&
+git commit`. It is bypassable with `git commit --no-verify`, so it is a second layer
+rather than a replacement. The `swe` rulebook's hollow-test heuristic is its own
 self-contained hook (`swe/hooks/hollow-test-check.sh`), registered separately when
 `swe` is selected — it does not ride this floor script.
 

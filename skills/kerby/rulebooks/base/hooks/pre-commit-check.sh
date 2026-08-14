@@ -32,8 +32,30 @@
 # is the whole test. protect-git.sh still uses the regex and has the same
 # weakness; that is tracked separately, not silently fixed here.
 
-INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+# TWO FRONT DOORS, one scanner.
+#
+#   (default)    Claude Code PreToolUse — reads the tool call as JSON on stdin
+#                and tokenizes the command to find out whether a commit is even
+#                happening and which repo it targets.
+#   --git-hook   git's own pre-commit hook — git already decided all of that, so
+#                there is nothing to parse. It runs from the worktree toplevel
+#                with GIT_INDEX_FILE pointing at the index being committed.
+#
+# The git-hook path MUST NOT touch jq. A GUI git client (Fork, Tower, GitHub
+# Desktop, an IDE opened from Finder) runs hooks with a launchd PATH of
+# /usr/bin:/bin:/usr/sbin:/sbin — no jq — and `COMMAND=""` would then tokenize to
+# nothing, hit the no-git-token gate, and `exit 0` SILENTLY on a security
+# control, in exactly the GUI case a git hook exists to cover.
+GIT_HOOK_MODE=0
+if [[ "${1:-}" == "--git-hook" ]]; then
+  GIT_HOOK_MODE=1
+  # A commit is definitionally happening; give the walk a bare invocation so it
+  # resolves to "scan the repo at cwd" with no cd-chain and no selectors.
+  COMMAND="git commit"
+else
+  INPUT=$(cat)
+  COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+fi
 
 # --- BEGIN SHARED SHELL TOKENIZER ------------------------------------------
 # KEEP BYTE-IDENTICAL to rulebooks/swe/hooks/protect-git.sh's copy of this block.
@@ -273,6 +295,13 @@ if command -v betterleaks >/dev/null 2>&1; then
 elif command -v gitleaks >/dev/null 2>&1; then
   SCANNER=gitleaks
 fi
+# Say so when running on the narrow floor. A GUI git client's launchd PATH
+# (/usr/bin:/bin:/usr/sbin:/sbin) hides a scanner that IS installed, so the scan
+# silently weakens exactly where nobody is watching. One line, git-hook mode only
+# — the PreToolUse path must stay silent on success.
+if [[ "$GIT_HOOK_MODE" -eq 1 && -z "$SCANNER" ]]; then
+  echo "kerby: no betterleaks/gitleaks on PATH — using the built-in regex floor (narrower)." >&2
+fi
 
 # `\s` and `\x27` are GNU/PCRE spellings that BSD `grep -E` does not support:
 # the password branch silently never matched on macOS, which is exactly where
@@ -333,13 +362,29 @@ scan_target() { # $1=cdlist  $2=envassigns (LOC_ARR is global)
   # Prefixes/ext-diff/textconv are FORCED: the target repo's own config
   # (diff.noprefix, diff.external, a textconv filter) would otherwise change the
   # format this header filter reads, or hand the scanner converted text.
+  #
+  # In --git-hook mode the union is NARROWED to `--cached` alone. Git's
+  # prepare_index() handles `-a`, `-i`, a pathspec and `--only` by writing an
+  # updated TEMPORARY index before the hook runs, then invokes the hook with
+  # GIT_INDEX_FILE pointing at it — so `--cached` there sees exactly what will
+  # be committed, for every commit form, and is strictly MORE accurate than the
+  # union. Keeping the union would instead block a commit whose staged content
+  # is clean because some unrelated tracked file is dirty, and the only way out
+  # of that is `--no-verify` — the one habit that disables this hook for good.
+  # That GIT_INDEX_FILE behaviour is implementation, not documented contract
+  # (`man githooks` never mentions it), so it is pinned by a test rather than
+  # trusted: if it were ever false, `--cached` would fail OPEN on `git commit -a`.
   rawi=$(git_at "$cdlist" "$envs" diff --cached --diff-filter=ACMR -U0 --text \
           --src-prefix=a/ --dst-prefix=b/ --no-ext-diff --no-textconv); rci=$?
-  raww=$(git_at "$cdlist" "$envs" diff --diff-filter=ACMR -U0 --text \
-          --src-prefix=a/ --dst-prefix=b/ --no-ext-diff --no-textconv); rcw=$?
-  raw="$rawi
+  if [[ "$GIT_HOOK_MODE" -eq 1 ]]; then
+    raw="$rawi"; drc=$rci
+  else
+    raww=$(git_at "$cdlist" "$envs" diff --diff-filter=ACMR -U0 --text \
+            --src-prefix=a/ --dst-prefix=b/ --no-ext-diff --no-textconv); rcw=$?
+    raw="$rawi
 $raww"
-  drc=$(( rci | rcw ))
+    drc=$(( rci | rcw ))
+  fi
   # A diff that FAILS on a real repo must fail CLOSED: treating git's failure as
   # "no diff" meant any command this hook mis-parsed reported clean and
   # committed. But only on a real repo — if the target does not resolve at all,
@@ -349,7 +394,11 @@ $raww"
   [ -n "$top" ] || return 0
   if [[ "$drc" -ne 0 ]]; then
     echo "WARNING: kerby could not read the staged diff for this commit (git exited $drc)." >&2
-    echo "Blocking rather than assuming clean. Run the commit as a separate, simpler command." >&2
+    if [[ "$GIT_HOOK_MODE" -eq 1 ]]; then
+      echo "Blocking rather than assuming clean. Fix the repo state, or bypass this one commit with 'git commit --no-verify'." >&2
+    else
+      echo "Blocking rather than assuming clean. Run the commit as a separate, simpler command." >&2
+    fi
     return 7
   fi
   diff=$(printf '%s\n' "$raw" \
@@ -382,6 +431,7 @@ $raww"
       echo "WARNING: $SCANNER detected possible secrets in staged changes." >&2
       echo "Output suppressed so the secret isn't echoed here — inspect locally with '$SCANNER stdin --redact', or allowlist a false positive in the scanner's config." >&2
       echo "See kerby security guardrails." >&2
+      [[ "$GIT_HOOK_MODE" -eq 1 ]] && echo "To bypass this one commit: git commit --no-verify" >&2
       return 7
     elif [[ "$rc" -eq 0 ]]; then
       return 0   # scanner ran clean; trust it, skip the narrower regex
@@ -398,6 +448,7 @@ $raww"
     echo "WARNING: Possible secrets detected in staged changes." >&2
     echo "Matched the built-in secret pattern; inspect the staged diff locally." >&2
     echo "Review these files before committing. See kerby security guardrails." >&2
+    [[ "$GIT_HOOK_MODE" -eq 1 ]] && echo "To bypass this one commit: git commit --no-verify" >&2
     return 7
   fi
   return 0

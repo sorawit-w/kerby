@@ -3,7 +3,7 @@
 # Contract: docs/rulebook-contract.md. floor = true checks are
 # non-overridable by any config or extending rulebook (D9).
 id = "base"
-version = "1.1.0"
+version = "1.2.0"
 contract = 2
 accepts = ["*"]
 description = "The universal floor: secrets, untrusted-artifact, verification-claim, and irreversibility rules every rulebook inherits."
@@ -33,6 +33,10 @@ enforcer = "hooks/pre-commit-check.sh"   # self-contained: base owns the floor s
 event = "PreToolUse"
 matcher = "Bash"
 runner = "gitleaks"                       # betterleaks/gitleaks if present, else the built-in regex floor
+git_hook = "pre-commit"                   # this enforcer ALSO runs as git's pre-commit
+                                          # hook (`--git-hook`), where git hands it the
+                                          # real index instead of a command to parse.
+                                          # Opt-in: `install` offers it, never assumes it.
 severity = "block"
 floor = true
 

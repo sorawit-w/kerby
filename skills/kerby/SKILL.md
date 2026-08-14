@@ -240,6 +240,15 @@ Check whether the rules are currently loaded.
 
    - Read `.kerby/rulebooks.lock` if present and each selected rulebook's manifest, **merging in `base` first exactly like `load` does** — `selected` deliberately omits `base` (it's implicit per merge rule 1), so reading only the selected manifests would silently drop the floor's own checks (`secrets-staged`, `no-print-secret`, …) from the panel. Header line: the same literal announcement format as `load`, with `source: pinned` (or "no pin — next load selects by builtin-marker detection, or asks"). **The `commands` render-trust rule applies here too:** an external rulebook's manifest fields (check ids, `gap` strings) render in the panel **iff** its current hash matches the project pin and appears in the user-local approval store; a changed/unapproved external gets one identity-only row — `reapproval required (run load to re-trigger the trust prompt)` — never its manifest text.
    - Per check, one row: `<id> — <kind> — declared: <enforcement> — effective: <enforcement>` plus the `gap` text for `partial` checks. **Effective enforcement**: for `hard`/`partial` checks, the declared level holds only if the check's enforcer is actually registered — detect it with the **exact-tuple test** (`install` § Detect already-managed entries): the check is bound iff a settings entry matches this enforcer's resolved `(event, matcher, script-path)` tuple — compare the **exact resolved script path**, not just the filename, so two external rulebooks that share a hook basename are tracked independently. **An external rulebook's enforcer bound from its own folder counts as bound** (not degraded). Unregistered → effective is `behavioral` (degraded); mark it `degraded — run install to bind`. **A registered entry whose script is gone is flagged, never counted bound:** if a settings entry matches a kerby-managed root (the `install` § 5 "managed?" predicate) but its command path no longer resolves to an existing script — the state a builtin rename can leave behind (see § Migration residue) — list it as `registered script missing — re-run kerby install`, and report its check's effective enforcement as `behavioral` (degraded). `behavioral` checks show `behavioral (by design)`.
+   - **Git-hook binding (only for checks declaring `git_hook`).** Same doctrine as above — degrade must be *visible*, never assumed. One extra clause on that check's row, resolved against `git rev-parse --git-path hooks`:
+     - `git-hook: installed` — the file is there, ours, executable, and its exec target resolves.
+     - `git-hook: not installed` — offered by `install`, declined or never run.
+     - `git-hook: SHADOWED by core.hooksPath=<value> (<origin>)` — the file exists but git never runs it. **Reported as not enforcing**, because it isn't.
+     - `git-hook: present but not kerby's` — someone else owns that path; kerby left it alone.
+     - `git-hook: installed but not executable` — git skips it silently; `re-run kerby install`.
+     - `git-hook: installed but its target is missing` — the install moved; the hook fails open by design. `re-run kerby install`.
+
+     The last four all look like "protected" to a user who only checks that the file exists, which is why each gets its own words rather than a boolean.
    - **Stale builtin pin (report-only):** when a `selected` entry with install-resolved builtin identity carries a `version` differing from the installed manifest's, render its header row as `<id>@<pin-version> (builtin — install has <new-version>; next load re-pins)`. `status` never writes the lockfile — the reconcile itself belongs to `load`/`reload`.
    - A check whose `needs` the current subject type cannot satisfy is listed as `skipped (needs: <views>)` — visible, never silent.
    - If the last load failed (invalid manifest, declined trust prompt), say which rulebook and why, and that gated work in the meantime is **HELD**.
@@ -454,7 +463,43 @@ If `y`:
 
 - **User has hand-written hook entries pointing at the same script paths.** Treat them as already-installed; do not add a duplicate.
 - **User has unrelated `hooks` content in the same settings file.** Preserve it exactly. We only touch our own entries inside `hooks.PreToolUse[*]` and `hooks.SessionStart[*]`.
-- **`pre-commit-check.sh` overlap with a git-side `.git/hooks/post-commit` install of `knowledge-reindex.sh`.** They are independent — the former is a Claude Code PreToolUse hook on `Bash`, the latter is a git-side post-commit hook documented separately in `resources/references/hooks.md`. Phase 2 only registers the Claude Code lifecycle hooks; the git-side post-commit hook stays a manual, opt-in install per the doc.
+- **Two different git-side hooks; only one is offered.** Phase 2 registers Claude Code lifecycle hooks only. Phase 3 (below) offers the **git `pre-commit`** hook for any check declaring `git_hook`. The **post-commit** knowledge-reindex stays a manual, opt-in paste per `resources/references/hooks.md` — that asymmetry is deliberate, not an oversight: a security floor earns an installer, a convenience reindex does not.
+
+## Phase 3 — the git `pre-commit` hook (optional)
+
+Offered only when **at least one in-scope check declares `git_hook`** (contract field, `docs/rulebook-contract.md`) and the project is a git work tree. Derived from the manifest exactly like Phase 2 — never keyed on a rulebook id or a hardcoded script path. Independently skippable, like Phases 1 and 2; skipping it changes nothing else.
+
+**Why it exists.** The Claude Code hook fires *before* a Bash command runs and reads the command **text**, so it structurally cannot see `git add x && git commit` (nothing is staged yet), a target named by a variable, or an alias. Git hands its own hook the real index. The two are complementary and **both are kept**: the git hook cannot see `git commit --no-verify`, which the PreToolUse hook can.
+
+**Preconditions — check in this order, and skip with a reason rather than writing a file that cannot work:**
+
+1. **`core.hooksPath` is set** (`git config --get --show-origin core.hooksPath`) → git ignores `.git/hooks` entirely, so an installed hook would never run while `status` reported it installed. Skip, naming the config origin. This is how a **husky** repo presents: there is no file at `.git/hooks/pre-commit` at all, so a "does a hook already exist?" test would wrongly say the coast is clear.
+2. **Resolve the hooks dir with `git rev-parse --git-path hooks`** — never the literal `.git/hooks`. In a worktree or submodule `.git` is a *file*, and a literal path writes a hook git never runs. Note the consequence in the offer: hooks live in the **common** dir, so installing from one worktree installs for **all** worktrees of that repo.
+3. **A hook already exists there** → read it. **Ours** (marker present) and byte-identical to what we would write → `already installed`, no diff, no prompt (Phase 3 is idempotent, like the others). **Ours but drifted** (hand-edited) → report and leave it. **Not ours** → refuse, print its first line, and continue the rest of install. Never chain, never replace, never back up and overwrite.
+
+**The prompt** (literal — install copy carries no persona, per `VOICE.md` § Zoning):
+
+> Also install a git `pre-commit` hook in this repo? It runs the secret scan inside git at commit time, so it catches what the pre-command check cannot see — `git add x && git commit`, aliases, and a target named by a variable. Writes `<resolved hooks dir>/pre-commit` (this clone only — git hooks are never cloned, so teammates are not covered). Bypassable per-commit with `git commit --no-verify`. [y/n]
+
+**What gets written** — every field rendered from the declaring check's manifest:
+
+```sh
+#!/bin/sh
+# kerby-managed:<check-id> — remove with `kerby uninstall`
+# bypass once: git commit --no-verify
+[ -x "<abs enforcer path>" ] || { echo "kerby: scanner missing at <abs enforcer path> — skipping (run kerby install)" >&2; exit 0; }
+exec "<abs enforcer path>" --git-hook
+```
+
+Three deliberate properties:
+
+- **The existence guard is not optional.** A bare `exec` at a path that later moves makes git abort *every* commit with 127 — the worst outcome available here, with a non-obvious escape. Warn and `exit 0` instead: failing open on a vanished scanner beats wedging a repo. Same shape the shim rule already prescribes for enforcers.
+- **`chmod +x`, then verify the mode took.** Git skips a non-executable hook **silently** — a fail-open that reports success.
+- **The file names its own escape**, so a user facing an unexpected block finds the answer in the file rather than the docs.
+
+**Summarize:**
+
+> Phase 3: installed `<hooks-dir>/pre-commit` → `<check-id>`. Skipped: `<reason>`.
 
 ### Idempotency and re-runs
 
@@ -509,6 +554,16 @@ If `y`:
 5. Write back. Summarize Phase 2:
 
    > Phase 2: removed `<N>` hook entries from `<settings-path>`. Skipped (user declined or no match): `<list>`.
+
+### Git `pre-commit` hook
+
+For each in-scope check declaring `git_hook`, look at `<git-path hooks>/<name>`. Removal is **byte-exact**, the same doctrine as the `.gitignore` marker block below: regenerate the content `install` would write and compare.
+
+- **Identical** → show it as a removal and include it in the confirmation.
+- **Marker present but content drifted** (hand-edited after install) → **leave it** and report: `<path> was modified after install — left in place; remove it yourself.` kerby never deletes a file whose current content it did not author.
+- **No marker** → not ours, never touched, never mentioned in the removal set.
+
+A scoped `uninstall <rulebook>` removes only the git hooks whose marker names a check from *that* rulebook — the marker carries the check id precisely so this is decidable.
 
 ### Lock-hygiene `.gitignore` entry
 
