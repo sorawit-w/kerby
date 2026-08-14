@@ -479,16 +479,31 @@ severity = "block"'
 TMP_GH="$(mktemp -d)"; mk_gh "$TMP_GH" "$PROSE"
 run "$TMP_GH"; rm -rf "$TMP_GH"
 if [[ "$RC" -eq 0 ]]; then
-  pass "git_hook control: the base fixture is valid without git_hook"
+  pass "git_hook control (prose): the base fixture is valid without git_hook"
 else
-  fail "git_hook control — base fixture is independently invalid, so the git_hook assertions prove nothing: $OUT"
+  fail "git_hook control (prose) — base fixture is independently invalid, so the git_hook assertions prove nothing: $OUT"
+fi
+
+# The CODE base needs its own control: the cases below split across two bases
+# (prose for the no-enforcer cases, code for the rest), so proving only the
+# prose one clean would leave every code-based assertion unanchored.
+TMP_GH="$(mktemp -d)"; mk_gh "$TMP_GH" "$CODE"
+run "$TMP_GH"; rm -rf "$TMP_GH"
+if [[ "$RC" -eq 0 ]]; then
+  pass "git_hook control (code): the enforcer base fixture is valid without git_hook"
+else
+  fail "git_hook control (code) — enforcer base fixture is independently invalid: $OUT"
 fi
 
 TMP_GH="$(mktemp -d)"; mk_gh "$TMP_GH" "$CODE
 git_hook = \"pre-commit\""
 run "$TMP_GH"; rm -rf "$TMP_GH"
+# NOTE this one cannot prove the validation EXISTS — "no diagnostics" is also
+# what deleting the branch produces. It is a guard against the validation
+# becoming over-eager and rejecting a legal declaration. The seven assertions
+# below are what prove the branch is present and doing work.
 if [[ "$RC" -eq 0 ]] && ! echo "$OUT" | grep -q "git_hook"; then
-  pass "git_hook: a well-formed declaration validates clean and silently"
+  pass "git_hook: a well-formed declaration validates clean and silently (over-eagerness guard)"
 else
   fail "git_hook well-formed — expected exit 0 with no git_hook diagnostics, got exit $RC: $OUT"
 fi
