@@ -97,12 +97,18 @@ Not a duplicate and not a replacement — they see different things:
 
 That last row is why both are kept. Deleting either one opens a hole the other does not cover.
 
-**And the git hook cannot be the sole scanner even where it works.** It is opt-in, it is
-per-clone, and `core.hooksPath` disables it outright — so for any repo that declined the
-offer, any teammate's clone, and any husky-style repo, it does not exist at all. The
-PreToolUse hook is the one that is always there. That is the availability argument, and it
-is separate from the coverage argument above: even if the git hook caught strictly more,
-it would still not be a replacement, because it is not always present.
+**Neither is guaranteed present, and they fail to be present for different reasons.** That
+is the availability argument, and it is separate from the coverage argument above: even if
+one caught strictly more than the other, it still would not be a replacement.
+
+| | Absent when |
+|---|---|
+| PreToolUse hook | Phase 2 was declined, or its entry was removed from `settings.json` |
+| git hook | Phase 3 was declined; or this is a fresh clone (git hooks are never cloned); or `core.hooksPath` points git at a different hooks dir, so the one kerby writes to `.git/hooks` is not the one git runs |
+
+Note what the `core.hooksPath` row does *not* say: git still runs hooks, just from
+elsewhere. A husky user can wire the scanner into their own `.husky/pre-commit` by hand —
+kerby will not do it for them, and will not clean it up either.
 
 Unlike the post-commit reindex below, this one is **offered by `install`** (Phase 3) rather
 than pasted by hand — a security floor earns an installer; a convenience reindex does not.
@@ -124,8 +130,9 @@ Behaviour worth knowing:
   runs `.git/hooks/*`; `install` refuses rather than writing a file that cannot fire, and
   `status` reports the shadowing.
 
-Remove it with `kerby uninstall`, which deletes it only if it is byte-identical to what
-`install` wrote.
+Remove it with `kerby uninstall`. It deletes the file only when kerby wrote every byte of
+it — byte-identical to the template, or differing *only* in the enforcer path (the state a
+moved install leaves behind). A hand-edited hook is reported and left in place.
 
 ---
 

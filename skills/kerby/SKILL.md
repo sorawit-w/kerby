@@ -246,7 +246,11 @@ Check whether the rules are currently loaded.
      - `git-hook: SHADOWED by core.hooksPath=<value> (<origin>)` — the file exists but git never runs it. **Reported as not enforcing**, because it isn't.
      - `git-hook: present but not kerby's` — someone else owns that path; kerby left it alone.
      - `git-hook: installed but not executable` — git skips it silently; `re-run kerby install`.
-     - `git-hook: installed but its target is missing` — the install moved; the hook fails open by design. `re-run kerby install`.
+     - `git-hook: installed but its target is missing` — the install moved and the old path is gone; the hook fails open by design. `re-run kerby install`.
+     - `git-hook: installed, but points at an older kerby install` — the marker and template shape are intact and the old path still resolves, so it *is* enforcing, just not from where this session's install lives. `re-run kerby install` re-points it.
+     - `git-hook: kerby-managed but hand-edited` — the marker is there and the body is not kerby's. Report the path; **do not** claim it enforces the check, because what it now does is unknown. `install` and `uninstall` both leave it alone, so the only fix is the user's.
+
+     These use the same four-state test as `install` (§ Phase 3, precondition 3) — `status` must never report a state the other two commands cannot act on, which is the defect that made an earlier `re-run kerby install` loop forever.
 
      The last four all look like "protected" to a user who only checks that the file exists, which is why each gets its own words rather than a boolean.
    - **Stale builtin pin (report-only):** when a `selected` entry with install-resolved builtin identity carries a `version` differing from the installed manifest's, render its header row as `<id>@<pin-version> (builtin — install has <new-version>; next load re-pins)`. `status` never writes the lockfile — the reconcile itself belongs to `load`/`reload`.
@@ -477,7 +481,7 @@ Offered only when **at least one in-scope check declares `git_hook`** (contract 
 2. **Resolve the hooks dir with `git rev-parse --git-path hooks`** — never the literal `.git/hooks`. In a worktree or submodule `.git` is a *file*, and a literal path writes a hook git never runs. Note the consequence in the offer: hooks live in the **common** dir, so installing from one worktree installs for **all** worktrees of that repo.
 3. **A hook already exists there** → read it, and sort it into exactly one of four states. **Drift is not one state but two, and they need opposite handling** — conflating them is what made `status`'s remediation loop forever (below).
    - **Ours, byte-identical** to what we would write → `already installed`, no diff, no prompt. Phase 3 is idempotent, like the others.
-   - **Ours but STALE** — it carries the marker, still matches the template's shape, and the *only* difference is the enforcer path, which points into a kerby hook root that is no longer where the install lives (the user moved or reinstalled kerby). This is kerby's own file gone out of date, not someone else's work: **re-point it in the same pass**, exactly as Phase 2 prunes and re-points stale settings entries, and show it as a diff. Without this, `status`'s `installed but its target is missing — re-run kerby install` is advice that can never come true, and the remediation loops instead of terminating (§ Phase 2, *"so re-run `kerby install` self-heals"*).
+   - **Ours but STALE** — it carries the marker and is **byte-identical to the freshly rendered template except that one path string differs, consistently, at every occurrence** (it appears three times: the guard test, the guard's message, and the `exec`). Any other difference — a changed guard, an extra line, an altered message, the path differing at only some occurrences — is NOT stale. That path must also still look like a kerby hook root; a marker plus an arbitrary rewritten path is a hand edit wearing kerby's name. This is kerby's own file gone out of date, not someone else's work: **re-point it in the same pass**, exactly as Phase 2 prunes and re-points stale settings entries, and show it as a diff. Without this, `status`'s `installed but its target is missing — re-run kerby install` is advice that can never come true, and the remediation loops instead of terminating (§ Phase 2, *"so re-run `kerby install` self-heals"*).
    - **Ours but HAND-EDITED** — the marker is there but the body no longer matches the template's shape (extra commands, a changed guard, an added `exec`). Someone deliberately changed it: report and **leave it**. kerby does not overwrite content it did not author, even its own marker cannot license that.
    - **Not ours** (no marker) → refuse, print its first line, and continue the rest of install.
 
@@ -563,7 +567,7 @@ If `y`:
 
 ### Git `pre-commit` hook
 
-For each in-scope check declaring `git_hook`, look at `<git-path hooks>/<name>`. Removal is **byte-exact**, the same doctrine as the `.gitignore` marker block below: regenerate the content `install` would write and compare.
+For each in-scope check declaring `git_hook`, look at `<git-path hooks>/<name>`. Removal requires that **kerby wrote every byte of it** — same doctrine as the `.gitignore` marker block below, which removes only the exact block it wrote. Regenerate the content `install` would write and compare, applying the identical four-state test `install` uses (§ Phase 3, precondition 3), so the two commands never disagree about whose file it is.
 
 - **Identical** → show it as a removal and include it in the confirmation.
 - **Marker present, template shape intact, only the enforcer path differs** (stale — kerby was moved or reinstalled since) → still kerby's own file, so include it in the removal. Matching only the *current* path would strand exactly the hooks a moved install leaves behind, which is the state `uninstall` exists to clear.
