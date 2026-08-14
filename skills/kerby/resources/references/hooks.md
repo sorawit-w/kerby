@@ -104,7 +104,7 @@ one caught strictly more than the other, it still would not be a replacement.
 | | Not enforcing when |
 |---|---|
 | PreToolUse hook | Phase 2 was never accepted here, or its entry was later removed from the settings file |
-| git hook | Phase 3 was never accepted here; or this is a fresh clone (git hooks are never cloned); or `core.hooksPath` sends git to a different hooks dir, so the file kerby wrote is not the one git runs |
+| git hook | Phase 3 was never accepted here; or this is a fresh clone (git hooks are never cloned); or `core.hooksPath` sends git to a *different* hooks dir, so the file kerby wrote is not the one git runs; or the hook or its scanner is not executable, in which case it runs but exits 0 |
 
 Two things that table is careful *not* to say. **Declining a phase does not remove
 anything** — if a hook is already installed, saying no on a later run leaves it exactly
@@ -136,9 +136,9 @@ Behaviour worth knowing:
   line and falls back to the built-in regex floor. This matters more here than in the
   PreToolUse path: a GUI git client runs hooks with a launchd `PATH` of
   `/usr/bin:/bin:/usr/sbin:/sbin`, where an installed scanner is invisible.
-- **`core.hooksPath` sends git elsewhere.** If that config is set (husky sets it), git runs
-  hooks from that dir instead of the repo's default one, so a file kerby wrote would sit
-  there dormant. `install` refuses rather than write one; `uninstall` and `status` still
+- **`core.hooksPath` sends git elsewhere.** If that config is set to a *different* dir than
+  the repo's default (husky does; set to the default dir itself it changes nothing), git
+  runs hooks from there instead, so a file kerby wrote would sit dormant. `install` refuses rather than write one; `uninstall` and `status` still
   look at the **default** dir, so a hook that went dormant when the config was added later
   is still found and removable. None of this means nothing is enforcing — a hook wired
   into the configured dir by hand runs perfectly well; kerby simply reports only on its
