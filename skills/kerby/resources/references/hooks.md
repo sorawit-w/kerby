@@ -112,14 +112,13 @@ where it is; removal is `uninstall`'s job alone. And **`core.hooksPath` shadows 
 than disables**: git still runs hooks, just from elsewhere, so a husky user can wire the
 scanner into their own `.husky/pre-commit` by hand. kerby will not do that for them.
 
-If you do wire it in yourself, write your own line rather than pasting kerby's template
-verbatim — `uninstall` resolves whatever hooks dir git is configured to use and removes a
-file there that is byte-identical to what it installs, so an exact copy in `.husky/` would
-be treated as kerby's and swept up with it. A line of your own inside your own hook is
-never touched.
+If you wire it in yourself, that file stays yours: kerby reads and writes only the repo's
+default hooks dir, never the one `core.hooksPath` points at, so `uninstall` will not touch
+your `.husky/pre-commit` even if you pasted kerby's template into it verbatim.
 
-The list is the common cases, not a proof of exhaustiveness — `kerby status` is the
-authority on what is actually bound in a given repo.
+The list is the common cases, not a proof of exhaustiveness. `kerby status` reports what
+**kerby** has bound; it does not survey every hook in the repo, so it can say "kerby is
+not enforcing here" while some other tool's hook is running fine.
 
 Unlike the post-commit reindex below, this one is **offered by `install`** (Phase 3) rather
 than pasted by hand — a security floor earns an installer; a convenience reindex does not.
@@ -137,11 +136,14 @@ Behaviour worth knowing:
   line and falls back to the built-in regex floor. This matters more here than in the
   PreToolUse path: a GUI git client runs hooks with a launchd `PATH` of
   `/usr/bin:/bin:/usr/sbin:/sbin`, where an installed scanner is invisible.
-- **`core.hooksPath` shadows it entirely.** If that config is set (husky does), git runs
-  hooks from there instead, so the file kerby would write is never the one executed;
-  `install` refuses rather than writing a file that cannot fire, and `status` reports the
-  shadowing. (The hooks dir is resolved with `git rev-parse --git-path hooks`, never
-  assumed to be `.git/hooks` — in a worktree or submodule it is not.)
+- **`core.hooksPath` sends git elsewhere.** If that config is set (husky sets it), git runs
+  hooks from that dir instead of the repo's default one, so a file kerby wrote would sit
+  there dormant. `install` refuses rather than write one; `uninstall` and `status` still
+  look at the **default** dir, so a hook that went dormant when the config was added later
+  is still found and removable. None of this means nothing is enforcing — a hook wired
+  into the configured dir by hand runs perfectly well; kerby simply reports only on its
+  own. (The default dir is resolved from git, never assumed to be `.git/hooks` — in a
+  worktree or submodule it is not.)
 
 Remove it with `kerby uninstall`. It deletes the file only when it is byte-identical to
 what `install` writes. Anything else — hand-edited, another tool's, or kerby's own from an
