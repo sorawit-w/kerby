@@ -534,6 +534,18 @@ run_scan "$(printf 'cat <<"E\\OF" >/dev/null\nbody\nE\\OF\ngit commit -m real')"
 [[ "$rc" -eq 2 ]] && pass 'review15: <<"E\OF" keeps the backslash in the delimiter' \
                   || fail "review15: FAIL-OPEN — consumed a non-special backslash (got $rc)"
 
+# `$'...'` is ANSI-C quoting and `2>&1` is one redirection — both are shell
+# grammar the tokenizer did not model. `$'commit'` tokenized as `$commit` so the
+# subcommand was never recognised; the `&` in `2>&1` was read as a separator,
+# which swallowed the `git` token after it. Both were fail-opens here as well as
+# in protect-git.sh, since the tokenizer is shared.
+run_scan "git \$'commit' -m x" "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review16: ANSI-C quoted subcommand is recognised" \
+                  || fail "review16: FAIL-OPEN — \$'commit' unrecognised (got $rc)"
+run_scan "2>&1 git commit -m x" "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review16: a 2>&1 prefix does not hide the command" \
+                  || fail "review16: FAIL-OPEN — redirection swallowed the invocation (got $rc)"
+
 # The mirror image: forms that must NOT block. A separator is a separator by
 # POSITION, not by spelling — an escaped or quoted `;` is an ordinary word.
 NB="$TMP/noblock"; git init -q "$NB"

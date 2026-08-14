@@ -332,6 +332,27 @@ done <<EOF
 EOF
 
 
+# --- Round-1 findings on #48 -------------------------------------------------
+# Each verified against what bash ACTUALLY does, not what the pattern suggests.
+R1="$TMPROOT/round1"; repo_with_commit "$R1" main
+run_in "$R1" "git -c a.b=c \$'commit' --allow-empty -m x"
+[[ "$RC" -eq 2 ]] && pass "#48 blocks: ANSI-C quoted subcommand (\$'commit')" || fail "#48 \$'commit' (got $RC)"
+run_in "$R1" "2>&1 git commit --allow-empty -m x"
+[[ "$RC" -eq 2 ]] && pass "#48 blocks: a 2>&1 prefix is one redirection, not a separator" || fail "#48 2>&1 prefix (got $RC)"
+run_in "$R1" "$OV=1 $OV=0 git commit --allow-empty -m x"
+[[ "$RC" -eq 2 ]] && pass "#48 override: the LAST assignment wins (=1 then =0 does not authorize)" || fail "#48 override latch (got $RC)"
+run_in "$R1" "$OV=0 $OV=1 git commit --allow-empty -m x"
+[[ "$RC" -eq 0 ]] && pass "#48 override: =0 then =1 does authorize" || fail "#48 override last-wins reverse (got $RC)"
+run_in "$R1" "$OV\\=1 git commit --allow-empty -m x"
+[[ "$RC" -eq 2 ]] && pass "#48 override: an ESCAPED = is a command name, not an assignment" || fail "#48 escaped = (got $RC)"
+run_in "$R1" "$OV=\$'1' git commit --allow-empty -m x"
+[[ "$RC" -eq 0 ]] && pass "#48 override: an ANSI-C quoted VALUE is still a valid assignment" || fail "#48 \$'1' value (got $RC)"
+for pv in "git --version commit" "git --html-path commit" "git --man-path commit"; do
+  run_in "$R1" "$pv"
+  [[ "$RC" -eq 0 ]] && pass "#48 no false block: '$pv' prints and exits" || fail "#48 FALSE BLOCK on '$pv' (got $RC)"
+done
+
+
 echo "---"
 
 # --- Shared-tokenizer parity -------------------------------------------------

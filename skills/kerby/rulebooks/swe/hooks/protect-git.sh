@@ -172,7 +172,18 @@ tokenize() {
       # newline glued it into the token, so `git \<newline>commit` produced one
       # token that was neither `git` nor `commit` and the scan never ran.
       if [ "${s:$((i+1)):1}" = "$NL" ]; then i=$((i+1))
-      else i=$((i+1)); cur="$cur${s:$i:1}"; open=1; fi
+      else
+        # An escape is QUOTING: `VAR\=1 git …` is a command name, not an
+        # assignment, so its position is recorded like a quote's.
+        qseen="$qseen ${#cur}"
+        i=$((i+1)); cur="$cur${s:$i:1}"; open=1
+      fi
+    elif [ "$c" = '$' ] && { [ "${s:$((i+1)):1}" = "'" ] || [ "${s:$((i+1)):1}" = '"' ]; }; then
+      # `$'...'` is ANSI-C quoting and `$"..."` is locale translation; both are
+      # QUOTING. Treating `$` as a plain character left `$'commit'` tokenized as
+      # `$commit`, so the subcommand was never recognised.
+      qseen="$qseen ${#cur}"
+      i=$((i+1)); q="${s:$i:1}"; open=1
     elif [ "$c" = '"' ] || [ "$c" = "'" ]; then
       # Record WHERE the first quote fell. Bash suppresses tilde expansion when
       # anything in the TILDE-PREFIX (the `~` up to the first `/`) is quoted —
@@ -253,6 +264,10 @@ tokenize() {
       continue
     elif [ "$c" = ";" ]; then
       _emit; _sep ";"
+    elif [ "$c" = "&" ] && { [ "${cur: -1}" = ">" ] || [ "${cur: -1}" = "<" ]; }; then
+      # `2>&1` is ONE redirection. Reading its `&` as a separator split the
+      # command and the invocation after it was never examined.
+      cur="$cur$c"
     elif [ "$c" = "&" ] || [ "$c" = "|" ]; then
       _emit
       if [ "${s:$((i+1)):1}" = "$c" ]; then _sep "$c$c"; i=$((i+1))
@@ -377,7 +392,10 @@ if [ "$HAS_GIT" -eq 1 ]; then
         if [ "$redir_val" -eq 1 ]; then redir_val=0; continue; fi
         case "$tok" in
           [0-9]*'>'*|[0-9]*'<'*|'>'*|'<'*|'&>'*)
-            case "$tok" in *[!0-9\<\>\&]*) : ;; *) redir_val=1 ;; esac
+            # Only an operator ENDING in > or < takes a following operand.
+            # `2>&1` is self-contained; treating it as awaiting one swallowed the
+            # `git` token after it, so the invocation was never examined.
+            case "$tok" in *'>'|*'<') redir_val=1 ;; *) : ;; esac
             continue ;;
         esac
         case "$tok" in
@@ -389,15 +407,20 @@ if [ "$HAS_GIT" -eq 1 ]; then
           # `VAR=1` as an assignment — `"VAR=1" git commit` runs a command
           # LITERALLY named `VAR=1`, so honouring it would grant the bypass to
           # a form the shell never treats as one.
-          CODING_RULES_ALLOW_PROTECTED_COMMIT=1)
+          CODING_RULES_ALLOW_PROTECTED_COMMIT=*)
+            # bash applies the LAST assignment, so this must not LATCH: setting
+            # the flag on the first `=1` and ignoring a later `=0` authorized
+            # `VAR=1 VAR=0 git commit`, whose invocation actually receives 0.
             _ovq=0; _ovname=${tok%%=*}
             for _qp in ${SEG_Q[$TOKI]:-}; do
-              # A quote at or before the `=` means the NAME was quoted. Computed,
-              # never a literal: a hardcoded length also rejected `VAR="1"`,
-              # which bash does treat as a valid assignment.
+              # A quote OR ESCAPE at or before the `=` means the NAME was not
+              # bare, and bash only treats an unquoted `VAR=1` as an assignment
+              # — `"VAR=1"` and `VAR\=1` are command names. Computed, never a
+              # literal: a hardcoded length also rejected `VAR="1"`, which bash
+              # does accept.
               [ "$_qp" -le "${#_ovname}" ] && _ovq=1
             done
-            [ "$_ovq" -eq 0 ] && OVERRIDE=1
+            if [ "$_ovq" -eq 0 ] && [ "${tok#*=}" = "1" ]; then OVERRIDE=1; else OVERRIDE=0; fi
             continue ;;
           *=*) continue ;;
           git|*/git) SEEN_GIT=1; continue ;;
@@ -409,6 +432,12 @@ if [ "$HAS_GIT" -eq 1 ]; then
       fi
       if [[ "$skip_val" -eq 1 ]]; then skip_val=0; continue; fi
       [[ "$tok" == "--" ]] && break
+      # These make git PRINT AND EXIT — no subcommand runs, so a `commit` token
+      # after one is not a commit. `git --version commit` was blocked though it
+      # only prints a version string.
+      case "$tok" in
+        --version|--help|-h|--html-path|--man-path|--info-path) break ;;
+      esac
       case "$tok" in
         -*) case "$tok" in
               --no-pager|--paginate|-p|-P|--bare|--no-replace-objects|--literal-pathspecs|\

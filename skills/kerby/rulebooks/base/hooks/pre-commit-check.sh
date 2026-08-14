@@ -82,7 +82,18 @@ tokenize() {
       # newline glued it into the token, so `git \<newline>commit` produced one
       # token that was neither `git` nor `commit` and the scan never ran.
       if [ "${s:$((i+1)):1}" = "$NL" ]; then i=$((i+1))
-      else i=$((i+1)); cur="$cur${s:$i:1}"; open=1; fi
+      else
+        # An escape is QUOTING: `VAR\=1 git …` is a command name, not an
+        # assignment, so its position is recorded like a quote's.
+        qseen="$qseen ${#cur}"
+        i=$((i+1)); cur="$cur${s:$i:1}"; open=1
+      fi
+    elif [ "$c" = '$' ] && { [ "${s:$((i+1)):1}" = "'" ] || [ "${s:$((i+1)):1}" = '"' ]; }; then
+      # `$'...'` is ANSI-C quoting and `$"..."` is locale translation; both are
+      # QUOTING. Treating `$` as a plain character left `$'commit'` tokenized as
+      # `$commit`, so the subcommand was never recognised.
+      qseen="$qseen ${#cur}"
+      i=$((i+1)); q="${s:$i:1}"; open=1
     elif [ "$c" = '"' ] || [ "$c" = "'" ]; then
       # Record WHERE the first quote fell. Bash suppresses tilde expansion when
       # anything in the TILDE-PREFIX (the `~` up to the first `/`) is quoted —
@@ -163,6 +174,10 @@ tokenize() {
       continue
     elif [ "$c" = ";" ]; then
       _emit; _sep ";"
+    elif [ "$c" = "&" ] && { [ "${cur: -1}" = ">" ] || [ "${cur: -1}" = "<" ]; }; then
+      # `2>&1` is ONE redirection. Reading its `&` as a separator split the
+      # command and the invocation after it was never examined.
+      cur="$cur$c"
     elif [ "$c" = "&" ] || [ "$c" = "|" ]; then
       _emit
       if [ "${s:$((i+1)):1}" = "$c" ]; then _sep "$c$c"; i=$((i+1))
@@ -455,7 +470,10 @@ while [ "$TI" -le "$NALL" ]; do
       if [ "$redir_val" -eq 1 ]; then redir_val=0; continue; fi
       case "$tok" in
         [0-9]*'>'*|[0-9]*'<'*|'>'*|'<'*|'&>'*)
-          case "$tok" in *[!0-9\<\>\&]*) : ;; *) redir_val=1 ;; esac
+          # Only an operator ENDING in > or < takes a following operand.
+            # `2>&1` is self-contained; treating it as awaiting one swallowed the
+            # `git` token after it, so the invocation was never examined.
+            case "$tok" in *'>'|*'<') redir_val=1 ;; *) : ;; esac
           continue ;;
       esac
       case "$tok" in
