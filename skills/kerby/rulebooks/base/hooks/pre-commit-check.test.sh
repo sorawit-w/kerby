@@ -358,6 +358,32 @@ echo "ok" > "$REPO/plain.js"; git -C "$REPO" add plain.js
 # secret and then restoring the file to its HEAD contents nets to an EMPTY diff
 # while the index still commits the secret. The scan is the UNION of index-vs-
 # HEAD and worktree-vs-index precisely so neither side can hide behind the other.
+# A target path containing SPACES survives only if the segment is tokenized with
+# quote awareness. `set -- $SEG` word-split it into fragments, the scan ran
+# against a path that does not exist, and the empty result was read as clean.
+SPC="$TMP/repo with space"; mkdir -p "$SPC"; git init -q "$SPC"
+git -C "$SPC" config user.email a@b; git -C "$SPC" config user.name x
+printf 'k = "%s"\n' "$FAKE_KEY" > "$SPC/s.py"; git -C "$SPC" add s.py
+for sc in "git -C \"$SPC\" commit -m x" \
+          "GIT_DIR=\"$SPC/.git\" GIT_WORK_TREE=\"$SPC\" git commit -m x" \
+          "cd \"$SPC\" && git commit -m x" \
+          "cd -- \"$SPC\" && git commit -m x"; do
+  ( cd "$TMP" && jq -nc --arg c "$sc" '{tool_input:{command:$c}}' \
+      | PATH="$BIN_GL" SCANNER_REAL=1 bash "$HOOK" >/dev/null 2>&1 ); rc=$?
+  [[ "$rc" -eq 2 ]] && pass "review9: space in a quoted target path resolves (${sc%% *}…)" \
+                    || fail "review9: FAIL-OPEN on '$sc' (got $rc)"
+done
+
+# `git diff` renders a blob holding a NUL as "Binary files … differ" — no
+# content — so a secret inside one was never shown to the scanner. `--text`
+# forces the bytes through.
+BIN="$TMP/binblob"; git init -q "$BIN"
+git -C "$BIN" config user.email a@b; git -C "$BIN" config user.name x
+printf 'bin\000data k = "%s"\n' "$FAKE_KEY" > "$BIN/blob.dat"; git -C "$BIN" add blob.dat
+run_scan "git commit -m x" "$BIN"; rc=$?
+[[ "$rc" -eq 2 ]] && pass "review9: a secret inside a binary blob is still scanned" \
+                  || fail "review9: FAIL-OPEN — binary blob hid a secret (got $rc)"
+
 # Quoting a path that contains NO spaces is ordinary, not exotic. Keeping the
 # quotes made the replayed `cd` target a directory literally named `"/p"`, which
 # failed — and a failed cd yields an empty diff, read as clean. Same for the

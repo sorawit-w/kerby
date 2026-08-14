@@ -57,23 +57,33 @@ unquote() {
     | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g"
 }
 
-# Take the FIRST shell word of a string, honouring quotes: `"/a b" rest` -> `/a b`,
-# `/a rest` -> `/a`. Used for `cd <path>` and for the value half of an attached
-# selector, both of which are ordinarily written quoted.
-deq_first() {
-  case "$1" in
-    \"*) local v="${1#\"}"; printf '%s' "${v%%\"*}" ;;
-    \'*) local v="${1#\'}"; printf '%s' "${v%%\'*}" ;;
-    *)   printf '%s' "${1%%[[:space:]]*}" ;;
-  esac
-}
-
-# Strip quotes from the value half of `key=value` (`--git-dir="/p"`, `GIT_DIR='/p'`).
-deq_val() {
-  case "$1" in
-    *=*) printf '%s=%s' "${1%%=*}" "$(deq_first "${1#*=}")" ;;
-    *)   printf '%s' "$1" ;;
-  esac
+# Split a command segment into shell WORDS, honouring quotes and backslash
+# escapes. `set -- $SEG` was used before and word-splits on whitespace whatever
+# the quoting, so `git -C "/p with space" commit` produced the fragments `/p`,
+# `with`, `space` — the scan then ran against a path that does not exist,
+# returned empty, and the secret was read as clean. Every previous attempt to
+# patch around that with per-token quote stripping failed on the next form.
+# Sets the global TOKENS array. No eval: characters are copied, never executed.
+tokenize() {
+  local s="$1" i=0 n=${#1} c q="" cur="" open=0
+  TOKENS=()
+  while [ "$i" -lt "$n" ]; do
+    c="${s:$i:1}"
+    if [ -n "$q" ]; then
+      if [ "$c" = "$q" ]; then q=""; else cur="$cur$c"; fi
+    elif [ "$c" = "\\" ]; then
+      i=$((i+1)); cur="$cur${s:$i:1}"; open=1
+    elif [ "$c" = '"' ] || [ "$c" = "'" ]; then
+      q="$c"; open=1
+    elif [ "$c" = " " ] || [ "$c" = "$(printf '\t')" ]; then
+      if [ -n "$cur" ] || [ "$open" = 1 ]; then TOKENS[${#TOKENS[@]}]="$cur"; fi
+      cur=""; open=0
+    else
+      cur="$cur$c"
+    fi
+    i=$((i+1))
+  done
+  if [ -n "$cur" ] || [ "$open" = 1 ]; then TOKENS[${#TOKENS[@]}]="$cur"; fi
 }
 
 LC=$(unquote "$COMMAND" | tr '[:upper:]' '[:lower:]')
@@ -105,8 +115,11 @@ REGEX_FLOOR="(${SK}live_|${SK}test_|AKIA[A-Z0-9]{16}|-----BEGIN (RSA |EC |DSA )?
 # cannot smuggle in a command), then apply the invocation's own -C/--git-dir.
 # `git $LOC` is unquoted only for arg-splitting; variable values are not
 # re-tokenized, so `;`/`&` inside a path stay literal.
-git_at() { # $1=cdlist  $2=loc  $3=envassigns  $4.. = git args
-  local cdlist="$1" loc="$2" envs="$3"; shift 3
+# LOC_ARR (global) carries the target-selecting globals. It is an ARRAY because
+# a string re-split on `git $loc` would undo the tokenizer's work for any path
+# containing a space.
+git_at() { # $1=cdlist  $2=envassigns  $3.. = git args
+  local cdlist="$1" envs="$2"; shift 2
   (
     while IFS= read -r _d; do
       [ -n "$_d" ] && { cd "$_d" 2>/dev/null || exit 0; }
@@ -116,17 +129,17 @@ git_at() { # $1=cdlist  $2=loc  $3=envassigns  $4.. = git args
     while IFS= read -r _e; do
       [ -n "$_e" ] && export "$_e"
     done <<< "$envs"
-    git $loc "$@" 2>/dev/null
+    git ${LOC_ARR[@]+"${LOC_ARR[@]}"} "$@" 2>/dev/null
   )
 }
 
 # Scan one target. Echoes nothing; returns 0 = clean, 7 = finding.
-scan_target() { # $1=cdlist  $2=loc  $3=envassigns
+scan_target() { # $1=cdlist  $2=envassigns (LOC_ARR is global)
   # The DIFF keeps the commit's full context (cd chain + globals + GIT_* env):
   # resolving to a toplevel and dropping the rest lost alternate state such as
   # GIT_INDEX_FILE, and a detached --git-dir/--work-tree pair. The toplevel is
   # used ONLY as the scanner's cwd, so it reads the target's .gitleaks.toml.
-  local cdlist="$1" loc="$2" envs="$3" rc names top diff raw drc rawi rci raww rcw
+  local cdlist="$1" envs="$2" rc names top diff raw drc rawi rci raww rcw
   # Scan the UNION of two diffs, because a commit can draw from either side and
   # no single diff covers both:
   #   --cached  index vs HEAD      — what a bare `git commit` writes
@@ -139,12 +152,17 @@ scan_target() { # $1=cdlist  $2=loc  $3=envassigns
   # It over-blocks a bare `git commit` when an unstaged tracked file holds a
   # secret. That is the accepted direction for a floor, and documented.
   #
+  # `--text` is required, not cosmetic: without it a blob containing a NUL byte
+  # diffs as "Binary files ... differ" with NO content, so a secret sitting in
+  # one was never shown to the scanner at all. Forcing a textual diff is what
+  # makes the bytes visible; git's own binary detection is not a safety signal.
+  #
   # Prefixes/ext-diff/textconv are FORCED: the target repo's own config
   # (diff.noprefix, diff.external, a textconv filter) would otherwise change the
   # format this header filter reads, or hand the scanner converted text.
-  rawi=$(git_at "$cdlist" "$loc" "$envs" diff --cached --diff-filter=ACMR -U0 \
+  rawi=$(git_at "$cdlist" "$envs" diff --cached --diff-filter=ACMR -U0 --text \
           --src-prefix=a/ --dst-prefix=b/ --no-ext-diff --no-textconv); rci=$?
-  raww=$(git_at "$cdlist" "$loc" "$envs" diff --diff-filter=ACMR -U0 \
+  raww=$(git_at "$cdlist" "$envs" diff --diff-filter=ACMR -U0 --text \
           --src-prefix=a/ --dst-prefix=b/ --no-ext-diff --no-textconv); rcw=$?
   raw="$rawi
 $raww"
@@ -154,7 +172,7 @@ $raww"
   # committed. But only on a real repo — if the target does not resolve at all,
   # the actual `git commit` fails too, so no commit can happen and blocking
   # would only punish text that merely looks like a broken invocation.
-  top=$(git_at "$cdlist" "$loc" "$envs" rev-parse --show-toplevel)
+  top=$(git_at "$cdlist" "$envs" rev-parse --show-toplevel)
   [ -n "$top" ] || return 0
   if [[ "$drc" -ne 0 ]]; then
     echo "WARNING: kerby could not read the staged diff for this commit (git exited $drc)." >&2
@@ -220,8 +238,8 @@ $raww"
 #
 # Residual, shared with protect-git.sh and recorded in swe's threat-model.md: a
 # static pass cannot model pipes, subshells, `cd -`/bare `cd`, cumulative
-# relative -C/--git-dir, or a quoted path spanning a separator. Quoted paths
-# that contain no separator ARE handled (deq_first).
+# relative -C/--git-dir, or a quoted path that itself contains a separator.
+# Quoted paths and paths with spaces ARE handled (see tokenize).
 CDLIST=""
 SEGTXT="$COMMAND"
 # All three separators split the same way. `||` is NOT modelled as "the left
@@ -233,38 +251,37 @@ SEGTXT="$COMMAND"
 # tried and produced false blocks, which is the worse direction for a floor.
 SEGTXT="${SEGTXT//||/$'\n'}"; SEGTXT="${SEGTXT//&&/$'\n'}"; SEGTXT="${SEGTXT//;/$'\n'}"
 while IFS= read -r SEG; do
-  # `cd <path>` (not `cd -` / bare `cd`) → remember for later bare commits.
-  # The path is DEQUOTED. Keeping the quotes made `cd "/tmp/x" && git commit`
-  # replay a cd to a directory literally named `"/tmp/x"`, which failed — and a
-  # failed cd yields an empty diff, read as clean. Quoting a path with no spaces
-  # in it is ordinary, so this was a live fail-open, not an exotic form.
-  if printf '%s' "$SEG" | grep -qE '^[[:space:]]*cd[[:space:]]+[^[:space:]-]'; then
-    CDARG=$(printf '%s' "$SEG" | sed -E 's/^[[:space:]]*cd[[:space:]]+//')
-    CDLIST="${CDLIST}$(deq_first "$CDARG")
-"
+  tokenize "$SEG"
+  NTOK=${#TOKENS[@]}
+  [ "$NTOK" -eq 0 ] && continue
+
+  # `cd <path>` → remember for later bare commits. `cd --` is a real form and
+  # was rejected by an "argument must not start with -" test, so `cd -- <repo>
+  # && git commit` scanned the caller's repo and let the secret through. Bare
+  # `cd` and `cd -` stay unhandled on purpose: neither names a directory the
+  # hook can resolve statically.
+  if [ "${TOKENS[0]}" = "cd" ]; then
+    CDARG=""
+    [ "$NTOK" -ge 2 ] && CDARG="${TOKENS[1]}"
+    [ "$CDARG" = "--" ] && [ "$NTOK" -ge 3 ] && CDARG="${TOKENS[2]}"
+    case "$CDARG" in
+      ""|-|--) : ;;
+      *) CDLIST="${CDLIST}${CDARG}
+" ;;
+    esac
     continue
   fi
   unquote "$SEG" | tr '[:upper:]' '[:lower:]' | grep -qE "$GIT_COMMIT_RE" || continue
 
-  # Walk the segment's tokens. Done with a token walk rather than sed because
-  # BSD sed (macOS) does not support `\b`, so a `\bcommit\b` strip silently
-  # matched nothing and left the subcommand in the option prefix. Globbing is
-  # disabled around the split so a `*` in the command cannot expand.
-  set -f
-  # shellcheck disable=SC2086
-  set -- $SEG
-  set +f
-  SEEN_GIT=0; LOC=""; IS_COMMIT=0; ENVS=""; skip_val=0; want_val=0; take_val=0
-  for rawtok in "$@"; do
-    # Strip surrounding quotes: the shell removes them before git ever sees the
-    # token, so `git 'commit'` is a commit and `'git' commit` is git.
-    tok="${rawtok%\'}"; tok="${tok#\'}"; tok="${tok%\"}"; tok="${tok#\"}"
+  SEEN_GIT=0; IS_COMMIT=0; ENVS=""; skip_val=0; take_val=0
+  LOC_ARR=()
+  for tok in ${TOKENS[@]+"${TOKENS[@]}"}; do
     if [[ "$SEEN_GIT" -eq 0 ]]; then
       # The invocation must BE git, not merely mention it: `echo git commit` is
       # not a commit. Env assignments (VAR=val) may precede it.
       case "$tok" in
         GIT_DIR=*|GIT_WORK_TREE=*|GIT_INDEX_FILE=*|GIT_COMMON_DIR=*|GIT_OBJECT_DIRECTORY=*)
-          ENVS="${ENVS}$(deq_val "$tok")
+          ENVS="${ENVS}${tok}
 "; continue ;;
         *=*) continue ;;
         git|*/git) SEEN_GIT=1; continue ;;
@@ -275,25 +292,22 @@ while IFS= read -r SEG; do
     # Position is load-bearing: `-C` is ALSO a `git commit` option (reuse a
     # message), so `git commit -C HEAD` has NO target selector — reading that
     # trailing `-C HEAD` as a directory made the scan run against a nonexistent
-    # path and report clean. Collecting the prefix in order also preserves git's
-    # own semantics when several combine (`git -C repo --git-dir=.git commit`).
+    # path and report clean.
     if [[ "$tok" == "commit" ]]; then IS_COMMIT=1; break; fi
-    # LOC is a WHITELIST of the globals that redirect WHICH repo/index git uses.
-    # It used to collect every token before `commit`, which meant an unrelated
-    # global carried its value in: `git -c user.name='A U' commit` split into
-    # `-c` / `user.name='A` / `U'`, and the stray `U'` made the scan's own git
-    # command fail — empty output, read as clean, secret committed. `-c` cannot
-    # change the target, so nothing is lost by dropping it; a value-taking
-    # global's value is skipped so it can't be mistaken for a selector either.
-    if [[ "${skip_val:-0}" -eq 1 ]]; then skip_val=0; continue; fi
+    if [[ "$take_val" -eq 1 ]]; then take_val=0; LOC_ARR[${#LOC_ARR[@]}]="$tok"; continue; fi
+    if [[ "$skip_val" -eq 1 ]]; then skip_val=0; continue; fi
+    # LOC_ARR is a WHITELIST of the globals that redirect WHICH repo/index git
+    # uses. Collecting every pre-`commit` token instead dragged unrelated
+    # globals' values in and broke the scan's own git command; anything that
+    # cannot change the target is simply dropped.
     case "$tok" in
-      -C|--git-dir|--work-tree|--namespace)  LOC="$LOC $tok"; want_val=1 ;;
-      --git-dir=*|--work-tree=*|--namespace=*) LOC="$LOC $(deq_val "$tok")" ;;
+      -C|--git-dir|--work-tree|--namespace)
+        LOC_ARR[${#LOC_ARR[@]}]="$tok"; take_val=1 ;;
+      --git-dir=*|--work-tree=*|--namespace=*)
+        LOC_ARR[${#LOC_ARR[@]}]="$tok" ;;
       -c|--config-env|--exec-path|--attr-source|--super-prefix) skip_val=1 ;;
-      *) : ;;   # anything else cannot redirect the target — drop it
+      *) : ;;
     esac
-    if [[ "${want_val:-0}" -eq 1 ]]; then want_val=0; take_val=1; continue; fi
-    if [[ "${take_val:-0}" -eq 1 ]]; then take_val=0; LOC="$LOC $tok"; fi   # tok already dequoted
   done
   [[ "$IS_COMMIT" -eq 1 ]] || continue
 
@@ -310,7 +324,7 @@ while IFS= read -r SEG; do
   # the invocation's globals and git's env selectors. Everything downstream then
   # works with an absolute path, which is what removed the relative-`-C` class of
   # bug (cd into the target AND pass -C -> git resolved repo/repo and failed).
-  scan_target "$EFF_CD" "$LOC" "$ENVS" || exit 2   # Hard-block on findings
+  scan_target "$EFF_CD" "$ENVS" || exit 2   # Hard-block on findings
 done <<< "$SEGTXT"
 
 # Scan clean (or degraded to the regex floor, which found nothing). This is a

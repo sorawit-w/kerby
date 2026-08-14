@@ -32,9 +32,11 @@ These are **[behavioral]** by nature, not by neglect. The honest fix for them is
 
 Split out of the table above because it is the one row whose limits are easy to over-read.
 
-**Recognised** (matcher parity-tested against `protect-git.sh`): bare `git commit`; globals before the subcommand (`-C`, `--git-dir`, `--work-tree`, `-c k=v`) in git's own order; `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE` env selectors; `cd X && git commit`; `false || git commit`; a quoted `git`/`commit` token. Quoted and bundled arguments (`-m "two words"`, `-am msg`) do not derail the match, and a global whose value contains spaces (`git -c user.name='A U' commit`) no longer corrupts it — only the globals that *redirect the target* (`-C`, `--git-dir`, `--work-tree`, `--namespace`) are carried into the scan's own git invocation; the rest are dropped because they cannot change which repo is committed to. It scans the repo each invocation actually targets, not the caller's.
+**Recognised** (matcher parity-tested against `protect-git.sh`): bare `git commit`; globals before the subcommand (`-C`, `--git-dir`, `--work-tree`, `-c k=v`) in git's own order; `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE` env selectors; `cd X && git commit`; `false || git commit`; a quoted `git`/`commit` token. Quoted and bundled arguments (`-m "two words"`, `-am msg`) do not derail the match, and a global whose value contains spaces (`git -c user.name='A U' commit`) no longer corrupts it — only the globals that *redirect the target* (`-C`, `--git-dir`, `--work-tree`, `--namespace`) are carried into the scan's own git invocation; the rest are dropped because they cannot change which repo is committed to. Segments are tokenized with **quote and backslash awareness**, so a target path containing spaces (`git -C "/p with space" commit`, a quoted `GIT_DIR`, `cd "…" &&`, `cd -- …`) resolves correctly — an earlier whitespace split turned those into fragments, scanned a path that does not exist, and read the empty result as clean. It scans the repo each invocation actually targets, not the caller's.
 
 **It scans the union of two diffs**, because a commit can draw from either side and no single diff covers both: `--cached` (index vs `HEAD` — what a bare `git commit` writes) plus the bare worktree-vs-index diff (what `-a`, a pathspec or `--include` adds). A single `git diff HEAD` was tried and is wrong twice over: it compares `HEAD` to the *working tree*, so staging a secret and then restoring the file to its `HEAD` contents nets to an empty diff while the index still commits the secret — and it cannot run at all on an unborn `HEAD`, which silently dropped the first commit of every repo back to an index-only scan. The union needs no argument parsing to decide which side a given form uses, which is the whole point.
+
+**Binary content is scanned, not skipped.** A blob holding a NUL byte diffs as "Binary files … differ" with no content, so a secret inside one reached a commit unseen; the diff is now forced with `--text`. Git's binary detection is a rendering choice, never a safety signal.
 
 **Deliberately OVER-blocked** (each is the safe direction for a floor, and each was chosen *after* the precise version was tried and failed):
 
@@ -54,7 +56,7 @@ Split out of the table above because it is the one row whose limits are easy to 
 | b | wrappers — `sudo git commit`, `env FOO=1 git commit` | needs a per-tool CLI model |
 | c | a git alias — `git ci` | resolves at runtime |
 | d | a *failed* conditional `cd` — `cd /missing \|\| git commit` | the shell's cwd after a failed `cd` is not statically knowable |
-| e | pipes, subshells, `cd -`, cumulative relative `-C`, a quoted path spanning a `&&`/`;` | shared with `protect-git.sh`; not individually pinned |
+| e | pipes, subshells, bare `cd`/`cd -`, cumulative relative `-C`, a quoted path containing a `&&`/`\|\|`/`;` | shared with `protect-git.sh`; not individually pinned |
 
 **(b) and (d) — and pathspec scoping — were implemented and then removed on purpose.** `-n` takes a value for `nice` but not `sudo`, and a wrapper's option value can itself be the word `git`; every attempt produced FALSE BLOCKS. Over-blocking a non-disablable floor is a worse failure than the gap it closes — successive review rounds each fixed a gap and introduced a new false block or fail-open, so the loop was stopped rather than continued.
 
