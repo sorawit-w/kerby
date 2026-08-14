@@ -110,8 +110,13 @@ Two things that table is careful *not* to say. **Declining a phase does not remo
 anything** — if a hook is already installed, saying no on a later run leaves it exactly
 where it is; removal is `uninstall`'s job alone. And **`core.hooksPath` shadows rather
 than disables**: git still runs hooks, just from elsewhere, so a husky user can wire the
-scanner into their own `.husky/pre-commit` by hand. kerby will not do that for them, and
-will not clean it up afterwards.
+scanner into their own `.husky/pre-commit` by hand. kerby will not do that for them.
+
+If you do wire it in yourself, write your own line rather than pasting kerby's template
+verbatim — `uninstall` resolves whatever hooks dir git is configured to use and removes a
+file there that is byte-identical to what it installs, so an exact copy in `.husky/` would
+be treated as kerby's and swept up with it. A line of your own inside your own hook is
+never touched.
 
 The list is the common cases, not a proof of exhaustiveness — `kerby status` is the
 authority on what is actually bound in a given repo.
@@ -138,9 +143,10 @@ Behaviour worth knowing:
   shadowing. (The hooks dir is resolved with `git rev-parse --git-path hooks`, never
   assumed to be `.git/hooks` — in a worktree or submodule it is not.)
 
-Remove it with `kerby uninstall`. It deletes the file only when kerby wrote every byte of
-it — byte-identical to the template, or differing *only* in the enforcer path (the state a
-moved install leaves behind). A hand-edited hook is reported and left in place.
+Remove it with `kerby uninstall`. It deletes the file only when it is byte-identical to
+what `install` writes. Anything else — hand-edited, another tool's, or kerby's own from an
+install root that has since moved — is reported and left in place, because kerby cannot
+tell those apart and does not guess.
 
 ---
 
