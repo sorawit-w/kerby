@@ -97,6 +97,13 @@ Not a duplicate and not a replacement — they see different things:
 
 That last row is why both are kept. Deleting either one opens a hole the other does not cover.
 
+**And the git hook cannot be the sole scanner even where it works.** It is opt-in, it is
+per-clone, and `core.hooksPath` disables it outright — so for any repo that declined the
+offer, any teammate's clone, and any husky-style repo, it does not exist at all. The
+PreToolUse hook is the one that is always there. That is the availability argument, and it
+is separate from the coverage argument above: even if the git hook caught strictly more,
+it would still not be a replacement, because it is not always present.
+
 Unlike the post-commit reindex below, this one is **offered by `install`** (Phase 3) rather
 than pasted by hand — a security floor earns an installer; a convenience reindex does not.
 It is per-clone: git hooks are never cloned, so teammates are not covered by your install.

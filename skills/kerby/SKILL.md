@@ -475,7 +475,13 @@ Offered only when **at least one in-scope check declares `git_hook`** (contract 
 
 1. **`core.hooksPath` is set** (`git config --get --show-origin core.hooksPath`) → git ignores `.git/hooks` entirely, so an installed hook would never run while `status` reported it installed. Skip, naming the config origin. This is how a **husky** repo presents: there is no file at `.git/hooks/pre-commit` at all, so a "does a hook already exist?" test would wrongly say the coast is clear.
 2. **Resolve the hooks dir with `git rev-parse --git-path hooks`** — never the literal `.git/hooks`. In a worktree or submodule `.git` is a *file*, and a literal path writes a hook git never runs. Note the consequence in the offer: hooks live in the **common** dir, so installing from one worktree installs for **all** worktrees of that repo.
-3. **A hook already exists there** → read it. **Ours** (marker present) and byte-identical to what we would write → `already installed`, no diff, no prompt (Phase 3 is idempotent, like the others). **Ours but drifted** (hand-edited) → report and leave it. **Not ours** → refuse, print its first line, and continue the rest of install. Never chain, never replace, never back up and overwrite.
+3. **A hook already exists there** → read it, and sort it into exactly one of four states. **Drift is not one state but two, and they need opposite handling** — conflating them is what made `status`'s remediation loop forever (below).
+   - **Ours, byte-identical** to what we would write → `already installed`, no diff, no prompt. Phase 3 is idempotent, like the others.
+   - **Ours but STALE** — it carries the marker, still matches the template's shape, and the *only* difference is the enforcer path, which points into a kerby hook root that is no longer where the install lives (the user moved or reinstalled kerby). This is kerby's own file gone out of date, not someone else's work: **re-point it in the same pass**, exactly as Phase 2 prunes and re-points stale settings entries, and show it as a diff. Without this, `status`'s `installed but its target is missing — re-run kerby install` is advice that can never come true, and the remediation loops instead of terminating (§ Phase 2, *"so re-run `kerby install` self-heals"*).
+   - **Ours but HAND-EDITED** — the marker is there but the body no longer matches the template's shape (extra commands, a changed guard, an added `exec`). Someone deliberately changed it: report and **leave it**. kerby does not overwrite content it did not author, even its own marker cannot license that.
+   - **Not ours** (no marker) → refuse, print its first line, and continue the rest of install.
+
+   Never chain, never replace, never back up and overwrite. The re-point case is the *only* write to an existing file, and it is a write to a file whose every other byte kerby wrote.
 
 **The prompt** (literal — install copy carries no persona, per `VOICE.md` § Zoning):
 
@@ -560,7 +566,8 @@ If `y`:
 For each in-scope check declaring `git_hook`, look at `<git-path hooks>/<name>`. Removal is **byte-exact**, the same doctrine as the `.gitignore` marker block below: regenerate the content `install` would write and compare.
 
 - **Identical** → show it as a removal and include it in the confirmation.
-- **Marker present but content drifted** (hand-edited after install) → **leave it** and report: `<path> was modified after install — left in place; remove it yourself.` kerby never deletes a file whose current content it did not author.
+- **Marker present, template shape intact, only the enforcer path differs** (stale — kerby was moved or reinstalled since) → still kerby's own file, so include it in the removal. Matching only the *current* path would strand exactly the hooks a moved install leaves behind, which is the state `uninstall` exists to clear.
+- **Marker present but the body no longer matches the template's shape** (hand-edited after install) → **leave it** and report: `<path> was modified after install — left in place; remove it yourself.` kerby never deletes a file whose current content it did not author.
 - **No marker** → not ours, never touched, never mentioned in the removal set.
 
 A scoped `uninstall <rulebook>` removes only the git hooks whose marker names a check from *that* rulebook — the marker carries the check id precisely so this is decidable.
