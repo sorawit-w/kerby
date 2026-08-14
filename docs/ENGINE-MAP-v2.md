@@ -121,7 +121,7 @@ the source heading in place would make the historical record false.
 | `### PreToolUse → .env File Protection` | swe |
 | `### PreToolUse → .env Read Warning` | swe |
 | `### PreToolUse → High-Stakes Path Routing` | swe |
-| `### PreToolUse → Pre-Commit Check` | code (documents the base-owned enforcer from the coding session's perspective; script itself lives in `base/hooks/` per V14) |
+| `### PreToolUse → Pre-Commit Check` | code (documents the base-owned enforcer from the coding session's perspective; script itself lives in `base/hooks/` per V14). **Renamed in 9.3.0** to `### PreToolUse → git commit (two independent hooks)` when the hollow-test heuristic moved out of the base floor into swe |
 | `### git post-commit → Knowledge Reindex (Optional)` | engine |
 | `### Manual / git post-commit → Knowledge Integrity (Optional)` | engine |
 | `### Stop → Quality Gate Verification` | code (quality gates are coding-lane). **Renamed in 9.15.0** to `### No Stop hook — quality gates are not verified mechanically`: no such hook was ever shipped, so the section now records its absence. The v7 heading is kept here because this table is a historical record of the move-only split |
