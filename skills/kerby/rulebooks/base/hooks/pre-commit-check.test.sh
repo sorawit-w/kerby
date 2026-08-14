@@ -510,6 +510,30 @@ for hdc in "$(printf 'cat <<\\EOF >/dev/null\nbody\nEOF\ngit commit -m real')" \
                     || fail "review14: FAIL-OPEN — delimiter mis-read in '${hdc%%$'\n'*}' (got $rc)"
 done
 
+# Tilde expansion after `=` happens ONLY in an assignment word (a valid
+# identifier). `GIT_DIR=~/x` expands; `--git-dir=~/x` does NOT, because
+# `--git-dir` is not an identifier — verified against bash directly rather than
+# assumed. Expanding it sent the scan to $HOME while the real command used a
+# literal `~` directory. Also: EVERY quote position is tracked, so a quote in
+# the KEY half can no longer hide one in the value.
+LIT="$TMP/~"; mkdir -p "$LIT"; git init -q "$LIT"
+git -C "$LIT" config user.email a@b; git -C "$LIT" config user.name x
+printf 'k = "%s"\n' "$FAKE_KEY" > "$LIT/s.py"; git -C "$LIT" add s.py
+for att in 'git --git-"dir"="~/.git" --work-"tree"="~" commit -m x' \
+           'git --git-dir="~/.git" --work-tree="~" commit -m x' \
+           'git --git-dir=~/.git --work-tree=~ commit -m x'; do
+  ( cd "$TMP" && jq -nc --arg c "$att" '{tool_input:{command:$c}}' \
+      | HOME="$HOMEDIR" PATH="$BIN_GL" SCANNER_REAL=1 bash "$HOOK" >/dev/null 2>&1 ); rc=$?
+  [[ "$rc" -eq 2 ]] && pass "review15: attached selector keeps ~ literal (not an assignment word)" \
+                    || fail "review15: FAIL-OPEN — expanded ~ in '$att' (got $rc)"
+done
+
+# A `<<"E\OF"` delimiter keeps its backslash: bash only consumes the backslash
+# before a special character inside double quotes.
+run_scan "$(printf 'cat <<"E\\OF" >/dev/null\nbody\nE\\OF\ngit commit -m real')" "$ESC"; rc=$?
+[[ "$rc" -eq 2 ]] && pass 'review15: <<"E\OF" keeps the backslash in the delimiter' \
+                  || fail "review15: FAIL-OPEN — consumed a non-special backslash (got $rc)"
+
 # The mirror image: forms that must NOT block. A separator is a separator by
 # POSITION, not by spelling — an escaped or quoted `;` is an ordinary word.
 NB="$TMP/noblock"; git init -q "$NB"
