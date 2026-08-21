@@ -27,9 +27,10 @@
 #
 # Fail-closed: no verdict line, malformed verdict, dirty worktree, or stale
 # log => no marker.
-# Known ceiling: this trusts the teed log's content. Forging a log is
-# possible, but that is deliberate deception, not drift; the audit log
-# ($GIT_DIR/codex-review-audit.log) keeps the history visible.
+# Known ceiling: the completion record below binds the log to the run that
+# produced it, so drift and truncation are caught -- but a log and a matching
+# record forged TOGETHER would pass. That is deliberate deception, not drift;
+# the audit log ($GIT_DIR/codex-review-audit.log) keeps the history visible.
 
 set -u
 
@@ -46,10 +47,10 @@ log="${1:-$gitdir/codex-review.log}"
   || fail "worktree has uncommitted tracked changes — commit them, re-review, then mark"
 
 # 2. Review log must exist and be newer than the last commit.
-[ -f "$log" ] || fail "no review log at $log — tee the Codex review output there first"
+[ -f "$log" ] || fail "no review log at $log — run the review through scripts/codex-run.sh first"
 log_mtime=$(stat -c %Y "$log" 2>/dev/null || stat -f %m "$log" 2>/dev/null) \
   || fail "cannot stat $log"
-# Attempt duration: tee creates the log at review start and last-writes it at
+# Attempt duration: codex-run creates the log at review start and last-writes it at
 # review end, so birth->mtime spans the run — valid ONLY because this script
 # consumes the log after each parse (see below); tee's truncation of an
 # existing file does NOT reset birth time. Advisory only (the dur= audit
@@ -79,31 +80,95 @@ fi
 case "$rounds" in ''|*[!0-9]*) rounds=0 ;; esac
 rounds=$((rounds + 1))
 
-# 4a. The transcript must be COMPLETE. codex-run stamps this line on its clean
-# exit path ONLY — never after a stall (4), a runtime failure (5) or an
-# outlived-SIGKILL (6).
+# 4a. The run must have COMPLETED, proven out of band.
 #
-# This is not belt-and-braces; without it step 4b is unsound. "Last verdict
-# wins" is correct only for a run that FINISHED, because the reviewer emits its
-# verdict last. A killed run has no conclusion — and its transcript can still
-# hold verdict-shaped lines the reviewer QUOTED while reading prior review
-# transcripts as evidence. Observed here: a stalled run left six such lines, the
-# last being another PR's clean `P0=0 P1=0`. Parsing that would have written a
-# PASS marker for a review that never reached a verdict — a check that runs,
-# reports clean, and proves nothing.
+# codex-run writes a `<log>.complete` sidecar on its clean exit path only —
+# never after a stall (4), a runtime failure (5), an outlived-SIGKILL (6), or a
+# failed completion record (7). It carries the transcript's identity and its
+# length at completion.
 #
-# A pre-stamp log (written before this guard existed) is refused too. That is
-# the safe direction: re-running a review is cheap, a false-clean marker is not.
-complete_line=$(grep -n 'codex-run: TRANSCRIPT COMPLETE rc=0' "$log" | tail -n1)
-[ -n "$complete_line" ] \
-  || fail "transcript at $log is not marked complete — the run stalled, failed, or predates this check. A killed run has no verdict; re-run the review rather than parsing what it left behind"
-complete_at=${complete_line%%:*}
+# Why a sidecar and not a marker line in the log: "last verdict wins" is sound
+# only for a run that finished, because the reviewer emits its verdict last. A
+# killed run has no conclusion, yet its transcript can still hold verdict-shaped
+# lines the reviewer QUOTED while reading earlier review transcripts as
+# evidence — observed here, six of them, the last being another PR's clean
+# P0=0 P1=0. The first fix for that used an in-band sentinel line and had the
+# SAME defect one layer up: reviewer stdout shares this file, so a review that
+# reads the diff or the docs quotes the sentinel (24 times, in the review of
+# that very change). Only evidence the reviewer cannot write is worth anything
+# here.
+#
+# A pre-sidecar log is refused too. Re-running a review is cheap; a false-clean
+# marker is not.
+complete="$log.complete"
+[ -f "$complete" ] \
+  || fail "no completion record at $complete — the run stalled, failed, or predates this check. A killed run has no verdict; re-run the review rather than parsing what it left behind"
 
-# 4b. Parse the verdict line — the last occurrence BEFORE the completion stamp,
-# so nothing appended afterwards can be mistaken for the conclusion. Fail closed
-# if absent or malformed; done BEFORE persisting the round, so a failed parse
-# costs nothing.
-verdict=$(head -n "$complete_at" "$log" | grep -E 'CODEX_VERDICT:' | tail -n1)
+# Refuse to touch a transcript a producer is still writing. This is a plain
+# EXISTENCE CHECK on codex-run's lock, deliberately NOT an acquire.
+#
+# An earlier version took the lock here, and the acquire — not the thing it
+# guarded — produced two review rounds of defects in a row: a trap that cleaned
+# up without stopping the script, then a release that ran twice and deleted a
+# successor's lock. Owning a lock means releasing it, releasing means signal
+# handlers, and every one of those was wrong before it was right.
+#
+# It is unnecessary because verdict integrity does not rest on serialization at
+# all: the snapshot below freezes the verified bytes, so nothing a concurrent
+# run does to $log afterwards can change what gets parsed. What remains is
+# politeness — not moving a live run's log out from under it at the consume
+# step — and a check is proportional to that. Racy by construction, and that is
+# fine: losing the race costs a confusing re-review, not a false-clean marker.
+lockdir="$log.lock"
+[ -d "$lockdir" ] \
+  && fail "a review is running against $log (lock at $lockdir) — wait for it to finish, then mark. If no run is active, remove that directory"
+
+c_bytes=$(sed -n 's/^bytes=\([0-9][0-9]*\)$/\1/p' "$complete")
+c_sha=$(sed -n 's/^sha256=\([0-9a-f][0-9a-f]*\)$/\1/p' "$complete")
+[ -n "$c_bytes" ] && [ -n "$c_sha" ] \
+  || fail "completion record at $complete is malformed (needs bytes= and sha256=) — re-run the review"
+
+# The file must still be at least as long as what was recorded. `head -c N`
+# succeeds at EOF, so without this a transcript truncated to drop its real
+# verdict would silently fall back to an earlier QUOTED one. Reproduced.
+now_bytes=$(wc -c < "$log" | tr -d ' ')
+[ "$now_bytes" -ge "$c_bytes" ] \
+  || fail "$log is shorter than the completion record claims ($now_bytes < $c_bytes) — the transcript changed after the run; re-review"
+
+# SNAPSHOT the recorded prefix once, then verify and parse THAT — never $log
+# again. Reading the file twice (digest, then verdict) leaves a window where a
+# concurrent write changes the bytes in between, so the verdict could come from
+# content the digest never covered. One read closes it with no lock: these
+# bytes cannot change, because nothing else knows this path.
+#
+# `rm -f` on our own mktemp file is the whole cleanup, and it is safe to run
+# twice — which is why a bare EXIT trap suffices here where the lock needed
+# exiting signal handlers. INT/TERM keep their default disposition: the shell
+# dies where it stands, and cannot resume into the marker write the way the old
+# cleanup-only trap could.
+#
+# What a signal CAN still interrupt, accurately: it can land after the round
+# counter is written, after either .prev move, or after the marker itself, so a
+# run can end with a sound marker but no audit-log line or counter reset, or
+# with the log consumed and no marker. Both cost a re-review. Neither can
+# produce a marker for a transcript that was not verified — the marker is
+# written from the snapshot's verdict or not at all.
+snap=$(mktemp) || fail "cannot create a temp file to snapshot the transcript"
+trap 'rm -f "$snap"' EXIT
+head -c "$c_bytes" "$log" > "$snap" \
+  || fail "cannot read the recorded prefix of $log — re-review"
+
+# The recorded bytes must be the bytes that run produced. This is the whole
+# binding: a digest covers truncation, replacement, inode reuse and a
+# cross-device inode collision in one comparison, where identity fields alone
+# cover none of them reliably.
+now_sha=$( { shasum -a 256 < "$snap" 2>/dev/null || sha256sum < "$snap"; } | cut -d' ' -f1)
+[ "$now_sha" = "$c_sha" ] \
+  || fail "$log does not match its completion record (digest mismatch) — the transcript changed after the run; re-review"
+
+# Parse the verdict from ONLY those verified bytes. Fail closed if absent or
+# malformed; done BEFORE persisting the round, so a failed parse costs nothing.
+verdict=$(grep -E 'CODEX_VERDICT:' "$snap" | tail -n1)
 [ -n "$verdict" ] \
   || fail "no CODEX_VERDICT line in $log — the review brief must require it; re-run the review with the rubric + verdict contract included"
 
@@ -117,13 +182,20 @@ p0=$(get P0); p1=$(get P1); p2=$(get P2); p3=$(get P3)
 # attempt). A failed parse above exited before reaching here, costing no round.
 printf '%s\n%s\n' "$branch" "$rounds" > "$rounds_file"
 
-# Consume the log now that its verdict is parsed: the next attempt's tee must
-# create a FRESH inode or its dur= would span since the first attempt (birth
-# time survives truncation). Kept as .prev for the audit trail. A malformed
+# Consume the log now that its verdict is parsed: the next run needs a FRESH
+# inode, or its dur= would span since the first attempt (birth time survives
+# truncation). codex-run does unlink a stale log at this path before creating
+# its own, so consuming here is belt-and-braces rather than the only guard —
+# but it is also what preserves .prev for the audit trail. A malformed
 # log exits above without being consumed, so it stays inspectable. Fail closed
 # if the move can't happen — a silent failure would leave the reused inode the
 # consume exists to prevent, and we must not mark PASS on a broken baseline.
 mv -f "$log" "$log.prev" || fail "cannot consume review log ($log -> $log.prev) — clear it, re-review, re-mark"
+# The completion record goes with it. A sidecar left behind would pair with the
+# NEXT run's transcript at the same path and vouch for bytes it never saw —
+# which is the whole failure this record exists to prevent, reintroduced by
+# leftovers. Fail closed for the same reason the log consume does.
+mv -f "$complete" "$complete.prev" || fail "cannot consume completion record ($complete) — clear it, re-review, re-mark"
 
 # 5. Verdict.
 if [ "$p0" -eq 0 ] && [ "$p1" -eq 0 ]; then

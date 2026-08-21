@@ -70,7 +70,10 @@ for the full account, and `README.md`'s Known ceilings for what python does
   at most one blind retry. Never loop identical restarts. The wrapper's exit code
   says which applies — **4** (killed at the ceiling) is the blind-retry case,
   **5** means the runtime itself failed and names a cause in the transcript, so
-  read it and fix before retrying, and **6** means the process outlived SIGKILL:
+  read it and fix before retrying, **7** means the review finished but its
+  completion record could not be written (a filesystem problem, not a review
+  problem — fix it and re-run; it costs no delegation attempt and logs none),
+  and **6** means the process outlived SIGKILL:
   do **not** retry at all — a second attempt would run beside a still-alive
   process holding the transcript — investigate the reported pid, then clear the
   lock once it's confirmed dead.

@@ -12,7 +12,7 @@
 | **Phase** | Shipped — 2026-08-21 review follow-ups complete; review-machinery fix in flight |
 | **Milestone** | Review follow-ups (env scope, simplicity artifacts, shared state, locator) |
 | **Milestone Goal** | Close the four defects from the 2026-08-21 rule-corpus review |
-| **Working Branch** | fix/codex-mark-verdict-scope (release `9.21.0`) |
+| **Working Branch** | fix/codex-mark-verdict-scope (release `9.21.0`) — reviewed clean at `a8359dd`, PR open |
 
 ---
 
@@ -23,7 +23,7 @@
 | Done | 4 | #54 protect-env scope · #55 decision-ladder artifacts · #56 shared state + finish order · #57 locator + trust rules |
 | In Review | 1 | codex-mark refuses an incomplete transcript (this branch) |
 | Blocked | 0 | — |
-| Ready | 3 | Fresh-session `skill-evaluator` passes · logged P2/P3 debt · install a real secret scanner |
+| Ready | 2 | Fresh-session `skill-evaluator` passes · logged P2/P3 debt |
 
 ---
 
@@ -46,7 +46,7 @@
 | 2 | Decide whether `STATUS.md` should stay tracked. #56 made it shared state, so a refresh costs a branch, a review and a PR. **Provisionally answered by practice:** rather than open a standalone status PR, this refresh rides along with the review-machinery fix — which is what #56's own model prescribes. Keep it tracked and batch refreshes into real changes; revisit only if standalone state PRs become common | maintainer |
 | 3 | Resolve the `prepare` ring-fence contradiction — `adopt-existing.md` creates tracked artifacts while its own ring-fence forbids committing them. Open P1 from #56, deliberately left as a scope decision | maintainer |
 | 4 | Work the logged P2/P3 debt (below) | none |
-| 5 | Install `gitleaks` or `betterleaks` — the secret scan is running on its narrow fallback regex, which misses most modern token shapes | none |
+| 5 | *(done — `gitleaks` is now on PATH at `/opt/homebrew/bin/gitleaks`, so the secret scan no longer runs on its narrow fallback regex)* | — |
 
 ---
 
@@ -56,9 +56,9 @@ None.
 
 ---
 
-## Logged debt from the four reviews
+## Logged debt
 
-Non-blocking findings recorded rather than fixed, because P2/P3 never trigger a re-review:
+Non-blocking findings from the four merged reviews, recorded rather than fixed because P2/P3 never trigger a re-review — plus one item this branch resolves:
 
 - **`SKILL.md`** — one residual "never read" phrase contradicting the post-resolution
   inspection rule stated two paragraphs above it; the recursive-glob prohibition is
@@ -69,11 +69,29 @@ Non-blocking findings recorded rather than fixed, because P2/P3 never trigger a 
 - **`memory.log`** — one record written before #56 landed the format rules is missing its
   `[timestamp]` header and `Commit:` field. Append-only, so it needs a correction entry
   rather than an edit.
+- **Four P2s logged from the final review round** (rulebook: P2/P3 never trigger a
+  re-review). One is a disagreement worth the maintainer's eye: Codex holds that DELETING
+  the flaky temp-file assertion lost real coverage and that isolating `TMPDIR` would have
+  been better, because a broken `EXIT` trap could now leak a snapshot on every mark
+  unnoticed. The other three: the read-once pin can still pass for an unrelated failure
+  after its single read (reproduced) and should also assert the `DENIED` diagnostic; the
+  signal comment's "both cost a re-review" is too strong (before either `.prev` move a
+  re-mark suffices, and after the marker write the valid marker already passes the gate);
+  and the new README row wrongly implies a missing sidecar always means the run never
+  finished — `codex-run` can finish and still return 7 if the record cannot be written.
 - **Review machinery, fixed on this branch** — `codex-mark` would parse a verdict out of a
   *killed* run's transcript. Found when a stalled review left six verdict lines quoted from
   earlier reviews, the last being another PR's clean `P0=0 P1=0`. Prior markers are
-  unaffected: the hazard needs a run that did not finish, and the audit log shows both came
-  from runs that exited 0 well inside their ceilings.
+  unaffected: the hazard needs a run that did not finish. The audit log records verdict
+  metadata and duration, **not** exit status — so their short durations support the
+  inference that they did not hit the ceiling, they do not prove exit 0.
+- **Four rounds, and rounds 2–4 each found a defect in the previous round's fix.** The
+  chain: quoted-verdict hazard → in-band sentinel reproduced it → digest binding, but the
+  new lock trap did not stop the script → traps that exit, but release was not one-shot and
+  could delete a successor's lock. Every link was a *fix*, not the original bug. **Resolved
+  by deleting the lock**, not by a fifth patch: reading the transcript once into a snapshot
+  closes the window the lock existed for, and removes the entire class. Worth reading before
+  adding machinery to this area.
 - **State-write ordering** — `context-management.md`'s shutdown path and
   `implementation-planning.md`'s validation step still write after their commit. Part of
   the same scope question as item 3 above.
@@ -86,7 +104,7 @@ Non-blocking findings recorded rather than fixed, because P2/P3 never trigger a 
 
 ## Notes for Human Review
 
-- The four PRs took eleven Codex rounds between them. #54 and #56 hit the three-round cap
+- The four PRs took **nine** Codex rounds between them (#54=3, #55=1, #56=3, #57=2 — only a parsed verdict consumes a round, so the no-verdict attempts cost nothing). #54 and #56 hit the three-round cap
   and were opened under an authorized `CODEX_GATE_BYPASS=1` with the open findings
   disclosed in the PR body; #55 and #57 passed cleanly and needed no bypass.
 - Recurring pattern worth knowing: across the series, roughly half the findings in any

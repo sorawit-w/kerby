@@ -163,10 +163,28 @@ t0=$(now); run -- "$WORK/fast.sh"; t1=$(now)
 [[ "$RC" -eq 0 && $((t1 - t0)) -le 3 ]] && grep -q "CODEX_VERDICT" "$LOG" \
   && pass "clean child exits 0, log captured" || fail "clean child: rc=$RC elapsed=$((t1 - t0))"
 
+# 4b. PRODUCER CONTRACT — a clean exit writes the out-of-band completion record.
+# codex-mark refuses any transcript without it, so if this stops happening every
+# review becomes unmarkable. It must bind to THIS file: bytes at completion and
+# the inode, so a later append or a swapped file cannot pass as the run's own.
+[[ -f "$LOG.complete" ]] \
+  && pass "clean run writes the completion record" || fail "no $LOG.complete after a clean run"
+c_bytes=$(sed -n 's/^bytes=//p' "$LOG.complete"); c_inode=$(sed -n 's/^inode=//p' "$LOG.complete")
+real_bytes=$(wc -c < "$LOG" | tr -d ' ')
+real_inode=$(stat -c %i "$LOG" 2>/dev/null || stat -f %i "$LOG")
+[[ "$c_bytes" == "$real_bytes" && "$c_inode" == "$real_inode" ]] \
+  && pass "completion record binds to the transcript (bytes + inode)" \
+  || fail "record mismatch: bytes $c_bytes vs $real_bytes, inode $c_inode vs $real_inode"
+
 # 5. Child exits non-zero -> exit 5 (NOT conflated with a timeout).
 run -- "$WORK/crash.sh"
 [[ "$RC" -eq 5 ]] && grep -q "$LOG" "$WORK/err.txt" \
   && pass "non-zero child exits 5, stderr names the log" || fail "crash: rc=$RC err=$(cat "$WORK/err.txt")"
+
+# 5b. PRODUCER CONTRACT — a runtime failure writes NO completion record. This is
+# the half that matters: the record is what tells codex-mark a verdict is real.
+[[ ! -f "$LOG.complete" ]] \
+  && pass "failed run writes no completion record" || fail "exit-5 run left a completion record"
 
 # 6. REGRESSION PIN — stdin must be closed. reader.sh blocks on `cat` forever
 # unless the child gets </dev/null. Without the redirect this runs to the
@@ -182,6 +200,13 @@ t0=$(now); run --ceiling 2 -- "$WORK/forever.sh" "$WORK/gchild"; t1=$(now)
 [[ "$RC" -eq 4 && $((t1 - t0)) -lt 15 ]] \
   && pass "stall killed at ceiling (exit 4, $((t1 - t0))s)" || fail "stall: rc=$RC elapsed=$((t1 - t0))"
 
+# 7b. PRODUCER CONTRACT — a stall writes NO completion record. The observed
+# incident was exactly this: a stalled run whose transcript still held verdict
+# lines quoted from earlier reviews.
+[[ ! -f "$LOG.complete" ]] \
+  && pass "stalled run writes no completion record" || fail "exit-4 run left a completion record"
+
+
 # 8. REGRESSION PIN — the whole process group dies, not just the top pid.
 # forever.sh spawns a grandchild; killing only $child orphans it forever.
 sleep 1
@@ -189,9 +214,26 @@ GC=$(cat "$WORK/gchild" 2>/dev/null || echo 0)
 [[ "$GC" -gt 0 ]] && ! kill -0 "$GC" 2>/dev/null \
   && pass "grandchild reaped with the group" || fail "orphaned grandchild pid=$GC"
 
-# 18. A killed run KEEPS its log — a run that emitted a verdict before wedging
-# did produce one, and codex-mark must still get to parse it.
-[[ -s "$LOG" ]] && pass "killed run keeps its log" || fail "killed run lost its log"
+# 18. A killed run KEEPS its log — for inspection, NOT for marking. codex-mark
+# refuses it (no completion record), which is the point: a run that wedged has
+# no conclusion even if verdict-shaped text reached the transcript.
+[[ -s "$LOG" ]] && pass "killed run keeps its log (inspectable, unmarkable)" || fail "killed run lost its log"
+
+# 18b. PRODUCER CONTRACT — an unusable completion-record path fails the run
+# CLEANLY rather than letting it report success. A pre-existing directory there
+# is caught at run start by the stale-record removal (before anything spawns);
+# the same condition arising later returns exit 7 from the write itself. Either
+# way the operator gets a named cause, never an OK they cannot act on.
+rm -rf "$LOG" "$LOG.complete"
+mkdir -p "$LOG.complete"
+run -- "$WORK/fast.sh"
+rmdir "$LOG.complete" 2>/dev/null
+[[ "$RC" -ne 0 ]] && grep -q 'completion record' "$WORK/err.txt" \
+  && pass "unusable completion-record path fails with a named cause" \
+  || fail "bad record path must fail: rc=$RC err=$(head -1 "$WORK/err.txt")"
+grep -q 'OK —' "$WORK/out.txt" \
+  && fail "failure path must not also print the OK line" \
+  || pass "failure path prints no success line"
 
 # 19. stderr hygiene, explicit re-check of the SAME call run()'s inline check
 # already covered — belt and suspenders, since this is the exact path (a
@@ -618,7 +660,7 @@ KILLPG_LINE=$(printf '%s\n' "$STATIC" | sed -n 's/^KILLPG://p')
 
 # T32 — stdlib-only import allowlist, the exact idiom validate-rulebook.test.sh
 # uses for its own validator.
-IMPORT_LEAKS=$(grep -E '^(import|from) ' "$PY" | grep -vE '^(import|from) (datetime|os|re|shutil|signal|subprocess|sys|time)\b')
+IMPORT_LEAKS=$(grep -E '^(import|from) ' "$PY" | grep -vE '^(import|from) (datetime|hashlib|os|re|shutil|signal|subprocess|sys|time)\b')
 [[ -z "$IMPORT_LEAKS" ]] \
   && pass "codex-run.py imports are stdlib-only" \
   || fail "non-stdlib import(s): $IMPORT_LEAKS"
