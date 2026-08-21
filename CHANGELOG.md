@@ -3,6 +3,48 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.20.0] — 2026-08-21
+
+**The locator stops letting the workspace choose the gate** (engine): the install root was
+resolved with a bare recursive glob, `**/skills/kerby/SKILL.md`, evaluated from the working
+directory. That root decides which rulebook content counts as *install-trusted* — so a
+repo-relative search was, in effect, letting the workspace nominate its own gate. Any
+vendored, forked, or fixture copy of kerby inside the tree could win on "first match wins."
+
+Not hypothetical. In kerby's own repo the source tree is the only match, so the loader
+resolved the workspace as the install and wrote a pin whose `origin: "builtin"` entries
+carried workspace paths. The order is now: the harness-provided skill directory (which
+names the copy actually executing), then `KERBY_DIR`, then **ask**. There is deliberately no
+rung that searches, because both search designs fail. A recursive glob lets workspace content
+pick the trust root — the bug itself. An enumerated path list fails differently: a
+project-local `<project>/.claude/skills/kerby/` is workspace content by definition, so
+preferring it reopens the same hole with a narrower pattern, and the list cannot be kept
+complete anyway — one ordinary machine reaches kerby as a symlinked `~/.claude/skills/kerby`,
+a real `~/.agents/skills/kerby`, and a plugin under `~/.claude/plugins/marketplaces/…`, while
+other plugins on that same machine use `~/.claude/plugins/cache/…`. Guessing the install root
+is what caused the defect; when the runtime does not say, kerby asks, and a headless session
+that cannot ask is HELD. (The old text also named `~/.claude/...` as a common install while
+globbing from the working directory — which could never reach it.)
+`[detect]` markers learned this one layer down and are already root-anchored for the same
+reason; the locator needed it more, since detection only picks among install-trusted
+builtins while the locator decides what install-trusted means at all. `install`'s
+restatement of the old order is gone — it now defers to the one authority, which matters
+there because the resolved root is written into `settings.json` as an absolute hook path.
+
+**A stale builtin `path_or_url` is repaired, not HELD** (engine): the trust rule said a
+`builtin` pin pointing into the workspace fails closed, while § Migration residue said the
+same shape gets rewritten from the install. Both were live, and the contradiction fired in
+kerby's own repo. Resolved toward the migration precedent, because it matches what the
+loader actually does: for a `builtin` claim the **`id` is the whole test**, and no other
+pin field takes part in that decision — none is used for identity, trust or content
+resolution, though they are inspected afterwards, once the rulebook is already resolved
+install-anchored, purely to report and repair a stale pin. A wrong path therefore cannot load
+workspace content; the rulebook still comes from `<install-root>/rulebooks/<id>`. So it is
+repaired with a `pin repaired: <id>` line and the load continues. HELD is reserved for the
+claim that does assert unearned trust: an `id` the install does not ship. Holding on a path
+mismatch failed closed on a condition carrying no risk, in ordinary cases — an install that
+moved, a global install replaced by a project-local one.
+
 ## [9.19.0] — 2026-08-21
 
 **State lands inside the PR that produced it** (swe 2.9.0): the finish checklist put

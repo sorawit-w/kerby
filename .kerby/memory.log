@@ -87,3 +87,26 @@ Commit: (pending)
 Status: DONE
 Notes: Did NOT merge. The PR body recommends splitting the branch rather than merging it whole — the state-write ordering invariant spans eleven files and one of them (adopt-existing) cannot satisfy it until the prepare ring-fence contradiction is resolved.
 Observations: PR D is still unrebased at 03850f6 and needs C resolved first, since squash-merge rewrites the SHA.
+
+Task: PR D — install-root locator + builtin-pin trust contradiction
+Action: Replaced the bare recursive glob `**/skills/kerby/SKILL.md` with harness-supplied skill dir -> KERBY_DIR -> anchored globs (.claude/skills/kerby/, ~/.claude/skills/kerby/) -> ask. Removed install § 1's restatement so § Locating is the single authority. Resolved the trust contradiction: for a builtin claim the `id` is the whole test and `path_or_url` is never read, so a stale path is repaired (`pin repaired:`) rather than HELD; HELD is reserved for an id the install does not ship. Extended load step 2 from version-reconcile to pin-reconcile.
+Files: skills/kerby/SKILL.md, CHANGELOG.md, README.md, 3 plugin manifests
+Status: DONE
+Notes: Also fixed a stale verdict quote in README's "what it looks like when kerby says no" block — it still showed protect-env's pre-9.17.0 message. That belongs to PR A but the branches are stacked, so it landed here; cherry-pick the hunk back if PR A ever merges standalone. Zoning checked: the new locator text names no builtin rulebook.
+Observations: install § 1 was the only other site restating the locator order — exactly the cross-file drift class skills/kerby/CLAUDE.md warns about, now collapsed to one authority.
+[2026-08-21T00:00:00Z]
+Task: PR D rebased onto main after PR C merged
+Action: Rebased fix/install-root-locator onto main. Two conflicts: README (two regions — the protect-env verdict quote, where main's newer text wins, and the release line) and .kerby/memory.log (first real append-vs-append conflict since that file became tracked). Resolved memory.log by the rule PR C shipped: keep both sides, and `git diff --numstat` against main reported additions=7 deletions=0. Also widened the locator's step 3 before review: it named only two paths and there is a third real one (a plugin install at ~/.claude/plugins/*/kerby/skills/kerby), and the paths are existence checks, not Glob patterns — a Glob rooted at cwd can never reach a home-directory install, which the OLD text nevertheless claimed as a common location.
+Files: skills/kerby/SKILL.md, CHANGELOG.md, README.md, .kerby/memory.log, 3 plugin manifests
+Commit: (pending)
+Status: DONE
+Notes: First rebase attempt was botched — a regex that grabbed the first conflict region overwrote the protect-env verdict quote inside a code fence with the release line. Aborted the rebase rather than patching the bad resolution, then redid it with a per-region handler that decides by content.
+Observations: The append-only conflict rule worked on its first real use, and the deletions-must-be-zero check is what proved it rather than eyeballing the file.
+[2026-08-21T00:00:00Z]
+Task: PR D round 1 — Codex DENIED (P0=0 P1=5 P2=2), fix pass
+Action: The headline finding was that my own fix did not close the hole it claimed to: step 3 preferred `<project>/.claude/skills/kerby/`, which is workspace content by definition, so a hostile repo commits exactly that path and re-selects its own trust root through a narrower pattern. Removed the search rungs entirely — the locator is now harness-provided directory, then KERBY_DIR, then ask, with no rung that guesses. Enumeration was rejected on evidence: this one machine reaches kerby as a symlinked ~/.claude/skills/kerby, a real ~/.agents/skills/kerby, and a plugin under ~/.claude/plugins/marketplaces/, while other plugins use ~/.claude/plugins/cache/ — any list is one harness release from wrong. Also: docs/rulebook-contract.md (the BINDING contract) still mandated HELD for a workspace path while SKILL.md now repairs — fixed in the same commit; "every other field is never read" was self-contradictory since the reconcile announcements must read version and path_or_url — restated as never used for identity/trust/content resolution but inspectable afterwards for reporting; reconcile scoped to the two fields that have a defined announcement; skills/kerby/README.md still documented the removed Glob discovery order.
+Files: skills/kerby/SKILL.md, docs/rulebook-contract.md, skills/kerby/README.md, CHANGELOG.md, README.md
+Commit: (pending)
+Status: DONE
+Notes: .eval/parity/ baselines still describe the old Glob locator; deliberately NOT edited — they are frozen v5.8.0/v7 behavior records pinned to old commits, and rewriting a baseline destroys its purpose.
+Observations: Three of the five P1s were places my change contradicted itself or a sibling document rather than new bugs — the binding contract, the never-read claim, and the shipped README. A single-file mental model of an engine change was wrong: SKILL.md has a normative contract behind it and a user-facing README in front of it.

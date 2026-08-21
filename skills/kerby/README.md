@@ -148,7 +148,7 @@ After Phase 1 completes, the skill asks once whether to register hooks. **Not re
 
 If accepted, the skill:
 
-1. **Resolves the absolute paths** to the bundled hook scripts — the `PreToolUse` enforcers under `<install-root>/rulebooks/<rulebook>/hooks/` and the `SessionStart` services under `<install-root>/resources/hooks/` (the engine-services root). Discovery order: BOOTSTRAP-relative path (from `load`) → Glob match → `${KERBY_DIR}` env var → ask the user.
+1. **Resolves the absolute paths** to the bundled hook scripts — the `PreToolUse` enforcers under `<install-root>/rulebooks/<rulebook>/hooks/` and the `SessionStart` services under `<install-root>/resources/hooks/` (the engine-services root). Discovery order is the locator in `SKILL.md` § Locating the bundled rule content — the harness-provided skill directory, then `${KERBY_DIR}`, then ask. It deliberately does **not** search for the install: a recursive glob let workspace content pick the trust root, and an enumerated path list can be neither authenticated nor kept complete.
 2. **Asks where to register**:
    - `~/.claude/settings.json` (global — applies to every project)
    - `<project>/.claude/settings.local.json` (project, gitignored — your machine only) — **default**
