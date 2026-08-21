@@ -110,3 +110,11 @@ Commit: (pending)
 Status: DONE
 Notes: .eval/parity/ baselines still describe the old Glob locator; deliberately NOT edited — they are frozen v5.8.0/v7 behavior records pinned to old commits, and rewriting a baseline destroys its purpose.
 Observations: Three of the five P1s were places my change contradicted itself or a sibling document rather than new bugs — the binding contract, the never-read claim, and the shipped README. A single-file mental model of an engine change was wrong: SKILL.md has a normative contract behind it and a user-facing README in front of it.
+[2026-08-21T00:00:00Z]
+Task: Refresh .kerby/STATUS.md after the four review-followup PRs merged
+Action: Rewrote STATUS.md to reflect the shipped state — all four PRs merged at release 9.20.0, all branches deleted, no blockers. Recorded the outstanding work explicitly: the fresh-session skill-evaluator passes that #54/#56/#57 all shipped without, the prepare ring-fence contradiction left as a scope decision by #56, the five logged P2/P3 findings, and the missing secret scanner.
+Files: .kerby/STATUS.md
+Commit: (pending)
+Status: DONE
+Notes: This change is itself the worked example of a cost #56 introduced — STATUS.md is tracked shared state now, so a routine status refresh needs a branch, a Codex review and a PR. Recorded as decision item 2 in the file rather than quietly absorbed.
+Observations: memory.log and STATUS.md are both written here BEFORE the commit, per the ordering #56 established.
