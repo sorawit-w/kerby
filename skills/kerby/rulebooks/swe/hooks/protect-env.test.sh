@@ -91,6 +91,27 @@ allows "$TMP/project/.env" "absent .env in an EXISTING dir allowed (the scaffold
 : > "$TMP/project/.env"
 blocks "$TMP/project/.env" "the same path blocks once the file exists"
 
+# --- 5b. Trailing slashes are stripped before the basename ------------------
+# `${p##*/}` on `/x/.env/` yields an EMPTY basename, which matched nothing and
+# fell out the allow door.
+blocks "$TMP/.env/"   "trailing slash on .env blocks (basename not emptied)"
+blocks "$TMP/.env//"  "multiple trailing slashes block"
+allows "$TMP/project/" "trailing slash on a non-env dir is still allowed"
+
+# --- 5c. stat fallback order (portability regression guard) -----------------
+# GNU `stat -f` is --file-system, where %l is "max filename length" (255 on
+# ext4) — a NUMBER. Probing BSD-first therefore succeeds on Linux with a value
+# that is not a link count, never falls through, and blocks every template.
+# Assert the hook's chain is GNU-first, matching the rest of the repo.
+grep -q 'stat -c %h .* || stat -f %l' "$HOOK" \
+  && pass "nlink probe is GNU-first (stat -c %h before stat -f %l)" \
+  || fail "nlink probe must try 'stat -c %h' BEFORE 'stat -f %l' — BSD-first returns 255 on Linux"
+# And prove the chain actually yields a link count on THIS platform.
+: > "$TMP/nlink-probe"
+PROBE=$(stat -c %h "$TMP/nlink-probe" 2>/dev/null || stat -f %l "$TMP/nlink-probe" 2>/dev/null || echo 2)
+[[ "$PROBE" == "1" ]] && pass "nlink probe returns 1 for a single-link file here" \
+  || fail "nlink probe returned '$PROBE', expected 1 — templates would wrongly block"
+
 # --- 6. Relative paths fail closed, templates included ----------------------
 blocks ".env"              "relative .env blocks (fail closed)"
 blocks "some/dir/.env"     "relative nested .env blocks"

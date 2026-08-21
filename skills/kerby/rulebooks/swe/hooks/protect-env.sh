@@ -61,6 +61,16 @@ if [[ -z "$FILE_PATH" ]]; then
   exit 0
 fi
 
+# Strip trailing slashes before taking the basename. `${p##*/}` on `/x/.env/`
+# yields an EMPTY basename, which matched nothing and fell straight out the
+# allow door. A raw shell write to `.env/` fails with ENOTDIR, but whether that
+# holds depends on the caller normalizing the path, and "safe as long as the
+# caller normalizes" is not a property this hook should rely on. A bare "/" is
+# left alone.
+while [[ "$FILE_PATH" == */ && ${#FILE_PATH} -gt 1 ]]; do
+  FILE_PATH=${FILE_PATH%/}
+done
+
 BASENAME=${FILE_PATH##*/}
 
 shopt -s nocasematch
@@ -100,9 +110,15 @@ fi
 case "$BASENAME" in
   *.env.example|*.env.template|*.env.sample)
     if [[ -e "$FILE_PATH" ]]; then
-      # Unknown link count fails closed — an unstattable existing file is not
-      # something to hand a write to.
-      NLINK=$(stat -f %l "$FILE_PATH" 2>/dev/null || stat -c %h "$FILE_PATH" 2>/dev/null || echo 2)
+      # GNU form FIRST, BSD second — the order the rest of this repo already
+      # uses (codex-mark.sh, codex-run.test.sh). It is not cosmetic: GNU `stat -f`
+      # means --file-system, where `%l` is "maximum length of filenames" and
+      # returns 255 on ext4. Probing BSD-first therefore SUCCEEDS on Linux with a
+      # number that is not a link count, never falls through, and blocks every
+      # template on the platform. BSD stat has no `-c` at all, so it errors and
+      # falls through cleanly. Unknown link count fails closed — an unstattable
+      # existing file is not something to hand a write to.
+      NLINK=$(stat -c %h "$FILE_PATH" 2>/dev/null || stat -f %l "$FILE_PATH" 2>/dev/null || echo 2)
       [[ "$NLINK" =~ ^[0-9]+$ ]] || NLINK=2
       if [[ "$NLINK" -gt 1 ]]; then
         block "'$BASENAME' is hard-linked ($NLINK names) — a template name may not share an inode."
