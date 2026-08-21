@@ -88,17 +88,18 @@ Complete ALL of these before declaring done:
    ```bash
    {build_command} && {lint_command}
    ```
-2. **All changes committed and pushed:**
+2. **`.kerby/memory.log` created** with session summary
+3. **`.kerby/STATUS.md` created** with project state
+4. **`CONTEXT.md` filled** with the project's core domain terms — at least 3 entries. The `context-bootstrap` hook scaffolds the file; you fill it before declaring done. See `references/domain-glossary.md`.
+5. **`ROADMAP.md` populated** from requirements — not just the empty bootstrap header. Active items reflect the planned scope; phase grouping if multi-phase.
+6. **Vendor-adapter structure scaffolded** — `ports/`, `adapters/`, and `composition.ts` exist under the source root, even if empty (adapters added per vendor on demand).
+7. **All changes committed and pushed** — state and context artifacts above are part of the initial commit, not a follow-up:
    ```bash
    git push -u origin $(git branch --show-current)
    ```
-3. **`.kerby/memory.log` created** with session summary
-4. **`.kerby/STATUS.md` created** with project state
-5. **`CONTEXT.md` filled** with the project's core domain terms — at least 3 entries. The `context-bootstrap` hook scaffolds the file; you fill it before declaring done. See `references/domain-glossary.md`.
-6. **`ROADMAP.md` populated** from requirements — not just the empty bootstrap header. Active items reflect the planned scope; phase grouping if multi-phase.
-7. **Vendor-adapter structure scaffolded** — `ports/`, `adapters/`, and `composition.ts` exist under the source root, even if empty (adapters added per vendor on demand).
 8. **Manual verification instructions provided** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions). For a new project, include: how to install dependencies, how to run the dev server, and what to expect in the browser/terminal.
 9. **Realized Outcomes captured (grade ≥ `plan_threshold`)** — per `BOOTSTRAP.md` § 4 / `workflows/feature.md` § 7: place the actual run result (e.g. dev server up, home route renders) next to the § 3 Expected Outcome, emit `outcome: match | mismatch`, and route any mismatch (code-wrong / prediction-wrong / ambiguous). Skip only on a logged user opt-out (§ 2.5).
 10. **DEVELOPER_TODO.md created** if human actions are needed
-11. **Do NOT merge** — leave for human review
+11. **Working tree clean — the terminal gate.** Re-run `git status --short`; it must be empty, and `git log --oneline @{u}..` must be empty too. Steps 8–10 can each add or change a file after step 7's commit — and step 7 is the only push, so a terminal commit that is not pushed never reaches review. Commit **and push** anything outstanding now.
+12. **Do NOT merge** — leave for human review
 </finish>

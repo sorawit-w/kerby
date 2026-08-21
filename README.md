@@ -213,7 +213,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.18.0` — the decision ladder starts leaving a receipt. § 1b has told agents to climb six rungs before writing code since v6, and agents kept landing on rung 6 with a factory for one product. The content was fine; the shape was advice. Two forced lines fix that: `rung: <N> — <why>` rides with the grade line and says how little you reached for, and `skipped: <what> — add when <trigger>` goes in the report and names the abstraction you declined. `skipped: none` still gets emitted — a line that appears only when the agent thinks it matters is the prose this replaces. Previously: `9.17.0` — the env guard learns which file it was actually protecting. See [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.19.0` — state lands inside the PR that produced it. The finish checklist committed at step 2, then wrote `memory.log`, `STATUS.md` and knowledge entries at steps 3, 4 and 9, then opened the PR at step 10 — and never said commit again. Agents were following it exactly. Fixed in all three workflows that had it, plus a terminal `git status --short` gate before branch finalization, because Realized Outcomes can still change code after the commit step. `memory.log` and `STATUS.md` are now shared committed history — and neither takes `merge=union`, because review proved it silently truncates records that share a trailing line. Previously: `9.18.0` — the decision ladder starts leaving a receipt. See [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests

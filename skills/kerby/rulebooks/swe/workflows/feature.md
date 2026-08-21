@@ -177,16 +177,19 @@ Complete ALL of these before declaring done:
    ```bash
    {build_command} && {lint_command} && {test_command}
    ```
-2. **All changes committed and pushed:**
+2. **Project state written — before the commit, not after.** These are shared, committed artifacts (`references/communication.md` § Session Logging), so they belong to the change that produced them. Writing them after the commit is what leaves them dangling outside the PR:
+   - **`.kerby/memory.log`** — session summary appended
+   - **`.kerby/STATUS.md`** — reflects current state
+   - **`.kerby/knowledge/` entry** — a new decision, convention, or lesson. Propose before writing; skip if nothing applies
+   - **`CONTEXT.md`** — new domain terms used 2+ times. See `references/domain-glossary.md`
+3. **All changes committed and pushed:**
    ```bash
    git status  # must show clean working tree
    git worktree list  # verify no other worktrees have uncommitted work
    ```
-3. **Memory log updated** — session summary appended to `.kerby/memory.log`
-4. **STATUS.md updated** — `.kerby/STATUS.md` reflects current state
-5. **`ROADMAP.md` self-check** — completed features flipped to `[x]` and swept to `## Shipped`; new in-scope items added if scope expanded mid-task. The flips should already have happened in the COMMIT step of the loop; this is the verification
-6. **Manual verification instructions provided** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions): steps to test, what to look for, edge cases, env setup.
-7. **Realized Outcomes captured (grade ≥ `plan_threshold`)** — distinct from "How to Verify" above (that's instructions for the human; this is *your* check against the § 3 prediction). *Skip this step only when the plan was waived by a logged user opt-out (`BOOTSTRAP.md` § 2.5) — there is no Expected Outcome to compare against; standard Verification (§ 6) still applies.* After implementing:
+4. **`ROADMAP.md` self-check** — completed features flipped to `[x]` and swept to `## Shipped`; new in-scope items added if scope expanded mid-task. The flips should already have happened in the COMMIT step of the loop; this is the verification
+5. **Manual verification instructions provided** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions): steps to test, what to look for, edge cases, env setup.
+6. **Realized Outcomes captured (grade ≥ `plan_threshold`)** — distinct from "How to Verify" above (that's instructions for the human; this is *your* check against the § 3 prediction). *Skip this step only when the plan was waived by a logged user opt-out (`BOOTSTRAP.md` § 2.5) — there is no Expected Outcome to compare against; standard Verification (§ 6) still applies.* After implementing:
    1. Capture the **actual** result from a real run — or a dry-run transcript where no runnable surface exists — and place it next to the § 3 Expected Outcome. Evidence is an object (screenshot path / captured JSON / CLI dump / diff), **not** prose.
    2. Emit `outcome: match | mismatch`.
    3. On `mismatch`, classify the cause and route — **only one branch changes code**:
@@ -195,11 +198,21 @@ Complete ALL of these before declaring done:
       - **Ambiguous** → STOP. Surface both artifacts + your hypothesis. The human adjudicates.
 
    Realized evidence is recorded as-observed — never edited to match the prediction (`references/validation.md` Iron Law).
-8. **DEVELOPER_TODO.md created** if any human actions are needed (API keys, cloud resources, etc.)
-9. **Project knowledge artifacts** — propose additions before writing; skip if nothing applies:
-   - **`.kerby/knowledge/` entry** for a new decision, convention, or lesson
-   - **`CONTEXT.md` update** for new domain terms used 2+ times. See `references/domain-glossary.md`.
-10. **Branch finalization — pick one of four options** (ask the user if unclear):
+7. **DEVELOPER_TODO.md created** if any human actions are needed (API keys, cloud resources, etc.)
+8. **Working tree clean — the terminal gate.** Re-run `git status`. Step 3 is not the last thing that writes: step 6 (Realized Outcomes) can find a real bug and change code, step 7 can add `DEVELOPER_TODO.md`, per-iteration `memory.log` entries from the § 5 loop are still uncommitted, and a late knowledge entry can land here too. Commit **and push** anything outstanding now, before the PR exists — a commit that never leaves the machine is not in the PR either.
+
+   ```bash
+   git status --short          # must be empty
+   git push                    # then confirm it reported everything up to date
+   ```
+
+   Two traps, both verified: `git log @{u}..` exits `fatal: no upstream configured` on a branch that has never been pushed, so it errors rather than reporting success — check it only once an upstream exists. And do **not** reach for `git push -u origin HEAD` to force one: on a branch that already tracks a differently-named remote branch it creates a second remote branch and silently retargets the upstream to it. When `git push` complains there is no upstream, follow the exact command it prints.
+
+   This gate is why step 2 is not sufficient on its own. Ordering alone would still leave whatever steps 5–7 produced sitting outside the PR — which is the failure this section was reordered to fix.
+
+   **If step 9 itself writes anything** — the Preserve-branch option notes the branch and reason in `.kerby/memory.log` — commit and push that too, then re-run this check. Finalization is the one step that can dirty the tree after its own gate.
+
+9. **Branch finalization — pick one of four options** (ask the user if unclear):
 
    | Option | When to use | Action |
    |--------|-------------|--------|
@@ -210,7 +223,7 @@ Complete ALL of these before declaring done:
 
    On an in-place branch (the default), skip the worktree actions — they apply only when an escalation trigger created one.
 
-11. **Do NOT merge to a protected branch without explicit user instruction** — leave option 1 (PR) as the default.
+10. **Do NOT merge to a protected branch without explicit user instruction** — leave option 1 (PR) as the default.
 
 Details: `references/context-management.md`, `references/git-worktrees.md`
 </finish>

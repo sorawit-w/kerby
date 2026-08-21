@@ -3,6 +3,51 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.19.0] — 2026-08-21
+
+**State lands inside the PR that produced it** (swe 2.9.0): the finish checklist put
+"commit and push, clean working tree" at step 2, then told the agent to write
+`memory.log`, `STATUS.md` and a knowledge entry at steps 3, 4 and 9 — and open the PR at
+step 10. Nothing said commit again. Agents were following the checklist exactly; the
+checklist was wrong, and the artifacts sat outside every PR they belonged to.
+
+Reordered so state is written *before* the commit, in `feature.md`, `bugfix.md` and
+`new-project.md` alike — the defect was identical in all three, and a bug fix is where it
+bit most. Reordering alone would not have been enough: Realized Outcomes can find a real
+bug and change code, `DEVELOPER_TODO.md` can appear afterwards, and both land after the
+commit step. So each workflow now ends with a **terminal gate** — `git status --short`
+must be empty — immediately before branch finalization. That gate, not the reordering, is
+what actually closes the hole.
+
+**`memory.log` and `STATUS.md` become shared, committed project history** (swe 2.9.0):
+both follow the repo across machines now instead of living in one checkout.
+
+**Neither gets `merge=union`, and the reason is worth recording** — union was the obvious
+answer for an append-only log and review proved it silently corrupts one. Git merges lines,
+not records: when two branches each append an entry and the entries share trailing lines
+(`Status: DONE`, `Notes: none` — the common case), git aligns them and emits that tail
+**once**, so the first entry loses it. Reproduced before shipping. A visible conflict beats
+a quietly truncated record, so both files stay on the default merge. Two branches appending
+resolve mechanically — keep every entry from both sides, timestamp order — but that is only
+correct for appends: if either side *modified* an existing entry, git often merges it
+cleanly and the rewrite lands unnoticed, so the rule checks deletions against the merge
+base instead — nothing already in the file may disappear. `STATUS.md`
+is derived state and is **regenerated after any merge that touched it** — not merely on
+conflict, because git combines non-overlapping section edits cleanly and hands you a hybrid
+snapshot that was never true on either machine.
+
+The `Commit:` field gets an explicit second shape. An entry written before its own commit
+cannot carry that commit's SHA, so the finish-step entry records `(pending)` while
+per-iteration entries inside the task loop keep the real SHA.
+
+`kerby swe prepare` now checks during onboarding whether a stock `*.log` pattern is hiding
+`.kerby/memory.log` and proposes the `!.kerby/memory.log` negation behind diff-and-confirm.
+That single line is the only adjacent user file onboarding may touch; the ring-fence names
+it.
+
+This repo ate its own cooking: a generic `*.log` from the Android section of its
+`.gitignore` had been quietly swallowing `.kerby/memory.log` all along.
+
 ## [9.18.0] — 2026-08-21
 
 **The decision ladder starts leaving a receipt** (swe 2.8.0): § 1b has told agents to climb
@@ -53,10 +98,28 @@ security-critical hooks, and the inline-prefix form that makes
 `CODING_RULES_ALLOW_PROTECTED_COMMIT` safe is Bash-only — Edit/Write carries no command
 string to prefix.
 
+**The allow-list is on names, but the decision is on objects.** An allow-list of filenames
+is only safe if a filename cannot be made to mean another file — and it could, in five
+distinct ways that review found before this shipped. All of these now block regardless of
+how the path is spelled: a **symlink** with an env-family name (`.env.example -> .env`
+hands over the credential inode, and a dangling one is followed by the write); a
+**hard-linked** template (`ln .env .env.sample` shares the inode where no path resolution
+can see it — link count can); a template that is **not a regular file** (a FIFO has one
+link and is not a symlink, so it passed both earlier checks); a **relative** path, since
+the hook cannot know the agent's cwd and every filesystem test would run against the wrong
+directory; and any spelling the **filesystem folds** onto a differently-named entry, which
+on APFS reaches past ASCII — a real `.env.ſample` (U+017F) is reachable as `.env.sample`,
+so an existing template must match its stored directory entry byte for byte. Matching is
+case-insensitive because macOS filesystems are: `.ENV` *is* `.env` there. Existence is
+`stat` **or** the directory entry, so a file whose attributes cannot be read (an ACL
+denying `readattr`) still counts as present rather than absent. And a payload the hook
+cannot parse — no `jq`, malformed JSON — that mentions `env` is refused rather than waved
+through; a guard that cannot read its input must not shrug.
+
 `protect-env` was also the only hook in `swe` shipping without a self-test. It has one
-now: 19 assertions, including that `.env.local` still blocks despite its template-shaped
-name, and that the block message no longer sends placeholder variables to
-`DEVELOPER_TODO.md`.
+now: 51 assertions with SKIP counted separately from PASS, including that `.env.local`
+still blocks despite its template-shaped name, every alias case above, and that the block
+message no longer sends placeholder variables to `DEVELOPER_TODO.md`.
 
 **The secret scan says what to install** (base 1.3.0): with no scanner on PATH the floor
 already announced that it was running narrow. It never said what to do about it. It now

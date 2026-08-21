@@ -372,9 +372,9 @@ Don't accumulate a session's worth of changes in a single commit at the end. **C
 
 When you've made significant progress or the conversation is getting long, create a session-level checkpoint:
 
-1. **Commit and push** all current work (git-level checkpoint)
-2. **Update `.kerby/STATUS.md`** — current position, what's done, what's next, key decisions
-3. **Update `.kerby/memory.log`** — detailed session summary with rationale and open questions
+1. **Update `.kerby/STATUS.md`** — current position, what's done, what's next, key decisions
+2. **Update `.kerby/memory.log`** — detailed session summary with rationale and open questions
+3. **Commit and push** all current work, *including the two files above* — they are tracked, so a checkpoint that commits first leaves its own state behind
 4. **Compact or hand off** — trigger conversation compaction if available, or tell the developer a fresh session can resume from this checkpoint
 
 See `context-management.md` for full session checkpoint and resumption workflow.

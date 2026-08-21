@@ -50,7 +50,7 @@ skipped: <what you did not build> — add when <trigger>
 
 Name the abstraction you declined — the interface with one implementation, the config knob for a constant, the helper you did not extract. `skipped: none` is a valid answer and is still emitted. This is the restraint half: the rung line says how little you reached for, this says what you consciously left out, and a reviewer can disagree with either.
 
-**Why forced lines rather than a paragraph:** an emit-only-when-relevant rule is exactly the mid-list prose these two replace. The same rule was measured at 1/4 compliance as prose and 4/4 as a required report line (`references/intent-gate.md`, provenance note) — which is why `INTENT:`, the grade line, and these two all share the shape.
+Both are emitted whether or not they feel relevant — a line that appears only when the agent judges it worth emitting is the prose these replace.
 </decision_ladder>
 
 <detect_project>
@@ -310,8 +310,8 @@ When asked to add code to a file that already imports a third-party vendor SDK d
 
 When the conversation is getting long, proactively checkpoint:
 
-1. Commit and push all current work
-2. Update `.kerby/STATUS.md` and `.kerby/memory.log` with detailed state
+1. Update `.kerby/STATUS.md` and `.kerby/memory.log` with detailed state
+2. Commit and push all current work **including those two files** — they are tracked, so a checkpoint that commits first strands the state it just wrote. `git status --short` must be empty before you stop
 3. Compact or request a new session — the next session resumes from this checkpoint
 
 Details: `references/context-management.md`

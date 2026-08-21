@@ -254,10 +254,14 @@ __pycache__/
 # builtin pin fail-closed HELDs in this source repo (install-root == workspace).
 .kerby/rulebooks.lock
 
-# kerby onboarding status stub — point-in-time, per-session working state,
-# noisy to diff/merge; each teammate/agent keeps their own. Unlike
-# .kerby/knowledge/ (curated, shared), STATUS.md is scratch state.
-.kerby/STATUS.md
+# kerby shared state — memory.log and STATUS.md are COMMITTED (they follow the
+# repo across machines and teammates, per swe/references/communication.md).
+# memory.log needs the negation because the generic `*.log` rule above catches
+# it; STATUS.md is simply not listed. Neither file gets a merge attribute: there
+# is no .gitattributes, because `merge=union` silently truncates memory.log
+# records that share a trailing line. See communication.md for the reproduction
+# and the resolution rules.
+!.kerby/memory.log
 
 # kerby audit reports + SAST tool cache — point-in-time and local, per
 # references/audit.md's own recommendation; never part of the shipped skill.

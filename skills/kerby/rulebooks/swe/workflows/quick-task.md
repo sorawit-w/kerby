@@ -60,8 +60,9 @@ If you can't state it cleanly, the task doesn't fit. Switch workflows.
    git add <specific-files>
    git commit -m "<type>(<scope>): <description>"
    ```
-5. **Log** — append to `.kerby/memory.log`
-6. **Tell the developer how to verify** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions).
+5. **Log** — append to `.kerby/memory.log` (the entry carries the commit SHA, so it necessarily follows step 4 — see `references/communication.md` § Session Logging).
+6. **Commit the log.** `.kerby/memory.log` is tracked shared state, so step 5 leaves the tree dirty. `git status --short` must be empty before you finish; commit and push the log entry if it is not.
+7. **Tell the developer how to verify** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions).
 </do_it>
 
 <escalate>

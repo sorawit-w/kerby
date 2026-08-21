@@ -4,7 +4,7 @@ Onboard an **existing repo** into kerby — populate (and refresh) the artifacts
 
 1. The workflow file is **this rulebook's `workflows/adopt-existing.md`** — resolve it relative to this rulebook's root (the folder this command body was loaded from; for the builtin `swe` that is `<install-root>/rulebooks/swe/workflows/adopt-existing.md`, for an approved external `swe` its own). The workflow itself resolves the engine install root where it needs engine templates.
 2. **Read that `workflows/adopt-existing.md` in full** with the `Read` tool, then follow it. It carries the procedure: tiered population by inferability, diff-and-confirm on every write, and per-tier refresh rules that never clobber human-curated content.
-3. The workflow modifies user files — but **only ever behind a per-artifact diff-and-confirm**, exactly like `install`. Never write any artifact silently. Honor the out-of-scope ring-fence in the workflow (no quality gates, no tooling install — including SAST provisioning, which is an audit-time `--sast` concern, not onboarding — no `ROADMAP.md`, no commits/merge, no secret contents).
+3. The workflow modifies user files — but **only ever behind a per-artifact diff-and-confirm**, exactly like `install`. Never write any artifact silently. Honor the out-of-scope ring-fence in the workflow (no quality gates, no tooling install — including SAST provisioning, which is an audit-time `--sast` concern, not onboarding — no `ROADMAP.md`, no commits/merge, no secret contents, and no adjacent user file beyond the single `.gitignore` negation the workflow names for shared state).
 
 `prepare` is safe to re-run: per the workflow's refresh rules it re-derives only agent-owned content and is a diffs-only near-no-op on an already-onboarded repo.
 
