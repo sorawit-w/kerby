@@ -40,8 +40,11 @@ See kerby guardrails (hooks/protect-git.sh).
 ```
 
 ```
-BLOCKED: Do not edit .env files directly. Use environment variables and
-document required vars in DEVELOPER_TODO.md. See kerby guardrails.
+BLOCKED: .env holds live credentials and is not in git — an overwrite cannot be undone.
+Hand the required variables to the user to add themselves:
+  <VAR>=<value>
+Placeholders belong in .env.example / .env.template / .env.sample, which you may edit.
+See kerby guardrails (references/guardrails.md § Environment Files).
 ```
 
 ```
