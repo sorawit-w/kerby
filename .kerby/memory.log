@@ -1,0 +1,82 @@
+[2026-08-02T00:00:00Z]
+Task: Project onboarding via prepare
+Action: Populated kerby context artifacts from code + git history
+Files: agent-context.yaml, CONTEXT.md, .kerby/knowledge/decision-engine-rulebook-split.md, .kerby/knowledge/decision-code-to-swe-rename.md, .kerby/knowledge/decision-engine-independence-zoning.md, .kerby/knowledge/KNOWLEDGE.md, .kerby/STATUS.md
+Status: DONE
+Notes: Stack = bash (hook enforcers) + python (validator/compat-check) + markdown/toml (rules/manifests), no build manifest. 4 CONTEXT.md glossary terms + module map. 3 confidence:low knowledge candidates drafted from commit history (engine/rulebook split, code→swe rename, engine-independence zoning) — all need human review/promotion. Index regenerated via knowledge-reindex.sh --force.
+[2026-08-02T00:00:00Z]
+Task: kerby install (Phase 1 + 2) on kerby's own repo
+Action: Added session-start install line to CLAUDE.md; registered 9 hook entries (6 PreToolUse + 3 SessionStart, derived from skill-authoring+swe selection) in .claude/settings.local.json; created committed intent manifest .kerby/rulebooks.toml; added .gitignore entries for STATUS.md, .kerby/audits+sast, .claude/settings.local.json
+Files: CLAUDE.md, .claude/settings.local.json, .kerby/rulebooks.toml, .gitignore
+Status: DONE
+Notes: All three knowledge entries promoted confidence:low → high after human confirmation.
+[2026-08-02T00:00:00Z]
+Task: Commit onboarding + install changes on chore/onboard-repo-and-hooks
+Action: Fast-forwarded main (1 commit behind), branched from main, staged + committed 9 files (agent-context.yaml, CONTEXT.md, .kerby/knowledge/*, .kerby/rulebooks.toml, CLAUDE.md, .gitignore)
+Files: see commit 5747937
+Commit: 5747937
+Status: DONE
+Notes: scripts/check-skill-compat.py passes (version parity 9.13.0, no manifests touched by this change). rulebooks/swe/scripts/validate-agent-context.ts fails to run — pre-existing js-yaml@5 default-export incompatibility in the validator script itself, unrelated to this change's agent-context.yaml content; not fixed (out of scope). No build/lint/test tooling exists for this repo otherwise (no package.json).
+[2026-08-21T00:00:00Z]
+Task: PR A — protect-env scope + scanner install hint
+Action: Narrowed protect-env from "all .env*" to "existing non-template env file"; added template allow-list (example/template/sample, basename-anchored) and create-if-absent; relative paths fail closed. Created protect-env.test.sh (19 assertions) — it was the only swe hook without one. Added the remedy line to base's degraded-scanner notice + 2 test assertions. Updated guardrails.md (new § Environment Files), swe/references/hooks.md, threat-model.md, swe/README.md, resources/references/hooks.md.
+Files: skills/kerby/rulebooks/swe/hooks/protect-env.{sh,test.sh}, base/hooks/pre-commit-check.{sh,test.sh}, swe/references/{guardrails,hooks,threat-model}.md, swe/README.md, resources/references/hooks.md, both rulebook.toml, CHANGELOG.md, README.md, 3 plugin manifests
+Commit: 3320d3b
+Status: DONE
+Notes: Dropped the planned tool_name dependency — Edit fails on a missing file anyway, so the existence test alone carries the same guarantee without trusting an unverified payload field. Version parity needs FIVE sources, not the three the plan named: CHANGELOG.md and README.md also carry it (check-skill-compat.py caught this).
+Observations: kerby's own floor blocked the first commit attempt — the added guardrails.md line spelled a live-key prefix literally, the exact self-match pre-commit-check.sh warns about in its own header. Fixed by describing the prefixes instead. The scan reads working-tree diffs, not just the index, so it fired before anything was staged. Scanner absent on this machine: floor running narrow.
+[2026-08-21T00:00:00Z]
+Task: PR B — decision ladder as a forced artifact
+Action: Added two forced lines to BOOTSTRAP § 1b (`rung:` with the § 2.5 grade line, `skipped:` in the final report), wired § 2.5 emission block and § 4 Output Discipline, scoped the plan opt-out so it waives the plan but not the forced lines.
+Files: skills/kerby/rulebooks/swe/BOOTSTRAP.md, swe/rulebook.toml, CHANGELOG.md, README.md, 3 plugin manifests
+Commit: cf79d7d
+Status: DONE
+Notes: Named it `rung:` not `ladder:` (plan said `ladder:`) — § 2.5 already calls the complexity table a ladder, so `ladder:` under `complexity:` would read as the same scale. Split the emission across two points rather than both up front: `rung:` is a design-time decision, `skipped:` is only knowable after implementing, which matches ponytail's own output pattern.
+Observations: check-plan-gate-parity.sh still passes — the new text has no digits in the `≥ N` / `default N` shapes its extractors match. Only BOOTSTRAP.md restates the grade-line emission, so no cross-file sweep was needed.
+[2026-08-21T00:00:00Z]
+Task: PR C — shared state semantics + finish-order fix
+Action: Reordered the finish checklist in feature.md, bugfix.md and new-project.md so state artifacts are written before the commit, and added a terminal `git status --short` gate before branch finalization in each. Documented memory.log (shared, append-only, merge=union) and STATUS.md (shared, rewritten whole, NO union, regenerate on conflict) in communication.md, with a three-artifact split table against knowledge/. Added a `.gitattributes` stub tier to adopt-existing.md § 3 behind diff-and-confirm and widened the ring-fence to name exactly the two git-config lines. Fixed this repo's own .gitignore and added .gitattributes.
+Files: swe/workflows/{feature,bugfix,new-project,adopt-existing}.md, swe/references/communication.md, swe/commands/prepare.md, .gitignore, .gitattributes, swe/rulebook.toml, CHANGELOG.md, README.md, 3 plugin manifests
+Status: DONE
+Notes: The plan named only feature.md. bugfix.md and new-project.md carried the identical defect, so fixing one would have left the sibling workflows broken — a bug fix is where this bites most often. Reordering alone is insufficient by construction: Realized Outcomes can change code after the commit step, which is why each workflow gained a terminal clean-tree gate.
+Observations: `git check-attr merge` confirms memory.log=union and STATUS.md=unspecified. This repo's `.kerby/memory.log` had been silently ignored by the generic `*.log` rule inherited from the Android section of .gitignore — not a deliberate kerby decision, unlike STATUS.md which had its own entry and rationale.
+[2026-08-21T00:00:00Z]
+Task: PR A review arc — restored entry (see Notes on why this is a reconstruction)
+Action: PR A went through three Codex rounds before merging as #54. Round 1 DENIED (P0=2 P1=3): symlink/hard-link aliases let a template NAME reach the credential inode; case-sensitive matching let `.ENV` clobber `.env` on macOS; relative templates skipped the absolute-path rule; full-path classification blocked `/repo/.env.d/notes.txt`; docs overstated commit-scan coverage. Round 2 DENIED (P0=3 P1=3): the hook FAILED OPEN with jq missing; `$(...)` stripped pathname-final newlines; APFS folds beyond ASCII so `.env.ſample` was reachable as `.env.sample`; a FIFO passed the template gate. A round-3 attempt died on an OpenAI content-filter refusal (exit 5, no verdict, no round consumed) but its transcript held a real find: an ACL denying readattr makes `[ -e ]` false, so an existing .env read as absent. Round 3 retry returned P0=0 P1=2 -> HELD at the 3-round cap. Two more defects were self-found: BSD-first `stat` returns 255 on Linux, and a trailing slash emptied the basename. Eleven defects total; protect-env went from no test file to 51 assertions.
+Files: (merged in #54)
+Commit: da830a4
+Status: DONE
+Notes: RECONSTRUCTED. The original per-round entries were appended to memory.log while that file was still gitignored. Rebasing PR C onto main replaced the working file with PR C's committed snapshot, dropping every entry written after PR C's commit was authored. This is exactly the failure PR C exists to prevent — state written outside the commit that produced it does not survive. Restored as one consolidated entry rather than five fabricated verbatim ones.
+Observations: codex-mark CONSUMES the review log when it parses, so findings must be read before marking. macOS ships bash 3.2, which runs these hooks — bash 4+ fixture syntax silently SKIPs rather than failing. An explicitly adversarial review brief trips the provider content filter; verification-framed briefs do not.
+
+[2026-08-21T00:00:00Z]
+Task: PR A opened via authorized bypass, then merged; PR B reviewed clean and merged
+Action: PR A (#54) opened with CODEX_GATE_BYPASS=1 after the maintainer granted per-PR approval, disclosed in the PR body; maintainer merged it. PR B rebased onto the squashed main (one README conflict), reviewed clean on round 1 (P0=0 P1=0 P2=4 P3=1), marker written, opened as #55 with no bypass needed, and merged.
+Commit: 59286b7
+Status: DONE
+Notes: PR B's review found that shortening the README release line dropped real 9.17.0 behavior never recorded in the CHANGELOG (symlink / hard-link / non-regular / fold blocking). Logged as debt; being folded into PR C.
+Observations: The README release line had grown to 2148 chars because each release appended its predecessor's full paragraph. Now bounded: current summary + one-line pointer + CHANGELOG link.
+[2026-08-21T00:00:00Z]
+Task: PR C round 1 — Codex DENIED (P0=0 P1=5 P2=4), fix pass
+Action: Dropped merge=union entirely and deleted .gitattributes — REVERSING an earlier decision. Reproduced the corruption independently: two branches each appending an entry whose tails share `Status: DONE` / `Notes: none` produce a merge where git aligns the identical lines and emits them ONCE, so the first entry silently loses its tail. Replaced with "on conflict keep both sides, timestamp order". Terminal gates in feature/bugfix/new-project now push as well as commit, and cover what branch finalization itself writes (the Preserve-branch note). quick-task gained a log-commit step. Narrowed communication.md's over-broad claim into the two real orderings (finish-step entry precedes its commit with `Commit: (pending)`; per-iteration entry follows its commit and carries the SHA). STATUS.md now regenerates after ANY merge that touched it, not only on conflict. prepare's ring-fence back to one adjacent line (the .gitignore negation). Removed a stray misdirected dark-mode entry from the top of memory.log before its first public commit.
+Files: .gitattributes (deleted), swe/references/communication.md, swe/workflows/{feature,bugfix,new-project,quick-task,adopt-existing}.md, swe/commands/prepare.md, CHANGELOG.md, README.md, .kerby/{STATUS.md,memory.log}
+Commit: (pending)
+Status: DONE
+Notes: The union reversal matters most. I recommended union to the maintainer as "safe for append-only logs" and that was wrong for a multi-line record format — git merges lines, not records. A visible conflict beats a silently truncated record, and memory.log conflicts have exactly one correct resolution (keep both), so they are cheap.
+Observations: Codex also caught that my own STATUS.md scheduled merging PR C before its fresh-session skill-evaluator pass, which the gate table makes mandatory for commit-discipline changes. Reordered. This is the second time a review has caught the plan contradicting the rulebook the plan was written under.
+[2026-08-21T00:00:00Z]
+Task: PR C round 2 — Codex DENIED (P0=0 P1=3 P2=1), fix pass
+Action: (1) Checkpoint/session-end paths still stranded state — context-management.md, implementation-planning.md, working-patterns.md and BOOTSTRAP § 6 all committed FIRST then wrote STATUS/memory.log, with nothing after. Reordered all four to write state then commit, and corrected communication.md, which had wrongly classified them as loop-ordering paths swept by a terminal gate they do not have. (2) The `@{u}` assertion I added in round 1 errors with `fatal: no upstream configured` on a never-pushed branch — verified on this very branch. feature/bugfix now push (`-u origin HEAD`) before asserting. (3) The conflict rule was only correct for two appends; if one side EDITS a past entry git often merges cleanly and the rewrite lands unnoticed. Rule now says diff against the merge base first, restore the base version of any pre-existing record, and add corrections as new entries. (4) .gitignore's comment still referenced the deleted .gitattributes.
+Files: swe/references/{communication,context-management,implementation-planning,working-patterns}.md, swe/BOOTSTRAP.md, swe/workflows/{feature,bugfix}.md, .gitignore, CHANGELOG.md
+Commit: (pending)
+Status: DONE
+Notes: Round budget 2 of 3 used — one left. P1 count went 5 -> 3, and every round-2 finding was a consequence of a round-1 fix rather than a new area, which is convergence rather than flailing.
+Observations: Two of the three were defects I INTRODUCED while fixing round 1 — the `@{u}` assertion and the incomplete conflict rule. Fixing a workflow ordering bug in three files while four more carried the same shape is the "grep every caller" rule failing in my own hands, twice in one PR.
+[2026-08-21T00:00:00Z]
+Task: CORRECTION to the round-2 entry above, and PR C round 3 — HELD at the cap
+Action: Correcting the earlier claim that all four checkpoint/session-end paths were reordered: context-management.md's SHUTDOWN path (a second section in the same file) was missed, and implementation-planning.md still commits before validation and any BLOCKERS.md write. The append-only rule forbids editing that entry, so this is the correction record. Round 3 returned P0=0 P1=3 P2=1 -> HELD at the 3-round cap. Neutralized the two hazards I had introduced in round 2 rather than leaving them in a guardrail file: `git push -u origin HEAD` was NOT a no-op (verified: on a branch tracking a differently-named remote branch it creates a second remote branch and retargets the upstream), and the `MERGE_HEAD` merge-base command could not detect the clean-merge rewrite it existed to catch (MERGE_HEAD is absent after a normal clean merge, and for squash/rebase/cherry-pick). Replaced with a deletions-must-be-zero check against `git merge-base HEAD^1 HEAD^2`, tested against both a rewrite (1 deletion, caught) and a pure append (0 deletions, clean).
+Files: swe/workflows/{feature,bugfix}.md, swe/references/communication.md, CHANGELOG.md
+Commit: (pending)
+Status: BLOCKED — awaiting the maintainer
+Notes: Did NOT attempt the third P1 (state-write ordering still uncovered in adopt-existing, context-management shutdown, implementation-planning). That is a scope problem, not a patch problem — see the escalation.
+Observations: P1 count went 5 -> 3 -> 3. Across three rounds, FIVE of the eleven findings were defects introduced by my own previous fix. The class "a state write is not followed by a commit" recurred in all three rounds, each time in files the previous round had not touched. skill-authoring's classify-then-escalate names twice-in-a-class as the signal to stop patching; this is three.

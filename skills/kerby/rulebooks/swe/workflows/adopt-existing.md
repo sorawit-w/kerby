@@ -102,6 +102,33 @@ Create from the engine template `<install-root>/resources/templates/STATUS.md.te
 ### Stub only — `.kerby/memory.log`
 
 Append one onboarding entry in the canonical `communication.md` format (Task: "Project onboarding via prepare", Action, Files, Status: DONE, Notes: stack summary + what was populated). Append-only; create if missing.
+
+### Stub only — the shared-state ignore check
+
+`memory.log` and `STATUS.md` are tracked shared state (`references/communication.md`
+§ Session Logging), and a stock `.gitignore` frequently defeats that: a bare `*.log`
+pattern silently swallows `memory.log`, so every entry the agent writes stays on one
+machine.
+
+Run `git check-ignore -v .kerby/memory.log`. If a pattern matches, propose appending
+exactly this to `.gitignore`, behind the same diff-and-confirm as every other write here:
+
+```
+!.kerby/memory.log
+```
+
+Rules: append, never rewrite — the rest of the file is the project's. Skip silently if
+nothing matches. If the user declines, say plainly that `memory.log` stays machine-local
+and the shared-history rule does not apply to this repo.
+
+**No `.gitattributes` entry, deliberately.** `merge=union` is the obvious idea for an
+append-only log and it silently corrupts this one — git merges lines, not records, so two
+entries sharing a `Status: DONE` tail get that tail emitted once and the first entry loses
+it. `references/communication.md` carries the reproduction. Leave both files on the
+default merge.
+
+This ignore line is the one adjacent, non-`.kerby/` file `prepare` may touch.
+
 </populate>
 
 ---
@@ -131,7 +158,8 @@ Complete before declaring done:
 3. **`.kerby/knowledge/`** candidates drafted (auto on first run, opt-in after) as `confidence: low`, each confirmed; index regenerated.
 4. **`.kerby/STATUS.md`** honest onboarding stub created.
 5. **`.kerby/memory.log`** onboarding entry appended.
-6. **Tell the human what's now agent-drafted and needs review** — especially the `confidence: low` knowledge entries and proposed glossary terms.
+6. **Shared-state ignore checked** — if a generic pattern hid `.kerby/memory.log`, the `!.kerby/memory.log` negation was proposed and either appended (confirmed) or declined, with the machine-local consequence stated.
+7. **Tell the human what's now agent-drafted and needs review** — especially the `confidence: low` knowledge entries and proposed glossary terms.
 </finish>
 
 ---
@@ -146,5 +174,6 @@ Complete before declaring done:
 - author `DESIGN.md` — design-token authority is a separate concern; tokens are only sometimes code-inferable and a wrong contract is worse than none. If a UI project lacks one, mention it; don't generate it. See `references/design-md.md`;
 - create `ROADMAP.md` — only on explicit user request;
 - create a working branch, commit, push, or merge — leave VCS actions to the human;
+- touch any adjacent user file **other than** the single line § 3 names: a `!.kerby/memory.log` negation in `.gitignore`, and only when a generic pattern would otherwise leave that file untracked. It is proposed behind diff-and-confirm, appended never rewritten, and exists only so shared state can actually be shared. Nothing else outside `.kerby/` and the context artifacts is in scope;
 - write secret file *contents* into any artifact.
 </out_of_scope>

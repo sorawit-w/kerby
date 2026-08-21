@@ -388,9 +388,9 @@ If session may end, document state for resumption:
 | `implementation-plan.yaml` | Task states, progress |
 
 At session end:
-1. Commit all work
-2. Update `STATUS.md`
-3. Log session end in `memory.log`
+1. Update `STATUS.md`
+2. Log session end in `memory.log`
+3. Commit all work, including the two files above — they are tracked, so committing first would strand them
 4. Ensure build passes
 5. Document blockers in `.kerby/BLOCKERS.md`
 
