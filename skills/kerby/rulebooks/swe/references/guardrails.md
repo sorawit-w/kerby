@@ -18,7 +18,7 @@ The two **[enforced-partial]** hooks today are `warn-env-read` (Read-tool `.env`
 | Do NOT                                          | Why                                              |
 |-------------------------------------------------|--------------------------------------------------|
 | Modify CI/CD configs without approval           | Can break the entire team's workflow              |
-| Edit `.env` files or commit secrets             | Security risk                                    |
+| Edit an existing `.env` / `.env.local`, or commit secrets | Unrecoverable overwrite; security risk   |
 | Change linter/formatter rules unilaterally      | Team convention — requires consensus             |
 | Rewrite large sections unprompted               | Scope creep, hard to review, risky               |
 | Commit or push to protected branches (main, master, dev, develop, staging, release/*, trunk) | Always work on a feature branch |
@@ -28,7 +28,7 @@ The two **[enforced-partial]** hooks today are `warn-env-read` (Read-tool `.env`
 | Delete files without confirming they're unused  | Broken imports are hard to debug later           |
 | Overwrite guideline/spec files                  | Read-only — these are team-maintained            |
 
-**Enforcement:** *Edit `.env`* and *commit secrets* (`protect-env`, `pre-commit-check`) and *commit or push to protected branches* (`protect-git`) are **[enforced-when-installed]**. The rest are **[behavioral]**.
+**Enforcement:** *Edit an existing `.env`* and *commit secrets* (`protect-env`, `pre-commit-check`) and *commit or push to protected branches* (`protect-git`) are **[enforced-when-installed]**. The rest are **[behavioral]**. What `protect-env` does and does *not* cover is in § Environment Files below — it is narrower than "no `.env` edits ever," on purpose.
 
 ---
 
@@ -66,7 +66,7 @@ Stay on task. Agents tend to "fix while you're here" — refactoring adjacent co
 
 ## Security Awareness
 
-- **Never commit secrets** — API keys, tokens, passwords, certificates. If you find them in code, flag immediately. **[enforced-when-installed]** at commit time — `pre-commit-check.sh` hard-blocks staged secrets (betterleaks or gitleaks if present, else a built-in regex floor).
+- **Never commit secrets** — API keys, tokens, passwords, certificates. If you find them in code, flag immediately. **[enforced-when-installed]** at commit time — `pre-commit-check.sh` hard-blocks staged secrets (betterleaks or gitleaks if present, else a built-in regex floor). **Install a real scanner.** The built-in floor is a fallback, not a scanner: it matches the two Stripe `sk_` prefixes, `AKIA…`, a PEM private-key header, and a quoted `password =` — modern token shapes (`sk-proj-…`, `ghp_…`, `hf_…`) pass straight through it. (Spelled by description, not literally: this file is committed, and writing a live-key prefix out in full makes the floor flag its own documentation — the same self-match `pre-commit-check.sh` avoids in its own source.) The hook says so on every commit when no scanner is on PATH; `brew install gitleaks` clears it.
 - **Never print a live secret** — moved to the base rulebook: `rulebooks/base/rules/no-print-secret.md` (`no-print-secret`, floor). The **[enforced-partial]** `warn-env-read` hook reminds you on `.env` *reads* via the Read tool, but a Bash `cat .env` is not caught.
 - **Check for exposed credentials** — scan changed files for patterns like `sk_live_`, `AKIA`, `-----BEGIN PRIVATE KEY-----`, hardcoded passwords
 - **Use environment variables** for all secrets, and document the required vars in `DEVELOPER_TODO.md`
@@ -74,7 +74,50 @@ Stay on task. Agents tend to "fix while you're here" — refactoring adjacent co
 
 ### Configuration vs. Secrets Boundary
 
-Non-secret configuration (default email destinations, default locales, feature toggles, retry budgets) lives in **app config** — typed config object, `config/`, `settings.toml`, or a clearly-named non-secret env var. Secrets live in **`.env`** (existing rule above). Don't put non-secrets in `.env` — it triggers the `protect-env.sh` hook and creates friction. Document any newly-required env var in `DEVELOPER_TODO.md` regardless of which side of the boundary it sits on. Triggers for *what* to externalize are in `validation.md` (hardcoded-value code smell).
+Non-secret configuration (default email destinations, default locales, feature toggles, retry budgets) lives in **app config** — typed config object, `config/`, `settings.toml`, or a clearly-named non-secret env var. Secrets live in **`.env`** (existing rule above). Keep non-secrets out of `.env` so the file stays a pure credential store — that is what makes the § Environment Files split below clean. Document any newly-required env var in the project's `.env.example` (the standard handoff surface), and in `DEVELOPER_TODO.md` when the user must obtain a value from somewhere. Triggers for *what* to externalize are in `validation.md` (hardcoded-value code smell).
+
+### Environment Files
+
+`protect-env` is narrower than "never touch a `.env`", because the two classes of env file carry opposite risks:
+
+| Class | In git? | Commit scan can see it? | The real risk | Guard |
+|---|---|---|---|---|
+| `.env.example`, `.env.template`, `.env.sample` | yes | yes — as well as it sees any file | someone pastes a real key into a template | `pre-commit-check` (commit-time scan) |
+| `.env`, `.env.local`, any other variant | no — gitignored | **never, by construction** | overwriting live credentials with no undo | `protect-env` (hard block) |
+
+The distinction is **not** "templates are covered, so relaxing is free." It is that the two classes fail in different directions, and only one of them is beyond a commit-time check's reach.
+
+For a template, the commit scan is **filename-agnostic** — it reads added lines in the staged diff, so a key pasted into `.env.example` is treated exactly as one in `config.ts`. That is genuine coverage, but it is **only as strong as the scanner installed**, and the § Security Awareness note above is the honest measure: with no `gitleaks`/`betterleaks` on PATH the built-in floor matches a handful of shapes and misses most modern tokens, and the static command-recognition gaps in `references/threat-model.md` apply on top. So the accurate claim is: *a committed template is covered by whatever your commit gate catches, same as every other committed file* — not *a template is safe*. Blocking template edits never changed that number; it only broke the workflow, since `.env.example` is how a repo tells a new developer which variables it needs.
+
+A real `.env` is different in kind, and that difference does not depend on scanner quality. It is never staged, so no commit-time check of any strength ever sees it, and it is not in git, so an overwrite cannot be recovered. That is the base floor's `approval-for-irreversible` rule made concrete, which is why this one stays hard.
+
+**What the hook allows:**
+
+- Editing `.env.example` / `.env.template` / `.env.sample`, **when the path is a plain regular file** — matched case-insensitively on the basename suffix, so `.env.example.bak` is *not* a template and stays blocked.
+- **Creating** an env file that does not exist yet — scaffolding a project from its `.env.example`. There is nothing there to overwrite. The moment the file exists, it is blocked again.
+
+**What it blocks**, each for its own reason (the message says which):
+
+| Case | Why |
+|---|---|
+| An **existing** env-family file that is not a template | Replacing it overwrites contents git may not hold |
+| A **relative** path, templates included | The hook cannot know the agent's cwd, so every filesystem test below would run against the wrong directory. Fails closed |
+| A **symlink** with an env-family name | `.env.example -> .env` is a template *name* pointing at the credential *file*; trusting the name hands over the inode. A dangling symlink is the same problem on the create path — the write follows it to the target |
+| A **hard-linked** template | `ln .env .env.sample` gives the credential inode a second, allow-listed name. No path resolution can see that; link count can |
+| A template that is **not a regular file** | A FIFO or device named `.env.example` has one link and is not a symlink, so it passed both checks above |
+| A spelling the **filesystem folds** onto a differently-named entry | `-e` succeeds through the filesystem's own case folding, and APFS folds beyond ASCII — a real `.env.ſample` (U+017F) is reachable as `.env.sample`. Bash folds ASCII only and can never mirror the filesystem, so the stored name must match byte for byte |
+| A payload the hook **cannot parse** (no `jq`, malformed JSON) that mentions `env` at all | A guard that cannot read its input must refuse, not shrug. It matches `env`, not `.env`, because an unparsed payload is still JSON-encoded and `"/tmp/\u002eenv"` carries no literal dot. This over-blocks while degraded; installing `jq` is the fix, and the message says so. **Residual:** an escape that also encodes the letters (`\u0065nv`) still evades — decoding JSON in bash is not reasonable |
+| A file `stat` cannot see but the directory still lists | A macOS ACL denying `readattr` makes `-e` false for a file that plainly exists — the hook used to read that as "absent" and allow the overwrite. Existence is now `stat` **or** the directory entry, so an unstattable file counts as present |
+
+The last two are why the carve-out is on *names* but the decision is on *objects*. An allow-list of filenames is only safe if a filename cannot be made to mean another file.
+
+**Case matters, and the hook is case-insensitive on purpose.** macOS filesystems are case-insensitive by default, so `.ENV` and `.env` are one file. A case-sensitive test let an agent blocked on `.env` retry as `.ENV` and clobber the same inode.
+
+**It blocks on existence, not on content.** An empty `.env` blocks too. That is deliberate — a zero-byte file is often one an agent is about to fill, and testing size would add a second thing to get wrong for no safety gain.
+
+**There is no override token, deliberately.** `resources/references/hooks.md` rules out env-var disables for security-critical hooks — a variable drifts in from a shell rc, a CI config, or an `.envrc` that direnv wrote in the very directory holding the `.env`. The inline-prefix form that makes `CODING_RULES_ALLOW_PROTECTED_COMMIT` safe is Bash-only; `protect-env` fires on Edit/Write, which carries no command string to prefix. The documented escape is a deliberate `.claude/settings.json` edit.
+
+When you need a value in a real `.env`, hand the user the variable names and let them paste the values. That keeps the agent useful without giving it the pen on the one file with no undo.
 
 ---
 

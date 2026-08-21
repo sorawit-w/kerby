@@ -71,7 +71,7 @@ to task type.
 In both loops the legend is the same — **agent acts** (gray) / **kerby rule** (teal) / **kerby gate / hook** (amber):
 
 - A **rule** shapes every step (how to plan, how to check, what "done" means).
-- **Hooks hard-block wherever the agent reaches for something irreversible** — not only at commit: `.env` edits (`protect-env`, during `Do`), destructive git (`protect-git`), secrets in staged files (`pre-commit-check`, at the commit gate).
+- **Hooks hard-block wherever the agent reaches for something irreversible** — not only at commit: overwriting an existing `.env` (`protect-env`, during `Do`), destructive git (`protect-git`), secrets in staged files (`pre-commit-check`, at the commit gate).
 - **Failure branch:** a failing gate spends a per-error-type retry budget (build 5 / test 3 / lint 5 / deps 5), then "cheapen the loop before grinding"; if the budget is exhausted → **revert and mark `BLOCKED` in `.kerby/BLOCKERS.md`**. The iron rule is *never leave the repo broken.*
 
 ## Commands

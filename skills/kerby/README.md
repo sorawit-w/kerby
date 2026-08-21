@@ -157,7 +157,7 @@ If accepted, the skill:
 
    | Event | Matcher | Script | Resolved from | What it does |
    |---|---|---|---|---|
-   | `PreToolUse` | `"Edit\|Write"` | `protect-env.sh` | `rulebooks/swe/hooks/` | Hard-block edits to `.env` files (security — not env-var disablable) |
+   | `PreToolUse` | `"Edit\|Write"` | `protect-env.sh` | `rulebooks/swe/hooks/` | Hard-block edits to an existing credential file, and to any env-file name that aliases one (symlink / hard link) or is relative. Templates (`.env.example`/`.template`/`.sample`) and creating an absent env file stay allowed (security — not env-var disablable) |
    | `PreToolUse` | `"Bash"` | `protect-git.sh` | `rulebooks/swe/hooks/` | Hard-block destructive git (`reset --hard`, `push --force` to protected branches, `clean -f`, etc.) — security, not env-var disablable |
    | `PreToolUse` | `"Bash"` | `pre-commit-check.sh` | `rulebooks/base/hooks/` | The base floor's **pure secret scan** — hard-block on detected secrets in staged files. Base's own registration (registers under every selection); never disablable |
    | `PreToolUse` | `"Bash"` | `hollow-test-check.sh` | `rulebooks/swe/hooks/` | swe's self-contained soft check (v9.3): flag hollow tests + remind to run the gates at commit — a *separate* `Bash` entry from base's scan, disablable via `CODING_RULES_HOOK_DISABLED=hollow-test-check` |

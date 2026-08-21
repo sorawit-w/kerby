@@ -7,10 +7,23 @@ engine doc: `<install-root>/resources/references/hooks.md`.
 ### PreToolUse → .env File Protection
 
 **Script:** `hooks/protect-env.sh`
-**Strictness:** Hard-block (exit 2)
+**Strictness:** Hard-block (exit 2), not disablable
 **Matcher:** `Edit|Write` targeting `.env` files
 
-Prevents the agent from editing `.env` files directly. This is a security guardrail — secrets should never be modified by an agent. If the agent needs environment variables set, it should document them in `DEVELOPER_TODO.md` instead.
+Blocks edits to an **existing credential file** — the one class git cannot restore, because a real `.env` is gitignored and never staged. Overwriting it destroys credentials with no undo. Existence, not size: an empty `.env` blocks too.
+
+It deliberately does **not** block:
+
+- `.env.example` / `.env.template` / `.env.sample` **as plain regular files whose stored name matches byte for byte** — committed, secret-free, and the standard way a repo declares which variables it needs. A secret pasted into one is caught by `pre-commit-check` at commit time as well as it catches one anywhere else, which is as strong as the scanner you have installed — not a guarantee. The basename suffix is matched case-insensitively, so `.env.example.bak` still blocks; but an *existing* template must also be spelled exactly as the directory stores it, because the filesystem's own folding (APFS folds beyond ASCII) can point one spelling at a different file.
+- **Creating** an env file that does not exist — nothing to overwrite, so the agent can scaffold one from `.env.example`. Once it exists, it is blocked again.
+
+Once a path is classified as env-family by its basename, these block whatever it is named — because an allow-list of filenames is only safe if a filename cannot be made to mean another file:
+
+- **relative paths** — the hook cannot know the agent's cwd, so every filesystem test would run against the wrong directory. Fails closed, templates included.
+- **symlinks** with an env-family name — `.env.example -> .env` aliases the credential file, and a dangling one is followed by the write.
+- **hard-linked templates** — `ln .env .env.sample` shares the inode where no path resolution can see it; link count can.
+
+When a real `.env` needs a value, the agent hands the variable names to the user rather than writing them. Full rationale and the "no override token" reasoning: `references/guardrails.md` § Environment Files.
 
 ---
 

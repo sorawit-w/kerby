@@ -860,6 +860,19 @@ printf '%s' "$out" | grep -q "$FAKE_KEY" \
   && fail "git-hook: the secret was echoed into hook output" \
   || pass "git-hook: the secret is never echoed"
 
+# Degraded-scanner notice: when no scanner is on PATH the floor says so AND says
+# what to install. Naming the degrade without naming the remedy is how a user
+# reads "narrower" every commit and never acts on it.
+D="$TMP/gh-degraded"; gh_repo "$D"
+printf 'ok = 1\n' > "$D/clean.txt"; git -C "$D" add clean.txt
+dout=$( ( cd "$D" && PATH="$BIN_NO" GIT_CONFIG_GLOBAL=/dev/null git commit -m x ) 2>&1 )
+printf '%s' "$dout" | grep -q "built-in regex floor (narrower)" \
+  && pass "git-hook: names the degrade when no scanner is on PATH" \
+  || fail "git-hook: should name the degrade (got '$dout')"
+printf '%s' "$dout" | grep -q "install one for real coverage" \
+  && pass "git-hook: degrade notice names the remedy" \
+  || fail "git-hook: degrade notice should say what to install (got '$dout')"
+
 
 # --- Shared-tokenizer parity -------------------------------------------------
 # The tokenizer is DUPLICATED between base/hooks/pre-commit-check.sh and
