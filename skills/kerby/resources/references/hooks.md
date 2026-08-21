@@ -301,7 +301,7 @@ You can extend kerby's hooks by adding to your project's `.claude/settings.json`
 | Bootstrap `.kerby/knowledge/` on first use | Agent must remember (often forgets) | SessionStart scaffolds + flags stale entries |
 | Keep `KNOWLEDGE.md` index in sync with entries | Agent must remember on every entry change | SessionStart reindexes; agent calls `knowledge-reindex.sh --force` for mid-session updates |
 | Never commit secrets | Agent must self-check | Already-staged secrets hard-blocked, for the forms a static pass can resolve — **but `git add x && git commit`, wrappers and aliases are not seen**, so the agent must still self-check (see `threat-model.md`) |
-| Never edit .env files | Agent must self-check | Hard-blocked before edit happens |
+| Never overwrite a populated `.env` | Agent must self-check | Hard-blocked before the edit happens (templates and creating an absent `.env` stay allowed) |
 | Run quality gates | Agent must remember | **Still must remember** — no hook verifies this; swe's post-commit reminder is advisory and disablable |
 | Create checkpoints | Agent must remember | **Still must remember** — no hook verifies this |
 

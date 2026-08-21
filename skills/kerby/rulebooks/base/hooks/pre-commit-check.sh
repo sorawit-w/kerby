@@ -301,6 +301,7 @@ fi
 # — the PreToolUse path must stay silent on success.
 if [[ "$GIT_HOOK_MODE" -eq 1 && -z "$SCANNER" ]]; then
   echo "kerby: no betterleaks/gitleaks on PATH — using the built-in regex floor (narrower)." >&2
+  echo "kerby: install one for real coverage — 'brew install gitleaks' (https://github.com/gitleaks/gitleaks)" >&2
 fi
 
 # `\s` and `\x27` are GNU/PCRE spellings that BSD `grep -E` does not support:

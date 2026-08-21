@@ -3,6 +3,40 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.17.0] — 2026-08-21
+
+**The env guard learns which file it was actually protecting** (swe 2.7.0, base 1.3.0):
+`protect-env` blocked every path matching `.env`, which swept in `.env.example`,
+`.env.template` and `.env.sample` — committed, secret-free files that exist precisely to
+tell a developer which variables a repo needs. Blocking them bought nothing. The
+commit-time secret scan is filename-agnostic and already catches a real key pasted into a
+template, in `.env.example` exactly as in `config.ts`.
+
+What the hook actually guards is narrower and sharper: a real `.env` is gitignored, so it
+is never staged, so the commit scan structurally cannot see it — and it is not in git, so
+an overwrite has no undo. That is `approval-for-irreversible`, and it stays hard. Two
+things are now allowed: editing the three template names (anchored on the basename suffix,
+so `.env.example.bak` still blocks) and **creating** a `.env` that does not exist yet,
+because there is nothing there to destroy. The moment the file has content, the door shuts
+again. Relative paths block — the hook cannot know your cwd, and an existence test against
+the wrong directory is a guess, not a check.
+
+No override token, deliberately: `hooks.md` already rules out env-var disables for
+security-critical hooks, and the inline-prefix form that makes
+`CODING_RULES_ALLOW_PROTECTED_COMMIT` safe is Bash-only — Edit/Write carries no command
+string to prefix.
+
+`protect-env` was also the only hook in `swe` shipping without a self-test. It has one
+now: 19 assertions, including that `.env.local` still blocks despite its template-shaped
+name, and that the block message no longer sends placeholder variables to
+`DEVELOPER_TODO.md`.
+
+**The secret scan says what to install** (base 1.3.0): with no scanner on PATH the floor
+already announced that it was running narrow. It never said what to do about it. It now
+names the fix in one more line, and `guardrails.md` records which token shapes the
+built-in regex misses (`sk-proj-…`, `ghp_…`, `hf_…`) — the relaxation above leans on that
+scan, so a real scanner matters more than it did yesterday.
+
 ## [9.16.0] — 2026-08-14
 
 **The secret scan gets a door git opens** (base 1.2.0): the floor has always run as a

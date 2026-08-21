@@ -7,10 +7,19 @@ engine doc: `<install-root>/resources/references/hooks.md`.
 ### PreToolUse → .env File Protection
 
 **Script:** `hooks/protect-env.sh`
-**Strictness:** Hard-block (exit 2)
+**Strictness:** Hard-block (exit 2), not disablable
 **Matcher:** `Edit|Write` targeting `.env` files
 
-Prevents the agent from editing `.env` files directly. This is a security guardrail — secrets should never be modified by an agent. If the agent needs environment variables set, it should document them in `DEVELOPER_TODO.md` instead.
+Blocks edits to a **populated credential file** — the one file class git cannot restore, because a real `.env` is gitignored and never staged. Overwriting it destroys credentials with no undo.
+
+It deliberately does **not** block:
+
+- `.env.example` / `.env.template` / `.env.sample` — committed, secret-free, and the standard way a repo declares which variables it needs. A real secret pasted into one is caught by `pre-commit-check` at commit time, which is filename-agnostic. The carve-out is anchored on the basename suffix, so `.env.example.bak` still blocks.
+- **Creating** a `.env` that does not exist — there is nothing to overwrite, so the agent can scaffold one from `.env.example`. Once it exists, it is blocked again.
+
+Relative paths block: the hook cannot know the agent's cwd, so it fails closed rather than testing existence against the wrong directory.
+
+When a real `.env` needs a value, the agent hands the variable names to the user rather than writing them. Full rationale and the "no override token" reasoning: `references/guardrails.md` § Environment Files.
 
 ---
 
