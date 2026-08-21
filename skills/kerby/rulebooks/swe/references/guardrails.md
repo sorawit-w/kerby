@@ -107,6 +107,7 @@ A real `.env` is different in kind, and that difference does not depend on scann
 | A template that is **not a regular file** | A FIFO or device named `.env.example` has one link and is not a symlink, so it passed both checks above |
 | A spelling the **filesystem folds** onto a differently-named entry | `-e` succeeds through the filesystem's own case folding, and APFS folds beyond ASCII — a real `.env.ſample` (U+017F) is reachable as `.env.sample`. Bash folds ASCII only and can never mirror the filesystem, so the stored name must match byte for byte |
 | A payload the hook **cannot parse** (no `jq`, malformed JSON) that mentions an env file | A guard that cannot read its input must refuse, not shrug. This over-blocks in the degraded case; installing `jq` is the fix, and the message says so |
+| A file `stat` cannot see but the directory still lists | A macOS ACL denying `readattr` makes `-e` false for a file that plainly exists — the hook used to read that as "absent" and allow the overwrite. Existence is now `stat` **or** the directory entry, so an unstattable file counts as present |
 
 The last two are why the carve-out is on *names* but the decision is on *objects*. An allow-list of filenames is only safe if a filename cannot be made to mean another file.
 

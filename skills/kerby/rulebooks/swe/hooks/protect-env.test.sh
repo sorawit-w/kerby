@@ -169,6 +169,26 @@ else
   allows "$TMP/.env.EXAMPLE" "case-variant is a distinct absent file here — create-if-absent applies"
 fi
 
+# --- 5h. Existence must not rest on stat() alone ----------------------------
+# A macOS ACL denying `readattr` makes `-e` FALSE for a file that plainly exists;
+# the hook then took create-if-absent and allowed an overwrite of live
+# credentials. The directory entry is still listable, so either signal counts.
+mkdir -p "$TMP/acl"; printf 'SECRET=live\n' > "$TMP/acl/.env"
+if chmod +a "everyone deny readattr" "$TMP/acl/.env" 2>/dev/null; then
+  blocks "$TMP/acl/.env" "stat-blinded .env still blocks (directory entry is the second signal)"
+else
+  pass "ACL case skipped — this platform has no chmod +a"
+fi
+
+# An execute-only parent: `-e` succeeds but the glob is blind. Must fail closed.
+mkdir -p "$TMP/xo"; printf 'SECRET=live\n' > "$TMP/xo/.env.example"
+if chmod 111 "$TMP/xo" 2>/dev/null; then
+  blocks "$TMP/xo/.env.example" "template under an unlistable parent blocks (cannot confirm the stored name)"
+  chmod 755 "$TMP/xo" 2>/dev/null
+else
+  pass "execute-only parent case skipped"
+fi
+
 # --- 5g. Missing jq must fail CLOSED ----------------------------------------
 # A security hook that cannot read its input must not shrug and allow. Without
 # jq the path is unknowable, so an env-mentioning payload is refused. The branch

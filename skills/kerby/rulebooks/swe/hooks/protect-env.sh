@@ -124,6 +124,14 @@ name_is_exact() (
   return 1
 )
 
+# Existence must not rest on stat() alone. A macOS ACL denying `readattr` makes
+# `-e` FALSE for a file that plainly exists — and the hook then took the
+# create-if-absent door and allowed an overwrite of live credentials. The
+# directory entry is still listable in that state, so either signal counts as
+# existing. Fail-closed by construction: a file we cannot stat is treated as
+# present, never as absent.
+env_exists() { [[ -e "$1" ]] || name_is_exact "$1"; }
+
 block() { # $1 = reason line
   echo "BLOCKED: $1" >&2
   echo "Env files are the one class git cannot restore — a real .env is gitignored, so an" >&2
@@ -151,7 +159,7 @@ fi
 #    A hard link is invisible to path resolution; link count is not.
 case "$BASENAME" in
   *.env.example|*.env.template|*.env.sample)
-    if [[ -e "$FILE_PATH" ]]; then
+    if env_exists "$FILE_PATH"; then
       # A template must be a REGULAR file. `-L` above rules out symlinks, but a
       # FIFO named `.env.example` has nlink=1 and sailed through, contradicting
       # the "plain regular file" contract the docs state.
@@ -187,7 +195,7 @@ case "$BASENAME" in
 esac
 
 # 5. A real env file: absent is safe to create, existing is not safe to replace.
-if [[ ! -e "$FILE_PATH" ]]; then
+if ! env_exists "$FILE_PATH"; then
   exit 0
 fi
 
