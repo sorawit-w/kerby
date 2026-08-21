@@ -9,10 +9,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | Shipped — 2026-08-21 review follow-ups complete |
+| **Phase** | Shipped — 2026-08-21 review follow-ups complete; review-machinery fix in flight |
 | **Milestone** | Review follow-ups (env scope, simplicity artifacts, shared state, locator) |
 | **Milestone Goal** | Close the four defects from the 2026-08-21 rule-corpus review |
-| **Working Branch** | main (release `9.20.0`) |
+| **Working Branch** | fix/codex-mark-verdict-scope (release `9.21.0`) |
 
 ---
 
@@ -21,7 +21,7 @@
 | Status | Count | Tasks |
 |--------|-------|-------|
 | Done | 4 | #54 protect-env scope · #55 decision-ladder artifacts · #56 shared state + finish order · #57 locator + trust rules |
-| In Progress | 0 | — |
+| In Review | 1 | codex-mark refuses an incomplete transcript (this branch) |
 | Blocked | 0 | — |
 | Ready | 3 | Fresh-session `skill-evaluator` passes · logged P2/P3 debt · install a real secret scanner |
 
@@ -43,7 +43,7 @@
 | Priority | Task | Dependencies |
 |----------|------|--------------|
 | 1 | **Fresh-session `skill-evaluator` pass for #54, #56, #57.** All three are the higher-bar class in `skills/kerby/CLAUDE.md` § Gate tiers (safety / commit-discipline / new behavioral surface) and all three shipped without it. It cannot run in the session that authored the change — that is the point of the outer-bias check | a session other than the authoring one |
-| 2 | Decide whether `STATUS.md` should stay tracked. #56 made it shared state, so a routine status refresh now costs a branch, a Codex review and a PR — this file is the worked example. Either accept that cost or return it to machine-local | maintainer |
+| 2 | Decide whether `STATUS.md` should stay tracked. #56 made it shared state, so a refresh costs a branch, a review and a PR. **Provisionally answered by practice:** rather than open a standalone status PR, this refresh rides along with the review-machinery fix — which is what #56's own model prescribes. Keep it tracked and batch refreshes into real changes; revisit only if standalone state PRs become common | maintainer |
 | 3 | Resolve the `prepare` ring-fence contradiction — `adopt-existing.md` creates tracked artifacts while its own ring-fence forbids committing them. Open P1 from #56, deliberately left as a scope decision | maintainer |
 | 4 | Work the logged P2/P3 debt (below) | none |
 | 5 | Install `gitleaks` or `betterleaks` — the secret scan is running on its narrow fallback regex, which misses most modern token shapes | none |
@@ -69,6 +69,11 @@ Non-blocking findings recorded rather than fixed, because P2/P3 never trigger a 
 - **`memory.log`** — one record written before #56 landed the format rules is missing its
   `[timestamp]` header and `Commit:` field. Append-only, so it needs a correction entry
   rather than an edit.
+- **Review machinery, fixed on this branch** — `codex-mark` would parse a verdict out of a
+  *killed* run's transcript. Found when a stalled review left six verdict lines quoted from
+  earlier reviews, the last being another PR's clean `P0=0 P1=0`. Prior markers are
+  unaffected: the hazard needs a run that did not finish, and the audit log shows both came
+  from runs that exited 0 well inside their ceilings.
 - **State-write ordering** — `context-management.md`'s shutdown path and
   `implementation-planning.md`'s validation step still write after their commit. Part of
   the same scope question as item 3 above.

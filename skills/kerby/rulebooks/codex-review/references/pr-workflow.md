@@ -60,8 +60,15 @@ When opening a PR (base = the repo's default branch):
    verdict). Then run `scripts/codex-mark.sh`
    (resolve it relative to this rulebook's root — the folder this file was loaded
    from): it verifies a clean `CODEX_VERDICT` (P0=0 P1=0) against a log newer than
-   HEAD, enforces the round cap (PASS / DENIED / HELD), writes the marker, appends
-   to the audit log, and prints the PR-note line used in step 3. Any new commit
+   HEAD **and marked complete**, enforces the round cap (PASS / DENIED / HELD),
+   writes the marker, appends to the audit log, and prints the PR-note line used
+   in step 3. The completion stamp is written by `codex-run` on its clean exit
+   path only, and codex-mark refuses a log without it: "last verdict wins" is
+   sound only for a run that finished, because a killed run leaves no conclusion
+   while its transcript can still hold verdict-shaped lines the reviewer *quoted*
+   from earlier reviews it read as evidence. A stalled run here left six, the last
+   being another PR's clean `P0=0 P1=0`. Never hand-stamp a transcript for the
+   same reason you never hand-write the marker. Any new commit
    stales the marker (re-review, re-mark). Deliberate bypass (user-approved only):
    prefix the gh invocation with `CODEX_GATE_BYPASS=1` — the prefix form is the only
    honored one; the token embedded elsewhere in the command authorizes nothing, and

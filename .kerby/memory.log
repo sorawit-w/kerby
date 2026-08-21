@@ -118,3 +118,11 @@ Commit: (pending)
 Status: DONE
 Notes: This change is itself the worked example of a cost #56 introduced — STATUS.md is tracked shared state now, so a routine status refresh needs a branch, a Codex review and a PR. Recorded as decision item 2 in the file rather than quietly absorbed.
 Observations: memory.log and STATUS.md are both written here BEFORE the commit, per the ordering #56 established.
+[2026-08-21T00:00:00Z]
+Task: codex-mark refuses an incomplete transcript (folds in the STATUS refresh)
+Action: Found while handling a stalled review (exit 4): codex-mark takes the LAST `CODEX_VERDICT:` line in the log, which is only the run's own conclusion if the run FINISHED. The killed transcript held SIX verdict lines quoted from earlier reviews it had read as evidence, the last being another PR's clean P0=0 P1=0 — following the wrapper's own "NEXT: run codex-mark" would have written a PASS marker for a review that never reached a verdict. codex-run now stamps `TRANSCRIPT COMPLETE rc=0` on its clean exit path only (never after 4/5/6); codex-mark requires that stamp and parses the last verdict before it. Four regression cases added, including the quoted-verdict shape. Documented in pr-workflow.md. The STATUS.md refresh rides along here rather than as a standalone PR.
+Files: codex-review/scripts/codex-run.py, codex-review/scripts/codex-mark.{sh,test.sh}, codex-review/references/pr-workflow.md, codex-review/rulebook.toml, .kerby/STATUS.md, .kerby/memory.log, CHANGELOG.md, README.md, 3 plugin manifests
+Commit: (pending)
+Status: DONE
+Notes: Prior markers verified unaffected — the hazard needs a run that did not finish, and the audit log shows #55 (234s) and #57 (171s) both exited 0 well inside their ceilings, so their last verdict was genuinely their own. A pre-stamp log is now refused too; re-running a review is cheap, a false-clean marker is not.
+Observations: The first version of my regression test passed for the wrong reason — the copied log had an older mtime than the fresh fixture commit, so the EXISTING staleness guard refused it and my new guard never ran. Touching the file to give it a fresh mtime was what actually exercised the fix. Second time this session a test of mine went green without testing anything.

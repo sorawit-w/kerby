@@ -79,9 +79,31 @@ fi
 case "$rounds" in ''|*[!0-9]*) rounds=0 ;; esac
 rounds=$((rounds + 1))
 
-# 4. Parse the verdict line (last occurrence wins; fail closed if absent or
-# malformed) — BEFORE persisting the round, so a failed parse costs nothing.
-verdict=$(grep -E 'CODEX_VERDICT:' "$log" | tail -n1)
+# 4a. The transcript must be COMPLETE. codex-run stamps this line on its clean
+# exit path ONLY — never after a stall (4), a runtime failure (5) or an
+# outlived-SIGKILL (6).
+#
+# This is not belt-and-braces; without it step 4b is unsound. "Last verdict
+# wins" is correct only for a run that FINISHED, because the reviewer emits its
+# verdict last. A killed run has no conclusion — and its transcript can still
+# hold verdict-shaped lines the reviewer QUOTED while reading prior review
+# transcripts as evidence. Observed here: a stalled run left six such lines, the
+# last being another PR's clean `P0=0 P1=0`. Parsing that would have written a
+# PASS marker for a review that never reached a verdict — a check that runs,
+# reports clean, and proves nothing.
+#
+# A pre-stamp log (written before this guard existed) is refused too. That is
+# the safe direction: re-running a review is cheap, a false-clean marker is not.
+complete_line=$(grep -n 'codex-run: TRANSCRIPT COMPLETE rc=0' "$log" | tail -n1)
+[ -n "$complete_line" ] \
+  || fail "transcript at $log is not marked complete — the run stalled, failed, or predates this check. A killed run has no verdict; re-run the review rather than parsing what it left behind"
+complete_at=${complete_line%%:*}
+
+# 4b. Parse the verdict line — the last occurrence BEFORE the completion stamp,
+# so nothing appended afterwards can be mistaken for the conclusion. Fail closed
+# if absent or malformed; done BEFORE persisting the round, so a failed parse
+# costs nothing.
+verdict=$(head -n "$complete_at" "$log" | grep -E 'CODEX_VERDICT:' | tail -n1)
 [ -n "$verdict" ] \
   || fail "no CODEX_VERDICT line in $log — the review brief must require it; re-run the review with the rubric + verdict contract included"
 

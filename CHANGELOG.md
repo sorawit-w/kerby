@@ -3,6 +3,37 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.21.0] — 2026-08-21
+
+**A killed review can no longer be marked clean** (codex-review 0.5.0): `codex-mark` took
+the last `CODEX_VERDICT:` line in the transcript. That is sound only for a run that
+*finished* — the reviewer emits its verdict last. A killed run has no conclusion at all,
+and its transcript can still be full of verdict-shaped lines, because a scoped re-review
+reads earlier review transcripts as evidence and quotes what it finds.
+
+Observed, not theorised. A review stalled at its ceiling (exit 4) and left a log holding
+**six** verdict lines, none of them its own, the last being a different PR's clean
+`P0=0 P1=0 P2=3 P3=1`. Following the wrapper's own "NEXT: run codex-mark" instruction would
+have written a **PASS marker** for a review that never reached a verdict, and the PR gate
+would then have accepted the branch as reviewed. A check that runs, reports clean, and
+proves nothing — the exact failure `skills/kerby/CLAUDE.md` warns about when it says a
+guard that under-matches converts *nobody checked* into *the check passed*.
+
+`codex-run` now stamps `TRANSCRIPT COMPLETE rc=0` on its clean exit path **only** — never
+after a stall (4), a runtime failure (5), or an outlived-SIGKILL (6). `codex-mark` refuses
+any log without that stamp, and parses the last verdict *before* it. A pre-stamp log is
+refused too: re-running a review is cheap, a false-clean marker is not.
+
+Four regression cases cover it, including the quoted-verdict shape that caused it.
+
+**Markers already written are unaffected.** The hazard needs a run that did not finish; a
+completed run's last verdict is genuinely its own. The audit log confirms both prior
+markers came from runs that exited 0 well inside their ceilings.
+
+Also in this release: `.kerby/STATUS.md` refreshed for the shipped 9.20.0 work — and,
+per the ordering 9.19.0 established, it rides along with this change rather than arriving
+in a PR of its own.
+
 ## [9.20.0] — 2026-08-21
 
 **The locator stops letting the workspace choose the gate** (engine): the install root was

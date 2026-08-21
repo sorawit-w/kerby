@@ -892,6 +892,26 @@ def main(argv):
                  % (shell_rc(rc), elapsed, ceiling, log))
             return 5
 
+        # Stamp the transcript as COMPLETE — the only path that does.
+        #
+        # codex-mark takes the LAST `CODEX_VERDICT:` line in the log, which is
+        # correct only for a run that finished: the reviewer emits its verdict
+        # last. A killed run has no conclusion, and its transcript can still
+        # contain verdict-shaped lines the reviewer QUOTED while reading prior
+        # review transcripts as evidence. Observed: a stalled run whose log
+        # held six such lines, the last of which was another PR's clean
+        # P0=0 P1=0 — enough to write a PASS marker for a review that never
+        # reached a verdict. Without this stamp codex-mark cannot tell the two
+        # apart, because both leave a parseable-looking file behind.
+        #
+        # Best-effort by design: if the append fails the run still succeeded,
+        # and codex-mark refusing an unstamped log is the safe direction.
+        try:
+            with open(log, "a") as fh:
+                fh.write("\n%sTRANSCRIPT COMPLETE rc=0\n" % PREFIX)
+        except OSError:
+            pass
+
         say("OK — %ss (ceiling %ss). Transcript at %s. NEXT: run "
             "scripts/codex-mark.sh now — it is the only thing that parses the "
             "verdict AND advances the 3-round cap. Reading the verdict by eye "

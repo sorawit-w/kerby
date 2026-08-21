@@ -29,8 +29,16 @@ LOG="$GITDIR/codex-review.log"
 MARKER="$GITDIR/codex-reviewed"
 ROUNDS="$GITDIR/codex-review-rounds"
 
-fresh_log() { # $1 = verdict line(s)
+fresh_log() { # $1 = verdict line(s) — writes a COMPLETE transcript
   sleep 1  # log mtime must be strictly newer than HEAD commit time (1s resolution)
+  # The completion stamp is what codex-run writes on its clean exit path only.
+  # Every case below tests a finished run, so the fixture carries it; the
+  # unstamped case has its own helper.
+  printf 'review output...\n%s\ncodex-run: TRANSCRIPT COMPLETE rc=0\n' "$1" > "$LOG"
+}
+
+fresh_log_unstamped() { # $1 = verdict line(s) — a killed/failed run's leftovers
+  sleep 1
   printf 'review output...\n%s\n' "$1" > "$LOG"
 }
 
@@ -140,4 +148,41 @@ mark
 rm -rf "$LOG.prev"
 
 echo
+# --- Completion stamp: a killed run must not be parsed -----------------------
+# codex-mark takes the LAST CODEX_VERDICT line, which is only the run's own
+# conclusion if the run FINISHED. A killed run leaves no verdict — but its
+# transcript can still hold verdict-shaped lines the reviewer QUOTED while
+# reading prior review transcripts as evidence. Observed in this repo: a stalled
+# run left six, the last being another PR's clean P0=0 P1=0. Parsing that writes
+# a PASS marker for a review that never reached a verdict.
+rm -f "$ROUNDS" "$MARKER"
+fresh_log_unstamped "CODEX_VERDICT: P0=0 P1=0 P2=0 P3=0"
+mark
+[[ "$RC" -eq 1 && ! -f "$MARKER" ]] \
+  && pass "unstamped transcript is refused even with a clean verdict" \
+  || fail "unstamped transcript must fail closed: rc=$RC marker=$([ -f "$MARKER" ] && echo yes || echo no)"
+
+# And it must not consume a round — an unparseable attempt costs nothing.
+[[ ! -f "$ROUNDS" || "$(sed -n 2p "$ROUNDS" 2>/dev/null)" != "1" ]] \
+  && pass "unstamped attempt costs no round" \
+  || fail "unstamped attempt consumed a round"
+
+# The quoted-verdict shape specifically: several verdicts, last one clean.
+rm -f "$ROUNDS" "$MARKER"
+sleep 1
+printf 'quoting an earlier review...\nCODEX_VERDICT: P0=2 P1=3 P2=5 P3=0\nand another...\nCODEX_VERDICT: P0=0 P1=0 P2=3 P3=1\nstill working when killed\n' > "$LOG"
+mark
+[[ "$RC" -eq 1 && ! -f "$MARKER" ]] \
+  && pass "killed run quoting a prior clean verdict is refused" \
+  || fail "quoted-verdict log must fail closed: rc=$RC"
+
+# Stamped, the same content parses the last verdict BEFORE the stamp.
+rm -f "$ROUNDS" "$MARKER"
+sleep 1
+printf 'quoting an earlier review...\nCODEX_VERDICT: P0=9 P1=9 P2=0 P3=0\nreal conclusion follows\nCODEX_VERDICT: P0=0 P1=0 P2=0 P3=0\ncodex-run: TRANSCRIPT COMPLETE rc=0\n' > "$LOG"
+mark
+[[ "$RC" -eq 0 && -f "$MARKER" ]] \
+  && pass "stamped transcript parses the last verdict before the stamp" \
+  || fail "stamped transcript should PASS: rc=$RC $(cat "$WORK/err.txt" 2>/dev/null | head -1)"
+
 if [[ "$FAILS" -eq 0 ]]; then echo "ALL PASS"; else echo "$FAILS FAILURE(S)"; exit 1; fi
