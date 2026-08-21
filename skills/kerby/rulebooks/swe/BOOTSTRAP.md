@@ -29,6 +29,28 @@ Climb in order; write code only at the bottom rung. This operationalizes "Clarit
 6. **Only then** write the minimum that works — and if it's a deliberate shortcut, name its upgrade trigger in-code (see `references/working-patterns.md` § Code Standards).
 
 **Lazy, not negligent:** the ladder trims scope and cleverness, never correctness — trust-boundary validation, error/data-loss handling, security, and accessibility are never on the chopping block.
+
+### Emit the rung, and name what you declined
+
+The ladder above only bites if the choice is visible, so it is a **forced artifact, not advice**. Two lines, both required:
+
+**With the § 2.5 grade line — always, one-liners included:**
+
+```
+rung: <N> — <≤8-word reason>
+```
+
+`<N>` is the ladder rung above (1–6) where you stopped, *not* the complexity grade. Rung 6 is a legitimate answer; the point is that you climbed and said where you landed.
+
+**In the final report (§ 4 Output Discipline):**
+
+```
+skipped: <what you did not build> — add when <trigger>
+```
+
+Name the abstraction you declined — the interface with one implementation, the config knob for a constant, the helper you did not extract. `skipped: none` is a valid answer and is still emitted. This is the restraint half: the rung line says how little you reached for, this says what you consciously left out, and a reviewer can disagree with either.
+
+**Why forced lines rather than a paragraph:** an emit-only-when-relevant rule is exactly the mid-list prose these two replace. The same rule was measured at 1/4 compliance as prose and 4/4 as a required report line (`references/intent-gate.md`, provenance note) — which is why `INTENT:`, the grade line, and these two all share the shape.
 </decision_ladder>
 
 <detect_project>
@@ -50,11 +72,14 @@ Read these files now:
 <grade_before_route>
 ## 2.5 Grade Before You Route
 
-Before choosing a workflow, grade the task on the canonical ladder (`workflows/feature.md` § 3) and emit one line — **always, even for one-liners**:
+Before choosing a workflow, grade the task on the canonical complexity ladder (`workflows/feature.md` § 3) and emit these two lines — **always, even for one-liners**:
 
 ```
 complexity: <N> (trigger: <≤8-word reason>) → route: <new-project | adopt-existing | feature | bugfix | quick-task>
+rung: <N> — <≤8-word reason>
 ```
+
+The two `<N>`s are different scales and are not related: `complexity` is the grade from the § 3 table (how big the task is), `rung` is where you stopped on the § 1b decision ladder (how little you had to build). A grade-6 task can land on rung 2.
 
 **Default up** when the task sits between two bands. The emitted grade is what makes a skipped plan catchable — a silent grade defeats the § 4 Plan Gate.
 
@@ -62,7 +87,7 @@ Pick the workflow by **task type** (§ 3 routing table — a bug fix routes to `
 
 - `quick-task.md` is selectable **only when `grade < plan_threshold`** (`ai.planThreshold` in `agent-context.yaml`; if the file or key is absent, use the default **4** — never block on the missing knob) **AND the change passes the quick-task fit check** (no new logic/refactor, ≤~50 LOC, no schema/contract changes — see `workflows/quick-task.md`). If either fails, route to the **task-type workflow** (`bugfix.md` for a bug fix, otherwise `feature.md`) — never drop a bug fix's reproduce/diagnose/failing-test path just because it outgrew quick-task. The grade is a ceiling; the fit check is an independent risk guard — both must hold.
 - The § 3 high-stakes path override still forces a full workflow (`feature.md`, or `bugfix.md` for a bug fix) regardless of grade.
-- **User opt-out** — only an *explicit instruction to skip planning* counts: `skip plan`, `skip the plan`, `no plan`, `just do it`. A bare `quick` / `quick one` is tone, not an opt-out — do not treat it as one (it collides with casual openers like "quick question"). On a real opt-out, emit `plan: skipped (user opt-out: "<quoted phrase>")` and append the same line to `.kerby/memory.log`. The grade line is still emitted. Opt-out waives the plan — including its Expected Outcomes, and therefore the § 7 Realized Outcomes comparison (no prediction to compare against). It does **not** waive the § 4 Verification rule or quality gates: opt-out skips planning, never verification.
+- **User opt-out** — only an *explicit instruction to skip planning* counts: `skip plan`, `skip the plan`, `no plan`, `just do it`. A bare `quick` / `quick one` is tone, not an opt-out — do not treat it as one (it collides with casual openers like "quick question"). On a real opt-out, emit `plan: skipped (user opt-out: "<quoted phrase>")` and append the same line to `.kerby/memory.log`. The grade line, the `rung:` line, and the report's `skipped:` line are all still emitted — the opt-out waives the *plan*, not the forced artifacts. (`plan: skipped (…)` and the § 1b `skipped: …` line are different artifacts; the prefix tells them apart.) Opt-out waives the plan — including its Expected Outcomes, and therefore the § 7 Realized Outcomes comparison (no prediction to compare against). It does **not** waive the § 4 Verification rule or quality gates: opt-out skips planning, never verification.
 </grade_before_route>
 
 <route_workflow>
@@ -239,6 +264,8 @@ Costly actions (closed list — if none apply, this rule does not fire):
 ### Output Discipline
 
 No preamble, no closing fluff, no restating the request. Do not open with "Sure!", "Great question!", or "Absolutely!". Do not close with "Let me know if you need anything else!" State what you did, what the result was, and what's next. Code and evidence first — explanation only if non-obvious.
+
+**The final report carries its forced lines.** `skipped: <what you did not build> — add when <trigger>` (§ 1b) appears in every completion report, `skipped: none` included. When behavior changed, the `INTENT:` line appears verbatim too (`references/intent-gate.md`). A report missing a required line is an incomplete report, not a terse one.
 
 ### Accuracy
 

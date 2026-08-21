@@ -3,6 +3,30 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.18.0] — 2026-08-21
+
+**The decision ladder starts leaving a receipt** (swe 2.8.0): § 1b has told agents to climb
+six rungs before writing code since v6, and agents kept arriving at rung 6 with a factory
+for one product. The content was never the problem. The shape was: a rule stated mid-list
+is advice, and kerby's own record already measured what that costs — the intent-gate rule
+scored 1/4 as prose and 4/4 as a required report line. Every rule that actually binds here
+is a forced artifact. The ladder wasn't one.
+
+It is now, in two halves. `rung: <N> — <why>` joins the § 2.5 grade line and is emitted
+always, one-liners included — it says how little you reached for. `skipped: <what you did
+not build> — add when <trigger>` goes in the final report and names the abstraction you
+declined: the interface with one implementation, the config knob for a constant, the
+helper you left unextracted. `skipped: none` is a valid answer and is still emitted,
+because a line that appears only when the agent judges it relevant is the prose this
+replaces.
+
+The two `<N>`s in the emission block measure different things and the rulebook now says so
+outright: `complexity` is how big the task is, `rung` is how little you had to build. A
+grade-6 task landing on rung 2 is a good day.
+
+No hook checks either line — same as the grade line, and for the same reason. The lines
+are the proof; a report missing one is incomplete, not terse.
+
 ## [9.17.0] — 2026-08-21
 
 **The env guard learns which file it was actually protecting** (swe 2.7.0, base 1.3.0):
