@@ -10,14 +10,18 @@ engine doc: `<install-root>/resources/references/hooks.md`.
 **Strictness:** Hard-block (exit 2), not disablable
 **Matcher:** `Edit|Write` targeting `.env` files
 
-Blocks edits to a **populated credential file** — the one file class git cannot restore, because a real `.env` is gitignored and never staged. Overwriting it destroys credentials with no undo.
+Blocks edits to an **existing credential file** — the one class git cannot restore, because a real `.env` is gitignored and never staged. Overwriting it destroys credentials with no undo. Existence, not size: an empty `.env` blocks too.
 
 It deliberately does **not** block:
 
-- `.env.example` / `.env.template` / `.env.sample` — committed, secret-free, and the standard way a repo declares which variables it needs. A real secret pasted into one is caught by `pre-commit-check` at commit time, which is filename-agnostic. The carve-out is anchored on the basename suffix, so `.env.example.bak` still blocks.
-- **Creating** a `.env` that does not exist — there is nothing to overwrite, so the agent can scaffold one from `.env.example`. Once it exists, it is blocked again.
+- `.env.example` / `.env.template` / `.env.sample` **as plain regular files** — committed, secret-free, and the standard way a repo declares which variables it needs. A secret pasted into one is caught by `pre-commit-check` at commit time as well as it catches one anywhere else, which is as strong as the scanner you have installed — not a guarantee. Matched case-insensitively on the basename suffix, so `.env.example.bak` still blocks.
+- **Creating** an env file that does not exist — nothing to overwrite, so the agent can scaffold one from `.env.example`. Once it exists, it is blocked again.
 
-Relative paths block: the hook cannot know the agent's cwd, so it fails closed rather than testing existence against the wrong directory.
+Three things block regardless of name, because an allow-list of filenames is only safe if a filename cannot be made to mean another file:
+
+- **relative paths** — the hook cannot know the agent's cwd, so every filesystem test would run against the wrong directory. Fails closed, templates included.
+- **symlinks** with an env-family name — `.env.example -> .env` aliases the credential file, and a dangling one is followed by the write.
+- **hard-linked templates** — `ln .env .env.sample` shares the inode where no path resolution can see it; link count can.
 
 When a real `.env` needs a value, the agent hands the variable names to the user rather than writing them. Full rationale and the "no override token" reasoning: `references/guardrails.md` § Environment Files.
 

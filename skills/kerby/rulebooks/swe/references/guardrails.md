@@ -80,21 +80,36 @@ Non-secret configuration (default email destinations, default locales, feature t
 
 `protect-env` is narrower than "never touch a `.env`", because the two classes of env file carry opposite risks:
 
-| Class | In git? | Commit scan sees it? | The real risk | Guard |
+| Class | In git? | Commit scan can see it? | The real risk | Guard |
 |---|---|---|---|---|
-| `.env.example`, `.env.template`, `.env.sample` | yes | **yes** | someone pastes a real key into a template | `pre-commit-check` (commit-time scan) |
-| `.env`, `.env.local`, any other variant | no — gitignored | **never** | overwriting live credentials with no undo | `protect-env` (hard block) |
+| `.env.example`, `.env.template`, `.env.sample` | yes | yes — as well as it sees any file | someone pastes a real key into a template | `pre-commit-check` (commit-time scan) |
+| `.env`, `.env.local`, any other variant | no — gitignored | **never, by construction** | overwriting live credentials with no undo | `protect-env` (hard block) |
 
-The commit scan is **filename-agnostic** — it reads added lines in the staged diff, so a real secret in `.env.example` is blocked exactly as it would be in `config.ts`. Blocking template edits therefore bought no security and broke a standard workflow: `.env.example` is how a repo tells a new developer which variables it needs.
+The distinction is **not** "templates are covered, so relaxing is free." It is that the two classes fail in different directions, and only one of them is beyond a commit-time check's reach.
 
-A real `.env` is different in kind. It is never staged, so the commit scan structurally cannot see it, and it is not in git, so an overwrite cannot be recovered. That is the base floor's `approval-for-irreversible` rule made concrete, which is why this one stays hard.
+For a template, the commit scan is **filename-agnostic** — it reads added lines in the staged diff, so a key pasted into `.env.example` is treated exactly as one in `config.ts`. That is genuine coverage, but it is **only as strong as the scanner installed**, and the § Security Awareness note above is the honest measure: with no `gitleaks`/`betterleaks` on PATH the built-in floor matches a handful of shapes and misses most modern tokens, and the static command-recognition gaps in `references/threat-model.md` apply on top. So the accurate claim is: *a committed template is covered by whatever your commit gate catches, same as every other committed file* — not *a template is safe*. Blocking template edits never changed that number; it only broke the workflow, since `.env.example` is how a repo tells a new developer which variables it needs.
+
+A real `.env` is different in kind, and that difference does not depend on scanner quality. It is never staged, so no commit-time check of any strength ever sees it, and it is not in git, so an overwrite cannot be recovered. That is the base floor's `approval-for-irreversible` rule made concrete, which is why this one stays hard.
 
 **What the hook allows:**
 
-- Editing `.env.example` / `.env.template` / `.env.sample` — anchored on the basename suffix, so `.env.example.bak` is *not* a template and stays blocked.
-- **Creating** a `.env` that does not exist yet — scaffolding a project from its `.env.example`. There is nothing to destroy. Once the file exists it is blocked again.
+- Editing `.env.example` / `.env.template` / `.env.sample`, **when the path is a plain regular file** — matched case-insensitively on the basename suffix, so `.env.example.bak` is *not* a template and stays blocked.
+- **Creating** an env file that does not exist yet — scaffolding a project from its `.env.example`. There is nothing there to overwrite. The moment the file exists, it is blocked again.
 
-**What it blocks:** any existing `.env`-family file that is not a template, and any *relative* path (the hook cannot know your cwd, so an existence test there would be a guess — it fails closed).
+**What it blocks**, each for its own reason (the message says which):
+
+| Case | Why |
+|---|---|
+| An **existing** env-family file that is not a template | Replacing it overwrites contents git may not hold |
+| A **relative** path, templates included | The hook cannot know the agent's cwd, so every filesystem test below would run against the wrong directory. Fails closed |
+| A **symlink** with an env-family name | `.env.example -> .env` is a template *name* pointing at the credential *file*; trusting the name hands over the inode. A dangling symlink is the same problem on the create path — the write follows it to the target |
+| A **hard-linked** template | `ln .env .env.sample` gives the credential inode a second, allow-listed name. No path resolution can see that; link count can |
+
+The last two are why the carve-out is on *names* but the decision is on *objects*. An allow-list of filenames is only safe if a filename cannot be made to mean another file.
+
+**Case matters, and the hook is case-insensitive on purpose.** macOS filesystems are case-insensitive by default, so `.ENV` and `.env` are one file. A case-sensitive test let an agent blocked on `.env` retry as `.ENV` and clobber the same inode.
+
+**It blocks on existence, not on content.** An empty `.env` blocks too. That is deliberate — a zero-byte file is often one an agent is about to fill, and testing size would add a second thing to get wrong for no safety gain.
 
 **There is no override token, deliberately.** `resources/references/hooks.md` rules out env-var disables for security-critical hooks — a variable drifts in from a shell rc, a CI config, or an `.envrc` that direnv wrote in the very directory holding the `.env`. The inline-prefix form that makes `CODING_RULES_ALLOW_PROTECTED_COMMIT` safe is Bash-only; `protect-env` fires on Edit/Write, which carries no command string to prefix. The documented escape is a deliberate `.claude/settings.json` edit.
 

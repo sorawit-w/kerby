@@ -40,10 +40,12 @@ See kerby guardrails (hooks/protect-git.sh).
 ```
 
 ```
-BLOCKED: .env holds live credentials and is not in git — an overwrite cannot be undone.
-Hand the required variables to the user to add themselves:
+BLOCKED: '.env' already exists — replacing it would overwrite its current contents.
+Env files are the one class git cannot restore — a real .env is gitignored, so an
+overwrite has no undo. Hand the required variables to the user to add themselves:
   <VAR>=<value>
-Placeholders belong in .env.example / .env.template / .env.sample, which you may edit.
+Placeholders belong in .env.example / .env.template / .env.sample — a regular file,
+named absolutely, which is neither a symlink nor a hard link to another file.
 See kerby guardrails (references/guardrails.md § Environment Files).
 ```
 
