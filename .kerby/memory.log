@@ -80,3 +80,10 @@ Commit: (pending)
 Status: BLOCKED — awaiting the maintainer
 Notes: Did NOT attempt the third P1 (state-write ordering still uncovered in adopt-existing, context-management shutdown, implementation-planning). That is a scope problem, not a patch problem — see the escalation.
 Observations: P1 count went 5 -> 3 -> 3. Across three rounds, FIVE of the eleven findings were defects introduced by my own previous fix. The class "a state write is not followed by a commit" recurred in all three rounds, each time in files the previous round had not touched. skill-authoring's classify-then-escalate names twice-in-a-class as the signal to stop patching; this is three.
+[2026-08-21T00:00:00Z]
+Task: PR C opened via authorized bypass
+Action: Maintainer chose option 1 ("bypass the gate for PR C"). Pushed feat/shared-state-before-pr and opened https://github.com/sorawit-w/kerby/pull/56 with CODEX_GATE_BYPASS=1 as the command prefix, standalone gh invocation. The body leads with a disclosure block: HELD at round 3 of 3, P0=0 P1=3 P2=1 open, review of record covers 7eb3af0 while the head is d89d1ab.
+Commit: (pending)
+Status: DONE
+Notes: Did NOT merge. The PR body recommends splitting the branch rather than merging it whole — the state-write ordering invariant spans eleven files and one of them (adopt-existing) cannot satisfy it until the prepare ring-fence contradiction is resolved.
+Observations: PR D is still unrebased at 03850f6 and needs C resolved first, since squash-merge rewrites the SHA.
