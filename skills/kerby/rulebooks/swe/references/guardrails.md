@@ -18,7 +18,7 @@ The two **[enforced-partial]** hooks today are `warn-env-read` (Read-tool `.env`
 | Do NOT                                          | Why                                              |
 |-------------------------------------------------|--------------------------------------------------|
 | Modify CI/CD configs without approval           | Can break the entire team's workflow              |
-| Edit a populated `.env` / `.env.local`, or commit secrets | Unrecoverable overwrite; security risk  |
+| Edit an existing `.env` / `.env.local`, or commit secrets | Unrecoverable overwrite; security risk   |
 | Change linter/formatter rules unilaterally      | Team convention — requires consensus             |
 | Rewrite large sections unprompted               | Scope creep, hard to review, risky               |
 | Commit or push to protected branches (main, master, dev, develop, staging, release/*, trunk) | Always work on a feature branch |
@@ -28,7 +28,7 @@ The two **[enforced-partial]** hooks today are `warn-env-read` (Read-tool `.env`
 | Delete files without confirming they're unused  | Broken imports are hard to debug later           |
 | Overwrite guideline/spec files                  | Read-only — these are team-maintained            |
 
-**Enforcement:** *Edit a populated `.env`* and *commit secrets* (`protect-env`, `pre-commit-check`) and *commit or push to protected branches* (`protect-git`) are **[enforced-when-installed]**. The rest are **[behavioral]**. What `protect-env` does and does *not* cover is in § Environment Files below — it is narrower than "no `.env` edits ever," on purpose.
+**Enforcement:** *Edit an existing `.env`* and *commit secrets* (`protect-env`, `pre-commit-check`) and *commit or push to protected branches* (`protect-git`) are **[enforced-when-installed]**. The rest are **[behavioral]**. What `protect-env` does and does *not* cover is in § Environment Files below — it is narrower than "no `.env` edits ever," on purpose.
 
 ---
 
@@ -104,6 +104,9 @@ A real `.env` is different in kind, and that difference does not depend on scann
 | A **relative** path, templates included | The hook cannot know the agent's cwd, so every filesystem test below would run against the wrong directory. Fails closed |
 | A **symlink** with an env-family name | `.env.example -> .env` is a template *name* pointing at the credential *file*; trusting the name hands over the inode. A dangling symlink is the same problem on the create path — the write follows it to the target |
 | A **hard-linked** template | `ln .env .env.sample` gives the credential inode a second, allow-listed name. No path resolution can see that; link count can |
+| A template that is **not a regular file** | A FIFO or device named `.env.example` has one link and is not a symlink, so it passed both checks above |
+| A spelling the **filesystem folds** onto a differently-named entry | `-e` succeeds through the filesystem's own case folding, and APFS folds beyond ASCII — a real `.env.ſample` (U+017F) is reachable as `.env.sample`. Bash folds ASCII only and can never mirror the filesystem, so the stored name must match byte for byte |
+| A payload the hook **cannot parse** (no `jq`, malformed JSON) that mentions an env file | A guard that cannot read its input must refuse, not shrug. This over-blocks in the degraded case; installing `jq` is the fix, and the message says so |
 
 The last two are why the carve-out is on *names* but the decision is on *objects*. An allow-list of filenames is only safe if a filename cannot be made to mean another file.
 

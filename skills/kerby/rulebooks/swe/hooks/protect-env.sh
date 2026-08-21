@@ -55,7 +55,39 @@
 # depending on a payload field this hook would otherwise have to trust.
 
 INPUT=$(cat)
-FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.path // empty')
+
+# Set early: the degraded-input check below must be case-insensitive too, and it
+# has to work before any external tool is known to exist.
+shopt -s nocasematch
+
+# A security hook that cannot read its input must not shrug and allow. Without
+# jq — or with a payload jq cannot parse — the path is unknowable, so anything
+# mentioning an env file is refused rather than waved through. This deliberately
+# over-blocks in the degraded case (a Write whose CONTENT merely mentions .env
+# also trips it); the remedy is to install jq, and the message says so. Failing
+# open here made the hook a no-op on any machine missing one binary.
+if ! command -v jq >/dev/null 2>&1 \
+   || ! printf '%s' "$INPUT" | jq -e . >/dev/null 2>&1; then
+  # Pure bash — no grep, no printf pipeline. This branch exists precisely because
+  # tooling is missing, so it must not itself depend on any.
+  if [[ "$INPUT" == *.env* ]]; then
+    echo "BLOCKED: cannot parse this tool call — jq is missing or the payload is malformed," >&2
+    echo "and the request mentions an env file. Refusing rather than guessing." >&2
+    echo "Install jq (brew install jq) so this hook can read the target path." >&2
+    exit 2
+  fi
+  exit 0
+fi
+
+# Capture the path WITHOUT losing a trailing newline. `$(...)` strips every
+# trailing LF, and `jq -r` adds one of its own — so a file literally named
+# `.env.example<LF>` arrived as `.env.example`, was inspected as an absent
+# template, and returned 0 while the real (symlinked) target was `.env`.
+# `jq -j` emits no trailing newline; the sentinel preserves any that belong to
+# the name itself.
+FILE_PATH=$(printf '%s' "$INPUT" \
+  | jq -j '.tool_input.file_path // .tool_input.path // empty'; printf 'x')
+FILE_PATH=${FILE_PATH%x}
 
 if [[ -z "$FILE_PATH" ]]; then
   exit 0
@@ -73,14 +105,24 @@ done
 
 BASENAME=${FILE_PATH##*/}
 
-shopt -s nocasematch
-
 # 1. Not an env-family basename -> not our business. Checked on the basename so a
 #    directory component like `.env.d/` cannot drag ordinary files in.
 case "$BASENAME" in
   *.env|*.env.*) ;;
   *) exit 0 ;;
 esac
+
+# True only when the parent directory really holds an entry spelled exactly like
+# this basename. Runs in a subshell so the glob options do not leak.
+name_is_exact() (
+  shopt -s nullglob dotglob
+  dir=${1%/*}; [ -z "$dir" ] && dir=/
+  base=${1##*/}
+  for f in "$dir"/*; do
+    [ "${f##*/}" = "$base" ] && return 0
+  done
+  return 1
+)
 
 block() { # $1 = reason line
   echo "BLOCKED: $1" >&2
@@ -110,6 +152,22 @@ fi
 case "$BASENAME" in
   *.env.example|*.env.template|*.env.sample)
     if [[ -e "$FILE_PATH" ]]; then
+      # A template must be a REGULAR file. `-L` above rules out symlinks, but a
+      # FIFO named `.env.example` has nlink=1 and sailed through, contradicting
+      # the "plain regular file" contract the docs state.
+      if [[ ! -f "$FILE_PATH" ]]; then
+        block "'$BASENAME' exists but is not a regular file — a template may not be a device, FIFO or directory."
+      fi
+      # The on-disk name must match BYTE FOR BYTE. `-e` succeeds through the
+      # filesystem's own case folding, and APFS folds more than ASCII: a real
+      # file named `.env.Å¿ample` (U+017F) is reachable as `.env.sample`, so the
+      # ASCII spelling hit the template allow-list and wrote to an inode the
+      # hook blocks under its true name. Bash `nocasematch` folds ASCII only and
+      # can never mirror the filesystem, so compare names instead of trusting
+      # the lookup. `[` is byte-exact and unaffected by nocasematch.
+      if ! name_is_exact "$FILE_PATH"; then
+        block "'$BASENAME' resolves to a file stored under a different name — the filesystem folded the lookup; a template must match its real name exactly."
+      fi
       # GNU form FIRST, BSD second — the order the rest of this repo already
       # uses (codex-mark.sh, codex-run.test.sh). It is not cosmetic: GNU `stat -f`
       # means --file-system, where `%l` is "maximum length of filenames" and

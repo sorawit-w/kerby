@@ -40,20 +40,38 @@ allows() { run "$1"; [[ "$RC" -eq 0 ]] && pass "$2" || fail "$2 (exit $RC)"; }
 : > "$TMP/.env.production"; blocks "$TMP/.env.production" "existing .env.production blocks"
 : > "$TMP/production.env";  blocks "$TMP/production.env"  "existing production.env blocks (suffix form)"
 
-# --- 2. Case-insensitivity (macOS filesystems are case-insensitive) ---------
-# `.ENV` IS `.env` there, so a case-sensitive test let a blocked agent retry in
-# caps and clobber the same inode.
-blocks "$TMP/.ENV" ".ENV blocks — same file as .env on a case-insensitive volume"
-blocks "$TMP/.Env" ".Env blocks"
+# --- 2. Case-insensitivity --------------------------------------------------
+# On a case-insensitive volume `.ENV` IS `.env`, so a case-sensitive test let a
+# blocked agent retry in caps and clobber the same inode. On a case-SENSITIVE
+# volume those paths are genuinely absent and correctly take create-if-absent —
+# asserting "blocks" there would be a false red. Probe, then assert accordingly.
+CASE_INSENSITIVE=0
+: > "$TMP/.caseprobe"; [[ -e "$TMP/.CASEPROBE" ]] && CASE_INSENSITIVE=1
+rm -f "$TMP/.caseprobe"
+echo "     (filesystem is case-$([[ $CASE_INSENSITIVE -eq 1 ]] && echo insensitive || echo sensitive))"
+
+if [[ "$CASE_INSENSITIVE" -eq 1 ]]; then
+  blocks "$TMP/.ENV" ".ENV blocks — same inode as .env here"
+  blocks "$TMP/.Env" ".Env blocks"
+else
+  allows "$TMP/.ENV" ".ENV is a distinct absent file here — create-if-absent applies"
+fi
+# This one is unconditional: the file is created under the exact name tested, so
+# it exercises mixed-case classification on any filesystem.
 : > "$TMP/.ENV.LOCAL"
-blocks "$TMP/.ENV.LOCAL" ".ENV.LOCAL blocks"
+blocks "$TMP/.ENV.LOCAL" ".ENV.LOCAL blocks (created under that exact name)"
 
 # --- 3. Template carve-out --------------------------------------------------
 : > "$TMP/.env.example";  allows "$TMP/.env.example"  ".env.example allowed (committed, no secrets)"
 : > "$TMP/.env.template"; allows "$TMP/.env.template" ".env.template allowed"
 mkdir -p "$TMP/config" && : > "$TMP/config/.env.sample"
 allows "$TMP/config/.env.sample" "nested .env.sample allowed"
-allows "$TMP/.env.EXAMPLE" ".env.EXAMPLE allowed — carve-out is case-insensitive too"
+# Must be CREATED, and in a FRESH dir: on a case-insensitive volume, creating
+# `.env.EXAMPLE` beside an existing `.env.example` just reuses that entry, so the
+# byte-exact rule below would (correctly) block and this would test the wrong
+# thing. Alone in its own directory the on-disk name really is `.env.EXAMPLE`.
+mkdir -p "$TMP/mixedcase" && : > "$TMP/mixedcase/.env.EXAMPLE"
+allows "$TMP/mixedcase/.env.EXAMPLE" ".env.EXAMPLE allowed — carve-out is case-insensitive"
 
 # Anchored on the basename suffix, so a near-miss is not a template.
 : > "$TMP/.env.example.bak"
@@ -111,6 +129,63 @@ grep -q 'stat -c %h .* || stat -f %l' "$HOOK" \
 PROBE=$(stat -c %h "$TMP/nlink-probe" 2>/dev/null || stat -f %l "$TMP/nlink-probe" 2>/dev/null || echo 2)
 [[ "$PROBE" == "1" ]] && pass "nlink probe returns 1 for a single-link file here" \
   || fail "nlink probe returned '$PROBE', expected 1 — templates would wrongly block"
+
+# --- 5d. Trailing-newline path (command substitution strips final LFs) ------
+# `$(...)` eats every trailing LF and `jq -r` adds one, so a file named
+# `.env.example<LF>` arrived as `.env.example`, was inspected as an absent
+# template, and returned 0 — while the real target was a symlink to .env.
+NLF=$'.env.example\n'
+ln -s "$TMP/.env" "$TMP/$NLF"
+blocks "$TMP/$NLF" "trailing-newline path is not truncated into a template name"
+
+# --- 5e. Templates must be REGULAR files ------------------------------------
+# -L rules out symlinks, but a FIFO has nlink=1 and sailed through, against the
+# "plain regular file" contract the docs state.
+mkfifo "$TMP/fifo.env.example" 2>/dev/null \
+  && blocks "$TMP/fifo.env.example" "FIFO named like a template blocks (not a regular file)" \
+  || pass "FIFO case skipped — mkfifo unavailable"
+
+# --- 5f. Byte-exact on-disk name (filesystem case folding) ------------------
+# `-e` succeeds through the filesystem's own folding, and APFS folds more than
+# ASCII: a real `.env.<U+017F>ample` is reachable as `.env.sample`, so the ASCII
+# spelling hit the allow-list and wrote to an inode blocked under its true name.
+# bash nocasematch folds ASCII only and can never mirror the filesystem.
+# NOTE: `$'\u017f'` is bash 4.2+; macOS ships bash 3.2, which runs these hooks.
+# Build the UTF-8 bytes with printf so the fixture works on both.
+mkdir -p "$TMP/fold"
+printf 'x\n' > "$TMP/fold/$(printf '.env.\xc5\xbfample')" 2>/dev/null
+if [[ -e "$TMP/fold/.env.sample" ]]; then
+  blocks "$TMP/fold/.env.sample" "ASCII spelling of a unicode-folded template blocks (name must match byte-exactly)"
+else
+  pass "unicode-fold case skipped — this filesystem does not fold U+017F"
+fi
+
+# The same rule on a plain ASCII collision: where `.env.example` already exists,
+# a differently-cased spelling resolves to it on a case-insensitive volume and is
+# refused, because the stored name is not what was asked for.
+if [[ "$CASE_INSENSITIVE" -eq 1 ]]; then
+  blocks "$TMP/.env.EXAMPLE" "case-variant spelling of an existing template blocks (stored name differs)"
+else
+  allows "$TMP/.env.EXAMPLE" "case-variant is a distinct absent file here — create-if-absent applies"
+fi
+
+# --- 5g. Missing jq must fail CLOSED ----------------------------------------
+# A security hook that cannot read its input must not shrug and allow. Without
+# jq the path is unknowable, so an env-mentioning payload is refused. The branch
+# is pure bash on purpose — it runs precisely when tooling is missing, so it
+# must not itself need grep.
+BARE="$TMP/barepath"; mkdir -p "$BARE"
+for b in bash cat stat; do
+  for d in /bin /usr/bin; do [[ -x "$d/$b" ]] && { ln -sf "$d/$b" "$BARE/$b"; break; }; done
+done
+ENVJSON=$(jq -n --arg p "$TMP/.env" '{tool_input:{file_path:$p}}')
+RC=0; printf '%s' "$ENVJSON" | PATH="$BARE" bash "$HOOK" >/dev/null 2>&1 || RC=$?
+[[ "$RC" -eq 2 ]] && pass "no jq on PATH + env payload -> fail closed (exit 2)" \
+  || fail "no jq must fail closed, got exit $RC"
+PLAINJSON=$(jq -n --arg p "/tmp/src/app.ts" '{tool_input:{file_path:$p}}')
+RC=0; printf '%s' "$PLAINJSON" | PATH="$BARE" bash "$HOOK" >/dev/null 2>&1 || RC=$?
+[[ "$RC" -eq 0 ]] && pass "no jq + non-env payload still passes through" \
+  || fail "no jq must not block ordinary edits, got exit $RC"
 
 # --- 6. Relative paths fail closed, templates included ----------------------
 blocks ".env"              "relative .env blocks (fail closed)"

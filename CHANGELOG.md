@@ -8,17 +8,20 @@ All notable changes to `kerby` are documented here. Format follows
 **The env guard learns which file it was actually protecting** (swe 2.7.0, base 1.3.0):
 `protect-env` blocked every path matching `.env`, which swept in `.env.example`,
 `.env.template` and `.env.sample` — committed, secret-free files that exist precisely to
-tell a developer which variables a repo needs. Blocking them bought nothing. The
-commit-time secret scan is filename-agnostic and already catches a real key pasted into a
-template, in `.env.example` exactly as in `config.ts`.
+tell a developer which variables a repo needs. Blocking them bought nothing the commit
+gate was not already doing: the secret scan is filename-agnostic, so a key pasted into
+`.env.example` is treated exactly as one in `config.ts`. That is real coverage, but only as
+strong as the scanner installed — with no gitleaks/betterleaks on PATH the built-in floor
+matches a handful of shapes and misses most modern tokens. The honest claim is *a committed
+template is covered by whatever your commit gate catches*, not *a template is safe*.
 
 What the hook actually guards is narrower and sharper: a real `.env` is gitignored, so it
 is never staged, so the commit scan structurally cannot see it — and it is not in git, so
 an overwrite has no undo. That is `approval-for-irreversible`, and it stays hard. Two
 things are now allowed: editing the three template names (anchored on the basename suffix,
 so `.env.example.bak` still blocks) and **creating** a `.env` that does not exist yet,
-because there is nothing there to destroy. The moment the file has content, the door shuts
-again. Relative paths block — the hook cannot know your cwd, and an existence test against
+because there is nothing there to overwrite. The moment the file exists — empty counts —
+the door shuts again. Relative paths block — the hook cannot know your cwd, and an existence test against
 the wrong directory is a guess, not a check.
 
 No override token, deliberately: `hooks.md` already rules out env-var disables for
