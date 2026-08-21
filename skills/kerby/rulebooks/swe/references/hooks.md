@@ -14,10 +14,10 @@ Blocks edits to an **existing credential file** — the one class git cannot res
 
 It deliberately does **not** block:
 
-- `.env.example` / `.env.template` / `.env.sample` **as plain regular files** — committed, secret-free, and the standard way a repo declares which variables it needs. A secret pasted into one is caught by `pre-commit-check` at commit time as well as it catches one anywhere else, which is as strong as the scanner you have installed — not a guarantee. Matched case-insensitively on the basename suffix, so `.env.example.bak` still blocks.
+- `.env.example` / `.env.template` / `.env.sample` **as plain regular files whose stored name matches byte for byte** — committed, secret-free, and the standard way a repo declares which variables it needs. A secret pasted into one is caught by `pre-commit-check` at commit time as well as it catches one anywhere else, which is as strong as the scanner you have installed — not a guarantee. The basename suffix is matched case-insensitively, so `.env.example.bak` still blocks; but an *existing* template must also be spelled exactly as the directory stores it, because the filesystem's own folding (APFS folds beyond ASCII) can point one spelling at a different file.
 - **Creating** an env file that does not exist — nothing to overwrite, so the agent can scaffold one from `.env.example`. Once it exists, it is blocked again.
 
-Three things block regardless of name, because an allow-list of filenames is only safe if a filename cannot be made to mean another file:
+Once a path is classified as env-family by its basename, these block whatever it is named — because an allow-list of filenames is only safe if a filename cannot be made to mean another file:
 
 - **relative paths** — the hook cannot know the agent's cwd, so every filesystem test would run against the wrong directory. Fails closed, templates included.
 - **symlinks** with an env-family name — `.env.example -> .env` aliases the credential file, and a dangling one is followed by the write.

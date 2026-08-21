@@ -45,7 +45,9 @@
 # Matching uses bash `case` with `nocasematch`, not `grep`:
 #   - case-insensitive because macOS filesystems are. `.ENV` and `.env` are ONE
 #     file there, and a case-sensitive test allowed an agent blocked on `.env`
-#     to retry as `.ENV` and clobber the same inode.
+#     to retry as `.ENV` and clobber the same inode. Note bash's folding is
+#     LOCALE-aware, not ASCII-only — but it still cannot mirror the filesystem's
+#     folding, which is why an existing template is checked byte-exactly below.
 #   - `case` has no line semantics. `grep -E '…$'` anchors at any embedded
 #     newline, so a file literally named `.env.example\n.live` matched the
 #     template allow-list on its first line.
@@ -54,7 +56,11 @@
 # missing file anyway, so existence alone carries the same guarantee without
 # depending on a payload field this hook would otherwise have to trust.
 
-INPUT=$(cat)
+# Read stdin with the `read` BUILTIN, not `cat`. The degraded branch below claims
+# to need no external tool, and `$(cat)` quietly falsified that: on a PATH with
+# bash but no cat, INPUT came back empty and the hook exited 0 on an existing
+# .env. `read -d ''` consumes to EOF and returns non-zero there, hence the guard.
+IFS= read -r -d '' INPUT || true
 
 # Set early: the degraded-input check below must be case-insensitive too, and it
 # has to work before any external tool is known to exist.
@@ -70,7 +76,16 @@ if ! command -v jq >/dev/null 2>&1 \
    || ! printf '%s' "$INPUT" | jq -e . >/dev/null 2>&1; then
   # Pure bash — no grep, no printf pipeline. This branch exists precisely because
   # tooling is missing, so it must not itself depend on any.
-  if [[ "$INPUT" == *.env* ]]; then
+  #
+  # Matches `env`, not `.env`: without jq the payload is still JSON-encoded, and
+  # `"/tmp/\u002eenv"` is a valid spelling of `/tmp/.env` whose raw bytes contain
+  # no dot. Widening to `env` catches that and every escape that leaves the three
+  # letters intact, at the cost of refusing more payloads while degraded — the
+  # right trade when the alternative is letting a credential file through.
+  # Residual (threat-model.md): an escape that also encodes e/n/v, e.g.
+  # `\u0065nv`, still evades. Decoding JSON in bash is not reasonable; installing
+  # jq is the fix.
+  if [[ "$INPUT" == *env* ]]; then
     echo "BLOCKED: cannot parse this tool call — jq is missing or the payload is malformed," >&2
     echo "and the request mentions an env file. Refusing rather than guessing." >&2
     echo "Install jq (brew install jq) so this hook can read the target path." >&2
@@ -176,14 +191,13 @@ case "$BASENAME" in
       if ! name_is_exact "$FILE_PATH"; then
         block "'$BASENAME' resolves to a file stored under a different name — the filesystem folded the lookup; a template must match its real name exactly."
       fi
-      # GNU form FIRST, BSD second — the order the rest of this repo already
-      # uses (codex-mark.sh, codex-run.test.sh). It is not cosmetic: GNU `stat -f`
-      # means --file-system, where `%l` is "maximum length of filenames" and
-      # returns 255 on ext4. Probing BSD-first therefore SUCCEEDS on Linux with a
-      # number that is not a link count, never falls through, and blocks every
-      # template on the platform. BSD stat has no `-c` at all, so it errors and
-      # falls through cleanly. Unknown link count fails closed — an unstattable
-      # existing file is not something to hand a write to.
+      # GNU form FIRST, BSD second — the order the rest of this repo already uses
+      # (codex-mark.sh, codex-run.test.sh). GNU `-f` selects filesystem mode and
+      # treats a bare `%l` as an operand rather than a format, so BSD-first is not
+      # guaranteed to fail cleanly there; GNU-first sidesteps the question because
+      # BSD stat has no `-c` at all and errors straight through. Unknown or
+      # non-numeric link count fails closed — an unstattable existing file is not
+      # something to hand a write to.
       NLINK=$(stat -c %h "$FILE_PATH" 2>/dev/null || stat -f %l "$FILE_PATH" 2>/dev/null || echo 2)
       [[ "$NLINK" =~ ^[0-9]+$ ]] || NLINK=2
       if [[ "$NLINK" -gt 1 ]]; then

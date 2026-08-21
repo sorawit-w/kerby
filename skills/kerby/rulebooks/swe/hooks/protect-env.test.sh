@@ -13,8 +13,13 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 HOOK="$SCRIPT_DIR/protect-env.sh"
 
 FAILS=0
+SKIPS=0
 pass() { echo "PASS: $1"; }
 fail() { echo "FAIL: $1"; FAILS=$((FAILS + 1)); }
+# A platform-unavailable fixture is NOT a pass. Counting it as one lets the suite
+# print "All assertions passed" while a regression guard never ran — the exact
+# hollow-green this suite exists to prevent.
+skip() { echo "SKIP: $1"; SKIPS=$((SKIPS + 1)); }
 
 # Real files on disk — existence, symlink and link-count tests are meaningless
 # against invented paths.
@@ -143,7 +148,7 @@ blocks "$TMP/$NLF" "trailing-newline path is not truncated into a template name"
 # "plain regular file" contract the docs state.
 mkfifo "$TMP/fifo.env.example" 2>/dev/null \
   && blocks "$TMP/fifo.env.example" "FIFO named like a template blocks (not a regular file)" \
-  || pass "FIFO case skipped — mkfifo unavailable"
+  || skip "FIFO case skipped — mkfifo unavailable"
 
 # --- 5f. Byte-exact on-disk name (filesystem case folding) ------------------
 # `-e` succeeds through the filesystem's own folding, and APFS folds more than
@@ -157,7 +162,7 @@ printf 'x\n' > "$TMP/fold/$(printf '.env.\xc5\xbfample')" 2>/dev/null
 if [[ -e "$TMP/fold/.env.sample" ]]; then
   blocks "$TMP/fold/.env.sample" "ASCII spelling of a unicode-folded template blocks (name must match byte-exactly)"
 else
-  pass "unicode-fold case skipped — this filesystem does not fold U+017F"
+  skip "unicode-fold case skipped — this filesystem does not fold U+017F"
 fi
 
 # The same rule on a plain ASCII collision: where `.env.example` already exists,
@@ -177,7 +182,7 @@ mkdir -p "$TMP/acl"; printf 'SECRET=live\n' > "$TMP/acl/.env"
 if chmod +a "everyone deny readattr" "$TMP/acl/.env" 2>/dev/null; then
   blocks "$TMP/acl/.env" "stat-blinded .env still blocks (directory entry is the second signal)"
 else
-  pass "ACL case skipped — this platform has no chmod +a"
+  skip "ACL case skipped — this platform has no chmod +a"
 fi
 
 # An execute-only parent: `-e` succeeds but the glob is blind. Must fail closed.
@@ -186,7 +191,7 @@ if chmod 111 "$TMP/xo" 2>/dev/null; then
   blocks "$TMP/xo/.env.example" "template under an unlistable parent blocks (cannot confirm the stored name)"
   chmod 755 "$TMP/xo" 2>/dev/null
 else
-  pass "execute-only parent case skipped"
+  skip "execute-only parent case skipped"
 fi
 
 # --- 5g. Missing jq must fail CLOSED ----------------------------------------
@@ -194,11 +199,18 @@ fi
 # jq the path is unknowable, so an env-mentioning payload is refused. The branch
 # is pure bash on purpose — it runs precisely when tooling is missing, so it
 # must not itself need grep.
+# Provision ONLY bash: provisioning `cat` here masked a real dependency —
+# `$(cat)` in the hook made the "needs no external tool" branch a lie.
 BARE="$TMP/barepath"; mkdir -p "$BARE"
-for b in bash cat stat; do
+for b in bash; do
   for d in /bin /usr/bin; do [[ -x "$d/$b" ]] && { ln -sf "$d/$b" "$BARE/$b"; break; }; done
 done
 ENVJSON=$(jq -n --arg p "$TMP/.env" '{tool_input:{file_path:$p}}')
+# A JSON-escaped dot is a valid spelling of the same path and must also fail closed.
+ESCJSON='{"tool_input":{"file_path":"/tmp/\u002eenv"}}'
+RC=0; printf '%s' "$ESCJSON" | PATH="$BARE" bash "$HOOK" >/dev/null 2>&1 || RC=$?
+[[ "$RC" -eq 2 ]] && pass "no jq + JSON-escaped .env path -> fail closed" \
+  || fail "escaped env path must fail closed, got exit $RC"
 RC=0; printf '%s' "$ENVJSON" | PATH="$BARE" bash "$HOOK" >/dev/null 2>&1 || RC=$?
 [[ "$RC" -eq 2 ]] && pass "no jq on PATH + env payload -> fail closed (exit 2)" \
   || fail "no jq must fail closed, got exit $RC"
@@ -232,8 +244,12 @@ RC=0; printf '' | bash "$HOOK" >/dev/null 2>&1 || RC=$?
 [[ "$RC" -eq 0 ]] && pass "empty stdin exits 0" || fail "empty stdin should exit 0 (got $RC)"
 
 RC=0; printf 'not json at all' | bash "$HOOK" >/dev/null 2>&1 || RC=$?
-[[ "$RC" -eq 0 ]] && pass "malformed JSON exits 0 (never wedges the tool call)" \
+[[ "$RC" -eq 0 ]] && pass "malformed JSON with no env mention exits 0 (never wedges the tool call)" \
   || fail "malformed JSON should exit 0 (got $RC)"
+# The other half: malformed JSON that DOES name an env file must fail CLOSED.
+RC=0; printf 'not json at all but mentions /tmp/.env here' | bash "$HOOK" >/dev/null 2>&1 || RC=$?
+[[ "$RC" -eq 2 ]] && pass "malformed JSON mentioning an env file fails closed" \
+  || fail "malformed JSON naming an env file must exit 2 (got $RC)"
 
 # --- 9. Not disablable ------------------------------------------------------
 RC=0
@@ -266,8 +282,11 @@ printf '%s' "$ERR" | grep -q "symlink" \
   || fail "symlink block should say 'symlink' (got '$ERR')"
 
 echo
+if [[ "$SKIPS" -gt 0 ]]; then
+  echo "$SKIPS fixture(s) SKIPPED — unavailable on this platform; those regressions were NOT exercised here."
+fi
 if [[ "$FAILS" -eq 0 ]]; then
-  echo "All assertions passed."
+  echo "All run assertions passed${SKIPS:+ ($SKIPS skipped)}."
   exit 0
 fi
 echo "$FAILS assertion(s) failed."
