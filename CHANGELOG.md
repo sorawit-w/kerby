@@ -3,6 +3,50 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.22.0] — 2026-08-22
+
+**A question stops being treated as a task** (swe 2.10.0): ask an agent to look at some
+code and explain why it behaves the way it does, and it would run the test suite, edit
+docs, and append to `.kerby/memory.log`. None of that was requested. None of it was
+improvised either — the rulebook instructed it.
+
+`BOOTSTRAP.md` § 3 held seven routing rows and every one was a *change* task. An
+investigation matched none, so the nearest row won — "Documentation only" or "Config
+change, single-file edit" — and both point at `quick-task.md`, whose steps 3b–6 run the
+quality gate, commit, append the log, and commit the log. Not one of them asks whether
+anything changed. Two more rules pushed the same way: `communication.md` said to log
+"after every significant action", which is anchored to neither a commit nor a diff, and
+§ 2.5 forces a grade and a route on every task with no exit for work that is not one.
+
+The corpus already knew how to write this contract — `references/audit.md` and
+`workflows/adopt-existing.md` each carry a read-only one. It had just never been applied
+to the ordinary "look at this code" request.
+
+`investigate` is now the first value in the route enum and the first row in the routing
+table, and it reaches **no workflow file**. Its contract sits first in § 4 so it scopes
+the rules beneath it: no writes, no branch, no commit, and no `{build}`/`{lint}`/`{test}`
+run to certify an answer. Running a command to *observe* stays allowed and is often the
+whole job — reproduce the failure, print the value, read the log. The distinction is what
+the run is **for**. Evidence for an answer is the file:line citation § Diagnosis already
+requires; a green suite is not evidence about a question. The Plan Gate, Branching, Commit
+Discipline and How-to-Verify rules are satisfied by having nothing to do, and § 1b's
+`rung:` / `skipped:` lines are waived, since nothing was built.
+
+Two guards against the obvious abuse. An answer that turns out to need a change re-routes
+with a fresh grade line — `investigate` is not a way to make a change without one. And
+`quick-task.md`'s fit check, already a hard floor, gains a first criterion: a change is
+actually being made. That is where a mis-routed investigation lands today.
+
+The high-stakes path override picks up a clause too. It governs *changes*, so reading an
+auth or migration file to answer a question stays on the investigate route instead of
+being dragged into `feature.md` — nothing about a path makes an answer more dangerous.
+
+`communication.md`'s trigger now names the two entry shapes the section already documents
+below it, both anchored to a commit. The finish blocks in `feature.md` and `bugfix.md`
+were deliberately left alone: after a clean task loop the tree **is** empty there and the
+session summary is still required, so a "skip when nothing changed" conditional would
+suppress exactly the entry that must ship.
+
 ## [9.21.0] — 2026-08-21
 
 **A killed review can no longer be marked clean** (codex-review 0.5.0): `codex-mark` took
