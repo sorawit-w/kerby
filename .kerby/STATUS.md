@@ -12,7 +12,7 @@
 | **Phase** | In review — swe 2.10.0 adds a read-only `investigate` route |
 | **Milestone** | Read-only investigation route (swe 2.10.0 / kerby 9.22.0) |
 | **Milestone Goal** | Stop an investigation-only request routing into a change workflow |
-| **Working Branch** | feature/swe-investigate-route (release `9.22.0`) — skill-evaluator 49/49 at `6aa18ff`; Codex review pending |
+| **Working Branch** | feature/swe-investigate-route (release `9.22.0`) — skill-evaluator 49/49 at `6aa18ff`; Codex review waived by maintainer |
 
 ---
 
@@ -21,7 +21,7 @@
 | Status | Count | Tasks |
 |--------|-------|-------|
 | Done | 4 | #54 protect-env scope · #55 decision-ladder artifacts · #56 shared state + finish order · #57 locator + trust rules |
-| In Review | 1 | codex-mark refuses an incomplete transcript (this branch) |
+| In Review | 1 | swe 2.10.0 read-only `investigate` route (this branch) |
 | Blocked | 0 | — |
 | Ready | 2 | Fresh-session `skill-evaluator` passes · logged P2/P3 debt |
 
