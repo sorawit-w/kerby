@@ -1,6 +1,6 @@
 # Project Status
 
-> **Last updated:** 2026-08-21T00:00:00Z
+> **Last updated:** 2026-08-22T00:00:00Z
 > **Updated by:** ai
 
 ---
@@ -9,10 +9,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | Shipped — 2026-08-21 review follow-ups complete; review-machinery fix in flight |
-| **Milestone** | Review follow-ups (env scope, simplicity artifacts, shared state, locator) |
-| **Milestone Goal** | Close the four defects from the 2026-08-21 rule-corpus review |
-| **Working Branch** | fix/codex-mark-verdict-scope (release `9.21.0`) — reviewed clean at `a8359dd`, PR open |
+| **Phase** | In review — swe 2.10.0 adds a read-only `investigate` route |
+| **Milestone** | Read-only investigation route (swe 2.10.0 / kerby 9.22.0) |
+| **Milestone Goal** | Stop an investigation-only request routing into a change workflow |
+| **Working Branch** | feature/swe-investigate-route (release `9.22.0`) — skill-evaluator 49/49 at `6aa18ff`; Codex review pending |
 
 ---
 
@@ -35,6 +35,7 @@
 | #55 — the decision ladder becomes a forced artifact | 59286b7 | 2026-08-21 |
 | #56 — state lands inside the PR that produced it | d0afdf7 | 2026-08-21 |
 | #57 — the locator stops letting the workspace choose the gate | e38eff9 | 2026-08-21 |
+| #58 — a killed review can no longer be marked clean | 3c9ef55 | 2026-08-21 |
 
 ---
 

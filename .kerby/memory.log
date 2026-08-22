@@ -194,3 +194,44 @@ Commit: (pending)
 Status: DONE
 Notes: The PR-note line reads rounds=1 because round 5's PASS reset the counter — the true total is 6 and the PR body says so rather than quoting the reset number. Audit log carries both entries.
 Observations: Codex DISAGREED with my choice to delete the flaky temp-file test rather than isolate TMPDIR, and the disagreement is reasonable — a broken EXIT trap could now leak a snapshot on every mark with nothing catching it. Recorded in STATUS for the maintainer rather than silently accepted or silently overruled. Also worth keeping: a PASS resets the round counter, so a follow-up round after a clean one reports rounds=1 and understates the real cost of a branch. The audit log is the honest record, not the PR note.
+
+[2026-08-22T00:00:00Z]
+Task: swe 2.10.0 — a read-only `investigate` route, so a question stops routing into a change workflow
+Action: Traced the reported behaviour (agents running tests / editing docs / writing .kerby/ on
+  investigation-only requests) to instruction, not improvisation. BOOTSTRAP § 3's routing table held
+  seven rows, all change tasks, so "explain this" matched none and fell to quick-task, whose steps 3b-6
+  run the gate, commit, log, and commit the log with no "did anything change?" test. Two more pushes in
+  the same direction: communication.md logged "after every significant action" (anchored to neither a
+  commit nor a diff), and § 2.5 forces a grade+route on every task with no exit for work that is not one.
+  Added `investigate` as the first route-enum value and first routing-table row, plus a § 4 Read-Only
+  Answers contract placed FIRST in the section so it scopes the change-shaped rules beneath it. Named the
+  citation, not a gate run, as the evidence that satisfies the Iron Law. Kept the observe-vs-certify
+  carve-out. Added a re-route clause and a quick-task fit-check bullet as the two anti-abuse guards.
+  High-stakes override got a clause: it governs changes, so reading an auth file stays on investigate.
+Files: skills/kerby/rulebooks/swe/{BOOTSTRAP.md,README.md,rulebook.toml},
+  skills/kerby/rulebooks/swe/workflows/quick-task.md,
+  skills/kerby/rulebooks/swe/references/communication.md,
+  CHANGELOG.md, README.md, .claude-plugin/{plugin,marketplace}.json, .codex-plugin/plugin.json,
+  .kerby/rulebooks.toml
+Commit: (pending)
+Status: DONE
+Notes: skill-evaluator (in-session split-role, 7 graded tests, fresh executor + fresh grader per test):
+  49/49 assertions at 6aa18ff. Standard eval bar used — the maintainer chose it over the higher bar I
+  recommended; recorded here and in the PR body so the deviation is visible rather than looking like an
+  omission. Deliberately NOT done: no git-status conditional in feature.md § 7 / bugfix.md § 6 — after a
+  clean task loop the tree IS empty there and the session summary is still required, so the conditional
+  would suppress exactly the entry #56 fixed the ordering to preserve. No parity guard for the new prose,
+  per "guard a constant, not a sentence". No SVG reflow: the diagram's own title scopes it to
+  workflow-file routing and investigate reaches none.
+Observations: Two evaluator rounds were needed, not one. Round 1 passed 41/41 and still produced a real
+  finding — two executors ANNOUNCED that the rung:/skipped: lines were waived instead of omitting them,
+  which is the closing fluff § 4 Output Discipline forbids. A pass rate is not a report. My own T4 probe
+  was also weak: it named "retry handling" in a file that has none, so the read-only route was correct
+  for a reason unrelated to dodging discipline; the grader caught that before I did. The re-run (T4b)
+  used a change that demonstrably exists and the agent took quick-task with full obligations, escalating
+  its own commit-time tier from Quick to Standard with evidence. Every grader independently flagged that
+  it could not verify the executors' line-number citations — inherent to blind grading, not a rule defect,
+  but it means the harness confirms shape and not accuracy. Also: the install at ~/.agents/skills/kerby is
+  a separate copy, not a symlink to this repo. I edited it by mistake on the first edit, caught it, and
+  verified the revert byte-identical. Nothing in a normal session sees this change until that install is
+  updated.
