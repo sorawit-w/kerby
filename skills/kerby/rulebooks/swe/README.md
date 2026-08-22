@@ -44,6 +44,7 @@ or none.)
 
 | Task | Workflow | What it does |
 |---|---|---|
+| Investigate / explain (no change asked for) | **none** — [`BOOTSTRAP.md`](BOOTSTRAP.md) § 4 Read-Only Answers | Answer the question and stop: no writes, no commit, no branch, no gate run to certify the answer. Observing is still allowed; the evidence is the file:line citation. |
 | New project (no code) | [`new-project.md`](workflows/new-project.md) | Greenfield setup from requirements — branch, scaffold, fill `agent-context.yaml`, `ROADMAP.md`, verify. |
 | Existing code, no kerby artifacts yet | [`adopt-existing.md`](workflows/adopt-existing.md) | Onboard an existing repo (the `prepare` command) — derive context artifacts from code + git history, tiered by inferability, diff-and-confirm on every write. |
 | Feature / enhancement / refactor / tech debt | [`feature.md`](workflows/feature.md) | Plan, then the task loop (do → check → commit gate → log → repeat), then validate + finish. |
@@ -52,6 +53,8 @@ or none.)
 | ⚠️ **High-stakes** — auth · payments · migrations · infra · CI · prod-traffic values | always [`feature.md`](workflows/feature.md) | Override: blast radius isn't bounded by LOC, so these route to `feature` even for one-line edits — **never `quick-task`**. |
 
 ![How kerby routes a task to a workflow file: five task types map to five workflow files; feature/refactor/debt converge on feature.md, docs/config/one-file go to quick-task.md, and a high-stakes override reroutes quick-task work to feature.md.](assets/workflow-routing.svg)
+
+The diagram covers the five routes that reach a workflow file. The sixth — `investigate` — reaches none by design, which is the whole point of it.
 
 ### Where kerby sits in the loop
 
@@ -125,7 +128,7 @@ The rules in `BOOTSTRAP.md` reflect specific choices that may not match your jud
 
 - **In-place branch by default; worktrees only as an announced escalation** (concurrent different-branch work, explicit request, or dirty-state preservation). If you want worktrees everywhere, say so — the escalation honors explicit requests.
 - **Commit after every completed piece of work**, not at the end of the session. Some teams prefer squashed commits and a clean history; this rule fights that.
-- **No completion claims without fresh evidence.** Some workflows are exploratory and "should work" is fine. Not here.
+- **No completion claims without fresh evidence.** Some workflows are exploratory and "should work" is fine. Not here — the `investigate` route included: it changes what counts as evidence (a citation, not a gate run), never whether evidence is required.
 - **Manual verification instructions in every completion report.** Reasonable for shipped features; overkill for one-line typo fixes.
 - **`DESIGN.md` as design-token authority** when present. Opinionated wiring into the [Google Labs spec](https://github.com/google-labs-code/design.md), alpha.
 - **Methodology over scripts.** Hardcoded commands (`npm test`) lose to project-detected commands (`{test_command}`).
