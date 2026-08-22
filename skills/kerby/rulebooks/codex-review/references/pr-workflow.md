@@ -60,8 +60,21 @@ When opening a PR (base = the repo's default branch):
    verdict). Then run `scripts/codex-mark.sh`
    (resolve it relative to this rulebook's root — the folder this file was loaded
    from): it verifies a clean `CODEX_VERDICT` (P0=0 P1=0) against a log newer than
-   HEAD, enforces the round cap (PASS / DENIED / HELD), writes the marker, appends
-   to the audit log, and prints the PR-note line used in step 3. Any new commit
+   HEAD **and marked complete**, enforces the round cap (PASS / DENIED / HELD),
+   writes the marker, appends to the audit log, and prints the PR-note line used
+   in step 3. The completion record is a `<log>.complete` sidecar
+   `codex-run` writes on its clean exit path only; codex-mark requires it, verifies the
+   transcript is still at least that long and that a digest of those bytes matches, and
+   only then parses them — all from a single snapshot of those bytes, so nothing a
+   concurrent run does can change the verdict. It refuses to run while the producer's
+   lock is present, but never takes that lock itself.
+   "Last verdict wins" is sound only for a run that finished — a killed run leaves
+   no conclusion while its transcript can still hold verdict-shaped lines the
+   reviewer *quoted* from earlier reviews it read as evidence (a stalled run here
+   left six, the last another PR's clean `P0=0 P1=0`). The evidence is out of band
+   on purpose: an in-band sentinel was tried first and failed the same way, because
+   a reviewer reading the diff or these docs quotes it into the log. Never
+   hand-write the sidecar, for the same reason you never hand-write the marker. Any new commit
    stales the marker (re-review, re-mark). Deliberate bypass (user-approved only):
    prefix the gh invocation with `CODEX_GATE_BYPASS=1` — the prefix form is the only
    honored one; the token embedded elsewhere in the command authorizes nothing, and
@@ -127,8 +140,10 @@ ceiling). The **final** review must run
 
 Enforcement note: the review-before-PR half IS mechanically gated (the PR gate in
 step 1, registered per repo by `kerby install`), and the clean-verdict attestation
-is mechanical too (`scripts/codex-mark.sh` — ceiling: it trusts the teed log;
-forging one is possible but deliberate, and `$GIT_DIR/codex-review-audit.log` keeps
-the history visible). The merge rules (steps 2–4) remain instruction only — they
+is mechanical too (`scripts/codex-mark.sh` — the transcript is written by the
+runtime under `codex-run`, and the verdict is accepted only from bytes the
+completion record vouches for. Ceiling: someone determined can still hand-build
+both files, but that is deliberate deception rather than drift, and
+`$GIT_DIR/codex-review-audit.log` keeps the history visible). The merge rules (steps 2–4) remain instruction only — they
 shape behavior but don't block a bad merge; a repo wanting a hard merge gate needs
 its own hook.

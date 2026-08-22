@@ -26,6 +26,11 @@ across the two scripts; 2 and 3 are therefore never emitted here):
     4 — STALL: alive at the ceiling; the group was killed AND reaped.
         At most one blind retry, then pr-workflow.md's step-4 fallback.
     5 — the runtime exited on its own, non-zero. Read the log, fix, retry once.
+    7 — the run FINISHED but its completion record could not be written, so the
+        transcript is unmarkable. Not a review failure and not a delegation
+        attempt: fix the filesystem problem and re-run. It consumes no
+        delegation budget and writes no attempts-log entry, because nothing
+        about the review itself went wrong.
     6 — SURVIVOR: the group did not die within the grace+reap window after
         SIGKILL. Do NOT retry — a second attempt would run beside it. The lock
         is deliberately left behind so the next attempt refuses. Escalate.
@@ -153,6 +158,7 @@ user is on (docs/ENGINE-MAP.md: existing scripts stay version-agnostic).
 """
 
 import datetime
+import hashlib
 import os
 import re
 import shutil
@@ -559,6 +565,10 @@ def spawn(cmd, log_path):
     empty stdin makes the runtime wait forever on "Reading additional input
     from stdin...".
 
+    The parent writes one thing of its own: the `<log>.complete` sidecar on the
+    clean exit path (see there). The TRANSCRIPT itself is still written only by
+    the child.
+
     Cleanup ownership is scoped precisely: if os.open() itself raises (a
     narrow TOCTOU — something now occupies log_path between the caller's
     stale-log removal and this call), NO file was created by us and this
@@ -748,6 +758,18 @@ def main(argv):
             raise Usage("%s still exists after removal (a directory?) — clear "
                         "that path, then re-run" % log)
 
+        # Clear any completion record left at this path too. It describes the
+        # transcript we just deleted; leaving it would let a run that never
+        # finishes inherit a predecessor's proof of completion — the exact
+        # failure the record exists to prevent, arriving as a leftover.
+        try:
+            os.unlink(log + ".complete")
+        except FileNotFoundError:
+            pass
+        except OSError:
+            raise Usage("cannot remove the stale completion record at "
+                        "%s.complete — remove it by hand, then re-run" % log)
+
         if ceiling is None:
             ceiling = compute_ceiling(audit)
 
@@ -891,6 +913,58 @@ def main(argv):
                  "cause, fix it, then retry once."
                  % (shell_rc(rc), elapsed, ceiling, log))
             return 5
+
+        # Record completion OUT OF BAND — in a sidecar the reviewer cannot write.
+        #
+        # codex-mark takes the LAST `CODEX_VERDICT:` line in the log, which is
+        # correct only for a run that finished: the reviewer emits its verdict
+        # last. A killed run has no conclusion, yet its transcript can still
+        # hold verdict-shaped lines the reviewer QUOTED while reading earlier
+        # review transcripts as evidence. Observed: a stalled run whose log held
+        # six such lines, the last being another PR's clean P0=0 P1=0.
+        #
+        # The first attempt at this wrote an in-band sentinel line into the
+        # transcript. That reproduced the very bug it was fixing one layer up:
+        # reviewer stdout and the parent share this file, so a review that reads
+        # the diff or the docs QUOTES the sentinel — the review of that change
+        # emitted it 24 times. An incomplete run could then quote both a stale
+        # verdict and the sentinel and be accepted.
+        #
+        # A sidecar cannot be quoted into existence. It records the transcript's
+        # identity and its length at completion, so codex-mark parses only the
+        # bytes this run actually produced and ignores anything appended later.
+        try:
+            st = os.stat(log)
+            # A DIGEST of the recorded prefix, not just its identity. inode and
+            # device alone are a weak binding: an inode can be reused, and a
+            # truncated file keeps both while losing the verdict — `head -c N`
+            # succeeds at EOF, so a transcript shortened to drop its real
+            # conclusion leaves an earlier QUOTED clean verdict as the last one.
+            # Reproduced. Hashing the exact bytes this run produced makes the
+            # binding content-based, which covers truncation, replacement, inode
+            # reuse and cross-device collision in one check.
+            digest = hashlib.sha256()
+            with open(log, "rb") as fh:
+                remaining = st.st_size
+                while remaining > 0:
+                    chunk = fh.read(min(1 << 20, remaining))
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    digest.update(chunk)
+            tmp = log + ".complete.tmp"
+            with open(tmp, "w") as fh:
+                fh.write("bytes=%d\ninode=%d\ndevice=%d\nsha256=%s\nrc=0\n"
+                         % (st.st_size, st.st_ino, st.st_dev, digest.hexdigest()))
+            os.replace(tmp, log + ".complete")   # atomic
+        except OSError as exc:
+            # Do NOT report success: the run finished but its result is
+            # unmarkable, and codex-mark will refuse the log. Saying "OK" here
+            # sends the operator round the loop again with no idea why.
+            emit("runtime finished but the completion record could not be "
+                 "written (%s). The transcript at %s cannot be marked; fix the "
+                 "filesystem problem and re-run the review." % (exc, log))
+            return 7
 
         say("OK — %ss (ceiling %ss). Transcript at %s. NEXT: run "
             "scripts/codex-mark.sh now — it is the only thing that parses the "

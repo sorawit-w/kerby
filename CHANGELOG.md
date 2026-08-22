@@ -3,6 +3,63 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.21.0] — 2026-08-21
+
+**A killed review can no longer be marked clean** (codex-review 0.5.0): `codex-mark` took
+the last `CODEX_VERDICT:` line in the transcript. That is sound only for a run that
+*finished* — the reviewer emits its verdict last. A killed run has no conclusion at all,
+and its transcript can still be full of verdict-shaped lines, because a scoped re-review
+reads earlier review transcripts as evidence and quotes what it finds.
+
+Observed, not theorised. A review stalled at its ceiling (exit 4) and left a log holding
+**six** verdict lines, none of them its own, the last being a different PR's clean
+`P0=0 P1=0 P2=3 P3=1`. Following the wrapper's own "NEXT: run codex-mark" instruction would
+have written a **PASS marker** for a review that never reached a verdict, and the PR gate
+would then have accepted the branch as reviewed. A check that runs, reports clean, and
+proves nothing — the exact failure `skills/kerby/CLAUDE.md` warns about when it says a
+guard that under-matches converts *nobody checked* into *the check passed*.
+
+The completion evidence is deliberately **out of band**. The first attempt wrote a sentinel
+line into the transcript and reproduced the same bug one layer up: reviewer stdout shares
+that file, so a review that reads the diff or the docs *quotes* the sentinel — the review of
+that very change emitted it 24 times. `codex-run` now writes a `<log>.complete` sidecar on
+its clean exit path only, recording the transcript's length at completion and a sha256
+digest of exactly those bytes.
+`codex-mark` requires it, checks the transcript is still at least that long, recomputes the
+digest over exactly those bytes, and only then parses. Binding by **content** rather than by
+identity is what makes it hold: a transcript truncated to drop its real verdict keeps its
+inode while losing the conclusion, and `head -c N` succeeds at EOF — a 107-byte transcript
+cut to 56 bytes was accepted on an earlier reproduced verdict before this. The digest covers
+truncation, same-length substitution, replacement and inode reuse in one comparison.
+`codex-mark` reads the recorded prefix **once**, into a snapshot, and both verifies and
+parses that — so a concurrent write cannot land between the digest check and the parse. An
+earlier build took the producer's lock instead, and the acquire produced two review rounds
+of defects on its own (a signal trap that cleaned up without stopping the script, then a
+release that ran twice and deleted a successor's lock) while never being what made the
+verdict sound. codex-mark now only *checks* that lock, and never owns it. The sidecar is
+consumed with
+the log, and a stale one is cleared when a run starts. A missing record is refused outright:
+re-running a review is cheap, a false-clean marker is not.
+
+If the record cannot be written, the run reports failure (exit 7) rather than a success the
+operator cannot act on.
+
+Regression cases across producer and consumer (79 assertions in the two suites): that a clean run writes the
+record bound to its transcript's byte length and digest, that a stall and a runtime failure
+write none, that a record *quoted into* the log does not count, that a verdict appended
+after completion is ignored, and — with `head` shadowed to return different bytes on a
+second read — that swapping the transcript after the digest check cannot change the
+verdict.
+
+**Markers already written are unaffected.** The hazard needs a run that did not finish; a
+completed run's last verdict is genuinely its own. (The audit log records verdict metadata
+and duration, not exit status — the prior runs' short durations support that inference
+rather than proving it.)
+
+Also in this release: `.kerby/STATUS.md` refreshed for the shipped 9.20.0 work — and,
+per the ordering 9.19.0 established, it rides along with this change rather than arriving
+in a PR of its own.
+
 ## [9.20.0] — 2026-08-21
 
 **The locator stops letting the workspace choose the gate** (engine): the install root was

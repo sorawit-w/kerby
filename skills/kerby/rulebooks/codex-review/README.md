@@ -13,7 +13,10 @@ Every headless Codex invocation — review, scoped re-review, rescue — runs th
 `scripts/codex-run.sh`, a shim that execs `scripts/codex-run.py`. It closes
 stdin, gives the runtime its own process group, kills it at a ceiling derived
 from the observed-good `dur=` median, and reports how it ended (0 clean · 4
-killed at the ceiling · 5 runtime error · 6 outlived SIGKILL, do not retry). It
+killed at the ceiling · 5 runtime error · 6 outlived SIGKILL, do not retry ·
+7 finished but the completion record could not be written, so the transcript
+is unmarkable — a filesystem problem, not a review one, consuming no delegation
+attempt and writing no attempts-log entry). It
 bounds *one attempt* and never retries: the delegation budget and the verdict
 grammar stay with the prose and `codex-mark.sh` respectively. Written in python
 rather than bash — five review rounds of a bash predecessor found seven
@@ -55,6 +58,7 @@ warn-severity checks — blunt; not recommended.
 |---|---|---|
 | `codex-reviewed` | `scripts/codex-mark.sh` ONLY | marker: the reviewed HEAD sha |
 | `codex-review.log` | `scripts/codex-run.sh` (fresh inode per attempt) | evidence codex-mark verifies |
+| `codex-review.log.complete` | `scripts/codex-run.sh`, clean exit path ONLY | the out-of-band completion record: byte length + sha256 of the transcript. codex-mark REQUIRES it — a log without one is a run that never finished |
 | `codex-review-rounds` | `scripts/codex-mark.sh` | branch + round counter (cap 3) |
 | `codex-review-audit.log` | `scripts/codex-mark.sh` | append-only PASS history; its `dur=` median sets the watchdog ceiling |
 | `codex-run-attempts.log` | `scripts/codex-run.sh` | append-only history of killed/failed attempts — deliberately NOT the audit log, so these can never skew the `dur=` median |
@@ -87,8 +91,11 @@ within the delegation budget (`references/delegation.md` § Bounded delegation).
   (`gh api repos/{o}/{r}/pulls -X POST …`), a user-defined `gh alias`, or a shell
   line-continuation split. These are the `CODEX_GATE_BYPASS` category by another
   name — an accepted ceiling, not a hole to plug.
-- **codex-mark trusts the transcript.** Forging a log is deliberate deception,
-  not drift; `$GIT_DIR/codex-review-audit.log` keeps history visible.
+- **codex-mark trusts the transcript *and its completion record together*.**
+  The record binds the log by byte length and sha256, so a transcript altered on
+  its own is refused — but a log and a matching record forged as a pair would
+  pass. That is deliberate deception, not drift;
+  `$GIT_DIR/codex-review-audit.log` keeps history visible.
 - **The ceiling is the only bound — no early kill.** codex-run cannot tell a
   wedged runtime from a thinking one, and does not pretend to: both go quiet.
   The block-point line Codex was once matched on is printed at *startup* on
