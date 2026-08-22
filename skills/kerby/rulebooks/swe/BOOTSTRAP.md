@@ -50,7 +50,7 @@ skipped: <what you did not build> — add when <trigger>
 
 Name the abstraction you declined — the interface with one implementation, the config knob for a constant, the helper you did not extract. `skipped: none` is a valid answer and is still emitted. This is the restraint half: the rung line says how little you reached for, this says what you consciously left out, and a reviewer can disagree with either.
 
-Both are emitted whether or not they feel relevant — a line that appears only when the agent judges it worth emitting is the prose these replace.
+Both are emitted whether or not they feel relevant — a line that appears only when the agent judges it worth emitting is the prose these replace. The one exception is the `investigate` route (§ 4 Read-Only Answers), where nothing is built and both lines have nothing to name.
 </decision_ladder>
 
 <detect_project>
@@ -75,7 +75,7 @@ Read these files now:
 Before choosing a workflow, grade the task on the canonical complexity ladder (`workflows/feature.md` § 3) and emit these two lines — **always, even for one-liners**:
 
 ```
-complexity: <N> (trigger: <≤8-word reason>) → route: <new-project | adopt-existing | feature | bugfix | quick-task>
+complexity: <N> (trigger: <≤8-word reason>) → route: <investigate | new-project | adopt-existing | feature | bugfix | quick-task>
 rung: <N> — <≤8-word reason>
 ```
 
@@ -83,7 +83,7 @@ The two `<N>`s are different scales and are not related: `complexity` is the gra
 
 **Default up** when the task sits between two bands. The emitted grade is what makes a skipped plan catchable — a silent grade defeats the § 4 Plan Gate.
 
-Pick the workflow by **task type** (§ 3 routing table — a bug fix routes to `bugfix.md`, not `feature.md`). The grade governs only the **quick-task-vs-task-type-workflow** split below (quick-task when grade < threshold and the fit check holds, otherwise the § 3 task-type workflow — `bugfix.md` for a bug fix, else `feature.md`) and the § 4 Plan Gate, which applies to whichever workflow you choose.
+Pick the workflow by **task type** (§ 3 routing table — a bug fix routes to `bugfix.md`, not `feature.md`). A request to explain or investigate existing code, with no change asked for, routes to `investigate` and stops there — everything below governs change work only. The grade governs only the **quick-task-vs-task-type-workflow** split below (quick-task when grade < threshold and the fit check holds, otherwise the § 3 task-type workflow — `bugfix.md` for a bug fix, else `feature.md`) and the § 4 Plan Gate, which applies to whichever workflow you choose.
 
 - `quick-task.md` is selectable **only when `grade < plan_threshold`** (`ai.planThreshold` in `agent-context.yaml`; if the file or key is absent, use the default **4** — never block on the missing knob) **AND the change passes the quick-task fit check** (no new logic/refactor, ≤~50 LOC, no schema/contract changes — see `workflows/quick-task.md`). If either fails, route to the **task-type workflow** (`bugfix.md` for a bug fix, otherwise `feature.md`) — never drop a bug fix's reproduce/diagnose/failing-test path just because it outgrew quick-task. The grade is a ceiling; the fit check is an independent risk guard — both must hold.
 - The § 3 high-stakes path override still forces a full workflow (`feature.md`, or `bugfix.md` for a bug fix) regardless of grade.
@@ -97,6 +97,7 @@ Based on the task, you MUST read the appropriate workflow file before proceeding
 
 | Task Type | Read This File |
 |-----------|---------------|
+| Investigate / explain / answer a question about existing code (no change requested) | **No workflow — § 4 Read-Only Answers** |
 | Architecture / scope decision *before* coding | Run `team-composer` first (if installed) for multi-role trade-off discussion; come back here to route the resulting work. Otherwise see `When Stuck → Architecture decision`. |
 | New project setup (no existing code) | `workflows/new-project.md` |
 | Existing code, no kerby artifacts yet (onboarding / `prepare`) | `workflows/adopt-existing.md` |
@@ -119,6 +120,8 @@ The blast radius on these paths is not bounded by LOC. A one-character change to
 
 Routing here is decided by **which file the edit lands in**, not by whether the changed lines look security-relevant. An observational write (e.g. adding a `lastLogin` timestamp) inside an auth/login handler still routes to `feature.md` — "the edit isn't the security logic" does not waive the override.
 
+The override governs **changes**. Reading one of these files to answer a question is not a change and stays on the `investigate` route — nothing about a path makes an answer more dangerous.
+
 **Read the workflow file now. It contains the detailed steps for your task type.** Do not proceed from memory — the workflow file has rules you need.
 </route_workflow>
 
@@ -126,6 +129,19 @@ Routing here is decided by **which file the edit lands in**, not by whether the 
 ## 4. Hard Rules (Always Apply)
 
 These rules apply to ALL tasks regardless of workflow. Violating any of these is a failure.
+
+### Read-Only Answers
+
+**When the route is `investigate`, the deliverable is an answer, not a change.** Until the user asks for a change:
+
+- **No writes** — no source or doc edit, no `.kerby/` state, no commit, no branch.
+- **No gate run to certify the answer.** `{build_command}` / `{lint_command}` / `{test_command}` are not evidence for an answer; never run one to close it out. Running a command to **observe** is fine and often required — reproduce a failure, print a value, read a log. The test is what the run is *for*.
+- **The evidence is the citation** — the file:line, log line, or spec section § Diagnosis already requires. That, not a green suite, is what satisfies the Iron Law here.
+- **Found something worth fixing? Say so, don't fix it** (§ Guardrails — stay on task).
+
+The change-shaped rules below are then satisfied by having nothing to do: **Plan Gate** (no code, so no plan and no grade ≥ 7 approval stop), **Branching**, **Commit Discipline**, **Manual Verification Instructions**. The § 1b `rung:` and `skipped:` lines are waived — nothing was built. The `complexity: … → route: investigate` line still emits: it is the declaration this section binds to.
+
+If the answer turns out to need a change, stop and re-route — emit a new grade line with the change route and follow that workflow. `investigate` is not a way to make a change without one.
 
 ### Plan Gate
 
