@@ -9,6 +9,7 @@ For simple tasks — single-file edits, config changes, documentation updates, o
 
 The quick-task path is appropriate only when ALL of these hold. If even one fails, switch to the task-type workflow (`bugfix.md` for a bug fix, else `workflows/feature.md`) and start from its step 2 — no exceptions.
 
+- **A change is actually being made** — if the ask is to explain or investigate, the route is `investigate` (BOOTSTRAP.md § 3), not quick-task. Every step below writes; none of them check first
 - **No new files** — you're editing existing files only, not adding modules
 - **No test logic changes** — tests may *run* during checks, but you're not modifying assertions, test scaffolding, or fixtures
 - **No schema, contract, or public-type changes** — no DB migrations, no exported type/interface shape changes, no public API edits

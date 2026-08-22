@@ -34,7 +34,7 @@ Include the issue/ticket ID when the task is tracked in an external system (Line
 
 ## Session Logging
 
-**This is the canonical format for `.kerby/memory.log`.** All other references point here. Append after every significant action (create if missing):
+**This is the canonical format for `.kerby/memory.log`.** All other references point here. Append at every commit gate, and at every finish or checkpoint step — the two entry shapes described below, both anchored to a commit (create the file if missing):
 
 ```
 [YYYY-MM-DDTHH:MM:SSZ]
