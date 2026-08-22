@@ -139,7 +139,7 @@ These rules apply to ALL tasks regardless of workflow. Violating any of these is
 - **The evidence is the citation** — the file:line, log line, or spec section § Diagnosis already requires. That, not a green suite, is what satisfies the Iron Law here.
 - **Found something worth fixing? Say so, don't fix it** (§ Guardrails — stay on task).
 
-The change-shaped rules below are then satisfied by having nothing to do: **Plan Gate** (no code, so no plan and no grade ≥ 7 approval stop), **Branching**, **Commit Discipline**, **Manual Verification Instructions**. The § 1b `rung:` and `skipped:` lines are waived — nothing was built. The `complexity: … → route: investigate` line still emits: it is the declaration this section binds to.
+The change-shaped rules below are then satisfied by having nothing to do: **Plan Gate** (no code, so no plan and no grade ≥ 7 approval stop), **Branching**, **Commit Discipline**, **Manual Verification Instructions**. The § 1b `rung:` and `skipped:` lines are waived — nothing was built; omit them without announcing the omission, since the route line already accounts for it. The `complexity: … → route: investigate` line still emits: it is the declaration this section binds to.
 
 If the answer turns out to need a change, stop and re-route — emit a new grade line with the change route and follow that workflow. `investigate` is not a way to make a change without one.
 
