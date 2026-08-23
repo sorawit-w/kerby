@@ -88,6 +88,23 @@ those constants drift across the files that restate them — BOOTSTRAP, the
 workflows, working-patterns, the schema, the template; the checked set is listed
 in the script). If you add a new restatement, add the file to that set.
 
+Run `bash scripts/check-hook-disable-tier.sh` after **either** editing a hook script
+**or** changing a `[[check]]`'s `floor`, `severity`, or `enforcer`. It checks the mechanical half of
+the rule in `docs/rulebook-contract.md` § Hook tiers — that every shipped script
+declares, or does not declare, the canonical disable block its tier calls for.
+It does **not** verify runtime behavior; the script's header explains why that
+claim was narrowed and what it consequently cannot catch. Both triggers matter: a `severity` flip in a manifest
+moves a hook between tiers without touching a single script, so a script-only
+trigger would leave the guard dead for half the drift it exists to catch. It
+enumerates enforcers from the manifests rather than globbing the hooks directory,
+and reports anything it cannot classify as an error rather than a pass. Manifests
+and engine services are **discovered by glob**, so a new rulebook is covered with
+no edit to the guard — an earlier draft listed them and silently skipped anything
+added. It recognizes one canonical disable-arm form (`*,<token>,*) exit 0 ;;`) and
+errors on any deviation rather than guessing; if a hook ever needs a different
+shape, change the pattern deliberately, and never edit a hook to make the guard
+pass — a guard failure is a finding for a human.
+
 **The commit-time gate-tier rule has no mechanical guard, deliberately.** Its sole
 authority is `references/quality-gates.md` § At Commit Time; every other rulebook file
 must defer to it rather than restate it. A parity guard for it was written and then

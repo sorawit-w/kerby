@@ -142,8 +142,10 @@ declarative/executable split never had (D2).
 Enforcement **degrades observably**: declare `hard` all you like — until the
 user registers your enforcer (`install` is the executable trust opt-in),
 the effective level is `behavioral`, and `kerby status` shows
-`degraded — run install to bind`. You do not get to look enforced without
-being enforced.
+`not registered (behavioral only)`. You do not get to look enforced without
+being enforced. (`status` reports *state*, not intent — declines are not
+persisted, so nothing can distinguish "the user said no" from "nobody ran
+install yet", and the label must not pretend otherwise.)
 
 For `behavioral` prose, shape the rule as a **forced artifact at the decision
 point** — a named line or verdict the agent must emit — rather than
@@ -156,13 +158,20 @@ in-house examples).
 - `severity` maps through `[gate]`: `block` → DENIED, `warn` → HELD, `info`
   → advisory.
 - `floor = true` marks a check nothing may loosen — not user config, not an
-  extending rulebook (E05/E06). Floors belong in `base`; at contract v2
-  declaring your own floors outside base is legal but pointless, since only
-  base is implicitly composed into everyone else.
+  extending rulebook (E05/E06). Floors belong in `base`, but declaring one
+  outside base is **not** pointless: E05/E06 apply across the whole merged
+  set, so your floor also binds anything that `extends` you, and it is the input to
+  the `locked` hook tier (contract § Hook tiers) — a specification `install`
+  is being built against, not yet its behavior. When that ships, the tier is
+  honored for **install-resolved builtins only**: an external rulebook's
+  enforcers always get per-hook confirmation regardless, so a `floor` you
+  declare will not force-register your hook on someone.
 - Non-floor checks may declare an `override` policy naming a scoped,
   user-authorized escape hatch (the swe rulebook's
   `protected-branch-commit` → `CODING_RULES_ALLOW_PROTECTED_COMMIT=1` is the
-  canonical shape).
+  canonical shape). **`override` is documentation, not mechanism** — nothing
+  reads it; your enforcer script implements the hatch itself, and declaring
+  the field does not create one.
 
 ### `needs` and subject types
 
