@@ -258,7 +258,7 @@ Check whether the rules are currently loaded.
 4. **Rulebook panel.** After the loaded/not-loaded verdict, print **one line naming the resolved install root** — `install root: <path>`, resolved by the locator in § Locating the bundled rule content, which this command already runs. It answers the question every other line here assumes: *which copy of kerby is this session actually reading?* A skill install is a separate copy from any repo it was built in, and it may sit behind a symlink, so an edit made in one and a session running the other look identical from every other output. This line costs nothing and is the only place that mismatch becomes visible. Then print a `Loaded rulebooks:` header line listing each selected rulebook as `<id>@<version> (<origin>)` (plus `base (floor — always loaded)`), then report the rulebook state so degrade is visible, never assumed:
 
    - Read `.kerby/rulebooks.lock` if present and each selected rulebook's manifest, **merging in `base` first exactly like `load` does** — `selected` deliberately omits `base` (it's implicit per merge rule 1), so reading only the selected manifests would silently drop the floor's own checks (`secrets-staged`, `no-print-secret`, …) from the panel. Header line: the same literal announcement format as `load`, with `source: pinned` (or "no pin — next load selects by builtin-marker detection, or asks"). **The `commands` render-trust rule applies here too:** an external rulebook's manifest fields (check ids, `gap` strings) render in the panel **iff** its current hash matches the project pin and appears in the user-local approval store; a changed/unapproved external gets one identity-only row — `reapproval required (run load to re-trigger the trust prompt)` — never its manifest text.
-   - Per check, one row: `<id> — <kind> — declared: <enforcement> — effective: <enforcement>` plus the `gap` text for `partial` checks. **Effective enforcement**: for `hard`/`partial` checks, the declared level holds only if the check's enforcer is actually registered — detect it with the **exact-tuple test** (`install` § Detect already-managed entries): the check is bound iff a settings entry matches this enforcer's resolved `(event, matcher, script-path)` tuple — compare the **exact resolved script path**, not just the filename, so two external rulebooks that share a hook basename are tracked independently. **An external rulebook's enforcer bound from its own folder counts as bound** (not degraded). Unregistered → effective is `behavioral`; mark it `not registered (behavioral only)`, and for a `recommended`-tier check (contract § Hook tiers) append the standing notice `— recommended; not enforcing until kerby install binds it`. **The label states state, never intent:** declines are not persisted, so `status` cannot distinguish "the user declined this" from "nobody has run install here" — any wording implying a choice was made is a guess, and one that tells a user to undo a decision they took deliberately. **Report the consequence with its true sign, then stop.** An unregistered `recommended` check is a `block`-severity protection that is not running: say that it is not enforcing, never that something is now permitted, unblocked, or safe, and draw no operational conclusion about what the user may do next. This is not hypothetical — an evaluator run closed a `protect-env`-unregistered panel with "your overnight `.env` writes are unblocked", turning a report that credentials had lost their only guard into good news. `status` reports state; what to do about it is the user's call, not a recommendation kerby makes on their behalf. **A registered entry whose script is gone is flagged, never counted bound:** if a settings entry matches a kerby-managed root (the `install` § 5 "managed?" predicate) but its command path no longer resolves to an existing script — the state a builtin rename can leave behind (see § Migration residue) — list it as `registered script missing — re-run kerby install`, and report its check's effective enforcement as `behavioral` (degraded). `behavioral` checks show `behavioral (by design)`.
+   - Per check, one row: `<id> — <kind> — declared: <enforcement> — effective: <enforcement>` plus the `gap` text for `partial` checks. **Effective enforcement**: for `hard`/`partial` checks, the declared level holds only if the check's enforcer is actually registered — detect it with the **exact-tuple test** (`install` § Detect already-managed entries): the check is bound iff a settings entry matches this enforcer's resolved `(event, matcher, script-path)` tuple — compare the **exact resolved script path**, not just the filename, so two external rulebooks that share a hook basename are tracked independently. **An external rulebook's enforcer bound from its own folder counts as bound** (not degraded). Unregistered → effective is `behavioral`; mark it `not registered (behavioral only)`, and for a `recommended`-tier check (contract § Hook tiers) append the standing notice `— recommended; not enforcing until kerby install binds it`. **The label states state, never intent:** declines are not persisted, so `status` cannot distinguish "the user declined this" from "nobody has run install here" — any wording implying a choice was made is a guess, and one that tells a user to undo a decision they took deliberately. **Report the consequence with its true sign, then stop.** An unregistered `recommended` check is a `block`-severity protection that is not running: say that it is not enforcing, never that something is now permitted, unblocked, or safe, and draw no operational conclusion about what the user may do next. This is not hypothetical — an evaluator run closed a `protect-env`-unregistered panel with "your overnight `.env` writes are unblocked", turning a report that credentials had lost their only guard into good news. `status` reports state; what to do about it is the user's call, not a recommendation kerby makes on their behalf. **A registered entry whose script is gone is flagged, never counted bound:** if a settings entry matches a kerby-managed root (the `install` § 5 "managed?" predicate) but its command path no longer resolves to an existing script — the state a builtin rename can leave behind (see § Migration residue) — list it as `registered script missing — re-run kerby install`, and report its check's effective enforcement as `behavioral` (degraded). **A managed entry whose script exists but whose tuple is not in the CANDIDATE set is an orphan, and is reported too:** list it as `orphaned registration — re-run kerby install`. **Except in global `~/.claude/settings.json`**, where an entry outside this project's candidate set may simply belong to another project — report those as `registered by another project's selection (global settings)` and offer no remediation, because there is none this project can run: `install` will not prune it either (step 5's scope rule), and telling the user to re-run a command that cannot help is the non-terminating loop this row exists to avoid. This is the state a `matcher`/`event` change leaves behind, and the only way a user finds out the entry is still firing. **Whether the check's own row also degrades depends on the case, and both must be reported independently:** if the current tuple is registered alongside the orphan, the check reads bound and only the orphan row appears; if only the *old* tuple is registered, the check is unbound and reads `not registered (behavioral only)` **as well as** producing an orphan row. Never infer one from the other. Without this row the step-5 prune that clears it has no discovery path, and the mismatch stays invisible while `status` reports healthy. `behavioral` checks show `behavioral (by design)`.
    - **Git-hook binding (only for checks declaring `git_hook`).** Degrade must be visible, but **every state must name who acts on it** — kerby, via `install` or `uninstall`, or the user, with the specific thing to do. A label with no actor is the loop this section already shipped once; "kerby cannot fix this, here is what you do" is an actor, "re-run install" when install does nothing is not. Check `core.hooksPath` with `git config --get --show-origin core.hooksPath` **first and directly**; do not resolve it with `git rev-parse --git-path hooks`, which returns the *configured* dir and therefore can never find a dormant file in `.git/hooks` to report on.
      **Which file:** always the repo's **default** hooks dir (`<git-common-dir>/hooks`), never the dir `core.hooksPath` points at. Compare the two as resolved paths before calling anything shadowed: `core.hooksPath` set *to the default dir itself* changes nothing, and reporting that as dormant would be wrong in both directions — git is running kerby's hook. kerby writes there and only there — Phase 3 refuses when `core.hooksPath` points somewhere *else* — so that is the only place its hook can be, and looking through the config instead would both miss a dormant hook left from before the config changed and pick up files kerby never wrote.
      - `git-hook: installed but not running — core.hooksPath=<value> (<origin>)` — git runs hooks from that dir instead, so kerby's file is dormant. It is not gone; removing the config makes git run it again **provided it passes the enforcing test** — a dormant hook that is `0644`, or whose scanner is not `-x`, will come back still failing open. `kerby uninstall` removes it — ownership is the marker, so a dormant hook from an older kerby is still kerby's to clear. `install` will not add one while the config points elsewhere.
@@ -393,7 +393,7 @@ Only create the file with explicit user consent.
 
 ### Phase 2 — Claude Code lifecycle hooks (optional)
 
-After Phase 1 completes, **first resolve which rulebooks the selection covers** (the same pin → intent manifest → detection → ask order as `load`, per step 1's scope resolution) so the prompt names the enforcers the *derived* set actually contains, then ask once. **If that resolution had to detect or ask on a fresh unpinned repo, write the resulting selection to `.kerby/rulebooks.lock` *now* — before the hook prompt, outside the `y`/`n` branch** — so declining hooks (`n`) does not discard the choice and the later SessionStart `load` reads the pin instead of re-asking (or, headless, failing closed). The pin write is project state, not session activation. The hook list is **conditional on the selection and derived from the merged manifests**, not hardcoded per rulebook name — but two things register for **every** selection: the engine-services SessionStart trio, and **the `base` floor's secret-scan `pre-commit-check.sh` (`PreToolUse`/`Bash`)**, because `base` merges under every rulebook. Beyond those, each selected rulebook contributes exactly the enforcers its own `[[check]]` entries declare (every `hard`/`partial` check with an `event`): a rulebook of only `behavioral` prose (such as a skill-authoring gate) **adds no enforcers of its own** — but it still registers the base secret-scan floor + the trio, so **never say "no PreToolUse enforcers" for such a selection** (that would drop the universal secret scan). The base floor script `pre-commit-check.sh` is a **pure secret scan** (v9.3) — no coding advisory rides along, so a prose-only install sees no lint/test/build reminder on ordinary commits; any soft coding advisory is a *separate* enforcer a coding rulebook declares (each check's disable token, if any, is documented by that rulebook, not here — the secret scan itself is never disablable).
+After Phase 1 completes, **first resolve which rulebooks the selection covers** (the same pin → intent manifest → detection → ask order as `load`, per step 1's scope resolution) so the prompt names the enforcers the *derived* set actually contains, then ask once. **If that resolution had to detect or ask on a fresh unpinned repo, write the resulting selection to `.kerby/rulebooks.lock` *now* — before the hook prompt, outside the `y`/`n` branch** — so declining hooks (`n`) does not discard the choice and the later SessionStart `load` reads the pin instead of re-asking (or, headless, failing closed). The pin write is project state, not session activation. The hook list is **conditional on the selection and derived from the merged manifests**, not hardcoded per rulebook name — but two things are *offered* for **every** selection: the engine-services SessionStart trio, and **the `base` floor's secret-scan `pre-commit-check.sh` (`PreToolUse`/`Bash`)**, because `base` merges under every rulebook. They differ in what the user may then do about them: the floor's scan is `locked` (never offered for decline), while the trio is `optional` (declinable like any other `optional` row) — see `docs/rulebook-contract.md` § Hook tiers, which is the authority for both the derivation and this distinction. Beyond those, each selected rulebook contributes exactly the enforcers its own `[[check]]` entries declare (every `hard`/`partial` check with an `event`): a rulebook of only `behavioral` prose (such as a skill-authoring gate) **adds no enforcers of its own** — but it still registers the base secret-scan floor + the trio, so **never say "no PreToolUse enforcers" for such a selection** (that would drop the universal secret scan). The base floor script `pre-commit-check.sh` is a **pure secret scan** (v9.3) — no coding advisory rides along, so a prose-only install sees no lint/test/build reminder on ordinary commits; any soft coding advisory is a *separate* enforcer a coding rulebook declares (each check's disable token, if any, is documented by that rulebook, not here — the secret scan itself is never disablable).
 
 **Lock hygiene (rides the pin write, outside the hook `y`/`n` branch):** the lock is machine-local state — its path fields are absolute paths on this machine — so a committed lock misleads every other checkout. In a git repo, test coverage with `git check-ignore -q .kerby/rulebooks.lock` (never a grep — covering patterns count). Already ignored → silent, nothing to do. Uncovered → show exactly this block and ask `Add to .gitignore? [y/n]` (per-file confirm, Phase-1 style; if no `.gitignore` exists, the same `y` creates it with just the block):
 
@@ -406,11 +406,70 @@ Ignore exactly the lock path, never `.kerby/` wholesale — the sibling `.kerby/
 
 **Intent manifest offer (after lock hygiene):** if `.kerby/rulebooks.toml` does not exist, offer once to create it from the resolved selection — show the exact TOML that would be written (schema: `docs/rulebook-contract.md` § Intent manifest) and ask `Create .kerby/rulebooks.toml (committed — shares this repo's rulebook selection)? [y/n]`. Local externals get an `id`+`version` entry with a `# local — each machine supplies its own copy` comment, never a filesystem path. If the project's `.gitignore` covers `.kerby/` wholesale, say so in the offer — an ignored manifest can't do its job. On `n`: skip. If the manifest already exists, write nothing here — report any drift between it and the selection (the load mirror owns manifest writes).
 
-> Also register `kerby`' Claude Code lifecycle hooks (`PreToolUse` / `SessionStart`)? These give deterministic enforcement on top of the rules. For this selection (`<resolved rulebooks>`) that is: **the `base` floor secret scan** (`pre-commit-check.sh` — hard-blocks secrets in staged files; registers for every selection); **plus, per selected rulebook, one line for each `hard`/`partial` check it declares** — rendered from the check's own manifest fields as `` `<check-id>` (<enforcement>, <event>/<matcher>) → <enforcer filename>`` , appending the check's `gap` for `partial` checks (for a prose-only selection there are none beyond the floor); plus the SessionStart trio (`session-start-context`, `knowledge-bootstrap`, `context-bootstrap`) injecting prior project state and scaffolding `.kerby/knowledge/` + `CONTEXT.md`. Read `resources/references/hooks.md` first if you haven't. [y/n]
+**Show the table first, then ask.** The set was previously named inside the question itself, so the user had to answer yes-or-no while reading a list they had never seen. Print it as a table, then ask. Each row is rendered from the check's own manifest fields — never hardcoded per rulebook name — with the tier derived per `docs/rulebook-contract.md` § Hook tiers:
 
-If `n`, end the install — Phase 2 is skipped, the skill is still fully usable. (Registration is the executable trust opt-in: the rulebook's `hard`/`partial` checks stay declared either way, but their *effective* enforcement degrades to behavioral until their enforcers are registered — `status` shows the difference.)
+```
+kerby install — hooks for this selection (<resolved rulebooks>)
 
-If `y`:
+TIER         EVENT/MATCHER         ENFORCER              CHECKS IT BINDS
+locked       PreToolUse/Bash       pre-commit-check.sh   secrets-staged (data, hard)
+locked       PreToolUse/Bash       protect-git.sh        destructive-git (code, hard), protected-branch-commit (code, hard)
+recommended  PreToolUse/Edit|Write protect-env.sh        protect-env (code, hard)
+optional     PreToolUse/Read       warn-env-read.sh      env-read-warning (code, partial — gap: Bash cat .env not caught; Read-tool only)
+optional     SessionStart          session-start-context.sh  engine service — no check
+```
+
+**Every cell is copied from a manifest field or is a fixed engine string. Nothing is summarized or invented.** The last column lists each check the enforcer binds, as `<id> (<kind>, <enforcement>)`, appending a `partial` check's `gap` **verbatim** — an honest gap beats an implied guarantee. A script backing several checks lists all of them, which is also what makes its tier legible: `protect-git.sh` reads `locked` because one of the two checks it binds is `floor`.
+
+There is deliberately **no prose "what it does" column.** `[[check]]` has no `description` field, so rendering one would force an executor to summarize the script or invent text — and a table that looks authoritative while containing invented prose is worse than a terser honest one. If a user wants the narrative, `resources/references/hooks.md` documents each hook; point them there rather than paraphrasing it here.
+
+Engine services declare no check; their row says so and names what they do in the fixed engine wording, since that string is the engine's own, not a rulebook's.
+
+`locked` rows are shown so the user knows what they are getting, and are **not** offered: see § Hook tiers.
+
+Then ask, in two steps:
+
+> Register these hooks in your settings? `locked` rows cannot be declined individually. [all / choose / none]
+
+**The prompt line must not say "`locked` rows always register."** An evaluator run read that literally and concluded `none` still writes the secret scan, which is the opposite of the rule below it. `locked` constrains *which rows may be declined one at a time*, never whether Phase 2 registers anything at all.
+
+`all` accepts every **builtin** candidate row — an external rulebook's enforcers are confirmed separately afterwards and `all` is not consent to them. `none` ends Phase 2 — the skill is still fully usable, and the `locked` rows are not written either (nothing is registered without consent; the tier governs what may be *declined individually*, never whether Phase 2 runs at all). `choose` walks the `recommended` and `optional` rows one at a time, **defaulting to yes**:
+
+> Register `<enforcer filename>` — `<tier>`, `<event>`/`<matcher>`? [Y/n]
+
+**Default-yes is load-bearing.** A checklist that defaults to no gets "skip all", and one that defaults to yes but hides the list is opt-out wearing opt-in clothes. The table plus a defaulted prompt is what makes the choice informed without making it laborious — and it means a user pressing Enter through the list keeps every protection.
+
+(Registration is the executable trust opt-in: a rulebook's `hard`/`partial` checks stay declared either way, but their *effective* enforcement is `behavioral` until their enforcers are registered — `status` shows the difference, and says so as state, never as a claim about what the user chose.)
+
+**Two sets, named once and used consistently below.** Conflating them is what made an
+earlier draft prune a declined hook as though it were undeclared:
+
+- The **candidate set** — every enforcer this selection *could* register: the fixed
+  engine services plus each `hard`/`partial` check with an `event`, from the merged
+  manifests. It does not depend on any answer. The table renders the candidate set,
+  which is why `none` still shows the same table.
+- The **accepted set** — the candidate set minus every row the user declined, minus
+  every external enforcer whose per-hook confirmation was refused. This is what gets
+  written, and it is what the prune compares against. `all` accepts every *builtin*
+  candidate; `none` accepts nothing.
+
+A declined hook is therefore **in the candidate set and out of the accepted set** — the
+distinction the summary categories below turn on, and the reason "declined" and
+"no longer derivable" are different causes rather than the same one worded twice.
+
+**Ordering.** Derivation must precede the table, and the settings-file choice must
+precede any merge, so the real order is:
+
+1. resolve the install root and the selection (below) → derive the candidate set → resolve tiers
+2. print the table
+3. ask `[all / choose / none]`; on `choose`, walk the declinable rows; then confirm any external enforcers individually
+4. `none` ends Phase 2 here, having written nothing
+5. ask which settings file, read it, merge, prune, show callout + diff, confirm, write, summarize
+
+Steps 1 and 2 of the numbered list below supply stages 1 and 5 respectively; they are
+written in dependency order, not in prompt order.
+
+On `all` or `choose` (`none` ends Phase 2 without writing anything):
 
 1. **Resolve the install root** using the locator in § Locating the bundled rule content — that section is the single authority; do not restate its order here. It matters more for `install` than for `load`: the resolved root is written into `settings.json` as an **absolute hook path**, so a root resolved from a vendored copy in the workspace would register hooks pointing at workspace scripts.
 
@@ -420,7 +479,14 @@ If `y`:
    - **Derived enforcers:** for each rulebook in scope — a named `[rulebook]` argument, else the **current selection** — take its **merged, validated** manifest and collect every check's `(event, matcher, enforcer)`. **If nothing is loaded yet** (a fresh `kerby install` run before any `load` — the common first-time case), first resolve the selection order (pin → intent manifest → builtin-marker detection → ask; `install` is interactive, so the ask path is available) to determine which rulebooks are in scope and **validate their manifests** for derivation (the `validate → TOFU → derive → register` order below) — **without running the full `load` flow**. `install` is future-session setup: it must **not** silently read a rulebook's BOOTSTRAP/root prose into, or otherwise activate it in, the *current* session — deriving hook entries needs the resolved+validated manifests, not an in-context load. Otherwise the scope is empty and only the fixed SessionStart trio would register, silently dropping the PreToolUse enforcers the selection's manifests declare (e.g. for a bundled-`swe` selection, base's `pre-commit-check` secret scan plus swe's `protect-env`, `protect-git`, `hollow-test-check`, …) — the enforcers this command's prompt derives and promises. **This resolved selection is persisted to `.kerby/rulebooks.lock` at resolution time (Phase 2 intro above) — before the hook `y`/`n` prompt, not gated on it.** That is what stops the later SessionStart `args: load` from re-detecting/re-asking on the same unpinned repo and selecting a *different* rulebook than the hooks were registered for (which would break "ask once, then pin" and leave hooks bound to a rulebook the session didn't load) — and it survives a `n` to hooks. Writing the pin is project state, not session activation (it does **not** read BOOTSTRAP into this session), so it stays within install's "don't activate in the current session" rule. If a pin already existed, install used it and writes nothing new. Resolution is install-anchored, exactly like the validator's: a builtin's enforcer resolves under `<install-root>/rulebooks/<id>/`, an approved local/remote rulebook's under its own folder — never a path a lockfile merely claims. **Order of operations: validate → TOFU → derive → register.** A rulebook that hasn't cleared the trust prompt contributes nothing; registration is never a path around TOFU.
    - **Dedup key = (event, matcher, *resolved script path*):** two checks that resolve to the **same actual script** produce one entry; two that resolve to *different* scripts both register. The builtin `base` and `swe` each ship their **own** `PreToolUse/Bash` script — base's `secrets-staged` → `rulebooks/base/hooks/pre-commit-check.sh` (the secret scan), swe's `hollow-test-heuristic` → `rulebooks/swe/hooks/hollow-test-check.sh` (the soft hollow-test + reminder). Different resolved paths ⇒ **two entries**, both run; when `swe` isn't selected only base's registers. (Before v9.3 swe shimmed into base's script and the two deduped to one; swe is now self-contained, so this is the ordinary two-distinct-scripts case.) **Do not dedup on filename alone** — distinct paths are distinct scripts even if a basename repeats: two unrelated rulebooks may each declare a `hooks/check.sh` at *different* paths, and both must register or the second's selected check silently never runs.
    - **Shimmed enforcers (external rulebooks only):** an external rulebook may still declare a confined enforcer that `exec`s a shared script (e.g. shimming into the floor). Resolve such a shim by reading the path its final `exec` runs — resolving a single `target=`-style assignment if the shim guards resolvability first (tests the target exists, warns + `exit 0` if not, then `exec "$target"`). **The shim is not required to be one physical line** — an installer that only matched an exact one-line `exec …` would miss the hardened form and wrongly register the shim as a distinct script, double-binding the hook. The registered path is the resolved target (base-first order when it resolves into the floor). **A shim into the floor's script binds to the *host* floor, never a dangling relative sibling:** a relocated/remote rulebook (a fork under `.kerby/rulebooks/<id>/`) has no sibling `base/`, so its shim's literal target would dangle — since `base` is always the install-owned floor, resolve such a shared-floor enforcer to `<install-root>/rulebooks/base/hooks/pre-commit-check.sh` (which every kerby install has) and dedup it into base's own already-registered entry. **Never register a path that does not resolve to a real script:** if the host floor script can't be resolved either, the enforcer can't be bound — report that check as `behavioral (degraded)` rather than writing a dangling registration. An enforcer whose check declares no `event` cannot be auto-registered (the validator warns E09) — skip it and say so.
-   - **Origin-tiered confirmation:** builtin enforcers ride the single Phase-2 y/n below. A `local`/`remote` rulebook's enforcers are executable trust — confirm **each hook individually**, showing the resolved absolute path and its trigger: `Register <path> to run on every <event>(<matcher>) tool call? [y/n]`.
+   - **Origin-tiered confirmation:** builtin enforcers ride the Phase-2 table and its `all`/`choose`/`none` prompt below. A `local`/`remote` rulebook's enforcers are executable trust — confirm **each hook individually**, showing the resolved absolute path and its trigger: `Register <path> to run on every <event>(<matcher>) tool call? [y/n]`. **The tier never overrides this.** `locked` means "not offered for decline" for **install-resolved builtins only**; an external rulebook declaring `floor = true` still gets the per-hook prompt, because otherwise any rulebook could force a script into the user's settings by setting one boolean. Trust comes from where a rulebook resolves, never from what its manifest claims about itself.
+
+     **Tier does not gate an external row at all.** "Never offered for individual decline"
+     describes `locked` *builtins*; an external enforcer is confirmed individually whatever
+     its tier, because the confirmation is a trust step, not a tier step. The two rules
+     never collide: no external row is ever `locked` for offering purposes.
+
+     **This survives every answer to the table prompt except `none`.** `all` covers the *builtin* rows only; an external rulebook's enforcers are still confirmed one at a time afterwards, and answering `all` is not consent to them. `choose` walks the builtin `recommended`/`optional` rows and then the external rows, each individually — an external row is never skipped for being `locked`. `none` ends Phase 2 before any of it, external rows included — **no per-hook confirmation is asked after `none`**, since nothing will be written and a trust prompt for a registration that cannot happen is noise. Show external rows in the table too, marked `external — confirmed individually`, so the user sees them before answering rather than being surprised by prompts after.
 
 2. **Pick the settings file**. Ask:
 
@@ -432,21 +498,21 @@ If `y`:
 
 3. **Read or create the settings file.** If missing, create with `{}`. Read existing JSON. **If the JSON is malformed, STOP** and ask the user to fix it before re-running — never overwrite a file we couldn't parse.
 
-4. **Build the hook entries** from the derived set, with absolute paths. As a **worked example**, a bundled-`swe` selection (detected or chosen) derives exactly this set — a different selection derives a different set from its own manifests, with zero engine change:
+4. **Build the hook entries** from the **accepted set** — never the candidate set. A declined row is a candidate and must not be written; building from candidates would re-add exactly what the user just declined, and the prune would not catch it because there was no prior entry to remove. With absolute paths. As a **worked example**, a bundled-`swe` selection (detected or chosen) derives exactly this set — a different selection derives a different set from its own manifests, with zero engine change:
 
-   | Event | Matcher | Script (dedup key: resolved path — distinct paths are distinct entries, even a repeated basename) |
-   |---|---|---|
-   | `PreToolUse` | `"Bash"` | `<install-root>/rulebooks/base/hooks/pre-commit-check.sh` (base floor: secret scan) |
-   | `PreToolUse` | `"Bash"` | `<install-root>/rulebooks/swe/hooks/hollow-test-check.sh` (swe: soft hollow-test + reminder) |
-   | `PreToolUse` | `"Bash"` | `<install-root>/rulebooks/swe/hooks/protect-git.sh` |
-   | `PreToolUse` | `"Edit\|Write"` | `<install-root>/rulebooks/swe/hooks/protect-env.sh` |
-   | `PreToolUse` | `"Read"` | `<install-root>/rulebooks/swe/hooks/warn-env-read.sh` |
-   | `PreToolUse` | `"Edit\|Write"` | `<install-root>/rulebooks/swe/hooks/route-high-stakes.sh` |
-   | `SessionStart` | `""` | `<install-root>/resources/hooks/session-start-context.sh` |
-   | `SessionStart` | `""` | `<install-root>/resources/hooks/knowledge-bootstrap.sh` |
-   | `SessionStart` | `""` | `<install-root>/resources/hooks/context-bootstrap.sh` |
+   | Tier | Event | Matcher | Script (dedup key: resolved path — distinct paths are distinct entries, even a repeated basename) |
+   |---|---|---|---|
+   | `locked` | `PreToolUse` | `"Bash"` | `<install-root>/rulebooks/base/hooks/pre-commit-check.sh` (base floor: secret scan) |
+   | `optional` | `PreToolUse` | `"Bash"` | `<install-root>/rulebooks/swe/hooks/hollow-test-check.sh` (swe: soft hollow-test + reminder) |
+   | `locked` | `PreToolUse` | `"Bash"` | `<install-root>/rulebooks/swe/hooks/protect-git.sh` |
+   | `recommended` | `PreToolUse` | `"Edit\|Write"` | `<install-root>/rulebooks/swe/hooks/protect-env.sh` |
+   | `optional` | `PreToolUse` | `"Read"` | `<install-root>/rulebooks/swe/hooks/warn-env-read.sh` |
+   | `optional` | `PreToolUse` | `"Edit\|Write"` | `<install-root>/rulebooks/swe/hooks/route-high-stakes.sh` |
+   | `optional` | `SessionStart` | `""` | `<install-root>/resources/hooks/session-start-context.sh` |
+   | `optional` | `SessionStart` | `""` | `<install-root>/resources/hooks/knowledge-bootstrap.sh` |
+   | `optional` | `SessionStart` | `""` | `<install-root>/resources/hooks/context-bootstrap.sh` |
 
-   (The table is the derivation's worked example, not the source of truth; a second rulebook's enforcers join it with zero engine change.)
+   (The table is the derivation's worked example, not the source of truth; a second rulebook's enforcers join it with zero engine change. The `Tier` column is derived from each check's `floor`/`severity` per `docs/rulebook-contract.md` § Hook tiers — note `protect-git.sh` is `locked` because it co-hosts the `floor` check `destructive-git`, even though its other check `protected-branch-commit` is not floor: the unit is the script.)
 
    Each entry uses the standard Claude Code hook shape:
 
@@ -468,17 +534,118 @@ If `y`:
      Broad on purpose: removal must catch an orphan from a rulebook since **unloaded or removed**, whose hook dir/filename can no longer be derived from the currently-loaded set — the load-set-derived signature alone would miss exactly the stale entries `uninstall` exists to clear. (A local rulebook whose lockfile entry is entirely gone *and* whose path is outside `.kerby/` is not structurally identifiable — and kerby **must not guess**: a hook outside every kerby root is treated as **not kerby-managed**, left untouched, and **never added to the removal set**. Guessing here would sweep a user's own hand-written hook — a formatter, a notifier — into the bulk removal. At most, `uninstall` prints a **separate advisory** — *"N hook(s) outside kerby's known roots were left as-is; if one is a leftover from an external rulebook, remove it yourself"* — kept out of the `Remove these entries?` confirmation entirely.)
    - **"Is *this specific derived enforcer* already registered / bound?"** (used by the idempotency skip here, and by `status`'s effective-enforcement test): compare the **exact resolved `(event, matcher, script-path)` tuple** — the same resolved path the derivation produced — **never filename-under-a-root**. Filename matching is wrong across rulebooks: two loaded external rulebooks may each declare `hooks/check.sh` at *different* paths; matching on basename would let rulebook A's registered entry satisfy rulebook B, so a re-run skips B's hook and `status` shows B bound when B's script isn't registered. Exact-path comparison keeps each distinct script independently tracked.
 
-   This shared signature (the "managed?" predicate) is used by `install`, `status`, and `uninstall`; the exact-tuple test is what makes each specific enforcer recognizable as already-present (else re-run duplicates it), bindable (else `status` wrongly shows degraded/bound), and removable. Skip already-present entries — Phase 2 is idempotent.
+   This shared signature (the "managed?" predicate) is used by `install`, `status`, and `uninstall`; the exact-tuple test is what makes each specific enforcer recognizable as already-present (else re-run duplicates it), bindable (else `status` wrongly shows degraded/bound), and removable. Skip already-present entries — Phase 2 is idempotent for anything still in the derived set. **Precedence, when the two rules disagree: prune wins.** An entry can be both already-present *and* absent from this run's derived set — that is exactly the shape of a decline on a machine where the hook was registered earlier. Treating it as "already present, skip" would make the decline a no-op; it belongs in the **remove** set. Read the skip rule as scoped to entries the derivation still produces.
 
-   **Prune stale managed entries in the same pass (so "re-run `kerby install`" self-heals).** While merging, also collect every settings entry that matches the "managed?" predicate (a kerby-managed root) **but whose resolved command path no longer exists on disk** — the state a builtin rename can leave behind (see § Migration residue for the historical `code` → `swe` case). These go in a **remove** set alongside the **add** set: re-running `install` re-points the enforcers to the live resolved tuples **and** clears the dead ones in one diff, so a subsequent `status` no longer reports `registered script missing`. Prune **only** dead-script entries under a kerby root — never a managed entry whose script still resolves (that's a live binding), and never a hook outside every kerby root (that's the user's own, per the predicate's out-of-root rule). This is what makes the `status` remediation ("re-run `kerby install`") terminate instead of looping.
+   **Prune managed entries the derived set no longer contains (so "re-run `kerby install`" self-heals).** While merging, collect into a **remove** set every settings entry matching the "managed?" predicate (a kerby-managed root) that falls into either case:
 
-6. **Show the full diff** — print a unified diff of what will be added to *and removed from* the chosen settings file. Include the resolved absolute paths so the user can verify them; a stale-entry removal is shown as a deletion line so the prune is never silent.
+   - **Its resolved command path no longer exists on disk** — the state a builtin rename can leave behind (see § Migration residue for the historical `code` → `swe` case).
+   - **Its `(event, matcher, resolved path)` tuple is absent from the ACCEPTED set** — because the user declined it this run, or because it is no longer a candidate at all (its `matcher`/`event` changed, or its rulebook is no longer selected). Compare against the accepted set, never the candidate set: a declined hook is still *derivable*, so a candidate-set comparison would never see it and the decline would do nothing. **This arm applies to a project-scoped settings file only** (choices 2 and 3 below), never to global `~/.claude/settings.json` — see the scope rule directly below.
+
+   **`status` compares against the CANDIDATE set, not the accepted set** — it has no answers to work from, and must not report a hook the user simply declined as an orphan. Both sets include the fixed engine services; a literal manifest-only reading would orphan and then delete all three.
+
+   **Tuple-absence pruning is scoped to project settings.** Global `~/.claude/settings.json` applies to *every* project on the machine, while the derived set comes from *this* project's selection. A hook registered there for another project — a different rulebook, or the same one selected elsewhere — is under a kerby root and absent from this derivation, and would be indistinguishable from a decline. Nothing in a settings entry records which project asked for it, so this cannot be resolved by inspection. In the global file, therefore, prune **dead-script entries only** (the original arm), and when a decline would otherwise have removed a live entry there, say so rather than silently doing nothing:
+
+   > `<enforcer>` is registered in `~/.claude/settings.json`, which every project shares. Declining it here does not remove it — another project may rely on it. Remove it yourself — re-running `install` against this project's settings file registers hooks there but still cannot touch the global entry, so it is not a way to honor this decline. (`status` reports the same state with the same absence of a remedy; the two commands must not disagree about what is possible.)
+
+   **Scope the prune to the same rulebooks the candidates came from.** With a named
+   `[rulebook]` argument, derivation covers that rulebook only — so the prune must too,
+   restricted to that rulebook's own resolved signatures exactly as `uninstall` scopes its
+   sweep (§ `uninstall` Phase 2 step 2). Without this, `install <A>` in a selection of A
+   and B removes every one of B's entries and files them under `no longer a candidate`,
+   which is false: B is still selected, it was simply out of scope for this run. A
+   narrowed derivation must never widen the removal.
+
+   Match at **handler granularity**, not matcher-group granularity: several enforcers share one `matcher` group (`protect-env.sh` and `route-high-stakes.sh` both sit under `"Edit|Write"`), so removing one must leave its siblings and the group itself intact — use the cleanup chain from `uninstall` Phase 2 step 4 only when a group is left empty.
+
+   **Why this supersedes the previous rule.** This paragraph used to prune *only* dead-script entries, and forbade touching "a managed entry whose script still resolves" on the stated grounds that it is a live binding. That reasoning was sound while `install` could only ever add — but a live binding is exactly what a decline has to remove. Left as it was, declining a hook would be silently **inert for anyone who had already installed**: its script still exists, so the prune skipped it, and the new derivation simply never re-added it, leaving the old entry firing while `status` reported everything healthy. The clause is replaced, not merely narrowed, so that this reason travels with it.
+
+   Still never pruned: a hook **outside every kerby root** (that is the user's own, per the predicate's out-of-root rule). That boundary is unchanged and is what keeps a decline from reaching a user's own formatter or notifier.
+
+   This is also what makes the `status` remediation ("re-run `kerby install`") terminate instead of looping.
+
+6. **Show the full diff** — print a unified diff of what will be added to *and removed from* the chosen settings file. Include the resolved absolute paths so the user can verify them; a removal is shown as a deletion line so the prune is never silent.
+
+   **Call out removals that drop a protection, above the diff.** When the remove set contains a `locked` or `recommended` enforcer, print this block first, then the diff:
+
+   ```
+   This will REMOVE protection:
+     protect-env.sh — recommended — binds protect-env (code, hard)
+   ```
+
+   Render the trailing clause the same way the table's last column does — check ids with
+   `(<kind>, <enforcement>)`, straight from the manifest. **Do not describe what the hook
+   does**; there is no field to read that from, so any such phrase would be invented.
+
+   Because declines are not persisted, a re-run re-asks every declinable row, and a single mis-keyed `n` can delete a binding the user accepted months ago. Three things already guard that: the row prompts default to yes, the diff shows the deletion, and step 7 confirms once more. This block closes the gap they leave — one unwanted deletion hiding among several wanted ones in a long diff. `optional` removals get no such block; they are the routine case and would dilute the signal.
+
+   **When the tier cannot be recovered, print the block anyway.** A settings entry stores only a path — no tier, no check id. For a removal whose enforcer no longer resolves (a renamed or deleted script) or whose rulebook is no longer selected, there is no derived row to read a tier from. Render it as `<filename> — tier unknown — <cause>`, where the cause is `script no longer resolves` or `rulebook no longer selected` — those are different states and an unselected builtin's script usually still exists, so mandating one wording would make the line false half the time. If neither can be established, write `cause unknown`. Erring toward the callout costs a line the user can ignore; erring away from it silently deletes a protection whose tier happened to be unrecoverable, which is the failure this block exists to prevent.
 
 7. **Single final confirmation** — `Apply this diff? [y/n]`. On `n`, abort cleanly without modifying the file. On `y`, write the merged JSON back, preserving any unrelated keys exactly.
 
 8. **Summarize Phase 2**:
 
-   > Phase 2: registered `<N>` hook entries in `<settings-path>`. Already-present: `<list>`. Pruned stale (script missing): `<list>`. Skipped (user declined): `<list>`.
+   **On `none`, report only what is knowable.** `none` exits before the settings file is
+   chosen or read, so it cannot tell whether anything was already registered and must not
+   guess between `Declined, nothing to remove` and `Declined, left registered`. Its summary
+   is one line, and it points at the command that *can* answer:
+
+   > Phase 2: nothing registered — no settings file was read or written. Any kerby hooks from an earlier install are unchanged and still active; `kerby status` lists what is currently bound.
+
+   For `all` and `choose`, the full summary:
+
+   > Phase 2: registered `<N>` hook entries in `<settings-path>`.
+   > Already-present: `<list>`.
+   > Removed — declined this run: `<list>`.
+   > Removed — no longer a candidate: `<list>`.
+   > Removed — script missing: `<list>`.
+   > Declined, nothing to remove: `<list>`.
+   > Declined, left registered (`<reason>`): `<list>`.
+   > Not offered (`locked`): `<list>`.
+
+   **Every category is a distinct outcome, and the differences are the point.** They are
+   decided by two facts — was it registered before, and is it in the accepted set now:
+
+   | Category | Was registered | In accepted set | What happened |
+   |---|---|---|---|
+   | Registered | no | yes | **newly written** |
+   | Already-present | yes | yes | nothing; skipped |
+   | Removed — declined this run | yes | no (declined) | **a live binding was deleted** |
+   | Removed — no longer a candidate | yes | no (not derivable) | rulebook unselected, or `event`/`matcher` changed |
+   | Removed — script missing | yes | n/a | dead path pruned |
+   | Declined, nothing to remove | no | no (declined) | the answer changed nothing |
+   | Declined, left registered | yes | no (declined) | **the decline could not be honored** — see below |
+   | Not offered (`locked`) | either | yes | never up for individual decline |
+
+   **`Declined, left registered` exists because a decline cannot always be carried out.**
+   Two cases produce it: a global settings file, where tuple-absence pruning does not run
+   (the scope rule in step 5), and `none`, which ends Phase 2 before any merge and so
+   leaves an existing registration untouched. Without this row a user who answered `none`
+   on a machine that already had hooks would be told nothing was removed *and* nothing was
+   registered, and could reasonably conclude their hooks were now gone. Name the reason in
+   the parentheses. **Never file these under `Removed — declined this run`** — nothing was
+   removed — **and never under `Declined, nothing to remove`** — there was something, and
+   it is still running.
+
+   **Two facts decide the row; two more decide which variant of it.** Registered-before ×
+   in-accepted-set picks the family above. Within a family, settings **scope** splits
+   `Removed — declined` from `Declined, left registered`, and **tier** splits an accepted
+   row into `Not offered (locked)` versus the rest.
+
+   **Precedence, when several are true at once** — take the first that applies:
+
+   1. `Removed — script missing` (a dead path is dead whatever else is true of it)
+   2. `Declined, left registered` (the decline could not be carried out)
+   3. `Removed — declined this run`
+   4. `Removed — no longer a candidate`
+   5. `Declined, nothing to remove`
+   6. `Not offered (locked)` — reported *instead of* `Registered`/`Already-present` for a
+      `locked` row, so its presence is never read as something the user chose
+   7. `Registered` / `Already-present`
+
+   Every reachable outcome lands in exactly one row: the pair (registered-before,
+   in-accepted-set) has four combinations, and each is covered — `no/yes` is `Registered`,
+   `yes/yes` is `Already-present` or `Not offered`, `yes/no` is one of the removal or
+   left-registered rows, `no/no` is `Declined, nothing to remove`.
 
 ### Phase 2 edge cases
 
@@ -548,7 +715,9 @@ fix that.
 
 ### Idempotency and re-runs
 
-`install` is safe to re-run. Phase 1 reports already-installed vendor files as `already installed` and skips. Phase 2 detects already-managed hook entries by their absolute-path signature and skips. No duplicates introduced by re-running.
+`install` is safe to re-run. Phase 1 reports already-installed vendor files as `already installed` and skips. Phase 2 detects already-managed hook entries by their exact resolved tuple and skips the ones the derivation still produces. No duplicates introduced by re-running.
+
+**A re-run can now also delete, and that is deliberate.** Since a decline must be able to remove a live binding (step 5's prune), "safe to re-run" no longer means "additive only". A re-run re-asks every declinable row — declines are not persisted — so it is a fresh decision each time, not a replay of the last one. Every removal appears as a deletion line in the step 6 diff, protection-dropping removals get their own callout above it, and step 7 confirms before anything is written. Answering `all` at the prompt reproduces the previous full set exactly.
 
 ---
 

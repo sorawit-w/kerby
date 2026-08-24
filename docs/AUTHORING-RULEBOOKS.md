@@ -162,10 +162,11 @@ in-house examples).
   outside base is **not** pointless: E05/E06 apply across the whole merged
   set, so your floor also binds anything that `extends` you, and it is the input to
   the `locked` hook tier (contract § Hook tiers) — a specification `install`
-  is being built against, not yet its behavior. When that ships, the tier is
-  honored for **install-resolved builtins only**: an external rulebook's
-  enforcers always get per-hook confirmation regardless, so a `floor` you
-  declare will not force-register your hook on someone.
+  reads it as the `locked` hook tier, so `install` shows your enforcer in its
+  Phase 2 table but never offers it for decline. That holds for
+  **install-resolved builtins only**: an external rulebook's enforcers always
+  get per-hook confirmation regardless, so a `floor` you declare will not
+  force-register your hook on someone.
 - Non-floor checks may declare an `override` policy naming a scoped,
   user-authorized escape hatch (the swe rulebook's
   `protected-branch-commit` → `CODING_RULES_ALLOW_PROTECTED_COMMIT=1` is the

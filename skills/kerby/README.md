@@ -153,24 +153,24 @@ If accepted, the skill:
    - `~/.claude/settings.json` (global — applies to every project)
    - `<project>/.claude/settings.local.json` (project, gitignored — your machine only) — **default**
    - `<project>/.claude/settings.json` (project, committed — teammates also inherit)
-3. **Builds nine hook entries** with absolute paths to the resolved scripts (the `Resolved from` column is the install-relative directory each script lives in):
+3. **Builds the hook entries** with absolute paths to the resolved scripts, then shows them as a table and asks — `all`, `choose` (walk the declinable rows, each defaulting to yes), or `none`. How many entries there are depends on the selection and on what you decline, so no count is quoted here. The `Tier` column is derived from each check's `floor`/`severity` (`docs/rulebook-contract.md` § Hook tiers): `locked` rows are shown but never offered for decline; `recommended` and `optional` rows are. The `CHECKS IT BINDS` column lists each check the enforcer binds as `<id> (<kind>, <enforcement>)`, copied from the manifest — there is deliberately no prose description column, since `[[check]]` has no field to source one from. The `Resolved from` column is the install-relative directory each script lives in:
 
-   | Event | Matcher | Script | Resolved from | What it does |
-   |---|---|---|---|---|
-   | `PreToolUse` | `"Edit\|Write"` | `protect-env.sh` | `rulebooks/swe/hooks/` | Hard-block edits to an existing credential file, and to any env-file name that aliases one (symlink / hard link) or is relative. Templates (`.env.example`/`.template`/`.sample`) and creating an absent env file stay allowed (security — not env-var disablable) |
-   | `PreToolUse` | `"Bash"` | `protect-git.sh` | `rulebooks/swe/hooks/` | Hard-block destructive git (`reset --hard`, `push --force` to protected branches, `clean -f`, etc.) — security, not env-var disablable |
-   | `PreToolUse` | `"Bash"` | `pre-commit-check.sh` | `rulebooks/base/hooks/` | The base floor's **pure secret scan** — hard-block on detected secrets in staged files. Base's own registration (registers under every selection); never disablable |
-   | `PreToolUse` | `"Bash"` | `hollow-test-check.sh` | `rulebooks/swe/hooks/` | swe's self-contained soft check (v9.3): flag hollow tests + remind to run the gates at commit — a *separate* `Bash` entry from base's scan, disablable via `CODING_RULES_HOOK_DISABLED=hollow-test-check` |
-   | `PreToolUse` | `"Read"` | `warn-env-read.sh` | `rulebooks/swe/hooks/` | Soft-remind when reading `.env` files (env-var disablable) |
-   | `PreToolUse` | `"Edit\|Write"` | `route-high-stakes.sh` | `rulebooks/swe/hooks/` | Remind when editing a §3 high-stakes path — advisory routing, not a block |
-   | `SessionStart` | `""` | `session-start-context.sh` | `resources/hooks/` | Inject `.kerby/STATUS.md` head + recent `.kerby/memory.log` so the agent resumes with state |
-   | `SessionStart` | `""` | `knowledge-bootstrap.sh` | `resources/hooks/` | Scaffold `.kerby/knowledge/KNOWLEDGE.md` if missing; reindex AUTO-INDEX block; flag entries older than 180 days |
-   | `SessionStart` | `""` | `context-bootstrap.sh` | `resources/hooks/` | Scaffold `CONTEXT.md` (project domain glossary) if missing; never overwrites |
+   | Tier | Event | Matcher | Script | Resolved from | What it does |
+   |---|---|---|---|---|---|
+   | `recommended` | `PreToolUse` | `"Edit\|Write"` | `protect-env.sh` | `rulebooks/swe/hooks/` | Hard-block edits to an existing credential file, and to any env-file name that aliases one (symlink / hard link) or is relative. Templates (`.env.example`/`.template`/`.sample`) and creating an absent env file stay allowed (security — not env-var disablable) |
+   | `locked` | `PreToolUse` | `"Bash"` | `protect-git.sh` | `rulebooks/swe/hooks/` | Hard-block destructive git (`reset --hard`, `push --force` to protected branches, `clean -f`, etc.) — security, not env-var disablable |
+   | `locked` | `PreToolUse` | `"Bash"` | `pre-commit-check.sh` | `rulebooks/base/hooks/` | The base floor's **pure secret scan** — hard-block on detected secrets in staged files. Base's own registration, offered under every selection since `base` merges under every rulebook; `locked`, so never offered for decline and never env-var disablable |
+   | `optional` | `PreToolUse` | `"Bash"` | `hollow-test-check.sh` | `rulebooks/swe/hooks/` | swe's self-contained soft check (v9.3): flag hollow tests + remind to run the gates at commit — a *separate* `Bash` entry from base's scan, disablable via `CODING_RULES_HOOK_DISABLED=hollow-test-check` |
+   | `optional` | `PreToolUse` | `"Read"` | `warn-env-read.sh` | `rulebooks/swe/hooks/` | Soft-remind when reading `.env` files (env-var disablable) |
+   | `optional` | `PreToolUse` | `"Edit\|Write"` | `route-high-stakes.sh` | `rulebooks/swe/hooks/` | Remind when editing a §3 high-stakes path — advisory routing, not a block |
+   | `optional` | `SessionStart` | `""` | `session-start-context.sh` | `resources/hooks/` | Inject `.kerby/STATUS.md` head + recent `.kerby/memory.log` so the agent resumes with state |
+   | `optional` | `SessionStart` | `""` | `knowledge-bootstrap.sh` | `resources/hooks/` | Scaffold `.kerby/knowledge/KNOWLEDGE.md` if missing; reindex AUTO-INDEX block; flag entries older than 180 days |
+   | `optional` | `SessionStart` | `""` | `context-bootstrap.sh` | `resources/hooks/` | Scaffold `CONTEXT.md` (project domain glossary) if missing; never overwrites |
 
    (`SKILL.md` is the source of truth for the full derivation — base-first dedup, with shim-following still supported for an *external* rulebook that shims into a shared script. As of v9.3 the bundled `swe` is self-contained: base's secret scan and swe's `hollow-test-check.sh` are **two distinct `Bash` entries**, not one shimmed registration. The table above is a `swe`-on-`base` install.)
 
-4. **Shows the full diff** of the merged settings.json. Single y/n confirmation. On `n`, nothing is written.
-5. **Idempotent** — re-running detects already-managed entries by their absolute-path signature (any script whose resolved path sits under a kerby hook root — `<install-root>/rulebooks/*/hooks/` or `<install-root>/resources/hooks/`) and skips them.
+4. **Shows the full diff** of the merged settings.json — additions *and* removals. If a removal would drop a `locked` or `recommended` protection, that is called out in its own block above the diff, so it cannot hide among routine changes. One final `Apply this diff? [y/n]` — separate from the per-hook choices above, and the last point at which nothing has been written yet. On `n`, nothing is.
+5. **Re-runnable, and it can now delete.** Re-running skips already-managed entries the derivation still produces, and *removes* managed entries absent from the accepted set — a hook declined this run, one whose script is gone, or one whose `matcher`/`event` changed. **Removal is scoped to project settings files:** in global `~/.claude/settings.json` only dead-script entries are pruned, because another project's registration there is indistinguishable from a decline; a decline is reported instead, under `Declined, left registered`. Declines are not persisted, so a re-run re-asks every declinable row; answering `all` reproduces the previous full set exactly. `status` reports a leftover entry as `orphaned registration — re-run kerby install`.
 
 `uninstall` mirrors symmetrically, removing only entries whose resolved path sits under a kerby hook root. Hand-written hook entries with the same script names but different paths are left alone.
 
@@ -188,7 +188,7 @@ export CODING_RULES_HOOK_DISABLED=session-start-context,hollow-test-check,knowle
 
 > **Note on the legacy `pre-commit-check` token:** before v9.3 the hollow-test soft check lived inside base's `pre-commit-check.sh` under that name. `hollow-test-check.sh` still honors the legacy `pre-commit-check` token, so an old disable setting keeps working — but it now disables only the **hollow-test soft check**, never the secret scan (which is non-disablable by design).
 
-**To remove a `locked` or `recommended` hook**, edit your settings file and delete the entry — a deliberate config edit, never an ambient variable that can drift in from a shell rc, a CI config, or an `.envrc`. (Declining a `recommended` hook at install time is the planned second route; today Phase 2 asks once for all of them.)
+**To remove a `locked` or `recommended` hook**, edit your settings file and delete the entry — a deliberate config edit, never an ambient variable that can drift in from a shell rc, a CI config, or an `.envrc`. Declining a `recommended` hook when `install` walks the declinable rows is the other route, and leaves nothing behind to edit. A `locked` hook is never in that walk — the settings edit is its only route.
 
 ### Plugin-level activation is intentionally NOT supported
 
