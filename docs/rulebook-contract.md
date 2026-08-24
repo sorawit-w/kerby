@@ -86,8 +86,8 @@ reload_confirmation = "…"   #   builtins ONLY — every other origin gets the 
 | `runner` | string | for `data`: built-in runner id (`gitleaks`, `semgrep`, `regex-floor`) |
 | `config` / `entry` / `body` | path | the declared file: ruleset (`data`, optional when the runner carries defaults), script (`code`), markdown (`prose`) |
 | `severity` | `block \| warn \| info` | feeds `[gate]` mapping to DENIED / HELD |
-| `floor` | bool | non-overridable (D9); no config or extending rulebook may loosen it. Only meaningful in `base` at contract v2 |
-| `override` | string | escape-hatch policy for non-floor checks, e.g. `"authorized-scoped"` (the `CODING_RULES_ALLOW_PROTECTED_COMMIT=1` pattern) |
+| `floor` | bool | non-overridable (D9); no config or extending rulebook may loosen it. **Enforced across the whole merged set, not only `base`** — E05 (never an `override_of` target), E06 (severity must stay in the effective `block_on`), and eager prose loading all key on it for every rulebook. It is also the input to the **hook tier** (§ Hook tiers): a `floor` check's enforcer is `locked`, which once `install` implements tiering will mean never offered for decline — **and then for install-resolved builtins only.** An external (`local`/`remote`) rulebook's enforcers always get per-hook confirmation (`SKILL.md` § Origin-tiered confirmation); a `floor` it declares may not suppress that, or a rulebook could force-register a hook by setting one boolean |
+| `override` | string | **Documentation only — no engine behavior keys on this field.** Names an escape-hatch policy the check's own `enforcer` implements *in its script*, e.g. `"authorized-scoped"` (`CODING_RULES_ALLOW_PROTECTED_COMMIT=1` in `swe`'s `protect-git.sh`; `CODEX_GATE_BYPASS=1` in `codex-review`'s `codex-pr-gate.sh` — both must directly prefix the command, never ambient). Unvalidated: not type-checked, not enum-checked, and nothing verifies the enforcer implements the hatch it claims. Distinct from `override_of`, which is merge machinery (E05/E07) and *is* read. **If any future behavior reads this field, it gains validation in the same change** — an unvalidated field that gates behavior is only the author's claim about their own script |
 | `gap` | string | for `partial`: the named enforcement gap (warn if absent, E09); surfaces in `status` |
 | `event` / `matcher` | strings | how `install` derives the hook registration for this check's enforcer: a Claude Code lifecycle event (unknown events warn) + tool-name pattern (empty = all). An enforcer without `event` cannot be auto-registered (E09 warns). Dedup at registration = **(event, matcher, resolved script path)** — follow an enforcer shim to the script it `exec`s (reading the final `exec` target, resolving a `target=` variable if the shim guards resolvability first; not required to be one physical line), so a shared script — e.g. an external rulebook shimming into the floor — coalesces to one entry while two rulebooks that share a hook *basename* at different paths each register. The builtins `base` and `swe` are the latter case: separate `pre-commit-check.sh` / `hollow-test-check.sh`, two distinct `PreToolUse/Bash` entries. Never dedup on filename alone (it would let one rulebook's hook mask another's). `status`/`uninstall` compare the same resolved-path identity |
 | `git_hook` | string | *optional.* Names a git hook (`pre-commit`, `commit-msg`, `pre-push`, `prepare-commit-msg`, `post-commit`) this check's **existing `enforcer`** also supports being run as, invoked with `--git-hook`. `install` Phase 3 offers to write it; declining changes nothing. Deliberately **one string reusing `enforcer`**, never a sub-table carrying its own path: `[[check]]` has no unknown-key rejection, so a second path field would be entirely unvalidated and a typo would install a hook pointing at nothing. Requires `enforcer` (E09 errors without it); an unknown hook name warns (E09) because `install` would write a file git never runs. Kept in its own namespace, never folded into `event` — an unknown `event` warns and then *misregisters* into `settings.json` as a hook that never fires |
@@ -98,6 +98,47 @@ Kind/field coherence (E08): `data` → `runner` required (`config` optional);
 *(Refinement over the handoff's draft catalog, which read `data → runner +
 config`: the normative base manifest declares `secrets-staged` with a
 runner-default config, so `config` is optional.)*
+
+## Hook tiers — which enforcers `install` may offer to decline
+
+**This section is the single authority for the tier rule.** Every other file defers to
+it rather than restating it. Tiers are **derived from `floor` and `severity`** — there
+is no `tier` field, and adding one would be unvalidated (`[[check]]` has no unknown-key
+rejection, so a typo would silently do nothing).
+
+| Tier | Derivation | `install` behavior — **not yet implemented** |
+|---|---|---|
+| `locked` | `floor = true` | never offered; always registered |
+| `recommended` | `severity = "block"` and not `floor` | offered, defaults to yes; `status` carries a standing notice while it is **not registered** |
+| `optional` | `severity` ∈ {`warn`, `info`}, **plus every engine service** | offered, defaults to yes; quiet when not registered |
+
+**What is live today, and what is not.** The derivation and the disable-list rule below
+are live; the declaration half of the disable rule is machine-checked (see below). The third column is **the specification `install` is being
+built against, not a description of what it currently does** — today Phase 2 still puts
+every derived enforcer behind one prompt, and answering `n` skips all of them. Stating a
+planned behavior in the present tense would be exactly the kind of unearned claim the
+base floor's `iron-law-claims` rule exists to stop, so it is flagged here instead. Two
+consumers already depend on the tiers: `status`, for the `recommended` standing notice,
+and the disable-list rule.
+
+Four rules make the derivation correct:
+
+1. **The unit is the script, not the check.** A registration is one
+   `(event, matcher, resolved path)` tuple, and two checks may share one enforcer. A
+   script is declinable only if **every** check it backs is declinable — so an enforcer
+   co-hosting a `floor` check stays `locked` even where its sibling check is not.
+2. **`locked` binds install-resolved builtins only.** See the `floor` row above.
+3. **Tier is a property of the hook, not of registration.** Engine services are all
+   `optional` whether or not `install` registers them; the knowledge tooling it never
+   registers is `optional` and simply never offered.
+4. **`status` reports state, never intent.** Declines are not persisted anywhere, so no
+   surface may claim a hook was *declined* — only that it is *not registered*.
+
+The tier also governs the runtime disable list: **a hook honors
+`CODING_RULES_HOOK_DISABLED` if and only if its tier is `optional`.** A `recommended`
+hook is one that `install` will offer to decline once tiering ships — a deliberate act at
+a prompt — but it is never switched off by an ambient variable that drifts in from a shell rc, a CI config, or an `.envrc`.
+`scripts/check-hook-disable-tier.sh` checks the mechanical half of this: that every shipped script declares — or does not declare — kerby's canonical disable block as its tier requires. It does **not** verify runtime behavior, and says so in its own header; a hook that disabled itself by some other mechanism is not detected as disablable — for a `locked` or `recommended` hook that means a clean pass, and for an `optional` one it still fails, but for declaring no canonical block rather than for the real reason. That gap is named rather than papered over, because three review rounds established that inferring behavior from script text cannot be made sound by pattern-matching.
 
 ## View vocabulary (initial set, provided by core per subject type)
 

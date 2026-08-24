@@ -176,7 +176,7 @@ If accepted, the skill:
 
 ### Disabling individual hooks at runtime
 
-Once hooks are registered, the **soft (non-security) hooks** can be temporarily disabled via the `CODING_RULES_HOOK_DISABLED` env var (comma-separated, no spaces). The disablable tokens are `hollow-test-check`, `warn-env-read`, `route-high-stakes`, `session-start-context`, `knowledge-bootstrap`, and `context-bootstrap`. The three **security** hooks — `protect-env`, `protect-git`, and the base floor's secret-scan `pre-commit-check.sh` — are **not** disablable.
+Once hooks are registered, a hook honors the `CODING_RULES_HOOK_DISABLED` env var (comma-separated, no spaces) **if and only if its tier is `optional`** — meaning the `[[check]]` declaring it sets `severity = "warn"` or `"info"`, or it is an engine service under `resources/hooks/`, which are all `optional`. A check with `floor = true` (`locked`) or `severity = "block"` (`recommended`) refuses the variable. To settle a specific hook, read those two fields in `rulebooks/*/rulebook.toml`; `resources/references/hooks.md` carries the full rule.
 
 ```bash
 # Disable one hook for the current shell
@@ -188,7 +188,7 @@ export CODING_RULES_HOOK_DISABLED=session-start-context,hollow-test-check,knowle
 
 > **Note on the legacy `pre-commit-check` token:** before v9.3 the hollow-test soft check lived inside base's `pre-commit-check.sh` under that name. `hollow-test-check.sh` still honors the legacy `pre-commit-check` token, so an old disable setting keeps working — but it now disables only the **hollow-test soft check**, never the secret scan (which is non-disablable by design).
 
-**Not disablable** (security / data-loss critical): `protect-env`, `protect-git`, and the base floor's secret-scan `pre-commit-check.sh`. To bypass these, edit your settings file and remove the entry — a deliberate config edit, not an ambient variable. (Everything in the disablable-token list above is a soft, non-security hook.)
+**To remove a `locked` or `recommended` hook**, edit your settings file and delete the entry — a deliberate config edit, never an ambient variable that can drift in from a shell rc, a CI config, or an `.envrc`. (Declining a `recommended` hook at install time is the planned second route; today Phase 2 asks once for all of them.)
 
 ### Plugin-level activation is intentionally NOT supported
 

@@ -222,7 +222,7 @@ Committing before the session ends and updating the checkpoint files
 
 ### Runtime Toggles (env vars)
 
-Non-security hooks respect a single env var for ad-hoc disabling during a session:
+Some hooks respect a single env var for ad-hoc disabling during a session — which ones is a tier question, not a security judgement (see the rule below; `codex-pr-gate` is not security-critical and still refuses it):
 
 ```bash
 # Disable one hook
@@ -232,23 +232,26 @@ CODING_RULES_HOOK_DISABLED=session-start-context
 CODING_RULES_HOOK_DISABLED=session-start-context,hollow-test-check
 ```
 
-Hook names match the `# Name:` header in each script. Current names:
+Hook names match the `# Name:` header in each script.
 
-| Name | Disablable? |
-|------|-------------|
-| `session-start-context` | Yes |
-| `context-bootstrap` | Yes |
-| `knowledge-bootstrap` | Yes (or per-project: `agent-context.yaml: knowledge.enabled: false`) |
-| `knowledge-reindex` | Yes (same per-project opt-out as `knowledge-bootstrap`) |
-| `knowledge-lint` | Yes (same per-project opt-out as `knowledge-bootstrap`) |
-| `hollow-test-check` | Yes — swe's soft hollow-test + commit reminder (v9.3). Honors the legacy alias `pre-commit-check` (its pre-v9.3 name inside base's script) |
-| `warn-env-read` | Yes (soft `.env`-read reminder) |
-| `route-high-stakes` | Yes (soft §3 high-stakes routing reminder) |
-| `pre-commit-check` | No — the base floor's **secret scan** is never disablable (the `pre-commit-check` token is now only the legacy alias for `hollow-test-check` above, which is a different, self-contained script) |
-| `protect-env` | No — security-critical, edit `.claude/settings.json` to remove |
-| `protect-git` | No — data-loss-critical, edit `.claude/settings.json` to remove |
+**The rule — a hook honors `CODING_RULES_HOOK_DISABLED` if and only if its tier is `optional`.** A hook's tier comes from the `[[check]]` that declares its `enforcer`, in the rulebook manifests installed alongside this file (`rulebooks/*/rulebook.toml`):
 
-**Rule:** security-critical hooks cannot be disabled via env var. This is intentional. An env var is too easy to set accidentally (shell rc, CI config, `.envrc`) for a rule that blocks secret leaks. To bypass, make a deliberate config edit.
+| Tier | The declaring check says | Honors the variable? |
+|---|---|---|
+| `locked` | `floor = true` | No |
+| `recommended` | `severity = "block"`, no `floor` | No |
+| `optional` | `severity = "warn"` or `"info"` | **Yes** |
+
+Two rules finish it. Engine services under `resources/hooks/` declare no check at all and are every one `optional`. And where a single script backs several checks, the strictest tier wins — a script sharing an enforcer with a `floor` check is `locked` too, even if its other check is not.
+
+**No inventory lives here, deliberately.** The hook set has relocated four times (the v9.0 `code` → `swe` rename, v9.3 moving `hollow-test-check` out of base, v9.16 adding `git_hook`), and each move left the hand-written table that used to sit here further behind — it had omitted `codex-pr-gate` entirely. Any list reintroduced here would start drifting the same day. To settle a specific hook, read the two fields in its manifest; that answer is current by construction.
+
+Two notes the rule does not carry:
+
+- `hollow-test-check` also honors the legacy token `pre-commit-check` — its pre-v9.3 name, from when this logic lived inside base's script. Anyone who disabled it under the old name keeps working.
+- `knowledge-bootstrap`, `knowledge-reindex` and `knowledge-lint` additionally take a per-project opt-out: `agent-context.yaml` → `knowledge.enabled: false`. `context-bootstrap` takes `context.enabled: false`. Unlike the env var, these are committed, so they travel to teammates.
+
+**Why `recommended` refuses the variable even though `install` will offer to decline it.** Declining at install is a deliberate act at a prompt, with a diff and a confirmation. An env var is ambient — it drifts in from a shell rc, a CI config, or an `.envrc` that direnv wrote in the very directory holding the `.env`. A protection should not switch off through state you forgot you set. To remove a `recommended` or `locked` hook permanently, make a deliberate `.claude/settings.json` edit.
 
 `CODING_RULES_HOOK_PROFILE` is reserved for future use (named presets like `minimal` / `strict`). Not wired yet — use the disable list.
 

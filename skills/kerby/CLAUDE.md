@@ -53,6 +53,7 @@ The checks below remove **different** biases and aren't equal strength, so they'
 |---|---|---|
 | `scripts/check-skill-compat.py` | — (mechanical) | **HARD, always** — frontmatter + version parity |
 | `rulebooks/swe/scripts/check-plan-gate-parity.sh` | — (mechanical) | **HARD when you touch the plan-gate constants** — catches numeric drift across the files that restate them |
+| `scripts/check-hook-disable-tier.sh` | — (mechanical) | **HARD when you touch a hook script OR a `[[check]]`'s `floor`/`severity`/`enforcer`** — both surfaces, because the drift it catches can originate in either. A `severity` flip in a `rulebook.toml` with no script change moves a hook between tiers and is exactly the case a script-only trigger would miss |
 | In-session `skill-evaluator` (main loop, split executor/grader) | inner | **HARD for any rule-text change** — cheap, always doable in the authoring session |
 | Independent-model Codex review (local `/codex:review` run to clean, or on the PR) | author framing | **HARD for any rule-text change** — empirically catches internal contradictions both audits miss |
 | Fresh-session `skill-evaluator` | outer | **HARD for the higher-bar class** (safety / secrets / commit-discipline / protected-branch / new behavioral surface such as a sub-command); **recommended** for adherence-only patches |
