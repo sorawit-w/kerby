@@ -1,6 +1,6 @@
 # Project Status
 
-> **Last updated:** 2026-08-24T09:00:00Z
+> **Last updated:** 2026-08-25T18:30:00Z
 > **Updated by:** ai
 
 ---
@@ -9,10 +9,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | In progress — tiered hook opt-in, PR 3 of 3 (final) |
-| **Milestone** | Per-hook opt-in at `install` (kerby 9.23.0 → 9.25.0, three PRs) |
+| **Phase** | In review — 9.25.1, a documentation correction (Copilot invokes kerby's hooks) |
+| **Milestone** | Tiered hook opt-in — **complete** (9.23.0 → 9.25.0, three PRs, all merged) |
 | **Milestone Goal** | Let a user decline individual hooks, and see what would be registered before deciding |
-| **Working Branch** | feature/hooks-command (release `9.25.0`) — PR 1 merged #61 (tiers + guard), PR 2 merged #62 (per-hook opt-in + prune) |
+| **Working Branch** | feature/windows-hook-install (release `9.25.1`) — #61, #62, #63 merged; this branch is docs-only |
 
 ---
 
@@ -20,8 +20,8 @@
 
 | Status | Count | Tasks |
 |--------|-------|-------|
-| Done | 4 | #54 protect-env scope · #55 decision-ladder artifacts · #56 shared state + finish order · #57 locator + trust rules |
-| In Review | 1 | `kerby hooks` — read-only view of what install would register (this branch) |
+| Done | 5 | #54 protect-env scope · #55 decision-ladder artifacts · #56 shared state + finish order · #57 locator + trust rules · #63 `kerby hooks` |
+| In Review | 1 | 9.25.1 — Copilot invokes kerby's hooks through PowerShell (docs correction, this branch) |
 | Blocked | 0 | — |
 | Ready | 2 | Fresh-session `skill-evaluator` passes · logged P2/P3 debt |
 
@@ -36,6 +36,8 @@
 | #56 — state lands inside the PR that produced it | d0afdf7 | 2026-08-21 |
 | #57 — the locator stops letting the workspace choose the gate | e38eff9 | 2026-08-21 |
 | #58 — a killed review can no longer be marked clean | 3c9ef55 | 2026-08-21 |
+| #63 — `kerby hooks`, a read-only view of what install would register | 450a627 | 2026-08-24 |
+| 9.25.1 — Copilot/Windows hook claim corrected; engine change built then reverted | (pending) | 2026-08-25 |
 
 ---
 
@@ -44,7 +46,7 @@
 | Priority | Task | Dependencies |
 |----------|------|--------------|
 | 1 | **Fresh-session `skill-evaluator` pass for #54, #56, #57.** All three are the higher-bar class in `skills/kerby/CLAUDE.md` § Gate tiers (safety / commit-discipline / new behavioral surface) and all three shipped without it. It cannot run in the session that authored the change — that is the point of the outer-bias check | a session other than the authoring one |
-| 2 | Decide whether `STATUS.md` should stay tracked. #56 made it shared state, so a refresh costs a branch, a review and a PR. **Provisionally answered by practice:** rather than open a standalone status PR, this refresh rides along with the review-machinery fix — which is what #56's own model prescribes. Keep it tracked and batch refreshes into real changes; revisit only if standalone state PRs become common | maintainer |
+| 2 | Decide whether `STATUS.md` should stay tracked. #56 made it shared state, so a refresh costs a branch, a review and a PR. **Provisionally answered by practice:** rather than open a standalone status PR, this refresh rides along with the 9.25.1 documentation correction — which is what #56's own model prescribes. Keep it tracked and batch refreshes into real changes; revisit only if standalone state PRs become common | maintainer |
 | 3 | Resolve the `prepare` ring-fence contradiction — `adopt-existing.md` creates tracked artifacts while its own ring-fence forbids committing them. Open P1 from #56, deliberately left as a scope decision | maintainer |
 | 4 | Work the logged P2/P3 debt (below) | none |
 | 5 | *(done — `gitleaks` is now on PATH at `/opt/homebrew/bin/gitleaks`, so the secret scan no longer runs on its narrow fallback regex)* | — |

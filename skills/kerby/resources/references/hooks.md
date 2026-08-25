@@ -2,7 +2,7 @@
 
 Hooks are shell commands or LLM prompts that run automatically at specific lifecycle points. They provide **deterministic enforcement** of playbook rules — the agent can't skip them.
 
-> **Note:** Hooks are currently supported by Claude Code. Other agents will ignore the hooks configuration in frontmatter but should still follow the playbook's written instructions.
+> **Note:** Hooks are currently supported by Claude Code. Other agents mostly ignore the hooks configuration and should still follow the playbook's written instructions — with one exception worth knowing about: Copilot CLI on Windows reads `.claude/settings.json` and tries to run the hooks through PowerShell, which cannot execute a `.sh`. See `resources/references/multi-tool.md` § GitHub Copilot.
 
 ---
 
@@ -220,6 +220,36 @@ updated; no such hook was ever shipped, so the claim is removed rather than soft
 
 Committing before the session ends and updating the checkpoint files
 (swe's `references/context-management.md`) are **behavioral** — held by the rules, not by a hook.
+
+---
+
+## Windows
+
+**Claude Code runs hooks through Git Bash on Windows**, so kerby registers exactly what it
+registers everywhere else — the absolute path of the script — and it works unchanged. The
+hook schema's `shell` defaults to `bash`, falling back to `powershell` only when Git Bash
+is not installed.
+
+Claude Code itself treats Git for Windows as optional — without it, it falls back to
+PowerShell and keeps working. **kerby's hooks do not have that fallback**: a `.sh` handed
+to PowerShell does not run. So what is optional for Claude Code is required for these
+hooks to enforce anything. If Claude Code does not find it — a custom install location,
+or a `PATH` that Git's installer never touched — point it there explicitly:
+
+```json
+{ "env": { "CLAUDE_CODE_GIT_BASH_PATH": "C:\\Program Files\\Git\\bin\\bash.exe" } }
+```
+
+Point it at the `bash.exe` itself, not the folder containing it.
+
+**Other harnesses reading the same settings file may not honor that contract.** Copilot CLI
+reads `.claude/settings.json` too, and runs each hook in whatever shell the CLI itself is
+in — on Windows, PowerShell, which cannot execute a `.sh`, so the script does not run.
+That is a mismatch in the harness, not in what kerby wrote, and the remedy is on that
+side: `disableAllHooks: true` in `.github/copilot/settings.local.json` stops Copilot
+attempting them while leaving the same registrations working for Claude Code. It silences
+every hook in that repository, not only kerby's. `multi-tool.md` § GitHub Copilot has the
+detail and the caveats.
 
 ---
 
