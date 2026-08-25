@@ -3,6 +3,16 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.25.0] — 2026-08-24
+
+**`kerby hooks` — see the set before you answer for it**: the last piece of the tiered-install work, and the smallest. Until now the only way to find out which hooks `install` would register was to run `install` and read the list inside the question you were being asked to answer. `kerby hooks` renders the same derivation on demand and writes nothing — no settings file, no lockfile, no pin. Same columns as the Phase 2 table, every cell copied from a manifest field rather than described, plus each row's current binding state.
+
+- **Binding is reported per settings file, and the file is named in the header.** The same enforcer can be registered globally and absent locally, so "is it bound?" has no answer until you say bound *where*. It examines the project's `.claude/settings.local.json` by default and says so; `--settings <path>` examines another. A file that does not exist yields `not registered` for every row — a true statement about that file, not a claim about the machine.
+- **Orphans and missing scripts are listed too.** A managed entry the candidate set does not contain is exactly what someone reading this table needs to see, and surfacing it here costs nothing beyond the rows already being walked.
+- **External trust is inherited; cold behavior is not, and now says so.** An external rulebook's fields render only under the same hash-plus-approval condition `commands` already requires — cited, not restated. Cold behavior started as a citation too and could not stay one: `commands` enumerates installed builtins and needs no merged selection, while `hooks` must derive one, so "same as `commands`" left the selection rungs undefined. A review and two independent evaluator runs each stopped at the same sentence. It is now spelled out rung by rung — pin, intent manifest, detection; never the ask; never a write — because a citation that does not actually cover the case is worse than the restatement it was avoiding.
+
+`hooks` joins the reserved engine command names (E13), so a rulebook can no longer declare a command that would shadow it.
+
 ## [9.24.0] — 2026-08-24
 
 **Hooks become opt-in one at a time, and `install` learns to remove**: kerby's hook install was already opt-in — answering `n` registered nothing — but it was all-or-nothing, and the only description of what you were accepting was a single long sentence inside the question itself. Now the derived set prints as a table *first* — tier, trigger, enforcer, and the checks each one binds, every cell copied from a manifest field rather than described — and the question comes after: `all`, `choose`, or `none`. `choose` walks the declinable rows one at a time, each defaulting to yes, so pressing Enter through the list keeps every protection while anyone who wants `protect-env` off can say so. `locked` rows are shown but never offered; they are what the tiers introduced in 9.23.0 exist to mark.

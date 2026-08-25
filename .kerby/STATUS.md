@@ -1,6 +1,6 @@
 # Project Status
 
-> **Last updated:** 2026-08-24T07:00:00Z
+> **Last updated:** 2026-08-24T09:00:00Z
 > **Updated by:** ai
 
 ---
@@ -9,10 +9,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | In progress — tiered hook opt-in, PR 2 of 3 |
+| **Phase** | In progress — tiered hook opt-in, PR 3 of 3 (final) |
 | **Milestone** | Per-hook opt-in at `install` (kerby 9.23.0 → 9.25.0, three PRs) |
 | **Milestone Goal** | Let a user decline individual hooks, and see what would be registered before deciding |
-| **Working Branch** | feature/tiered-install-phase2 (release `9.24.0`) — PR 1 merged as #61 (9.23.0: tiers + guard + contract fixes) |
+| **Working Branch** | feature/hooks-command (release `9.25.0`) — PR 1 merged #61 (tiers + guard), PR 2 merged #62 (per-hook opt-in + prune) |
 
 ---
 
@@ -21,7 +21,7 @@
 | Status | Count | Tasks |
 |--------|-------|-------|
 | Done | 4 | #54 protect-env scope · #55 decision-ladder artifacts · #56 shared state + finish order · #57 locator + trust rules |
-| In Review | 1 | swe 2.10.0 read-only `investigate` route (this branch) |
+| In Review | 1 | `kerby hooks` — read-only view of what install would register (this branch) |
 | Blocked | 0 | — |
 | Ready | 2 | Fresh-session `skill-evaluator` passes · logged P2/P3 debt |
 

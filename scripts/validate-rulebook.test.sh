@@ -443,6 +443,36 @@ else
   fail "E13 check-updates — expected non-zero exit + 'E13', got exit $RC: $OUT"
 fi
 
+# `hooks` reserved at v9.25.0 — a rulebook declaring it must fail E13, or a
+# rulebook command could shadow the engine's read-only hook listing.
+TMP_E13H="$(mktemp -d)"
+cp -R "$FIXTURES/valid-commands/." "$TMP_E13H/"
+cat > "$TMP_E13H/rulebook.toml" <<'RB'
+id = "with-commands"
+version = "1.0.0"
+contract = 2
+accepts = ["*"]
+description = "Fixture rulebook that shadows a reserved engine command."
+[[check]]
+id = "a-rule"
+kind = "prose"
+body = "rules/a-rule.md"
+enforcement = "behavioral"
+severity = "warn"
+token_cost = "low"
+[[command]]
+name = "hooks"
+body = "commands/review.md"
+description = "Shadows the engine hook listing."
+RB
+run "$TMP_E13H"
+rm -rf "$TMP_E13H"
+if [[ "$RC" -ne 0 ]] && echo "$OUT" | grep -q "E13"; then
+  pass "E13 rejects a rulebook declaring reserved 'hooks'"
+else
+  fail "E13 hooks — expected non-zero exit + 'E13', got exit $RC: $OUT"
+fi
+
 # --- git_hook (contract 2, additive) -----------------------------------------
 # The name check and the required-enforcer check are INDEPENDENT. They were an
 # elif chain once, so an unknown hook name warned and then SWALLOWED the error:
