@@ -3,6 +3,17 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.25.1] — 2026-08-25
+
+**Copilot invokes kerby's hooks, and that is worse than not invoking them**: `multi-tool.md` said Copilot "never invokes `hooks/*.sh`", grouping it with Codex and Cursor. That is wrong. Copilot CLI reads `.claude/settings.json` and `.claude/settings.local.json` and does try to run what it finds, in whatever shell the CLI is running in — on Windows, PowerShell. [github/copilot-cli#4001](https://github.com/github/copilot-cli/issues/4001), open at time of writing, documents that execution model: bash-syntax commands fail with parser errors, `$CLAUDE_PROJECT_DIR` is unset, and hooks run from `/`. A registered `.sh` path is the same mismatch from another angle — PowerShell cannot run a shell script, so Windows falls back to the file association. Enforcement looks present and is not, which is the one thing kerby must never let a reader believe.
+
+- **The remedy is on Copilot's side.** `disableAllHooks: true` in `.github/copilot/settings.local.json` stops Copilot attempting scripts it cannot run while the same registrations keep working for Claude Code. It silences every hook in that repository rather than only kerby's, and it is Copilot CLI, not the cloud agent — worth knowing before rather than after. Not in `.claude/settings*.json`: Copilot honors the flag there, but so does Claude Code. It still beats `kerby uninstall`, which removes the entries and that enforcement with them.
+- **kerby does not change what it writes.** A `bash -c` form parses under both shells, but depends on `bash` resolving from `PATH`, which on Windows does not reliably reach Git Bash — Git for Windows' default `PATH` selection omits its `bin` directory. Quoting an absolute path instead requires PowerShell's `&`, which Git Bash rejects: the shape that fixes Copilot breaks Claude Code. The fix belongs where the bug is.
+- **Scoped in both directions.** The shell mismatch is Windows-specific; elsewhere kerby's hooks under Copilot are unverified rather than known-good, and #4001's unset `$CLAUDE_PROJECT_DIR` and `/` working directory are not described as Windows-only.
+- **`references/hooks.md` gains a Windows section** saying what actually happens: Claude Code runs hooks through Git Bash, so the registered path needs nothing special, and Git for Windows is a requirement rather than a preference — with `CLAUDE_CODE_GIT_BASH_PATH` for the installs it does not find on its own.
+
+No engine change. Nothing kerby writes on any platform is different.
+
 ## [9.25.0] — 2026-08-24
 
 **`kerby hooks` — see the set before you answer for it**: the last piece of the tiered-install work, and the smallest. Until now the only way to find out which hooks `install` would register was to run `install` and read the list inside the question you were being asked to answer. `kerby hooks` renders the same derivation on demand and writes nothing — no settings file, no lockfile, no pin. Same columns as the Phase 2 table, every cell copied from a manifest field rather than described, plus each row's current binding state.

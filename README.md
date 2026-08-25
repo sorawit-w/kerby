@@ -214,7 +214,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.25.0` — `kerby hooks`, so you can see the set before you answer for it. Until now the only way to learn which hooks `install` would register was to run `install` and read the list inside the question you were being asked to answer. The new command renders the same derivation on demand and writes nothing, with each row's current binding state against a named settings file — because the same enforcer can be registered globally and absent locally, so "is it bound?" has no answer until you say bound where. Orphaned registrations and missing scripts are listed alongside. Previously: `9.24.0` — per-hook opt-in at install, and a prune that can remove. See [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.25.1` — `multi-tool.md` said Copilot never invokes kerby's hooks. That is wrong. Copilot CLI reads `.claude/settings.json` and does try to run what it finds, in whatever shell the CLI is in — on Windows, PowerShell, which cannot execute a `.sh`. Enforcement looks present and is not, which is the one thing kerby must never let a reader believe. The remedy is Copilot's own `disableAllHooks`; kerby does not change what it writes, because the shape that would satisfy PowerShell breaks Claude Code, which runs hooks through Git Bash. Previously: `9.25.0` — `kerby hooks`, so you can see the set before you answer for it. See [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests

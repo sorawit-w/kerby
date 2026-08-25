@@ -235,3 +235,46 @@ Observations: Two evaluator rounds were needed, not one. Round 1 passed 41/41 an
   a separate copy, not a symlink to this repo. I edited it by mistake on the first edit, caught it, and
   verified the revert byte-identical. Nothing in a normal session sees this change until that install is
   updated.
+
+---
+[2026-08-25T18:30:00Z]
+Task: 9.25.1 — Windows hook install investigated; the engine change was built, reviewed, and
+  reverted. Shipped the documentation correction the investigation established.
+Action: Reported symptom: on Windows 11 via the Copilot desktop app, kerby's hooks pop a Windows
+  "Open with" dialog, one per invocation, because the registered `command` is a bare .sh path.
+  Built the obvious fix first — a new SKILL.md § Hook command rendering defining a `render`/`extract`
+  pair (`& '<bash.exe>' '<script>'`), interpreter detection, and WSL path translation, with all six
+  identity surfaces (managed-entry predicate, exact-tuple test, both prune arms, uninstall sweep,
+  status, hooks) routed through `extract`. Codex round 1 returned P0=4, the first of which was
+  decisive: Claude Code's hook schema defaults `shell` to "bash" on Windows and falls back to
+  "powershell" only when Git Bash is absent, so hooks already work there and a leading `&` would have
+  broken a harness that works today. Confirmed that against code.claude.com/docs/en/hooks and
+  /installation plus github/copilot-cli#4001 before acting on it. Reverted the engine change and
+  corrected the documentation instead. Codex round 2 on the docs diff: P0=0 P1=2 P2=3, all folded in.
+  Round 3: P0=0 P1=2 P2=3, all folded in; stopped at the 3-round cap.
+Files: skills/kerby/resources/references/multi-tool.md, skills/kerby/resources/references/hooks.md,
+  CHANGELOG.md, README.md, .claude-plugin/{plugin,marketplace}.json, .codex-plugin/plugin.json
+Commit: (pending)
+Status: DONE
+Notes: The corrected claim matters more than the dialog. multi-tool.md said Copilot "never invokes
+  hooks/*.sh", grouping it with Codex and Cursor. Copilot does invoke them, reading both
+  .claude/settings.json and .claude/settings.local.json, and on Windows runs them through PowerShell,
+  which is worse than not invoking them: enforcement looks present and is not. The remedy named is
+  `disableAllHooks: true` in .github/copilot/settings.local.json — Copilot CLI only, repository-wide
+  (every non-policy hook from every source, not just kerby's), and deliberately not in a shared
+  .claude/settings*.json, where Claude Code would honor it too. The shell mismatch is scoped to
+  Windows; on other platforms kerby's hooks under Copilot are unverified, not known-good. Eval gates: the maintainer chose to skip both skill-evaluator runs
+  and rely on Codex, a deliberate deviation from the gate table recorded here rather than left
+  looking like an omission. Moot for the shipped diff, which adds no directive or prohibition, so the
+  change-class table does not require an eval.
+Observations: The premise "Windows means PowerShell" came from a report about one harness and was
+  generalized to the platform without checking; the harness decides the shell, not the OS. One docs
+  fetch at the start would have made the entire engine change unnecessary. On the command shape:
+  `bash` does not reliably resolve to Git Bash on Windows, because Git for Windows' default PATH
+  selection omits its `bin` directory, so a PATH-resolved `bash "<script>"` is unreliable rather than
+  impossible; quoting an absolute path instead requires PowerShell's `&`, which Git Bash rejects. A
+  claim removed in this session as unverified — the settings.json `env` block for
+  CLAUDE_CODE_GIT_BASH_PATH — turned out to be documented in Anthropic's installation docs, and was
+  restored. Operational hazard: `codex exec` running the round-2 review reverted uncommitted
+  working-tree edits; three fixes were lost and `git status` reported clean afterwards. Round 3 was
+  told to be read-only and left the tree untouched.

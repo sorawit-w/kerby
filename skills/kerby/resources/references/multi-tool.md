@@ -47,7 +47,7 @@ Cursor, OpenCode, and others are not explicitly supported, but will still read `
 
 ## Hook Behavior Across Runtimes
 
-Hooks are shell scripts triggered by Claude Code's lifecycle events (`SessionStart`, `PreToolUse`, etc.). They are currently **Claude Code only** in terms of automatic invocation.
+Hooks are shell scripts triggered by Claude Code's lifecycle events (`SessionStart`, `PreToolUse`, etc.). Automatic invocation is not **Claude Code only** in the sense of being attempted: Copilot CLI also reads `.claude/settings.json` and runs what it finds there, in whatever shell the CLI itself is running. On Windows that is PowerShell, which cannot execute a `.sh`. See § GitHub Copilot.
 
 Consequences for other runtimes:
 
@@ -114,19 +114,27 @@ drive interactively; use sub-agent pinning when kerby delegates. They compose.
 
 ---
 
-## GitHub Copilot — hookless, advisory-only
+## GitHub Copilot — advisory-only
 
 Some teams are *required* to use Copilot (org mandate, no opt-out). Copilot is a harder case than Codex or Cursor on two axes:
 
-- **No hooks.** Like Codex and Cursor, Copilot never invokes `hooks/*.sh`. The entire mechanical-enforcement half of kerby (`pre-commit-check`, `protect-env`, `protect-git`) does not fire.
+- **Hooks are attempted, not ignored — and on Windows they do not run.** Codex and Cursor simply never invoke `hooks/*.sh`. Copilot differs: it reads `.claude/settings.json` and `.claude/settings.local.json` and does try to run what it finds, in the same shell the CLI is running in. **On Windows that shell is PowerShell**, which cannot execute a `.sh`, so the entire mechanical-enforcement half of kerby (`pre-commit-check`, `protect-env`, `protect-git`) does not fire there. [github/copilot-cli#4001](https://github.com/github/copilot-cli/issues/4001) (open as of 2026-08-25) documents that execution model: bash-syntax commands fail with PowerShell parser errors, `$CLAUDE_PROJECT_DIR` is unset, and hooks run from `/` rather than the project root. A registered `.sh` path is the same mismatch from another angle — PowerShell falls through to the file association instead of running the script. Maintainers of this repo have observed that as an "open with" dialog, once per invocation; that specific symptom is a local observation, not something the issue records.
+
+  **Scope this honestly in both directions.** The shell mismatch is Windows-specific: on macOS and Linux the CLI's shell runs a `.sh` normally, so kerby's hooks are not known to be broken there. But #4001's other two findings — unset `$CLAUDE_PROJECT_DIR`, and hooks running from `/` — are not described as Windows-only, so do not read "not Windows" as "verified working." Nothing here establishes that kerby's hooks enforce correctly under Copilot on any platform; it establishes that on Windows they demonstrably do not.
+
+  **What to do about it: turn the hooks off on Copilot's side, not kerby's.** Set `disableAllHooks: true` in **`.github/copilot/settings.local.json`** — a Copilot-only file, so Claude Code on the same machine keeps enforcing. Two things to know before you do. It is **Copilot CLI only**, not the cloud agent. And its reach is the repository, not the file: every hook from every source — repository files, user files, plugins, inline blocks — is skipped for sessions in that repo, with only policy hooks exempt. It silences more than kerby, deliberately, so weigh that rather than discovering it later.
+
+  Do **not** put the flag in `.claude/settings.json` or `.claude/settings.local.json`. Copilot honors it there, but so does Claude Code — which would switch off the hooks that were working. For the same reason, moving kerby's registrations between those two files does not avoid Copilot: it reads both. And prefer the flag to `kerby uninstall`, which removes kerby's entries outright and takes that enforcement with them.
+
+  **kerby does not change what it writes.** A `bash -c '<script>'` form does parse under both shells, and #4001 suggests it — but shipping it would mean depending on `bash` resolving from `PATH`, and on Windows that does not reliably reach Git Bash: Git for Windows' default `PATH` selection omits its `bin` directory. What it reaches instead varies by machine — on a WSL install, plausibly `C:\Windows\System32\bash.exe`, whose bash runs in the distro's filesystem view rather than the one the agent is editing. Unreliable, not impossible; but a guardrail that binds to whichever bash happens to be first is not a guardrail. Quoting an absolute path avoids that, but then PowerShell needs its `&` call operator, which Git Bash rejects — so the shape that fixes Copilot breaks Claude Code. Such a wrapper would also have to restore the project cwd and pass stdin through, reimplementing on kerby's side a contract the harness is expected to provide. The fix belongs where the bug is.
 - **Weaker rule adherence.** In practice Copilot attends to less of a long context than Claude Code or Codex. Loading the full corpus *plus* extra contract text makes adherence worse, not better — on a weak harness, rule-count dilutes attention.
 
-**Consequence — set expectations honestly: on Copilot, kerby is advisory, not enforced.** Do not trust output as if a gate ran. The human reviewer is the substitute for the missing hooks.
+**Consequence — set expectations honestly: on Copilot, treat kerby as advisory, not enforced.** On Windows that is established; elsewhere it is simply unverified, and an unverified gate is not one to trust output against. The human reviewer is the substitute for the hooks that are not enforcing.
 
 **Delivery.** Copilot reads `.github/copilot-instructions.md` and won't reliably chase reference files. Don't point it at the full `BOOTSTRAP.md` and expect compliance — give it a short, front-loaded kernel in that file. Recommended minimum:
 
 ```markdown
-## Before writing code — state this (Copilot has no kerby hooks; you are the gate)
+## Before writing code — state this (kerby's hooks do not enforce on Copilot; you are the gate)
 
 - **Workflow:** feature / fix / refactor
 - **Done means:** the one check that proves this works — a test name, a command, or "open X and see Y"
@@ -137,7 +145,7 @@ evidence before the change is trusted. If the evidence can't be produced, the
 change is unproven — say so; don't claim done.
 ```
 
-This is kerby's Iron Law ("no completion claims without fresh evidence") compressed to what a weak, hookless harness can hold. It deliberately drops the longer "operating-contract acknowledgement" pattern, which fails twice on Copilot: a runtime can't "acknowledge" anything, and adding contract text to a harness that already skips rules just spends tokens it won't read. Front-load the kernel instead, and rely on the human as the gate.
+This is kerby's Iron Law ("no completion claims without fresh evidence") compressed to what a weak, unenforced harness can hold. It deliberately drops the longer "operating-contract acknowledgement" pattern, which fails twice on Copilot: a runtime can't "acknowledge" anything, and adding contract text to a harness that already skips rules just spends tokens it won't read. Front-load the kernel instead, and rely on the human as the gate.
 
 ---
 
