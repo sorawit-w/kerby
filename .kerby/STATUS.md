@@ -1,6 +1,6 @@
 # Project Status
 
-> **Last updated:** 2026-08-22T00:00:00Z
+> **Last updated:** 2026-08-24T07:00:00Z
 > **Updated by:** ai
 
 ---
@@ -9,10 +9,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | In review — swe 2.10.0 adds a read-only `investigate` route |
-| **Milestone** | Read-only investigation route (swe 2.10.0 / kerby 9.22.0) |
-| **Milestone Goal** | Stop an investigation-only request routing into a change workflow |
-| **Working Branch** | feature/swe-investigate-route (release `9.22.0`) — skill-evaluator 49/49 at `6aa18ff`; Codex review waived by maintainer |
+| **Phase** | In progress — tiered hook opt-in, PR 2 of 3 |
+| **Milestone** | Per-hook opt-in at `install` (kerby 9.23.0 → 9.25.0, three PRs) |
+| **Milestone Goal** | Let a user decline individual hooks, and see what would be registered before deciding |
+| **Working Branch** | feature/tiered-install-phase2 (release `9.24.0`) — PR 1 merged as #61 (9.23.0: tiers + guard + contract fixes) |
 
 ---
 

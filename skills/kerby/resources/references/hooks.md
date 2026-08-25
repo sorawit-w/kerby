@@ -106,9 +106,14 @@ one caught strictly more than the other, it still would not be a replacement.
 | PreToolUse hook | Phase 2 was never accepted here, or its entry was later removed from the settings file |
 | git hook | Phase 3 was never accepted here; or this is a fresh clone (git hooks are never cloned); or `core.hooksPath` sends git to a *different* hooks dir, so the file kerby wrote is not the one git runs; or the hook file is not executable, in which case git skips it entirely; or its scanner is not executable, in which case the hook runs and its own guard exits 0 |
 
-Two things that table is careful *not* to say. **Declining a phase does not remove
-anything** — if a hook is already installed, saying no on a later run leaves it exactly
-where it is; removal is `uninstall`'s job alone. And **`core.hooksPath` shadows rather
+Two things that table is careful *not* to say. **Declining a whole phase does not remove
+anything** — saying no to Phase 2 or Phase 3 outright leaves whatever is installed exactly
+where it is. Declining an *individual* hook inside Phase 2 is different, and does remove
+it: since kerby 9.24.0 the Phase 2 walk offers each declinable hook separately, and a
+decline that lands on an already-registered entry prunes it, so the answer takes effect
+instead of being silently ignored (project-scoped settings files only — a globally
+registered hook is shared with other projects and is reported rather than removed). Bulk
+removal is still `uninstall`'s job. And **`core.hooksPath` shadows rather
 than disables**: git still runs hooks, just from elsewhere, so a husky user can wire the
 scanner into their own `.husky/pre-commit` by hand. kerby will not do that for them.
 
