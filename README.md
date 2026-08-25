@@ -64,7 +64,7 @@ kerby is two things, deliberately separated:
 - **An engine** — domain-blind machinery that loads rulebooks, validates them, pins trust,
   registers guardrail hooks, and renders verdicts. It knows GATE → WEIGH → VERDICT and
   nothing else. Its commands: `load`, `unload`, `reload`, `status`, `install`,
-  `uninstall`, `rulebooks list|create`, `commands`, `check-updates`.
+  `uninstall`, `rulebooks list|create`, `commands`, `hooks`, `check-updates`.
 - **Rulebooks** — self-contained folders (a `rulebook.toml` manifest + prose rules +
   hooks + commands) that carry the actual judgment. Copy a folder, get a governed domain.
   Three ship built in: **`base`**, the universal floor that rides under every rulebook (no
@@ -159,6 +159,7 @@ npx skills add sorawit-w/kerby
 /kerby uninstall   # mirror — removes the managed hooks
 /kerby rulebooks   # list every rulebook this install can see
 /kerby commands    # list every command the current selection provides
+/kerby hooks         # read-only: what `install` would register, and what is bound now
 /kerby check-updates # read-only freshness report (builtins offline; only locally-approved pinned remotes fetched)
 ```
 
@@ -213,7 +214,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.24.0` — hooks become opt-in one at a time, and `install` learns to remove. The hook install was already opt-in, but all-or-nothing, and what you were accepting was described in one long sentence inside the question. The set now prints as a table first — tier, trigger, enforcer, what each does — and the question comes after: all, choose, or none. Choosing walks the declinable rows with each defaulting to yes, so Enter keeps every protection while anyone who wants one off can say so. The half that makes it work: a decline can now delete. Install used to prune only entries whose script had vanished, so declining a hook would have been silently inert for anyone already installed — the old entry firing while status reported healthy. Removals that drop a protection are called out above the diff, and status now names an orphaned registration. Previously: `9.23.0` — hook tiers derived from floor and severity. Ask an agent why some code behaves the way it does and it would run the test suite, commit, and write `.kerby/memory.log` — none of it requested, and none of it improvised either. The routing table held seven rows and every one was a change task, so "explain this" matched none and fell to the nearest, `quick-task`, whose steps run the gate and commit without ever asking whether anything changed. `investigate` is now the first row and the first value in the route enum agents already emit. It reaches no workflow at all: no writes, no branch, no commit, and no gate run to certify the answer — though running a command to *observe* is still fine and often the whole job. The evidence for an answer is the file:line citation the diagnosis rule already demands, not a green suite. Previously: `9.21.0` — a killed review can no longer be marked clean. See [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.25.0` — `kerby hooks`, so you can see the set before you answer for it. Until now the only way to learn which hooks `install` would register was to run `install` and read the list inside the question you were being asked to answer. The new command renders the same derivation on demand and writes nothing, with each row's current binding state against a named settings file — because the same enforcer can be registered globally and absent locally, so "is it bound?" has no answer until you say bound where. Orphaned registrations and missing scripts are listed alongside. Previously: `9.24.0` — per-hook opt-in at install, and a prune that can remove. See [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests

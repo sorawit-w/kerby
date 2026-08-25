@@ -13,7 +13,7 @@ description: >
   conformance to the rules, it is NOT a general bug/security review.
   Engine sub-commands via the args parameter: `load` (default), `unload`,
   `reload`, `status`, `install`, `uninstall`, `rulebooks [list]|create`,
-  `commands`, `check-updates`; loaded rulebooks add their own commands
+  `commands`, `hooks`, `check-updates`; loaded rulebooks add their own commands
   (e.g. the bundled `swe` rulebook provides `prepare` and `audit`).
 ---
 
@@ -143,7 +143,7 @@ This skill's job is the **loading** step — getting the selected rulebook's roo
 
 Two kinds of commands (V2):
 
-- **Engine commands** (fixed, **reserved** — a rulebook may never declare or shadow them): `load`, `unload`, `reload`, `status`, `install`, `uninstall`, `rulebooks`, `commands`, `check-updates` (and the grammar tokens `list`, `create`, plus `help`).
+- **Engine commands** (fixed, **reserved** — a rulebook may never declare or shadow them): `load`, `unload`, `reload`, `status`, `install`, `uninstall`, `rulebooks`, `commands`, `hooks`, `check-updates` (and the grammar tokens `list`, `create`, plus `help`).
 - **Rulebook commands**, declared by the loaded rulebooks via `[[command]]` in their manifests (e.g. the `swe` rulebook provides `audit` and `prepare`). Invoked as `kerby [rulebook] <command>`; the rulebook may be omitted.
 
 **Position-1 resolution of `args`** (first hit wins):
@@ -307,7 +307,7 @@ Interactive, skill-creator-style authoring flow (V6). Read `docs/AUTHORING-RULEB
 
 List every user-invocable command. Output is literal (VOICE.md zoning) — a plain table, no persona. `kerby commands` covers the whole current selection; `kerby <id> commands` renders just that rulebook's section (see the Command model position-2 rule).
 
-- **Engine section (fixed, first):** the reserved engine commands — `load`, `unload`, `reload`, `status`, `install`, `uninstall`, `rulebooks list|create`, `commands`, `check-updates`, `help` — one row each with the engine's own one-line description (`commands` and `help` both render this very listing; `rulebooks` bare is `rulebooks list`). This part is engine-owned and never varies with the selection.
+- **Engine section (fixed, first):** the reserved engine commands — `load`, `unload`, `reload`, `status`, `install`, `uninstall`, `rulebooks list|create`, `commands`, `hooks`, `check-updates`, `help` — one row each with the engine's own one-line description (`commands` and `help` both render this very listing; `rulebooks` bare is `rulebooks list`; `hooks` shows what `install` would register, without registering it). This part is engine-owned and never varies with the selection.
 - **One section per rulebook in the current selection**, header `<id>@<version> (<origin>)`, each row rendered as `` `kerby <id> <name>` — <description> `` with `name` and `description` **verbatim from that rulebook's validated `rulebook.toml` `[[command]]` tables — never inferred, summarized, or invented**. Prefixing the literal `kerby <id> ` is mechanical composition, not inference. A rulebook that declares no `[[command]]` renders its header plus `no commands` — never a guessed row. Append one note: the bare form (`kerby <name>`) also works while exactly one loaded rulebook declares that name (Command model step 3).
 
 The **install-resolved builtin floor** gets no section of its own — it is never a `selected` member (§ Rulebooks, selection, and trust), and its commands, if it ever declared any, are engine-adjacent floor machinery, not a user-selectable rulebook's flow. It is excluded by floor identity, never an id string (an external declaring `id = "base"` is an ordinary selected rulebook and renders its section like any other).
@@ -321,6 +321,49 @@ The **install-resolved builtin floor** gets no section of its own — it is neve
   ```
 
   and never any manifest text. Rendering is display-only and grants nothing; a loaded external already cleared TOFU, so its rows render.
+
+---
+
+## `hooks`
+
+Show what `install` would register, without registering anything. **Read-only: this command writes nothing** — no settings file, no lockfile, no pin. Output is literal (VOICE.md zoning) — a plain table, no persona.
+
+It exists because until now the only way to see the hook set was to reach the Phase 2 prompt, and the answer to "what am I agreeing to?" arrived inside the question. This renders the same derivation Phase 2 does, on demand.
+
+**What it prints.** The **candidate set** (`install` § Phase 2 — the fixed engine services plus every `hard`/`partial` check declaring an `event`, from the merged manifests), one row each, with the same columns Phase 2's table uses plus the current binding state:
+
+```
+kerby hooks — <resolved rulebooks>
+install root: <path>
+settings:     <path examined>
+
+TIER         EVENT/MATCHER         ENFORCER              CHECKS IT BINDS                    STATE
+locked       PreToolUse/Bash       pre-commit-check.sh   secrets-staged (data, hard)        registered
+recommended  PreToolUse/Edit|Write protect-env.sh        protect-env (code, hard)           not registered
+optional     SessionStart          session-start-context.sh  engine service — no check      registered
+```
+
+Every cell but `STATE` is rendered exactly as Phase 2 renders it — copied from a manifest field or a fixed engine string, `gap` appended verbatim for a `partial` check, and **no prose description column**, since `[[check]]` has no field to source one from. Do not paraphrase what a hook does; `resources/references/hooks.md` is where that lives.
+
+**`STATE` is per settings file, and the file must be named.** Binding is a property of one settings file, not of the project — the same enforcer can be registered globally and absent locally. Examine the project's `.claude/settings.local.json` by default, name it in the header, and say so when it does not exist (`not registered` for every row, which is a true statement about that file rather than about the machine). `kerby hooks --settings <path>` examines another. Determine each row's state with the **exact-tuple test** (`install` § Detect already-managed entries): `registered` iff a settings entry matches that enforcer's resolved `(event, matcher, script path)` **and that script exists on disk**. Tuple equality alone is not binding — `status` already refuses to count an entry whose script is gone, and a table that disagreed with `status` about the same machine would be worse than no table. A matching tuple whose script is missing reads `registered script missing` in the `STATE` column, not `registered`.
+
+**A settings file that cannot be parsed has no binding answer, and must not be given one.** If the JSON is malformed or the file cannot be read, say so, render the table with `STATE` as `unknown` for every row, and stop — do not fall back to treating it as empty, which would report `not registered` everywhere and read as a confident claim rather than a failure to look. This mirrors `install` step 3, which halts on a settings file it could not parse rather than overwriting it.
+
+**An entry pointing into an untrusted external is `unclassified`, never bound and never an orphan.** When a registered entry resolves under a `local`/`remote` rulebook whose hash no longer matches the pin or which is absent from the user-local approval store, its manifest may not be read — so its enforcer paths cannot be derived, and neither verdict is available. Calling it bound would render untrusted manifest content; calling it an orphan would assert it is *not* derivable, which is equally unknown. List it separately as `unclassified — <id> requires reapproval (run load)`, with the path and no check ids. This is the one case where the answer is that there is no answer yet.
+
+Also list, below the table, any **orphaned registration** and any **registered script missing** entry the same way `status` does — a managed entry the candidate set does not contain is exactly what a reader of this table needs to see, and finding it here costs nothing extra.
+
+**Cold behavior — browse mode, not dispatch.** With nothing loaded, `hooks` lists; it never loads, never asks, and never writes. An earlier draft said both "do not run the selection order" and "resolve exactly as `install` does", which are not the same instruction — a review and two independent evaluator runs each stopped on it. The resolution, stated as rungs rather than by reference:
+
+- **Run** the pin, then the intent manifest, then builtin-marker detection — derivation needs *some* selection, and these three rungs read files without changing anything.
+- **Never run the ask rung.** `install` may ask because it is about to write; `hooks` is not, and a read-only command that interrogates the user has overstepped.
+- **Never write.** No pin, no intent manifest, no materialization — not even the selection `install` would persist at this point. `hooks` leaves the repo exactly as it found it.
+- **Never read rulebook prose into context.** Manifests are validated for derivation only, exactly as `install` does for its own derivation.
+- **When those three rungs resolve nothing**, say so and stop — print the header with `selection: none resolved (no pin, no intent manifest, no marker match)` and no table, since there is no candidate set to render.
+
+Name the rung that resolved the selection in the header (`selection: pinned` / `intent` / `detected (matched: <marker>)`), so a reader can tell a pinned answer from an inferred one. This is `commands` § Cold behavior in spirit — engine-owned, read-only, nothing to load for — but not identical to it: `commands` enumerates installed builtins and needs no merged selection, while `hooks` must derive one. Where the two differ, this section governs.
+
+**Trust rule for rendering manifest fields.** Identical to `commands` § Trust rule — an install-resolved builtin's manifest is repo-trusted and always renderable; an external rulebook's fields render **iff** its current hash matches the project pin **and** appears in `~/.claude/kerby/approved-rulebooks.json`. Anything else renders one identity-only row from lockfile fields alone (`<id> (<origin>: <path_or_url>) — pinned; reapproval required (run load to re-trigger the trust prompt) — hooks not shown`) and never any manifest text. An external's `floor` is *displayed* as its derived tier but carries no `locked` privilege here, matching `install`: tier never suppresses an external's per-hook confirmation.
 
 ---
 

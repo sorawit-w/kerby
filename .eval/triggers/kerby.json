@@ -70,5 +70,17 @@
   {
     "query": "audit my AWS IAM policies for over-broad permissions",
     "should_trigger": false
+  },
+  {
+    "query": "/kerby hooks",
+    "should_trigger": true
+  },
+  {
+    "query": "which kerby hooks would install register?",
+    "should_trigger": true
+  },
+  {
+    "query": "add a pre-commit hook to this repo",
+    "should_trigger": false
   }
 ]
