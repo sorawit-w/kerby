@@ -6,4 +6,4 @@ version = "1.2.0"
 
 [[rulebook]]
 id = "swe"                # builtin — resolves against the local install
-version = "2.11.0"
+version = "2.11.1"

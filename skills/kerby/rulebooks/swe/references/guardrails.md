@@ -59,7 +59,7 @@ Stay on task. Agents tend to "fix while you're here" — refactoring adjacent co
 
 **Rules:**
 - Only change what the task requires. If you notice an issue outside your scope, **log it** but don't fix it unless asked — see the sink table below for where.
-- If scope is growing, pause and check with the developer before continuing.
+- If scope is growing, pause and check with the developer before continuing. This is a **scope** question — whether the extra work belongs in this task at all — and is owed at every grade, including well below the Plan Gate's approval point. It is not `BOOTSTRAP.md` § 4's approval stop and does not substitute for it; the two ask different things and can both apply. If the developer agrees to the expansion, that is new work: re-grade it, and § 4 handles the rest.
 - If refactoring is needed to complete your task, explain why and get approval for the expanded scope.
 
 ### Where a finding goes
