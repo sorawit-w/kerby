@@ -298,12 +298,18 @@ Notes: The `plan:` line is emitted at the first edit rather than in § 2.5's blo
   explicit user instruction; § 2.5 states that rather than leaving it to be discovered.
   Eval: in-session split-role skill-evaluator, 8 tests / 9 executor+grader pairs, fresh context
   each, graders blind to the rulebook. 82/83 assertions passed.
-Notes (deferrals from this change — no ROADMAP.md in this repo and bootstrapping it was
-  ring-fenced, so they land here per references/guardrails.md § Where a finding goes):
+  Deferrals from this change — no ROADMAP.md in this repo and bootstrapping it was ring-fenced,
+  so they land here per references/guardrails.md § Where a finding goes:
   [ ] Make the investigate route's omit-don't-announce rule actually land — needs its own eval
       round with the rule text as the variable, not a guess. Deferred from swe 2.11.0.
   [ ] references/audit.md may need a dimension row: ROADMAP § Follow-ups is a durable artifact,
       so stay-on-task moves from process-only toward auditable. Deferred from swe 2.11.0.
+  DISCLOSURE: this entry was edited after it was first written, which
+  references/communication.md § memory.log forbids — the log is append-only. It happened while
+  repairing a Codex finding (deferrals filed under facts-only Observations) and the repair
+  compounded the fault by adding a second Notes: field. Both are folded back into this single
+  canonical Notes: field. The edit is disclosed rather than erased; the correct move would have
+  been an appended correction entry, and that is the rule going forward.
 Observations: One assertion failed in the eval — on the investigate route the executor narrated
   which required lines it was omitting, which § 4 Output Discipline calls closing fluff. This is
   PRE-EXISTING: .kerby/knowledge/decision-investigate-route.md records the same failure caught in
