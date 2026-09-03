@@ -21,20 +21,40 @@ The quick-task path is appropriate only when ALL of these hold. If even one fail
 
 **Grade ceiling vs. risk guard — two independent axes.** The complexity ceiling tracks `plan_threshold` (raising the knob never lowers the bar here); the criteria above are independent risk guards. A change that introduces logic, refactors, exceeds the LOC budget, or touches schema/contracts escalates to the task-type workflow (`bugfix.md` / `feature.md`) *even when its grade is below the threshold*. Both the grade ceiling and the fit check must hold.
 
-**State your fit check before starting**, in 3–5 lines:
+### Verify the criteria you can verify *now*, before the first edit
+
+Six of the seven criteria above are knowable from the file list before you change anything. Only the LOC budget genuinely needs the diff. **Resolve the six first** — an escalation found now costs a re-route; the same escalation found after the edit leaves code on disk with no approved plan behind it.
+
+Open the target files and run these, adapting the commands to the project:
+
+```bash
+git ls-files <target-paths>                 # do they exist? (new file → escalate)
+git check-ignore -v <target-paths>          # untracked/ignored surprises
+```
+
+Then read each target and confirm, from what you actually see:
+
+- **Not a test file** — no assertion, fixture, or scaffolding edit. Check the path *and* whether the string you are changing is asserted anywhere: `grep -rn "<the literal>" <test-dirs>`. A copy change with a snapshot behind it is a test change.
+- **Not schema / contract / public type** — no migration dir, no exported type or interface shape, no public API surface.
+- **Not a high-stakes path** — match the target against the `BOOTSTRAP.md` § 3 glob list *before* editing, including the prose-only category (retry/timeout/rate-limit constants, feature-flag defaults gating prod traffic, secrets loading). A path match is decided by which file the edit lands in, never by whether the changed lines look risky.
+- **Not new logic, refactoring, or behavior change** — you are changing strings, copy, comments, config values, data, or formatting.
+
+If any of the four fails, escalate **now**, before editing. That escalation is an ordinary pre-code re-route: `feature.md` § 3 (or `bugfix.md`) with its plan written the normal way, and the retroactive-plan carve-out in step 3a never comes into play.
+
+**State your fit check before starting**, in 4–6 lines:
 
 ```
 Quick-task fit:
 - Files: <list>
+- Change: <what will be different afterwards>
 - Estimated LOC: <number>
-- Type of change: <strings / config / comments / docs / formatting>
 - Check: <how you will know it worked>
-- No new files / tests / schema / contracts / high-stakes paths: confirmed
+- Verified before editing: not a test/schema/contract/high-stakes path, no new logic — <how you checked>
 ```
 
 If you can't state it cleanly, the task doesn't fit. Switch workflows.
 
-**On this route the fit check is your plan.** It carries the same three things the one-line `plan:` floor asks for (`BOOTSTRAP.md` § 4 Plan Gate) — `Files:` and `Type of change:` are the what-and-where, `Check:` is the check — and it is stated before you start. Emit the fit check, not both artifacts.
+**On this route the fit check is your plan.** It carries the three things the one-line `plan:` floor asks for (`BOOTSTRAP.md` § 4 Plan Gate) — `Files:`, `Change:`, `Check:` — and it is stated before you start. Emit the fit check, not both artifacts.
 </fit_check>
 
 <do_it>
@@ -56,9 +76,13 @@ If you can't state it cleanly, the task doesn't fit. Switch workflows.
 
    Escalation is not a setback — it's the system working. Do NOT commit a Tier-mismatched diff to escape the workflow change.
 
-   **Escalation voids the fit check, and with it your plan.** The declarations that just failed are the artifact that was standing in for a plan, so you are now mid-change with none. Before continuing: re-emit `complexity:` with the new grade, and write the full plan for the route you escalated to — `feature.md` § 3, including Expected Outcomes at or above `plan_threshold`. Do not carry the void fit check forward as though it still describes the work.
+   **The last three should already be impossible.** The pre-edit block in § Fit Check verifies them against the file list before anything is written, so reaching them here means that block was skipped or a target changed under you. Treat it as a miss to note in `.kerby/memory.log`, not a routine path. The LOC budget is the one criterion that genuinely needs the diff.
 
-   **This one plan is written with code already on disk, and that is not a violation.** The general rule is no task code before a plan; here the code is what *revealed* the escalation, so the order cannot be otherwise. The plan therefore covers the work that remains and states what is already changed — read your own `git diff` and write it down rather than describing intentions. Expected Outcomes describe the end state you are heading for, not a prediction made before touching anything. Nothing else in the rulebook licenses a plan written after the fact.
+   **Escalation voids the fit check, and with it your plan.** The declarations that just failed are the artifact that was standing in for a plan, so you are now mid-change with none. Before continuing: re-emit `complexity:` with the new grade, and write the plan for the route you escalated to — the full `feature.md` § 3 block at or above `plan_threshold`, otherwise the one-line `plan:` floor, since the grade decides plan size here as everywhere. Do not carry the void fit check forward as though it still describes the work.
+
+   **A plan written with code already on disk is licensed here and nowhere else, and only for the LOC overrun.** A diff that merely grew past its budget is bounded work of a kind already cleared as low-risk: the four risk criteria were checked before the first edit. Read your own `git diff` and write down what is already changed rather than describing intentions; Expected Outcomes describe the end state you are heading for.
+
+   **If the escalation is a risk criterion rather than the budget — a test, schema, contract, or high-stakes path — that carve-out does not apply.** Stop before writing more. The grade must be re-taken and, at grade ≥ 7, approved by the user *before* you continue; existing code does not grant itself approval. Say plainly what is already on disk and offer to revert it, because the alternative is a high-stakes change that reached the tree without the gate it was owed.
 
    **3b. Quality-check (only if 3a passed):** while iterating, run the cheap check for what you are touching — `{lint_command}` for config/docs/comments/formatting, `{lint_command}` + related tests for logic.
 
@@ -69,7 +93,7 @@ If you can't state it cleanly, the task doesn't fit. Switch workflows.
    git commit -m "<type>(<scope>): <description>"
    ```
 5. **Log** — append to `.kerby/memory.log` (the entry carries the commit SHA, so it necessarily follows step 4 — see `references/communication.md` § Session Logging).
-6. **Record anything you deferred** — one `[ ]` line per item in `ROADMAP.md` § Follow-ups, per `references/guardrails.md` § Where a finding goes. Usually nothing: a quick task that needed a deferral was probably not a quick task.
+6. **Record anything you deferred** — one entry in the sink `references/guardrails.md` § Where a finding goes selects. Usually nothing: a quick task that needed a deferral was probably not a quick task.
 7. **Commit the log.** `.kerby/memory.log` is tracked shared state, so step 5 leaves the tree dirty. `git status --short` must be empty before you finish; commit and push the log entry (and any roadmap line) if it is not.
 8. **Tell the developer how to verify** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions).
 </do_it>

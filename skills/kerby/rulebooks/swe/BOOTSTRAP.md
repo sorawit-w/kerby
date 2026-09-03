@@ -53,7 +53,7 @@ skipped: <what you did not build> — add when <trigger>
 One prefix, two forms — say which you mean, and note that they end in different places:
 
 - **A declined abstraction** — the interface with one implementation, the config knob for a constant, the helper you did not extract. The trigger belongs at the code site (`references/working-patterns.md` § Code Standards). This form never goes to `ROADMAP.md`.
-- **Deferred scope** — real work you could have done and chose not to. This form is always recorded in `ROADMAP.md` § Follow-ups before you finish, and every item you named as deferred in the plan appears here word for word, so a reviewer can compare the two.
+- **Deferred scope** — real work you could have done and chose not to. This form is always recorded before you finish, in the sink `references/guardrails.md` § Where a finding goes selects — normally `ROADMAP.md` § Follow-ups, an external tracker where the project uses one, and the log's `Notes:` when neither exists. Every item you named as deferred in the plan appears here word for word, so a reviewer can compare the two. What is not optional is that it is recorded somewhere durable.
 
 `skipped: none` is a valid answer and is still emitted. When you have one of each, emit one line per form and tag them, so `none` on the second is a real statement rather than an absence:
 
@@ -175,13 +175,17 @@ If the answer turns out to need a change, stop and re-route — emit a new grade
 
 **What satisfies it — exactly one of these three, never two:**
 
-| Artifact | When | Where |
-|---|---|---|
-| The one-line `plan:` floor | below `plan_threshold`, or on a full-plan opt-out | here |
-| The full plan block | at or above `plan_threshold` | `workflows/feature.md` § 3 |
-| The quick-task fit check | on the `quick-task` route | `workflows/quick-task.md` |
+Read the rows in order and stop at the first that matches — they are a priority list, not a set of independent tests:
 
-All three must name **the files, the change, and the check**. The full plan and the fit check each carry a `Check:` element for exactly this reason; a plan that does not say how you will know it worked is not one of the three.
+| # | Artifact | Matches when | Where |
+|---|---|---|---|
+| 1 | The quick-task fit check | the route is `quick-task` | `workflows/quick-task.md` |
+| 2 | The full plan block | grade ≥ `plan_threshold`, and no full-plan opt-out | `workflows/feature.md` § 3 |
+| 3 | The one-line `plan:` floor | everything else — below the threshold, or a full-plan opt-out at any grade | here |
+
+All three name **the files, the change, and the check** — `workflows/feature.md` § 3 step 3b for the full plan, the `Change:` and `Check:` lines for the fit check. A plan that does not say how you will know it worked is not one of the three.
+
+**One artifact at a time, and a replacement retires the one before it.** When the file set changes or a route escalates, the new artifact *supersedes* the old rather than joining it — say so in one clause ("supersedes the fit check above") so a reader knows which one is live. Two plans in a report with no stated order is the ambiguity this rule exists to prevent.
 
 **The floor line:**
 
@@ -191,7 +195,7 @@ plan: <files> — <change> — <check>
 
 Three slots, none empty, no `n/a`. `<files>` are the paths you are about to touch, `<change>` is what will be different afterwards, `<check>` is how you will know it worked.
 
-- **Emit it before the first edit that implements the task**, not at the grade. Housekeeping the workflow itself tells you to do first — scaffolding `agent-context.yaml` (§ 2), creating the branch, installing dependencies, repairing a broken baseline — is not the change and does not trip this; it also belongs in its own commit, so it never reaches the plan's diff. The trigger is the first edit that moves the task forward.
+- **Emit it before the first edit that implements the task**, not at the grade. Housekeeping the workflow itself tells you to do first — scaffolding `agent-context.yaml` (§ 2), creating the branch, installing dependencies, repairing a broken baseline — is not the change and does not trip this. The test is whether the edit is *the work you were asked for* or the setup that precedes it, and it turns on the request, not the filename: on the `new-project` route the scaffold **is** the deliverable, so the plan comes before it (`workflows/new-project.md` § 3), while the same `agent-context.yaml` write during a feature task is setup. When housekeeping is not the deliverable it also belongs in its own commit, so it never reaches the plan's diff.
 - **Why not at the grade.** § 2.5 runs before the workflow file is read and before you have searched anything, so a file list emitted there would be a guess about files you have not opened. This is the opposite call from the `rung:` line on purpose: `rung:` binds at the decision point because it *is* a decision and survives contact with the code; a file list does not exist as knowledge until you have looked. Naming a path you intend to **create** is fine — that is a plan, not a claim about existing content.
 - **Change routes only.** Waived on the `investigate` route (§ Read-Only Answers) and on the `prepare` / `audit` sub-commands — not because those never write, but because neither runs the § 2.5 grading this gate hangs off; each is governed by its own procedure (`commands/prepare.md`'s diff-and-confirm, `commands/audit.md`'s report shape).
 - **An approved plan already satisfies it.** Use your platform's native plan mode if it exposes one; otherwise emit the artifact inline. When the user has *approved* a plan in plan mode, that plan is the artifact — do not also emit this line for the work it covers. Two limits: the plan must be approved, not merely drafted or abandoned part-way; and work that goes **outside** what the approved plan covers re-arms the line.
