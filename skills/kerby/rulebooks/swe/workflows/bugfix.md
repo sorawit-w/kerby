@@ -68,7 +68,7 @@ If the fix touches 3+ files, involves iterative debugging cycles, or will take >
 <fix>
 ## 5. Fix — Commit Gate
 
-This workflow has no plan section of its own. Your plan artifact is whichever row `BOOTSTRAP.md` § 4 Plan Gate's first-match table selects for this grade — the one-line `plan:` floor below the threshold, the full block in `workflows/feature.md` § 3 at or above it. One of them, not both, emitted before your first edit here as anywhere else. On this route the minimal version is the root-cause fix — never a symptom patch, however small it looks.
+This workflow has no plan section of its own. The `plan:` line (`BOOTSTRAP.md` § 4 Plan Gate) is emitted before your first edit here as anywhere else; at or above `plan_threshold` the full block in `workflows/feature.md` § 3 is added on top of it. On this route the minimal version is the root-cause fix — never a symptom patch, however small it looks.
 
 Execute these steps in order. Do NOT skip the commit.
 

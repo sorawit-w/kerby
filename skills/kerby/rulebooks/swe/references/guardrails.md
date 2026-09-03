@@ -68,7 +68,7 @@ Four sinks, four different situations. Picking the wrong one is how each of them
 
 | What you have | Sink |
 |---|---|
-| Work you deliberately deferred out of **your own** change | `ROADMAP.md` § Follow-ups (`references/roadmap.md`) |
+| Work you deliberately deferred out of **your own** change | The deferral sink — chosen by the ordered fallback below |
 | An action only a human can take (API key, cloud resource, account) | `DEVELOPER_TODO.md` |
 | A deliberate shortcut inside code you shipped | An in-code comment naming the upgrade trigger (`working-patterns.md` § Code Standards) |
 | An issue you noticed in **adjacent** code you did not touch | `.kerby/memory.log` Observations — a neutral fact, not a recommendation |

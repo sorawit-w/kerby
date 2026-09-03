@@ -35,7 +35,7 @@ git branch --show-current  # must NOT be main, master, dev, etc.
 <scaffold>
 ## 3. Scaffold
 
-This workflow has no plan section of its own. Your plan artifact is whichever row `BOOTSTRAP.md` § 4 Plan Gate's first-match table selects for this grade — the one-line `plan:` floor below the threshold, the full block in `workflows/feature.md` § 3 at or above it. One of them, not both, emitted before your first edit here as anywhere else.
+This workflow has no plan section of its own. The `plan:` line (`BOOTSTRAP.md` § 4 Plan Gate) is emitted before your first edit here as anywhere else; at or above `plan_threshold` the full block in `workflows/feature.md` § 3 is added on top of it.
 
 1. Fill `agent-context.yaml` at project root — project name, description, runtime, stack, entry points (this file is versioned and shared with teammates)
 2. Create project structure based on requirements:

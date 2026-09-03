@@ -50,7 +50,7 @@ Observations: [optional — neutral facts noticed during the task, e.g. "Build t
 
 **Observations are facts, not suggestions.** Record what you noticed — build times, warnings, skipped tests, deprecation notices, audit results. Do NOT recommend actions or suggest improvements. The developer decides what to act on.
 
-This governs things you noticed in code you did not touch. Work you deliberately deferred out of **your own** change is a different artifact — name it and record it in the sink `references/guardrails.md` § Where a finding goes selects. That is normally `ROADMAP.md` § Follow-ups; when the repo has no sink at all, this file's `Notes:` field takes it, which is why the rule is *not in Observations* rather than *never here*.
+This governs things you noticed in code you did not touch. Work you deliberately deferred out of **your own** change is a different artifact — name it and record it in the deferral sink (`references/guardrails.md` § Where a finding goes). One of that section's fallbacks is this file's own `Notes:` field, which is why the rule here is *not in Observations* rather than *never in this file*.
 
 **`Commit:` is `(pending)` when the entry precedes its own commit.** A commit cannot contain its own SHA, so the finish-step entry — written *before* the commit that carries it, see below — records `(pending)`. Per-iteration entries written inside the task loop run *after* their commit and carry the real SHA. Both shapes are correct; which one applies is decided by where in the workflow the entry is written.
 
