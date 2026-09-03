@@ -55,7 +55,16 @@ One prefix, two forms — say which you mean, and note that they end in differen
 - **A declined abstraction** — the interface with one implementation, the config knob for a constant, the helper you did not extract. The trigger belongs at the code site (`references/working-patterns.md` § Code Standards). This form never goes to `ROADMAP.md`.
 - **Deferred scope** — real work you could have done and chose not to. This form is always recorded in `ROADMAP.md` § Follow-ups before you finish, and every item you named as deferred in the plan appears here word for word, so a reviewer can compare the two.
 
-`skipped: none` is a valid answer and is still emitted. This is the restraint half: the rung line says how little you reached for, this says what you consciously left out, and a reviewer can disagree with either.
+`skipped: none` is a valid answer and is still emitted. When you have one of each, emit one line per form and tag them, so `none` on the second is a real statement rather than an absence:
+
+```
+skipped: (declined abstraction) a generic export-config hook — add when a second table needs export
+skipped: (deferred scope) none
+```
+
+`(deferred scope) none` tells the reader the whole request shipped. A single untagged line blurs that with the abstraction nobody wanted.
+
+This is the restraint half: the rung line says how little you reached for, this says what you consciously left out, and a reviewer can disagree with either.
 
 Both are emitted whether or not they feel relevant — a line that appears only when the agent judges it worth emitting is the prose these replace. The one exception is the `investigate` route (§ 4 Read-Only Answers), where nothing is built and both lines have nothing to name.
 </decision_ladder>

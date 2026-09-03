@@ -278,3 +278,41 @@ Observations: The premise "Windows means PowerShell" came from a report about on
   restored. Operational hazard: `codex exec` running the round-2 review reverted uncommitted
   working-tree edits; three fixes were lost and `git status` reported clean afterwards. Round 3 was
   told to be read-only and left the tree untouched.
+
+[2026-09-02T00:00:00Z]
+Task: swe 2.11.0 — a plan before every change, and minimal-first with recorded deferrals
+Action: Plan Gate now decides plan size, not plan existence. Added the one-line `plan:` floor
+  emitted immediately before the first edit; `smallest:`/`deferring:` in feature.md § 3; widened
+  `skipped:` into two named forms; ROADMAP.md § Follow-ups as the deferral sink; never-defer list
+  and "minimal is not partial" in § 1b. Reconciled three rules that said the opposite
+  (Anti-Rationalization, the logged-not-suggested pair, the Scope Discipline sink list).
+Files: BOOTSTRAP.md, workflows/{feature,quick-task,bugfix,new-project}.md,
+  references/{working-patterns,guardrails,communication,roadmap}.md, swe/README.md,
+  rulebook.toml, CHANGELOG.md, README.md, manifests, .kerby/rulebooks.toml
+Commit: (pending)
+Status: DONE
+Notes: The `plan:` line is emitted at the first edit rather than in § 2.5's block, deliberately
+  the opposite call from `rung:` — § 2.5 runs before anything has been read, so a file list there
+  would be the invented path § Accuracy forbids. The user opt-out shrinks the full block to the
+  floor instead of waiving planning, which makes the floor the one place the playbook outranks an
+  explicit user instruction; § 2.5 states that rather than leaving it to be discovered.
+  Eval: in-session split-role skill-evaluator, 8 tests / 9 executor+grader pairs, fresh context
+  each, graders blind to the rulebook. 82/83 assertions passed.
+Observations: One assertion failed — on the `investigate` route the executor narrated which
+  required lines it was omitting and why, which § 4 Output Discipline calls closing fluff. This is
+  PRE-EXISTING, not caused by this change: .kerby/knowledge/decision-investigate-route.md records
+  the same failure caught in the 9.22.0 eval round, after which the rule was already reworded once
+  from "announce the waiver" to "omit them". It failed again. Deliberately NOT fixed here — a third
+  blind rewording with one data point is the same mistake as the three defeated versions of the
+  removed plan-gate prose guard. Recorded as a follow-up below rather than guessed at.
+  Follow-up (would be ROADMAP.md § Follow-ups; this repo has none and the change ring-fenced
+  bootstrapping one, so it lands here per references/guardrails.md § Where a finding goes):
+  [ ] Make the investigate route's omit-don't-announce rule actually land — needs its own eval
+      round with the rule text as the variable, not a guess. Deferred from swe 2.11.0.
+  [ ] references/audit.md may need a dimension row: ROADMAP § Follow-ups is a durable artifact, so
+      stay-on-task moves from process-only toward auditable. Deferred from swe 2.11.0.
+  [ ] swe/README.md's check count ("Eleven checks... five prose gates") already undercounts
+      rulebook.toml's declared set. Pre-existing, untouched here.
+  A test fixture lesson, not a rule finding: the first quick-task fixture used a request-timeout
+  constant, which is a high-stakes path — the executor correctly took the full workflow instead,
+  so the test measured routing, not the fit check. Re-run as T1b with a copy typo.
