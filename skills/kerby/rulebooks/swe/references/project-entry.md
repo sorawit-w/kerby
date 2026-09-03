@@ -165,8 +165,8 @@ git commit -m "chore: setup development environment"
 
 ### 9. Next Decision
 
-- **Simple task (<1 hour, single file):** the `plan:` line, then implement — no full plan block (`BOOTSTRAP.md` § 4 Plan Gate). Nothing skips planning entirely
-- **Complex task (multi-day, multiple files):** Proceed to `implementation-planning.md`
+- **Below `plan_threshold`:** the `plan:` line, then implement — no full plan block (`BOOTSTRAP.md` § 4 Plan Gate). Grade decides this, not duration or file count: a single-file change can be high-stakes or design-heavy and grade above the threshold. Nothing skips planning entirely
+- **At or above `plan_threshold`:** the full plan block too; for multi-session work, `implementation-planning.md`
 
 ---
 

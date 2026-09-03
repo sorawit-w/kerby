@@ -76,16 +76,21 @@ If you can't state it cleanly, the task doesn't fit. Switch workflows.
 
    Escalation is not a setback — it's the system working. Do NOT commit a Tier-mismatched diff to escape the workflow change.
 
-   **Which escalation you hit decides what happens next. Two cases, no third.**
+   **Escalation means you have left quick-task. Do these four, in order, in both cases:**
 
-   | You hit | Because | Do this |
-   |---|---|---|
-   | **The LOC budget only** | genuinely needs the diff to know | Re-grade. If the new grade reaches `plan_threshold`, add the full plan block. Writing *that block* with code already on disk is licensed here and nowhere else: read your own `git diff` and record what is already changed. |
-   | **A risk criterion** — new file, test, schema, contract, high-stakes path, or new logic | should have been caught before the first edit | **Stop writing.** Re-grade; at grade ≥ 7 get user approval *before* continuing, because existing code does not approve itself. Say plainly what is already on disk and offer to revert it. |
+   1. **Re-emit `complexity:`** with the new grade and route.
+   2. **Re-emit the `plan:` line.** Not only when the file set changed — an escalation from copy to logic makes the old `<change>` slot false even with the same files, and the line is required on the route you are moving to.
+   3. **The fit check is void.** Its declarations are what just failed. Do not re-state it; you are no longer on the route it belongs to.
+   4. **Add the full plan block** (`feature.md` § 3) if the new grade reaches `plan_threshold` and no full-plan opt-out is in force — the same condition as anywhere else. At grade ≥ 7 that block needs user approval, and the approval stop applies here exactly as it does on a normal route.
 
-   The risk-criterion row should be unreachable: § Fit Check verifies all six of those against the file list before anything is written. Reaching it means that block was skipped or a target changed under you — note it in `.kerby/memory.log` as a miss, not a routine path.
+   **Whether you may keep writing while you do this depends on which criterion tripped:**
 
-   **In both cases the fit check is void** — its declarations are what just failed. Re-emit it, or say plainly that the task has left quick-task's bounds. Your `plan:` line stands and is re-emitted if the file set changed; if the new grade reaches `plan_threshold`, the full block in `feature.md` § 3 is added on top of it. Nothing is being swapped for anything.
+   | Tripped | May you continue? |
+   |---|---|
+   | **The LOC budget only** | Yes. The four risk criteria were cleared before the first edit, so this is bounded work that merely grew. Writing the full block with code already on disk is licensed here and nowhere else: read your own `git diff` and record what is already changed rather than describing intentions. |
+   | **A risk criterion** — new file, test, schema, contract, high-stakes path, or new logic | **No. Stop writing.** Finish steps 1–4 first, and at grade ≥ 7 wait for approval before continuing — existing code does not approve itself. Say plainly what is already on disk and offer to revert it. |
+
+   The risk row should be unreachable: § Fit Check verifies all of those against the file list before anything is written. Reaching it means that block was skipped or a target changed under you — note it in `.kerby/memory.log` as a miss, not a routine path.
 
    **3b. Quality-check (only if 3a passed):** while iterating, run the cheap check for what you are touching — `{lint_command}` for config/docs/comments/formatting, `{lint_command}` + related tests for logic.
 

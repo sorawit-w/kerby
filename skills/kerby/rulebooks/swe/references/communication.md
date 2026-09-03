@@ -143,7 +143,7 @@ When a project uses an external tracker (Linear, Jira, Asana, GitHub Issues, etc
 
 1. **Check the board before starting** — Look for existing tickets related to your task. Don't create duplicates.
 2. **Update ticket status as you work** — Move tickets to "In Progress" when you start, "Done" when complete, "Blocked" when stuck.
-3. **Create new tickets for work you deferred out of your own change** — the deferrals named in your plan's `deferring:` line. Where the project has a tracker, this is the sink `references/guardrails.md` § Where a finding goes selects in place of `ROADMAP.md`.
+3. **Create new tickets for work you deferred out of your own change** — the deferrals named in your plan's `deferring:` line, when `references/guardrails.md` § Where a finding goes selects the tracker as the sink. That section decides; this one only says how to write the ticket.
 
    **Not for a bug you merely noticed in adjacent code you did not touch.** That stays a neutral observation in `.kerby/memory.log` and the developer decides — tracker access does not change it, because filing a ticket is deciding the work should happen. Noticing is not deciding. The sink table in `guardrails.md` is the authority when this rule and it appear to disagree.
 4. **Link commits to tickets** — Use the `[#issue-id]` pattern in commit messages.
