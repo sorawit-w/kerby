@@ -58,6 +58,8 @@ If you can't state it cleanly, the task doesn't fit. Switch workflows.
 
    **Escalation voids the fit check, and with it your plan.** The declarations that just failed are the artifact that was standing in for a plan, so you are now mid-change with none. Before continuing: re-emit `complexity:` with the new grade, and write the full plan for the route you escalated to — `feature.md` § 3, including Expected Outcomes at or above `plan_threshold`. Do not carry the void fit check forward as though it still describes the work.
 
+   **This one plan is written with code already on disk, and that is not a violation.** The general rule is no task code before a plan; here the code is what *revealed* the escalation, so the order cannot be otherwise. The plan therefore covers the work that remains and states what is already changed — read your own `git diff` and write it down rather than describing intentions. Expected Outcomes describe the end state you are heading for, not a prediction made before touching anything. Nothing else in the rulebook licenses a plan written after the fact.
+
    **3b. Quality-check (only if 3a passed):** while iterating, run the cheap check for what you are touching — `{lint_command}` for config/docs/comments/formatting, `{lint_command}` + related tests for logic.
 
    At commit time the tier is re-picked from the **staged diff**, not inherited from the iteration check above. `references/quality-gates.md` § At Commit Time is the single authority for that selection — follow it there rather than restating it here. In practice a quick task usually lands on Standard (`{build_command} && {lint_command} && {test_command}`); Quick applies only when nothing staged feeds a gate, which is narrower than "the file ends in `.md`".

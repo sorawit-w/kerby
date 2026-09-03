@@ -77,9 +77,11 @@ Before any code, predict the **observable end-state** — what the change will l
 
 Below `plan_threshold` this block is optional.
 
-### Smallest version, and what you are deferring
+### Smallest version, and what you are deferring (grade ≥ `plan_threshold`)
 
-Every plan states two things, in one line each:
+**This block belongs to the full plan only.** The one-line `plan:` floor and the `quick-task` fit check do not carry it — below the threshold, a change small enough to skip the full block is small enough that "the smallest version" is the whole of it. Anything deferred there is still named in the report's `skipped:` line, which is never waived.
+
+The full plan states two things, in one line each:
 
 ```
 smallest: <the least you can build that fully satisfies the request>

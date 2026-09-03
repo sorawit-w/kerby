@@ -75,7 +75,12 @@ Four sinks, four different situations. Picking the wrong one is how each of them
 
 The split that matters is the first row against the last. A deferral is yours: you decided not to do it, so you name it and record it. An adjacent finding is not yours: you noticed it in passing, so it stays a neutral observation and the developer decides. Do not promote an adjacent finding to a follow-up to make it look actioned.
 
-**If the project has no `ROADMAP.md`,** creating one needs the developer's agreement (`references/roadmap.md` § Bootstrap). Offer once; if they decline, record the deferral in `.kerby/memory.log` instead. Never bootstrap the file silently, and never let a missing file block the work. If the project tracks work in an external tracker, that tracker wins — `references/roadmap.md` § When NOT to Use This explains why a duplicate in-repo list drifts.
+**This table is the single authority on where a finding goes.** Other files describe these sinks; when one of them disagrees with this table, this table wins. Two consequences worth stating, because they are the disagreements that actually arise:
+
+- **An external tracker replaces the first row, not the last.** Where the project tracks work in Jira/Linear/GitHub Issues, own-change deferrals go there instead of `ROADMAP.md`, and `references/communication.md` § External Board Sync governs how — a duplicate in-repo list drifts (`references/roadmap.md` § When NOT to Use This). That same permission does **not** reach the last row: an adjacent finding you noticed but did not touch stays a neutral observation. Discovering something is not deciding to do it.
+- **Deferred scope of your own is never "just an observation".** `.kerby/memory.log` Observations is facts-only. If the fallback below puts a deferral there because no other sink exists, it goes in `Notes:` as a deferral, not in `Observations:`.
+
+**Where the deferral sink does not exist yet.** Creating `ROADMAP.md` needs the developer's agreement (`references/roadmap.md` § Bootstrap). Offer once. If they decline and there is no external tracker, record the deferral in the `Notes:` field of your `.kerby/memory.log` entry. Never bootstrap the file silently, and never let a missing sink block the work — an unrecorded deferral is the failure this rule exists to prevent, so the weakest sink that actually records it beats stopping.
 
 ---
 

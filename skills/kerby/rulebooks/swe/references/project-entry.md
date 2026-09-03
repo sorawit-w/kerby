@@ -163,7 +163,7 @@ git commit -m "chore: setup development environment"
 
 ### 9. Next Decision
 
-- **Simple task (<1 hour, single file):** Skip planning, proceed to implementation
+- **Simple task (<1 hour, single file):** The one-line `plan:` floor, then implement — no full plan block (`BOOTSTRAP.md` § 4 Plan Gate; nothing skips planning entirely)
 - **Complex task (multi-day, multiple files):** Proceed to `implementation-planning.md`
 
 ---
@@ -284,7 +284,7 @@ Use the canonical format from `communication.md`. All entries follow the same st
 5. Setup Biome
 6. Create agent context file
 7. Commit
-8. Decide: simple task (skip planning) or complex (go to planning)
+8. Decide: simple task (the one-line `plan:` floor) or complex (the full plan block) — see `BOOTSTRAP.md` § 4 Plan Gate
 
 ### Existing Project: Resume
 

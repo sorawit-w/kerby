@@ -313,7 +313,7 @@ Source: distilled from `addyosmani/agent-skills` (2026-04-19, MIT).
 
 Common excuses agents (and humans) reach for to skip discipline, with the rebuttal that should kill the excuse:
 
-- *"I'll add tests later."* → Later is a decision to accept regressions now. Write the test or open the ticket before merging.
+- *"I'll add tests later."* → Later is a decision to accept regressions now. Write it: a test for behavior you changed is on the never-defer list in `BOOTSTRAP.md` § 1b, so unlike other cleanup it cannot be traded for a recorded follow-up. The ticket-instead escape applies to tests for behavior you did **not** change — widening coverage you merely wish existed.
 - *"This is throwaway code."* → Throwaway code has a way of surviving. Write it the same way.
 - *"The linter is wrong here."* → Often, but prove it before disabling. An `eslint-disable` without a justifying comment is debt.
 - *"It works on my machine."* → Not evidence. Reproduce in CI or a clean environment before claiming it works.

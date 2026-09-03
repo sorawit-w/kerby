@@ -109,9 +109,11 @@ Pick the workflow by **task type** (§ 3 routing table — a bug fix routes to `
   plan: <files> — <change> — <check>  (full plan waived: user opt-out "<quoted phrase>")
   ```
 
-  Append that line to `.kerby/memory.log`. Below `plan_threshold` there was no full block to waive, so the opt-out changes nothing and the line is emitted plain. The grade line, the `rung:` line, and the report's `skipped:` line are still emitted. Waiving the full block also waives its Expected Outcomes, and therefore the § 7 Realized Outcomes comparison — there is no prediction left to compare against. It does **not** waive the § 4 Verification rule or quality gates: opt-out skips planning, never verification.
+  Below `plan_threshold` there was no full block to waive, so the opt-out changes nothing and the line is emitted plain. The grade line, the `rung:` line, and the report's `skipped:` line are still emitted. Waiving the full block also waives its Expected Outcomes, and therefore the § 7 Realized Outcomes comparison — there is no prediction left to compare against. It does **not** waive the § 4 Verification rule or quality gates: opt-out skips planning, never verification.
 
-  **The floor itself is not waivable, and that is a deliberate exception to the § 1 priority order.** It is the only place in this playbook where an explicit user instruction does not get the last word, so it is stated rather than left to be discovered. What it buys: the developer can always see which files are about to change before they change, without reading the transcript afterwards to find out. One line is a small price for that, and "just do it" almost always means *skip the ceremony*, not *tell me nothing*. A user who genuinely wants no output at all is asking for something this playbook does not offer.
+  **Record the opt-out in the session's normal `.kerby/memory.log` entry** — the timestamped Task/Action/Files/Commit/Status/Notes record in `references/communication.md` § Session Logging, not a bare line of its own. Put the quoted opt-out phrase and the fact that the full plan was waived in `Notes:`. Below the threshold, where no block existed to waive, there is nothing to record.
+
+  **The floor itself is not waivable, and that is a deliberate exception to the § 1 priority order.** It is not the only rule that outranks an explicit instruction — the destructive-git refusals (`references/guardrails.md`), the secrets rules, and the non-overridable base floor all do — but those are safety floors, and this one is not, so it is the one that has to argue for itself. What it buys: the developer can always see which files are about to change before they change, without reading the transcript afterwards to find out. One line is a small price for that, and "just do it" almost always means *skip the ceremony*, not *tell me nothing*.
 </grade_before_route>
 
 <route_workflow>
@@ -169,9 +171,19 @@ If the answer turns out to need a change, stop and re-route — emit a new grade
 
 ### Plan Gate
 
-**No code before a plan. Ever.** The grade decides how big the plan is, not whether there is one.
+**No task code before a stated plan.** The grade decides how big the plan is, not whether there is one.
 
-**The floor — one line, immediately before your first edit:**
+**What satisfies it — exactly one of these three, never two:**
+
+| Artifact | When | Where |
+|---|---|---|
+| The one-line `plan:` floor | below `plan_threshold`, or on a full-plan opt-out | here |
+| The full plan block | at or above `plan_threshold` | `workflows/feature.md` § 3 |
+| The quick-task fit check | on the `quick-task` route | `workflows/quick-task.md` |
+
+All three must name **the files, the change, and the check**. The full plan and the fit check each carry a `Check:` element for exactly this reason; a plan that does not say how you will know it worked is not one of the three.
+
+**The floor line:**
 
 ```
 plan: <files> — <change> — <check>
@@ -179,11 +191,12 @@ plan: <files> — <change> — <check>
 
 Three slots, none empty, no `n/a`. `<files>` are the paths you are about to touch, `<change>` is what will be different afterwards, `<check>` is how you will know it worked.
 
-- **Emit it at the edit, not at the grade.** § 2.5 runs before the workflow file is read and before you have searched anything, so a file list emitted there would be a guess — and § Accuracy forbids referencing files you have not read. This is the opposite call from the `rung:` line on purpose: `rung:` binds at the decision point because it *is* a decision and survives contact with the code; a file list does not exist as knowledge until you have looked.
-- **Change routes only.** Waived on the `investigate` route (§ Read-Only Answers) and on the `prepare` / `audit` sub-commands. Nothing is being changed, so there is nothing to declare.
-- **An approved plan already satisfies it.** Use your platform's native plan mode if it exposes one; otherwise emit the PLAN block inline. When the user has *approved* a plan in plan mode, that plan is the artifact — do not also emit this line for the work it covers. Two limits: the plan must be approved, not merely drafted or abandoned part-way; and work that goes **outside** what the approved plan covers re-arms the line, so one approval at the start of a session is not a standing waiver for everything after it.
-- **It is a floor, not a ceiling.** At or above `plan_threshold` the full plan block below still applies; the line does not replace it. On the feature route the line is the compression of `workflows/feature.md` § 3 steps 1–3 plus the check — emit one or the other, never both.
-- `workflows/feature.md` § 3 is the plan block for **every** change route. `bugfix.md` and `new-project.md` have no plan section of their own and point here.
+- **Emit it before the first edit that implements the task**, not at the grade. Housekeeping the workflow itself tells you to do first — scaffolding `agent-context.yaml` (§ 2), creating the branch, installing dependencies, repairing a broken baseline — is not the change and does not trip this; it also belongs in its own commit, so it never reaches the plan's diff. The trigger is the first edit that moves the task forward.
+- **Why not at the grade.** § 2.5 runs before the workflow file is read and before you have searched anything, so a file list emitted there would be a guess about files you have not opened. This is the opposite call from the `rung:` line on purpose: `rung:` binds at the decision point because it *is* a decision and survives contact with the code; a file list does not exist as knowledge until you have looked. Naming a path you intend to **create** is fine — that is a plan, not a claim about existing content.
+- **Change routes only.** Waived on the `investigate` route (§ Read-Only Answers) and on the `prepare` / `audit` sub-commands — not because those never write, but because neither runs the § 2.5 grading this gate hangs off; each is governed by its own procedure (`commands/prepare.md`'s diff-and-confirm, `commands/audit.md`'s report shape).
+- **An approved plan already satisfies it.** Use your platform's native plan mode if it exposes one; otherwise emit the artifact inline. When the user has *approved* a plan in plan mode, that plan is the artifact — do not also emit this line for the work it covers. Two limits: the plan must be approved, not merely drafted or abandoned part-way; and work that goes **outside** what the approved plan covers re-arms the line.
+- **Any plan re-arms when the file set changes.** Whichever of the three you emitted, if the work turns out to touch a file you did not name, say so before you touch it — a fresh `plan:` line naming the additions is enough. The developer seeing every affected path before it changes is the whole point; a plan silently outgrowing its own file list defeats it.
+- `workflows/feature.md` § 3 is the full plan block for **every** change route. `bugfix.md` and `new-project.md` have no plan section of their own and point there.
 
 **Then the grade decides the rest:**
 
