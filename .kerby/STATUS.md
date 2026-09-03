@@ -9,7 +9,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | **HELD** — 9.26.0 / swe 2.11.0. Codex review hit the 3-round cap with P0=0 P1=6 open. No marker, no merge. |
+| **Phase** | Review clean — 9.26.0 / swe 2.11.0. Codex P0=0 P1=0, marker written at b9b5c92. Ready for PR. |
 | **Milestone** | Planning discipline — the Plan Gate stops deciding *whether* there is a plan |
 | **Milestone Goal** | A stated plan before every change, and the smallest change that still finishes the job |
 | **Working Branch** | feature/minimal-first-planning (release `9.26.0`) — rule-text change across 9 rulebook files |
@@ -21,8 +21,8 @@
 | Status | Count | Tasks |
 |--------|-------|-------|
 | Done | 5 | #54 protect-env scope · #55 decision-ladder artifacts · #56 shared state + finish order · #57 locator + trust rules · #63 `kerby hooks` |
-| Blocked | 1 | 9.26.0 — HELD at Codex round 3, P1=6 open (see memory.log). Needs a maintainer call, not another round |
-| In Review | 0 | — |
+| In Review | 1 | 9.26.0 — `plan:` line, minimal-first, deferral sink. Codex clean; PR next |
+| Blocked | 0 | — |
 | Ready | 3 | Fresh-session `skill-evaluator` passes · logged P2/P3 debt · investigate-route omit-don't-announce (eval-backed rewrite needed) |
 
 ---

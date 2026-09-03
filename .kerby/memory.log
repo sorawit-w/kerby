@@ -338,3 +338,28 @@ Notes: The substance of those edits belongs here, as an appended correction, whi
   grade-7 approval before continuing).
   The lesson worth keeping: an append-only log cannot be repaired by editing it, and each attempt
   to tidy it made the record worse. Append the correction, leave the original standing.
+
+[2026-09-03T00:00:00Z]
+Task: swe 2.11.0 — Codex review reached clean
+Action: Rounds 5-8 after the maintainer reset the cap. Round 5 deleted the three-artifact
+  selector rather than continuing to align it; rounds 6-8 fixed what the deletion exposed.
+  Marker written at b9b5c92 (P0=0 P1=0).
+Files: BOOTSTRAP.md, workflows/{feature,quick-task,bugfix,new-project}.md,
+  references/{working-patterns,guardrails,communication,roadmap,project-entry}.md,
+  swe/README.md, CHANGELOG.md, README.md
+Commit: (pending)
+Status: DONE
+Notes: Open P1s by round: 10, 7, 6, 6, 4, 3, 2, 0. The plateau at 6 was the signal that
+  aligning prose across surfaces was not converging; deleting the surface was. The selector
+  had been introduced in round 1 to fix an over-claim and generated most findings after it.
+  The last real bug was mine and worth remembering: the grade-7 approval stop was attached to
+  the full plan block, so wherever that block was not required — below threshold, or waived by
+  a user opt-out — the approval evaporated with it. Anchor a safety stop to the condition that
+  makes it necessary (the grade), never to an artifact that may be waived.
+  Three P2s logged as debt, not fixed: (1) re-grading on "shape moves" can ask for approval
+  again without the approval artifact changing; (2) the escalate catch-all sends non-enumerated
+  reasons to a table row whose text says the code bypassed a required gate, which does not fit
+  reasons like "unclear requirements"; (3) references/knowledge-management.md or a sibling may
+  still name a sink outside guardrails.md. Each is a wording narrowing, none changes behavior.
+  Deferrals from the earlier entry still stand: the investigate-route omit-don't-announce
+  rewrite (needs its own eval round) and the audit.md dimension row.
