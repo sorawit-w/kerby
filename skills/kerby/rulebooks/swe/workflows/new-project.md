@@ -35,6 +35,8 @@ git branch --show-current  # must NOT be main, master, dev, etc.
 <scaffold>
 ## 3. Scaffold
 
+This workflow has no plan section of its own. `workflows/feature.md` § 3 is the plan block for every change route, and the one-line `plan:` floor (`BOOTSTRAP.md` § 4 Plan Gate) is emitted before your first edit here as anywhere else.
+
 1. Fill `agent-context.yaml` at project root — project name, description, runtime, stack, entry points (this file is versioned and shared with teammates)
 2. Create project structure based on requirements:
    - Infer platforms from the user's description (web, mobile, API, etc.)

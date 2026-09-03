@@ -47,6 +47,8 @@ Check the knowledge base (`.kerby/knowledge/`) for relevant decisions, conventio
 <plan>
 ## 3. Plan
 
+Steps 1–3 below are what the one-line `plan:` floor (`BOOTSTRAP.md` § 4 Plan Gate) compresses. On this route, emit the full plan or the line, never both.
+
 1. Restate the problem — confirm you understand what's being asked
 2. Identify affected files — scope the change before editing
 3. Check dependencies — will this change break anything downstream?
@@ -74,6 +76,21 @@ Before any code, predict the **observable end-state** — what the change will l
 | Data / state | the state transition (before → after) |
 
 Below `plan_threshold` this block is optional.
+
+### Smallest version, and what you are deferring
+
+Every plan states two things, in one line each:
+
+```
+smallest: <the least you can build that fully satisfies the request>
+deferring: <items, comma-separated> | none
+```
+
+**Fully satisfies** is the load-bearing half. Minimal is not partial (`BOOTSTRAP.md` § 1b) — you are building less *around* the request, never less *of* it. Only hardening beyond the ask, refactors, adjacent cleanup and polish are deferrable, and the never-defer list in § 1b overrides all of it.
+
+Every item you name in `deferring:` appears word for word in the report's `skipped:` line and in `ROADMAP.md` § Follow-ups. That is what makes this checkable rather than a good intention: a reviewer can compare the three.
+
+**On the bugfix route, the minimal version is the root-cause fix.** A symptom patch is never the minimal version, however few lines it is — `references/debugging.md` and `BOOTSTRAP.md` § Diagnosis both outrank this section, and the root-cause fix is usually the smaller diff anyway (one guard where the callers meet, not one per caller).
 </plan>
 
 <delegate_check>
@@ -182,6 +199,7 @@ Complete ALL of these before declaring done:
    - **`.kerby/STATUS.md`** — reflects current state
    - **`.kerby/knowledge/` entry** — a new decision, convention, or lesson. Propose before writing; skip if nothing applies
    - **`CONTEXT.md`** — new domain terms used 2+ times. See `references/domain-glossary.md`
+   - **`ROADMAP.md` § Follow-ups** — one `[ ]` line per item you named in the plan's `deferring:` list, each saying what it was deferred from. Nothing deferred means nothing to write. If the project has no `ROADMAP.md`, follow the fallback in `references/guardrails.md` § Where a finding goes — offer once, never bootstrap it silently, and never let the missing file block the work
 3. **All changes committed and pushed:**
    ```bash
    git status  # must show clean working tree
