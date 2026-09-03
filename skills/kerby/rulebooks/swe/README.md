@@ -26,7 +26,7 @@ approach work.
 This rulebook packages one person's methodology as a loadable session preamble:
 
 - A **Prime Directive** — clarity over cleverness, safety over speed, never leave the repo broken.
-- **Hard rules** that apply on every task — branching, commit discipline, verification, resource cleanup, manual-verification instructions, sub-agent delegation, ambiguity-before-cost.
+- **Hard rules** that apply on every task — a stated plan before any change, branching, commit discipline, verification, resource cleanup, manual-verification instructions, sub-agent delegation, ambiguity-before-cost.
 - **Routed workflows** — the agent reads the right workflow file (`new-project`, `adopt-existing`, `feature`, `bugfix`, `quick-task`) instead of guessing from memory.
 - **A reference index** for the long tail of decisions — debugging, error handling, vendor adapters, knowledge-base maintenance, design tokens, multi-tool support across Claude Code / Codex / Cursor.
 - **A meta-rule** about adding rules — every proposed new rule passes a cost gate (line count, frequency, severity, coverage, testability) before it earns its place.
@@ -132,6 +132,8 @@ The rules in `BOOTSTRAP.md` reflect specific choices that may not match your jud
 - **Manual verification instructions in every completion report.** Reasonable for shipped features; overkill for one-line typo fixes.
 - **`DESIGN.md` as design-token authority** when present. Opinionated wiring into the [Google Labs spec](https://github.com/google-labs-code/design.md), alpha.
 - **Methodology over scripts.** Hardcoded commands (`npm test`) lose to project-detected commands (`{test_command}`).
+- **A plan before every change, including one-liners** — one line naming the files, the change and the check. It is the single rule an explicit user instruction cannot waive: `just do it` shrinks the plan, it does not remove it. If you want an agent that edits silently on request, this is the rule to delete.
+- **The smallest change that *fully* satisfies the request, with the rest deferred and written down.** Many small changes over one large one — but never a partial one, and a deferral that isn't recorded in `ROADMAP.md` § Follow-ups is just the "I'll clean it up later" excuse wearing a rule's clothes.
 
 These choices have stated reasons in the rule files. Read the reasons; keep the ones
 that match your work; **delete or rewrite the ones that don't.** The engine loads
