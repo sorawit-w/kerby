@@ -92,7 +92,7 @@ The parent's status reflects the rollup: any sub-item `[~]` makes the parent `[~
 
 **Rule of thumb:** items rated complexity ≥ 4 (per the 1–10 scale in `workflows/feature.md`) belong in `ROADMAP.md`. Below that stays in commit history. If unsure, ask: *would a future contributor want to know we did this?*
 
-**`## Follow-ups` is exempt from both the table and the rule of thumb.** Work deferred out of a change that already shipped goes there whatever its size or kind — a small refactor, an internal cleanup, hardening beyond the original ask. The table above governs what earns a place on the *active* list, which is a different question: an item nobody has committed to doing yet. A deferral is the opposite — a decision already made, by an agent or a human, that this work exists and was consciously left for later. Losing those to the commit log is what the section exists to prevent. See `BOOTSTRAP.md` § 1b for what may and may not be deferred.
+**`## Follow-ups` is exempt from both the table and the rule of thumb.** `references/guardrails.md` § Where a finding goes decides *whether* a deferral comes here at all; this section only says what happens to it once it does. When it does, size and kind do not exclude it — a small refactor, an internal cleanup, hardening beyond the original ask. The table above governs what earns a place on the *active* list, which is a different question: an item nobody has committed to doing yet. A deferral is the opposite — a decision already made, by an agent or a human, that this work exists and was consciously left for later. Losing those to the commit log is what the section exists to prevent. See `BOOTSTRAP.md` § 1b for what may and may not be deferred.
 
 ---
 
@@ -149,7 +149,7 @@ For **new projects**, the agent populates `ROADMAP.md` from the requirements as 
 | Resuming after a block clears | Flip `[!]` back to `[~]`, remove the blocker note |
 | Completing | Flip to `[x]`, sweep to `## Shipped` (immediately or in batches when the active list gets crowded) |
 | Cancelling/descoping | Delete the line, note the decision in `.kerby/memory.log` |
-| Deferring work out of a change you shipped | Add a `[ ]` line under `## Follow-ups`, naming what it was deferred from |
+| Deferring work out of a change you shipped, where `guardrails.md` selects this file | Add a `[ ]` line under `## Follow-ups`, naming what it was deferred from |
 | Picking up a follow-up | Move the line out of `## Follow-ups` into the active list, then treat it as any other item |
 
 A finishing-checklist self-check ("`ROADMAP.md` reflects the work just shipped") closes the loop. Without this, the file silently drifts and stops being trustworthy within a few sprints.

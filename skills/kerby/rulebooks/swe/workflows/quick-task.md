@@ -83,12 +83,12 @@ If you can't state it cleanly, the task doesn't fit. Switch workflows.
    3. **The fit check is void.** Its declarations are what just failed. Do not re-state it; you are no longer on the route it belongs to.
    4. **Add the full plan block** (`feature.md` § 3) if the new grade reaches `plan_threshold` and no full-plan opt-out is in force — the same condition as anywhere else. At grade ≥ 7 that block needs user approval, and the approval stop applies here exactly as it does on a normal route.
 
-   **Whether you may keep writing while you do this depends on which criterion tripped:**
+   **Steps 1–4 always come first — neither case lets you write through them.** What differs is what happens to the code already on disk, and what you do once they are done:
 
-   | Tripped | May you continue? |
-   |---|---|
-   | **The LOC budget only** | Yes. The four risk criteria were cleared before the first edit, so this is bounded work that merely grew. Writing the full block with code already on disk is licensed here and nowhere else: read your own `git diff` and record what is already changed rather than describing intentions. |
-   | **A risk criterion** — new file, test, schema, contract, high-stakes path, or new logic | **No. Stop writing.** Finish steps 1–4 first, and at grade ≥ 7 wait for approval before continuing — existing code does not approve itself. Say plainly what is already on disk and offer to revert it. |
+   | Tripped | The code already written | After steps 1–4 |
+   |---|---|---|
+   | **The LOC budget only** | Stands. The risk criteria were cleared before the first edit, so this is bounded work that merely grew. Writing step 4's block over existing code is licensed here and nowhere else: read your own `git diff` and record what changed rather than describing intentions. | Resume. |
+   | **A risk criterion** — new file, test, schema, contract, high-stakes path, or new logic | Say plainly what is on disk and offer to revert it — it reached the tree without the gate it was owed. | Resume only once step 4's approval, if the grade required one, has been given. Existing code does not approve itself. |
 
    The risk row should be unreachable: § Fit Check verifies all of those against the file list before anything is written. Reaching it means that block was skipped or a target changed under you — note it in `.kerby/memory.log` as a miss, not a routine path.
 
@@ -111,5 +111,5 @@ If you can't state it cleanly, the task doesn't fit. Switch workflows.
 
 If the task turns out to be more complex than expected (touching multiple files, unexpected failures, unclear requirements), switch to the full workflow for the task type — **`bugfix.md` for a bug fix** (it keeps the reproduce → diagnose → failing-test path), otherwise **`feature.md`**:
 
-Read that workflow and start from its step 2 (Clarify in `feature.md`, Reproduce in `bugfix.md`). Re-emit `complexity:`; step 3a above is the authority on whether you may keep writing while you do.
+Read that workflow and start from its step 2 (Clarify in `feature.md`, Reproduce in `bugfix.md`). Step 3a above is the authority on the transition — its four steps, and its condition on the full plan block. Entering `feature.md` at step 2 does not make its § 3 block unconditional; the threshold and the opt-out still decide, exactly as they do on any other route.
 </escalate>
