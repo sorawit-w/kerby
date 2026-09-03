@@ -76,19 +76,20 @@ If you can't state it cleanly, the task doesn't fit. Switch workflows.
 
    Escalation is not a setback — it's the system working. Do NOT commit a Tier-mismatched diff to escape the workflow change.
 
-   **Escalation means you have left quick-task. Do these four, in order, in both cases:**
+   **Escalation means you have left quick-task. Do these, in order, in both cases:**
 
    1. **Re-emit `complexity:`** with the new grade and route.
    2. **Re-emit the `plan:` line.** Not only when the file set changed — an escalation from copy to logic makes the old `<change>` slot false even with the same files, and the line is required on the route you are moving to.
    3. **The fit check is void.** Its declarations are what just failed. Do not re-state it; you are no longer on the route it belongs to.
-   4. **Add the full plan block** (`feature.md` § 3) if the new grade reaches `plan_threshold` and no full-plan opt-out is in force — the same condition as anywhere else. At grade ≥ 7 that block needs user approval, and the approval stop applies here exactly as it does on a normal route.
+   4. **Add the full plan block** (`feature.md` § 3) if the new grade reaches `plan_threshold` and no full-plan opt-out is in force — the same condition as anywhere else.
+   5. **At grade ≥ 7, stop for user approval.** This is anchored to the grade, not to step 4's block (`BOOTSTRAP.md` § 4 Plan Gate): it fires even when an opt-out waived that block, and it fires here for the same reason it fires anywhere. An escalation is one of the ways a task reaches grade 7.
 
-   **Steps 1–4 always come first — neither case lets you write through them.** What differs is what happens to the code already on disk, and what you do once they are done:
+   **These steps always come first — neither case lets you write through them.** What differs is what happens to the code already on disk, and what you do once they are done:
 
-   | Tripped | The code already written | After steps 1–4 |
+   | Tripped | The code already written | After the steps above |
    |---|---|---|
    | **The LOC budget only** | Stands. The risk criteria were cleared before the first edit, so this is bounded work that merely grew. Writing step 4's block over existing code is licensed here and nowhere else: read your own `git diff` and record what changed rather than describing intentions. | Resume. |
-   | **A risk criterion** — new file, test, schema, contract, high-stakes path, or new logic | Say plainly what is on disk and offer to revert it — it reached the tree without the gate it was owed. | Resume only once step 4's approval, if the grade required one, has been given. Existing code does not approve itself. |
+   | **A risk criterion** — new file, test, schema, contract, high-stakes path, or new logic | Say plainly what is on disk and offer to revert it — it reached the tree without the gate it was owed. | Resume only once step 5's approval, if the grade required one, has been given. Existing code does not approve itself. |
 
    The risk row should be unreachable: § Fit Check verifies all of those against the file list before anything is written. Reaching it means that block was skipped or a target changed under you — note it in `.kerby/memory.log` as a miss, not a routine path.
 
@@ -109,7 +110,7 @@ If you can't state it cleanly, the task doesn't fit. Switch workflows.
 <escalate>
 ## If It's Not Simple
 
-If the task turns out to be more complex than expected (touching multiple files, unexpected failures, unclear requirements), switch to the full workflow for the task type — **`bugfix.md` for a bug fix** (it keeps the reproduce → diagnose → failing-test path), otherwise **`feature.md`**:
+If the task turns out to be more complex than expected for any reason — touching multiple files, unexpected failures, unclear requirements, or a fit criterion you can no longer state truthfully — switch to the full workflow for the task type — **`bugfix.md` for a bug fix** (it keeps the reproduce → diagnose → failing-test path), otherwise **`feature.md`**:
 
-Read that workflow and start from its step 2 (Clarify in `feature.md`, Reproduce in `bugfix.md`). Step 3a above is the authority on the transition — its four steps, and its condition on the full plan block. Entering `feature.md` at step 2 does not make its § 3 block unconditional; the threshold and the opt-out still decide, exactly as they do on any other route.
+Read that workflow and start from its step 2 (Clarify in `feature.md`, Reproduce in `bugfix.md`). Step 3a above is the authority on the transition — its numbered steps run for **every** escalation reason, not only the two its table names. That table answers one narrower question: what happens to code already on disk. Only a pure LOC overrun leaves it standing; every other reason, including the three named above, takes the second row's treatment — say what is on disk and offer to revert. Entering `feature.md` at step 2 does not make its § 3 block unconditional; the threshold and the opt-out still decide, exactly as they do on any other route.
 </escalate>
