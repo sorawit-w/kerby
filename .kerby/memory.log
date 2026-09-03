@@ -399,3 +399,34 @@ Notes: An adversarial pass caught two blockers in my first design, both re-creat
       the cap reads as the cap"). Found during P2-1; deferred from swe 2.11.1.
   Remaining queue: P2-2 (escalate catch-all's on-disk treatment is false for reasons like
   "unclear requirements"), P2-3 (vendor-adapters.md:77 still names ROADMAP as a sink).
+
+[2026-09-03T02:00:00Z]
+Task: P2-1 review round 1 — all four findings fixed
+Action: Codex returned P0=0 P1=1 P2=2 P3=1 on the P2-1 commit; all four addressed.
+Files: BOOTSTRAP.md, CHANGELOG.md
+Commit: (pending)
+Status: DONE
+Notes: The P1 was the same shape as a blocker caught pre-implementation and fixed for one path
+  but not the other. "Amended" was defined over the `plan:` line's three slots; at grade >=
+  threshold the approved artifact is the richer full plan block, so revising its Expected
+  Outcomes — a changed predicted response shape — left every slot true and fired no trigger,
+  letting materially changed approved behavior proceed on a stale approval. Amendment is now
+  defined per approving artifact (line / full block including Expected Outcomes / plan-mode
+  plan) rather than per slot.
+  Generalized lesson, third instance now: when a rule tests whether an approval still holds,
+  the test must be defined over WHATEVER ARTIFACT CARRIED THE APPROVAL. Bound to a waivable
+  block (2.11.0), to an edge that never occurs (pre-impl blocker 1), to an artifact that does
+  not exist on one path (pre-impl blocker 2), to the summary rather than the full artifact
+  (this P1). Same bug, four dresses.
+  P2s: a 7 -> 6 -> 7 cycle satisfied trigger 1 and killed a still-valid approval, contradicting
+  the downward-regrade rule in the same bullet — trigger 1 now reads "reaches the approval point
+  while no approval covers the work". And "one that lands on the same number emits nothing.
+  Either way it is a line" was self-contradictory; reworded to "Neither is a stop by itself".
+  P3: CHANGELOG said the third trigger's examples "all leave every slot true"; BOOTSTRAP's
+  weaker "can all still read true" is the accurate claim. Corrected in CHANGELOG.
+  CORRECTION to the entry above (append-only, so recorded here rather than edited): that entry
+  carries the same overstatement — "all leave every slot true" should read "can all still read
+  true". The examples are cases where slot-truth may survive, not where it always does.
+  Observation, not acted on: an executor in the eval run wrote the intent-gate's own slot name
+  into user-facing prose ("Because <Z> is empty..."). That notation is intent-gate.md's
+  internal vocabulary leaking into a report. Pre-existing, unrelated to this change.
