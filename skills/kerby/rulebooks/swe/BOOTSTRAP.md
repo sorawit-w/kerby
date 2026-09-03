@@ -88,7 +88,7 @@ rung: <N> — <≤8-word reason>
 
 The two `<N>`s are different scales and are not related: `complexity` is the grade from the § 3 table (how big the task is), `rung` is where you stopped on the § 1b decision ladder (how little you had to build). A grade-6 task can land on rung 2.
 
-**Default up** when the task sits between two bands. The emitted grade is what makes a skipped plan catchable — a silent grade defeats the § 4 Plan Gate.
+**Default up** when the task sits between two bands. The emitted grade is what makes an under-sized plan catchable — the § 4 Plan Gate always requires a plan, and the grade is what decides how much of one.
 
 Pick the workflow by **task type** (§ 3 routing table — a bug fix routes to `bugfix.md`, not `feature.md`). A request to explain or investigate existing code, with no change asked for, routes to `investigate` and stops there — the bullets below govern change work only. The grade governs only the **quick-task-vs-task-type-workflow** split below (quick-task when grade < threshold and the fit check holds, otherwise the § 3 task-type workflow — `bugfix.md` for a bug fix, else `feature.md`) and the § 4 Plan Gate, which applies to whichever workflow you choose.
 
@@ -100,7 +100,7 @@ Pick the workflow by **task type** (§ 3 routing table — a bug fix routes to `
   plan: <files> — <change> — <check>  (full plan waived: user opt-out "<quoted phrase>")
   ```
 
-  Append that line to `.kerby/memory.log`. The grade line, the `rung:` line, and the report's `skipped:` line are still emitted. Waiving the full block also waives its Expected Outcomes, and therefore the § 7 Realized Outcomes comparison — there is no prediction left to compare against. It does **not** waive the § 4 Verification rule or quality gates: opt-out skips planning, never verification.
+  Append that line to `.kerby/memory.log`. Below `plan_threshold` there was no full block to waive, so the opt-out changes nothing and the line is emitted plain. The grade line, the `rung:` line, and the report's `skipped:` line are still emitted. Waiving the full block also waives its Expected Outcomes, and therefore the § 7 Realized Outcomes comparison — there is no prediction left to compare against. It does **not** waive the § 4 Verification rule or quality gates: opt-out skips planning, never verification.
 
   **The floor itself is not waivable, and that is a deliberate exception to the § 1 priority order.** It is the only place in this playbook where an explicit user instruction does not get the last word, so it is stated rather than left to be discovered. What it buys: the developer can always see which files are about to change before they change, without reading the transcript afterwards to find out. One line is a small price for that, and "just do it" almost always means *skip the ceremony*, not *tell me nothing*. A user who genuinely wants no output at all is asking for something this playbook does not offer.
 </grade_before_route>
