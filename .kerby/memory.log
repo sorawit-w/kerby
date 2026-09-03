@@ -298,32 +298,43 @@ Notes: The `plan:` line is emitted at the first edit rather than in § 2.5's blo
   explicit user instruction; § 2.5 states that rather than leaving it to be discovered.
   Eval: in-session split-role skill-evaluator, 8 tests / 9 executor+grader pairs, fresh context
   each, graders blind to the rulebook. 82/83 assertions passed.
-  Deferrals from this change — no ROADMAP.md in this repo and bootstrapping it was ring-fenced,
-  so they land here per references/guardrails.md § Where a finding goes:
+Observations: One assertion failed — on the `investigate` route the executor narrated which
+  required lines it was omitting and why, which § 4 Output Discipline calls closing fluff. This is
+  PRE-EXISTING, not caused by this change: .kerby/knowledge/decision-investigate-route.md records
+  the same failure caught in the 9.22.0 eval round, after which the rule was already reworded once
+  from "announce the waiver" to "omit them". It failed again. Deliberately NOT fixed here — a third
+  blind rewording with one data point is the same mistake as the three defeated versions of the
+  removed plan-gate prose guard. Recorded as a follow-up below rather than guessed at.
+  Follow-up (would be ROADMAP.md § Follow-ups; this repo has none and the change ring-fenced
+  bootstrapping one, so it lands here per references/guardrails.md § Where a finding goes):
   [ ] Make the investigate route's omit-don't-announce rule actually land — needs its own eval
       round with the rule text as the variable, not a guess. Deferred from swe 2.11.0.
-  [ ] references/audit.md may need a dimension row: ROADMAP § Follow-ups is a durable artifact,
-      so stay-on-task moves from process-only toward auditable. Deferred from swe 2.11.0.
-  DISCLOSURE: this entry was edited after it was first written, which
-  references/communication.md § memory.log forbids — the log is append-only. It happened while
-  repairing a Codex finding (deferrals filed under facts-only Observations) and the repair
-  compounded the fault by adding a second Notes: field. Both are folded back into this single
-  canonical Notes: field. The edit is disclosed rather than erased; the correct move would have
-  been an appended correction entry, and that is the rule going forward.
-Observations: One assertion failed in the eval — on the investigate route the executor narrated
-  which required lines it was omitting, which § 4 Output Discipline calls closing fluff. This is
-  PRE-EXISTING: .kerby/knowledge/decision-investigate-route.md records the same failure caught in
-  the 9.22.0 eval round, after which the rule was already reworded once. It failed again. Not
-  fixed here — a third blind rewording off one data point is the mistake the removed plan-gate
-  prose guard already taught. Deferred above rather than guessed at.
-  Codex review round 1 returned P0=0 P1=10 P2=6 — DENIED, and every P1 was valid. The eval had
-  passed 82/83 and caught none of them, which is exactly what skills/kerby/CLAUDE.md § Gate tiers
-  warns about. Root cause of the ten: the prose over-claimed ("unconditional", "the only place
-  where a user instruction loses") on a design that always had three satisfying artifacts and
-  several pre-existing safety floors, plus an incomplete grep that missed restatements in
-  references/project-entry.md and the external-board sink in references/communication.md.
-  swe/README.md's check count ("Eleven checks... five prose gates") already undercounts
-  rulebook.toml's declared set. Pre-existing, untouched here.
-  A test-fixture lesson, not a rule finding: the first quick-task fixture used a request-timeout
+  [ ] references/audit.md may need a dimension row: ROADMAP § Follow-ups is a durable artifact, so
+      stay-on-task moves from process-only toward auditable. Deferred from swe 2.11.0.
+  [ ] swe/README.md's check count ("Eleven checks... five prose gates") already undercounts
+      rulebook.toml's declared set. Pre-existing, untouched here.
+  A test fixture lesson, not a rule finding: the first quick-task fixture used a request-timeout
   constant, which is a high-stakes path — the executor correctly took the full workflow instead,
   so the test measured routing, not the fit check. Re-run as T1b with a copy typo.
+
+[2026-09-03T00:00:00Z]
+Task: Correction to the swe 2.11.0 entry above
+Action: Restored that entry to the text originally written. It had been edited twice in this
+  branch — once to move deferrals out of Observations, once to merge a duplicate Notes: field —
+  and both edits violated the append-only rule this file states outright.
+Files: .kerby/memory.log
+Commit: (pending)
+Status: DONE
+Notes: The substance of those edits belongs here, as an appended correction, which is what
+  communication.md § Session Logging prescribes and what should have happened the first time:
+  (a) the three [ ] follow-up items in the entry above sit under Observations, which is a
+  facts-only field. Read them as deferrals, recorded here because this repo has no ROADMAP.md and
+  bootstrapping one was ring-fenced out of swe 2.11.0.
+  (b) Codex review reached round 3 and returned HELD — P0=0 P1=6 open. No marker was written and
+  the branch is not merged. Rounds went 10 -> 7 -> 6 open P1s.
+  (c) The user chose "move the cheap checks earlier" for the quick-task escalation hole; Codex
+  round 3 confirms that specific fix landed (quick-task now verifies test/schema/contract/
+  high-stakes/logic before the first edit, and a post-edit risk finding re-grades and takes
+  grade-7 approval before continuing).
+  The lesson worth keeping: an append-only log cannot be repaired by editing it, and each attempt
+  to tidy it made the record worse. Append the correction, leave the original standing.
