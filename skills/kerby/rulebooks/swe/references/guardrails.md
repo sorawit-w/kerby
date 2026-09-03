@@ -58,9 +58,24 @@ These commands cause data loss that's hard or impossible to recover (`git reflog
 Stay on task. Agents tend to "fix while you're here" — refactoring adjacent code, updating unrelated imports, or improving docs that weren't part of the request. This creates larger diffs, unexpected changes, and risk of breaking unrelated functionality.
 
 **Rules:**
-- Only change what the task requires. If you notice an issue outside your scope, **log it** (in memory.log, a comment, or the issue tracker) but don't fix it unless asked.
+- Only change what the task requires. If you notice an issue outside your scope, **log it** but don't fix it unless asked — see the sink table below for where.
 - If scope is growing, pause and check with the developer before continuing.
 - If refactoring is needed to complete your task, explain why and get approval for the expanded scope.
+
+### Where a finding goes
+
+Four sinks, four different situations. Picking the wrong one is how each of them stops being read.
+
+| What you have | Sink |
+|---|---|
+| Work you deliberately deferred out of **your own** change | `ROADMAP.md` § Follow-ups (`references/roadmap.md`) |
+| An action only a human can take (API key, cloud resource, account) | `DEVELOPER_TODO.md` |
+| A deliberate shortcut inside code you shipped | An in-code comment naming the upgrade trigger (`working-patterns.md` § Code Standards) |
+| An issue you noticed in **adjacent** code you did not touch | `.kerby/memory.log` Observations — a neutral fact, not a recommendation |
+
+The split that matters is the first row against the last. A deferral is yours: you decided not to do it, so you name it and record it. An adjacent finding is not yours: you noticed it in passing, so it stays a neutral observation and the developer decides. Do not promote an adjacent finding to a follow-up to make it look actioned.
+
+**If the project has no `ROADMAP.md`,** creating one needs the developer's agreement (`references/roadmap.md` § Bootstrap). Offer once; if they decline, record the deferral in `.kerby/memory.log` instead. Never bootstrap the file silently, and never let a missing file block the work. If the project tracks work in an external tracker, that tracker wins — `references/roadmap.md` § When NOT to Use This explains why a duplicate in-repo list drifts.
 
 ---
 

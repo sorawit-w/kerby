@@ -50,6 +50,8 @@ Observations: [optional — neutral facts noticed during the task, e.g. "Build t
 
 **Observations are facts, not suggestions.** Record what you noticed — build times, warnings, skipped tests, deprecation notices, audit results. Do NOT recommend actions or suggest improvements. The developer decides what to act on.
 
+This governs things you noticed in code you did not touch. Work you deliberately deferred out of **your own** change is a different artifact and does not belong here — name it and record it in `ROADMAP.md` § Follow-ups (`references/guardrails.md` § Where a finding goes).
+
 **`Commit:` is `(pending)` when the entry precedes its own commit.** A commit cannot contain its own SHA, so the finish-step entry — written *before* the commit that carries it, see below — records `(pending)`. Per-iteration entries written inside the task loop run *after* their commit and carry the real SHA. Both shapes are correct; which one applies is decided by where in the workflow the entry is written.
 
 ### `memory.log` is shared project history — commit it
