@@ -68,7 +68,7 @@ If the fix touches 3+ files, involves iterative debugging cycles, or will take >
 <fix>
 ## 5. Fix — Commit Gate
 
-This workflow has no plan section of its own. `workflows/feature.md` § 3 is the plan block for every change route, and the one-line `plan:` floor (`BOOTSTRAP.md` § 4 Plan Gate) is emitted before your first edit here as anywhere else. On this route the minimal version is the root-cause fix — never a symptom patch, however small it looks.
+This workflow has no plan section of its own. Your plan artifact is whichever row `BOOTSTRAP.md` § 4 Plan Gate's first-match table selects for this grade — the one-line `plan:` floor below the threshold, the full block in `workflows/feature.md` § 3 at or above it. One of them, not both, emitted before your first edit here as anywhere else. On this route the minimal version is the root-cause fix — never a symptom patch, however small it looks.
 
 Execute these steps in order. Do NOT skip the commit.
 
@@ -101,7 +101,7 @@ Complete ALL of these before declaring done:
    - **`.kerby/STATUS.md`** — reflects current state
    - **`.kerby/knowledge/` lesson** if this bug reveals an operational lesson worth keeping. Propose before writing; skip if nothing applies
    - **`CONTEXT.md`** if a new domain term was introduced or renamed. See `references/domain-glossary.md`
-   - **`ROADMAP.md` § Follow-ups** — one `[ ]` line per item you named as deferred, per `references/guardrails.md` § Where a finding goes. Sibling bugs found during diagnosis are not deferrals — `references/debugging.md` governs those
+   - **The deferral sink** — one entry per item you named as deferred; `references/guardrails.md` § Where a finding goes selects which. Sibling bugs found during diagnosis are not deferrals — `references/debugging.md` governs those
 3. **All changes committed and pushed:**
    ```bash
    git status  # must show clean working tree

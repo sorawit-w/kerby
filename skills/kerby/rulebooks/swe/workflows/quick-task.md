@@ -11,7 +11,7 @@ The quick-task path is appropriate only when ALL of these hold. If even one fail
 
 - **A change is actually being made** — if the ask is to explain or investigate, the route is `investigate` (BOOTSTRAP.md § 3), not quick-task. Every step below writes; none of them check first
 - **No new files** — you're editing existing files only, not adding modules
-- **No test logic changes** — tests may *run* during checks, but you're not modifying assertions, test scaffolding, or fixtures
+- **No test logic changes** — tests may *run* during checks, but the change must not require editing an assertion, fixture, or test scaffold. This is one definition, used identically in all three places it appears below: what matters is whether a test file has to change, not whether the file you opened lives in a test directory. A copy edit that a snapshot asserts *does* require a test edit, and so fails this criterion
 - **No schema, contract, or public-type changes** — no DB migrations, no exported type/interface shape changes, no public API edits
 - **No high-stakes paths** — auth, payments, migrations, infra, CI/CD, production-traffic-shaping constants (see BOOTSTRAP.md §3 "High-stakes path override")
 - **Diff stays ≤ ~50 LOC** — rough budget; if you're approaching it, the change isn't a quick task
@@ -34,7 +34,7 @@ git check-ignore -v <target-paths>          # untracked/ignored surprises
 
 Then read each target and confirm, from what you actually see:
 
-- **Not a test file** — no assertion, fixture, or scaffolding edit. Check the path *and* whether the string you are changing is asserted anywhere: `grep -rn "<the literal>" <test-dirs>`. A copy change with a snapshot behind it is a test change.
+- **No test edit required** — the criterion above, checked before you write. Check the path *and* whether the string you are changing is asserted anywhere: `grep -rn "<the literal>" <test-dirs>`. A hit means a test must change, so the criterion fails here rather than after the diff.
 - **Not schema / contract / public type** — no migration dir, no exported type or interface shape, no public API surface.
 - **Not a high-stakes path** — match the target against the `BOOTSTRAP.md` § 3 glob list *before* editing, including the prose-only category (retry/timeout/rate-limit constants, feature-flag defaults gating prod traffic, secrets loading). A path match is decided by which file the edit lands in, never by whether the changed lines look risky.
 - **Not new logic, refactoring, or behavior change** — you are changing strings, copy, comments, config values, data, or formatting.
@@ -71,18 +71,21 @@ If you can't state it cleanly, the task doesn't fit. Switch workflows.
    Compare actual diff to your declared fit check. If ANY of these now hold, STOP and escalate to the task-type workflow (`bugfix.md` for a bug fix, else `workflows/feature.md`):
    - Diff exceeds ~50 LOC across the change
    - Diff introduces a new file you didn't declare
-   - Diff touches a test file, schema/migration file, contract/type file, or a high-stakes path (per BOOTSTRAP.md §3)
+   - Diff touches a test file, schema/migration file, contract/type file, or a high-stakes path (per BOOTSTRAP.md §3) — same criterion as the fit check, now measured against what actually changed
    - You found yourself changing behavior or logic mid-implementation, not just strings/config
 
    Escalation is not a setback — it's the system working. Do NOT commit a Tier-mismatched diff to escape the workflow change.
 
-   **The last three should already be impossible.** The pre-edit block in § Fit Check verifies them against the file list before anything is written, so reaching them here means that block was skipped or a target changed under you. Treat it as a miss to note in `.kerby/memory.log`, not a routine path. The LOC budget is the one criterion that genuinely needs the diff.
+   **Which escalation you hit decides what happens next. Two cases, no third.**
 
-   **Escalation voids the fit check, and with it your plan.** The declarations that just failed are the artifact that was standing in for a plan, so you are now mid-change with none. Before continuing: re-emit `complexity:` with the new grade, and write the plan for the route you escalated to — the full `feature.md` § 3 block at or above `plan_threshold`, otherwise the one-line `plan:` floor, since the grade decides plan size here as everywhere. Do not carry the void fit check forward as though it still describes the work.
+   | You hit | Because | Do this |
+   |---|---|---|
+   | **The LOC budget only** | genuinely needs the diff to know | Re-grade, then take the plan artifact the § 4 first-match table selects for the new grade. Writing it with code already on disk is licensed *here and nowhere else*: read your own `git diff` and record what is already changed. |
+   | **A risk criterion** — new file, test, schema, contract, high-stakes path, or new logic | should have been caught before the first edit | **Stop writing.** Re-grade; at grade ≥ 7 get user approval *before* continuing, because existing code does not approve itself. Say plainly what is already on disk and offer to revert it. |
 
-   **A plan written with code already on disk is licensed here and nowhere else, and only for the LOC overrun.** A diff that merely grew past its budget is bounded work of a kind already cleared as low-risk: the four risk criteria were checked before the first edit. Read your own `git diff` and write down what is already changed rather than describing intentions; Expected Outcomes describe the end state you are heading for.
+   The risk-criterion row should be unreachable: § Fit Check verifies all six of those against the file list before anything is written. Reaching it means that block was skipped or a target changed under you — note it in `.kerby/memory.log` as a miss, not a routine path.
 
-   **If the escalation is a risk criterion rather than the budget — a test, schema, contract, or high-stakes path — that carve-out does not apply.** Stop before writing more. The grade must be re-taken and, at grade ≥ 7, approved by the user *before* you continue; existing code does not grant itself approval. Say plainly what is already on disk and offer to revert it, because the alternative is a high-stakes change that reached the tree without the gate it was owed.
+   **In both cases the fit check is void** and no longer stands in as your plan. Its replacement is chosen by the same first-match table as any other plan, so a below-threshold escalation takes the one-line floor and an at-or-above-threshold one takes the full block with Expected Outcomes. Say "supersedes the fit check above" so a reader knows which artifact is live.
 
    **3b. Quality-check (only if 3a passed):** while iterating, run the cheap check for what you are touching — `{lint_command}` for config/docs/comments/formatting, `{lint_command}` + related tests for logic.
 
@@ -103,5 +106,5 @@ If you can't state it cleanly, the task doesn't fit. Switch workflows.
 
 If the task turns out to be more complex than expected (touching multiple files, unexpected failures, unclear requirements), switch to the full workflow for the task type — **`bugfix.md` for a bug fix** (it keeps the reproduce → diagnose → failing-test path), otherwise **`feature.md`**:
 
-Read that workflow and start from its step 2 (Clarify in `feature.md`, Reproduce in `bugfix.md`). The fit check is void on escalation — re-emit `complexity:` and write the full plan before continuing, per step 3a above.
+Read that workflow and start from its step 2 (Clarify in `feature.md`, Reproduce in `bugfix.md`). The fit check is void on escalation — re-emit `complexity:` and take the plan artifact the new grade selects, per step 3a above. Step 3a is the authority on which artifact and on whether you may keep writing; do not infer either from this paragraph.
 </escalate>

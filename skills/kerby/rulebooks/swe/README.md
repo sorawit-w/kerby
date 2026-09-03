@@ -133,7 +133,7 @@ The rules in `BOOTSTRAP.md` reflect specific choices that may not match your jud
 - **`DESIGN.md` as design-token authority** when present. Opinionated wiring into the [Google Labs spec](https://github.com/google-labs-code/design.md), alpha.
 - **Methodology over scripts.** Hardcoded commands (`npm test`) lose to project-detected commands (`{test_command}`).
 - **A plan before every change, including one-liners** — naming the files, the change and the check. `just do it` shrinks the plan, it does not remove it: an exception to the priority order, alongside the safety floors (destructive git, secrets, the base rulebook) that also outrank an instruction. If you want an agent that edits silently on request, this is the rule to delete.
-- **The smallest change that *fully* satisfies the request, with the rest deferred and written down.** Many small changes over one large one — but never a partial one, and a deferral that isn't recorded in `ROADMAP.md` § Follow-ups is just the "I'll clean it up later" excuse wearing a rule's clothes.
+- **The smallest change that *fully* satisfies the request, with the rest deferred and written down.** Many small changes over one large one — but never a partial one, and a deferral that isn't recorded somewhere durable is just the "I'll clean it up later" excuse wearing a rule's clothes.
 
 These choices have stated reasons in the rule files. Read the reasons; keep the ones
 that match your work; **delete or rewrite the ones that don't.** The engine loads

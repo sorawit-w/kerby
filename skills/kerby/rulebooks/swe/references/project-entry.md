@@ -161,9 +161,11 @@ Add a file for your IDE/agent:
 git commit -m "chore: setup development environment"
 ```
 
+> **The plan comes before this flow, not after it.** On the `new-project` route the scaffold **is** the requested deliverable, so `BOOTSTRAP.md` § 4 Plan Gate applies to the steps above: emit the route's plan artifact before the first scaffold write, not at the decision below. The decision below is about the work that *follows* the scaffold.
+
 ### 9. Next Decision
 
-- **Simple task (<1 hour, single file):** The one-line `plan:` floor, then implement — no full plan block (`BOOTSTRAP.md` § 4 Plan Gate; nothing skips planning entirely)
+- **Simple task (<1 hour, single file):** route it and take that route's plan artifact — `BOOTSTRAP.md` § 4 Plan Gate's first-match table decides which (the `quick-task` fit check on that route, otherwise the one-line floor). Nothing skips planning entirely
 - **Complex task (multi-day, multiple files):** Proceed to `implementation-planning.md`
 
 ---
@@ -284,7 +286,7 @@ Use the canonical format from `communication.md`. All entries follow the same st
 5. Setup Biome
 6. Create agent context file
 7. Commit
-8. Decide: simple task (the one-line `plan:` floor) or complex (the full plan block) — see `BOOTSTRAP.md` § 4 Plan Gate
+8. Decide: simple task or complex — either way the plan artifact comes from `BOOTSTRAP.md` § 4 Plan Gate's first-match table, never from this list
 
 ### Existing Project: Resume
 
