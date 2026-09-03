@@ -430,3 +430,37 @@ Notes: The P1 was the same shape as a blocker caught pre-implementation and fixe
   Observation, not acted on: an executor in the eval run wrote the intent-gate's own slot name
   into user-facing prose ("Because <Z> is empty..."). That notation is intent-gate.md's
   internal vocabulary leaking into a report. Pre-existing, unrelated to this change.
+
+[2026-09-03T03:00:00Z]
+Task: P2-1 complete — Codex clean at efc7162
+Action: Three review rounds. Round 1 P1=1, round 2 P1=1, round 3 P0=0 P1=0 P2=0 P3=1; the P3
+  (a stale ordinal in CHANGELOG and an imprecise README line) fixed rather than logged, both
+  being one-word corrections. Marker written at efc7162.
+Files: BOOTSTRAP.md, references/guardrails.md, CHANGELOG.md, README.md, manifests
+Commit: (pending)
+Status: DONE
+Notes: The shape of the fix changed twice under review and ended simpler than it started.
+  Round 1 defined "amended" over the plan: line's three slots; that missed the full plan block,
+  whose Expected Outcomes are part of what the user approved. Round 2 widened it to "any of the
+  block stopped being true" and over-corrected — the block contains its own complexity rating,
+  so a re-grade became an amendment and the fatigue defect came straight back. Round 3 excluded
+  the rating by name and, more importantly, dropped the crossing trigger entirely: arriving at
+  the approval point without an approval never was an *ending* of a held approval, it is the
+  standing condition firing, and it was already stated a paragraph above. Two triggers, not
+  three, and the 7 -> 6 -> 7 contradiction dissolved with the trigger that caused it.
+  The recurring lesson, now five instances: this rule keeps getting bound to the wrong object.
+  A waivable block (2.11.0), an edge that never occurs (pre-impl), an artifact absent on one
+  path (pre-impl), the summary rather than the full artifact (round 1), the full artifact
+  including a field that must not count (round 2). Each time the text read fine and the
+  predicate was wrong. When a rule tests whether an approval still holds, write down what the
+  predicate is defined OVER before writing the sentence.
+  Also settled: a re-grade re-emits `complexity:` even when the number is unchanged. Codex
+  raised the audit gap twice — a mandatory reassessment that emits nothing cannot be told apart
+  from one that never ran, and § 4 says the emitted line is the only proof the gate ran.
+  Eval: two executors on the scenarios that had broken before (mid-work growth at an approved
+  grade 7; an approved plan-mode plan outgrown), graded blind by fresh-context graders. 21/21.
+  The grader's finding that mattered: the two stops and the one non-stop read as one rule
+  applied consistently, not as three ad-hoc judgements.
+  Queue: P2-2 (the escalate catch-all's on-disk treatment is false for reasons like "unclear
+  requirements") and P2-3 (vendor-adapters.md still names ROADMAP as a sink) remain, plus the
+  planThreshold runtime-cap deferral opened during this work.
