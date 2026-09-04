@@ -573,3 +573,16 @@ Notes: (a) "P2-3 shipped" is false. skill-authoring's evaluator-gate defines shi
   supports — "shipped" for merged, a bare score for a verifiable result, a count I did not
   recount. The rules already say a claim needs fresh evidence; nothing exempts a claim about
   my own progress, and that is exactly the claim I keep making loosely.
+
+[2026-09-03T08:30:00Z]
+Task: Correction to the correction above
+Action: Struck one clause. Appended, not edited.
+Files: .kerby/memory.log
+Commit: (pending)
+Status: DONE
+Notes: The entry above retracts unsupported claims and then makes one: it says the 11/11
+  evaluator result "is real" and describes the executor and grader that produced it. Vouching
+  for a number the repository cannot check is the same act the entry was retracting, one layer
+  down. Strike it. What this repository supports about that result is nothing: no output was
+  recorded here, so it carries no evidential weight and should be read as unrecorded rather
+  than as true. Same for every other eval score in this session's entries.
