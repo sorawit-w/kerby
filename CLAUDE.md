@@ -91,11 +91,11 @@ in the script). If you add a new restatement, add the file to that set.
 Run `bash skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh` after editing
 `.kerby/STATUS.md` or the rule that governs it (`rulebooks/swe/references/communication.md`
 § Status Tracking). It asserts an **absence** — the file states no version, no SHA-shaped
-hex token, no `<type>/<name>` branch reference — because every one of those has an authority
-elsewhere and a second copy a tier below its authority can only drift. It fails closed on a
-file it cannot read, and its header lists the gaps it knowingly leaves (a bare `main`, a
-digit-free hex abbreviation, a four-part version) so the guarantee is never read as wider
-than it is. Absence is guardable where the commit-time gate
+hex token, and no branch reference on a line that says "branch" — because every one of those
+has an authority elsewhere and a second copy a tier below its authority can only drift. It
+fails closed on a file it cannot read, and its header lists the gaps it knowingly leaves (a
+branch named on a line that never says "branch", a SHA abbreviation that is all letters or
+all digits, a four-part version) so the guarantee is never read as wider than it is. Absence is guardable where the commit-time gate
 rule is not: it matches shapes, not phrasings. It cannot judge whether a *phase sentence*
 is true, which is the residual the independent review covers. Its test
 (`check-status-provenance.test.sh`, same commit) carries a false-positive probe, so

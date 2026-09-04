@@ -67,35 +67,56 @@ expect "IPv4 address is not a version" 0 'The fixture listens on 127.0.0.1 and 1
 # --- 3. SHAs -----------------------------------------------------------------
 expect "full-length sha fails" 1 'Merged as e9163f1bd957c3db6aad3040e45a0e74d866b67a.' "states a sha"
 expect "7-char sha fails" 1 '| **Phase** | Shipped — merged as 095605e |' "states a sha"
-# Both found by adversarial review: a six-char abbreviation still resolves to a
-# real commit, and an uppercase one is still a SHA.
-expect "6-char abbreviated sha fails" 1 'Reviewed at 095605 last night.' "states a sha"
+# Found by adversarial review: short and uppercase abbreviations are still SHAs.
+expect "6-char abbreviated sha fails" 1 'Reviewed at 1a2b3c last night.' "states a sha"
 expect "uppercase sha fails" 1 'Reviewed at 095605E last night.' "states a sha"
+# DOCUMENTED MISS, asserted so it stays a decision rather than a surprise. An
+# ALL-DIGIT abbreviation (095605 resolves in this repo) is not matched, because
+# requiring a hex letter is what excludes ordinary numbers — and a status file
+# holds far more ordinary six-digit numbers than all-digit SHA abbreviations.
+# The cost is bounded: a 7-char abbreviation contains a letter 96.3% of the time
+# and a full-length SHA effectively always.
+expect "all-digit abbreviation is a documented miss" 0 'Reviewed at 095605 last night.'
 # FALSE POSITIVE, and the reason the digit rule exists. "defaced" is 7 chars of
 # pure hex letters; the earlier guard flagged it. Its own header documented that
 # as an accepted miss while this test claimed English words pass — the two
 # disagreed, so the guard changed rather than the claim.
 expect "hex-spelled English words pass" 0 'A decade later the facade was defaced; DEFACED again in June.'
+# FALSE POSITIVE from lowering the minimum to six: an ordinary number is all
+# "hex" digits. Requiring a hex LETTER as well as a digit excludes it.
+expect "ordinary six-digit numbers pass" 0 'Milestone 123456 is queued behind 987654.'
+# The true-positive twin: a real SHA has both, and must still fail.
+expect "sha with digits and letters still fails" 1 'Reviewed at 1a2b3c today.' "states a sha"
 
 # --- 4. branches -------------------------------------------------------------
-# All seven types in communication.md § Branch Naming must be caught. `wip`,
-# `docs` and `test` were missing from the first version.
+# The branch check keys on a line SAYING "branch", not on token shape. Two rounds
+# of shape heuristics traded false positives for missed branches without
+# converging, because `docs/README` is both a valid branch name and a file path.
+# All seven types in communication.md § Branch Naming must be caught.
 for ty in feature fix refactor test docs chore wip; do
-  expect "branch type '$ty' fails" 1 "Working on $ty/status-cleanup now." "states a branch"
+  expect "branch type '$ty' fails" 1 "| Working Branch | $ty/status-cleanup |" "states a branch"
 done
-# FALSE POSITIVES: the type must be a whole word, and path-shaped tokens are not
-# branches. "prefix/name" hit the `fix` inside "prefix" in the first version.
+# The label can appear in any form the field actually takes.
+expect "branch=<value> form fails" 1 'Set branch=feature/status-cleanup before starting.' "states a branch"
+expect "bare protected name on a branch line fails" 1 '| Working Branch | main |' "states a branch"
+# Shapes the previous heuristics wrongly SKIPPED. Both are git-valid branch names
+# and both are caught now that no path-shape filtering runs.
+expect "dot-suffix branch name fails" 1 'On branch fix/v2.1 today.' "states a branch"
+expect "multi-segment branch name fails" 1 'On branch feature/api/v2 today.' "states a branch"
+# FALSE POSITIVES the shape heuristics produced. None of these lines says
+# "branch", so none of them is a branch reference.
 expect "type inside a longer word is not a branch" 0 'Use the prefix/name pair; the suffix/value pair mirrors it.'
 expect "nested source path is not a branch" 0 'Edit src/feature/parser.ts and src/fix/apply.ts.'
 expect "doc path with an extension is not a branch" 0 'See docs/rulebook-contract.md and test/fixtures/a.md.'
+expect "extensionless doc path is not a branch" 0 'See docs/README and test/fixtures for setup.'
 # Documented ceiling, asserted so it stays a known gap rather than an assumption:
-# a BARE protected-branch name is ordinary English and is not matched.
-expect "bare protected branch name is a documented miss" 0 'That is the main reason we did it; dev follows.'
+# a protected name in prose that never says "branch" is not matched.
+expect "bare protected name off a branch line is a documented miss" 0 'That is the main reason we did it; dev follows.'
 
 # --- 5. reporting quality ----------------------------------------------------
 # All three categories on one line must ALL be reported. Asserting only one lets
 # the other two silently stop working.
-expect "every category on one line is reported" 1 '| Shipped 1.2.3 as 095605e on feature/x |' \
+expect "every category on one line is reported" 1 '| Shipped 1.2.3 as 095605e on branch feature/x |' \
   "states a version" "states a sha" "states a branch"
 # The guard advertises line-numbered diagnostics; assert the number, not just the
 # category, or the diagnostic contract is untested.

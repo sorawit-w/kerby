@@ -731,3 +731,40 @@ Notes: The digit rule is the change worth remembering. Requiring a hex token to 
 Observations: Guard test grew from 14 to 25 assertions. All five repo gates pass. The
   fail-closed case self-skips with a loud SKIP notice if run as root, where the unreadable
   fixture cannot be staged — it never reports a pass for a check that did not run.
+
+[2026-09-04T03:05:00Z]
+Task: Codex round 2 DENIED (P1=2 P2=2) — branch heuristic replaced, not patched again
+Action: 9 of 11 round-1 findings confirmed fixed. The two remaining P1s had collapsed into
+  ONE class — the branch heuristic — which is the documented circuit-breaker signal, so the
+  shape-matching approach was REPLACED rather than patched a third time. The branch check
+  now fires only on a line containing the word "branch", and on such a line does no
+  path-shape filtering at all.
+Files: skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.test.sh,
+  skills/kerby/rulebooks/swe/commands/prepare.md, CLAUDE.md, CHANGELOG.md, README.md
+Commit: (pending)
+Status: DONE
+Notes: `docs/README` is a valid branch name AND a common file path; nothing in the token
+  says which. Two rounds of shape heuristics (reject a second slash, reject a dot suffix)
+  each traded a false positive for a missed branch without converging — precisely the "if
+  what it extracts is a phrasing, don't" case in skills/kerby/CLAUDE.md. Keying on the
+  label matches how the field actually appears ("Working Branch", "branch=...") and
+  dissolved the whole class: it FIXED the round-1 regression (branch=feature/x), fixed both
+  false positives (docs/README, test/fixtures), and recovered two shapes the heuristics had
+  wrongly skipped (fix/v2.1, feature/api/v2).
+  The SHA rule gained a second requirement — at least one hex LETTER as well as a digit —
+  after `Milestone 123456` was flagged. This DELIBERATELY gives up all-digit abbreviations
+  (095605 resolves here). The test asserts that miss explicitly rather than dropping the
+  case, because a status file holds far more ordinary six-digit numbers than all-digit SHA
+  abbreviations, and the cost is bounded: a 7-char abbreviation carries both a digit and a
+  letter ~96% of the time, a full SHA effectively always.
+  P1-4 was only half-fixed in round 1 — I edited adopt-existing.md and missed
+  commands/prepare.md, which dispatches it. A grep for the literal string found the second
+  site immediately; I had not run one.
+  Claims were narrowed to match the guard in all four places that describe it (script
+  header, CLAUDE.md, CHANGELOG, README), including the PASS message itself, which still
+  advertised only the <type>/<name> form after the guard grew bare protected names.
+Observations: Guard test 25 -> 33 assertions. All five repo gates pass, plus bash -n and
+  git diff --check. Codex verified the fail-closed path by simulating an awk exit 42.
+  It found no BSD/gawk semantic difference; gawk is still unavailable here, so that
+  remains reasoned rather than measured.

@@ -22,28 +22,35 @@
 #
 # WHAT IT MATCHES
 #   version  a whole dotted token of exactly three parts, optional `v` prefix
-#   sha      a whole hex token 6-40 chars that contains at least one digit
-#   branch   a whole word `<type>/<name>` for the seven types in
-#            `references/communication.md` § Branch Naming, excluding anything
-#            shaped like a file path
+#   sha      a whole hex token 6-40 chars containing BOTH a digit and a hex letter
+#   branch   ONLY on a line containing the word "branch": a `<type>/<name>` token
+#            for the seven types in `references/communication.md` § Branch Naming,
+#            or a bare protected-branch name
+#
+# WHY THE BRANCH CHECK KEYS ON A LABEL, NOT A SHAPE. `docs/README` is a valid
+# branch name and a common file path, and nothing in the token tells you which.
+# Two rounds of path-shape heuristics (reject a second slash, reject a dot
+# suffix) each traded a false positive for a missed branch without converging —
+# the "if what it extracts is a phrasing, don't" case in `skills/kerby/CLAUDE.md`.
+# Keying on the label matches how the field actually appears ("Working Branch",
+# "branch=...") and removes the whole ambiguity class instead of patching it.
 #
 # CEILINGS — stated rather than papered over. The PASS message is worded to
 # match these, so it never claims more than the guard checks:
 #   - It cannot catch a wrong `Phase` SENTENCE. "Shipped" when nothing shipped is
 #     prose, and prose is what the doctrine says not to guard. The independent
 #     review covers that residual.
-#   - It cannot catch a BARE protected-branch name (`main`, `dev`). Those are
-#     ordinary English words; matching them would fire on "the main reason".
-#     Only the `<type>/<name>` shape is detectable, which is what the guard says.
-#   - A hex token with NO digit at all is not matched. That is what keeps
-#     "decade", "facade" and "defaced" from firing. The cost is a real SHA whose
-#     abbreviation happens to be all letters: (6/16)^6, about 0.3% of six-char
-#     abbreviations, less for longer ones. Deliberate — the English-word false
-#     positives are frequent and this miss is rare.
+#   - A branch named on a line that never says "branch" is missed. That is the
+#     deliberate cost of the label rule above.
+#   - A hex token with no digit ("defaced") or no letter ("123456") is not
+#     matched — those two exclusions are what keep English words and ordinary
+#     numbers from firing. The cost is a SHA abbreviation that happens to be all
+#     letters or all digits. Bounded: a seven-character abbreviation contains
+#     both about 96% of the time, and a full-length SHA effectively always.
+#     Deliberate — both false-positive classes are frequent in a status file and
+#     these misses are not.
 #   - A four-part version ("1.2.3.4") is not matched. That shape is exactly what
 #     separates an IP address from a semver, and this repo ships semver.
-#   - A branch whose name ends in a dot-suffix (`fix/v2.1`) reads as a file path
-#     and is skipped, because that is how `docs/x.md` is kept from firing.
 
 set -u
 
@@ -99,6 +106,9 @@ HITS=$(awk '
     # the guard silently allows.
     split("feature fix refactor test docs chore wip", ty, " ")
     for (k in ty) TYPE[ty[k]] = 1
+    # Protected branches, named bare on a branch-labelled line.
+    split("main master dev develop staging trunk", pb, " ")
+    for (k in pb) PROTECTED[pb[k]] = 1
   }
   {
     line = $0
@@ -111,32 +121,38 @@ HITS=$(awk '
         printf "%d\tversion\t%s\n", NR, t
     }
 
-    # --- sha: hex token, 6-40 chars, containing at least one digit. The digit
-    # requirement is what separates a real abbreviated SHA from an English word
-    # that happens to be spelled in hex letters.
+    # --- sha: hex token, 6-40 chars, containing BOTH a digit and a hex letter.
+    # The digit keeps English words spelled in hex letters out ("defaced"); the
+    # letter keeps ordinary numbers out ("Milestone 123456"). Both classes are
+    # frequent in a status file, so both are excluded. See the header for what
+    # this misses.
     n = split(line, tok, /[^0-9A-Za-z]+/)
     for (i = 1; i <= n; i++) {
       t = tok[i]
-      if (length(t) >= 6 && length(t) <= 40 && t ~ /^[0-9a-fA-F]+$/ && t ~ /[0-9]/)
+      if (length(t) >= 6 && length(t) <= 40 && t ~ /^[0-9a-fA-F]+$/ \
+          && t ~ /[0-9]/ && t ~ /[a-fA-F]/)
         printf "%d\tsha\t%s\n", NR, t
     }
 
-    # --- branch: a whole whitespace-delimited word of the form <type>/<name>.
-    # Anything path-shaped is skipped: a second slash (test/fixtures/a.md) or a
-    # dot-suffix tail (docs/guide.md). Testing whole words is also what keeps
-    # src/feature/parser.ts out — it starts with "src/", not with a type.
-    nw = split(line, w, /[ \t]+/)
-    for (i = 1; i <= nw; i++) {
-      t = strip(w[i])
-      if (t !~ /^[A-Za-z]+\//) continue
-      slash = index(t, "/")
-      head = substr(t, 1, slash - 1)
-      tail = substr(t, slash + 1)
-      if (!(head in TYPE)) continue
-      if (tail == "" || index(tail, "/") > 0) continue      # deeper path
-      if (tail ~ /\.[A-Za-z0-9]+$/) continue                # file extension
-      if (tail !~ /^[A-Za-z0-9._-]+$/) continue
-      printf "%d\tbranch\t%s\n", NR, t
+    # --- branch: ONLY on a line that says "branch". A bare <type>/<name> token
+    # is not decidable — `docs/README` is a valid branch name AND a common file
+    # path, and two rounds of path-shape heuristics traded false positives for
+    # missed branches without converging. So the guard stops guessing from shape
+    # and keys on the label instead, which is how the field actually appears
+    # ("Working Branch", "branch=..."). On such a line no path-shape filtering is
+    # needed, so the deep-path and dot-suffix misses go away too.
+    if (tolower(line) ~ /branch/) {
+      # Split on everything a branch name cannot contain, not on whitespace:
+      # `branch=feature/x` is one whitespace word but two tokens.
+      nw = split(line, w, /[^A-Za-z0-9._\/-]+/)
+      for (i = 1; i <= nw; i++) {
+        t = strip(w[i])
+        if (t ~ /^[A-Za-z]+\//) {
+          head = substr(t, 1, index(t, "/") - 1)
+          if (head in TYPE) { printf "%d\tbranch\t%s\n", NR, t; continue }
+        }
+        if (tolower(t) in PROTECTED) printf "%d\tbranch\t%s\n", NR, t
+      }
     }
   }
 ' "$FILE" 2>"$ERRFILE")
@@ -148,7 +164,7 @@ if [[ "$awk_status" -ne 0 ]]; then
 fi
 
 if [[ -z "$HITS" ]]; then
-  pass "$FILE states no version, commit SHA, or <type>/<name> branch reference"
+  pass "$FILE states no version, no SHA-shaped hex token, and no branch reference on a line saying \"branch\""
 else
   while IFS=$'\t' read -r ln kind tokentext; do
     [[ -n "$ln" ]] || continue
