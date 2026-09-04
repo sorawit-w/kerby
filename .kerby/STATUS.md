@@ -11,9 +11,9 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | Between milestones — the planning-discipline work is out; nothing is mid-flight |
-| **Milestone** | Planning discipline — the Plan Gate stops deciding *whether* there is a plan |
-| **Milestone Goal** | A stated plan before every change, and the smallest change that still finishes the job |
+| **Phase** | Implementation — the status-file provenance work is finished and reviewed; nothing else is in flight |
+| **Milestone** | Status-file accuracy — STATUS.md holds position, never provenance |
+| **Milestone Goal** | Every fact in this file has exactly one authority, and this file is not it |
 
 ---
 

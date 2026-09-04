@@ -1027,3 +1027,25 @@ Notes: This is the third time in this branch that a claim of mine outran what I 
   Codex, none by me, and I was actively looking.
 Observations: Guard test 29 assertions, all pass. All five gates pass. Marker at 690b46e is
   now stale; a re-review is required before the PR gate will let a PR open.
+
+[2026-09-04T13:40:00Z]
+Task: The Phase sentence in my own STATUS.md was wrong
+Action: Corrected Phase, Milestone and Milestone Goal. They still named the PREVIOUS
+  milestone (planning discipline) and asserted "nothing is mid-flight" while thirteen
+  commits of status-file work sat unmerged on this branch.
+Files: .kerby/STATUS.md
+Commit: (pending)
+Status: DONE
+Notes: This is the residual the guard is documented as unable to catch — a wrong Phase
+  SENTENCE is prose, and prose is what the doctrine says not to guard — and I was about to
+  ship one inside the PR that exists to stop wrong status files. Found by re-reading the
+  file at the finish step, which is the habit the rule change is for; the guard passed it
+  cleanly both before and after, because it never had an opinion about this line.
+  Worth recording plainly: the mechanical half of this change caught nothing here, and the
+  behavioural half caught everything. That is the honest split. The guard's value is that it
+  removes the cheap, high-frequency errors so attention is free for the one class it cannot
+  see; it is not a substitute for reading the file.
+  The corrected text carries no version, SHA or branch — verified by the guard for the first
+  two and BY HAND for the branch, since nothing checks that any more.
+Observations: All five gates pass. Marker at 292d885 is stale again; one more review is
+  required before a PR can open. This is the fourteenth commit.
