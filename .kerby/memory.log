@@ -873,3 +873,28 @@ Observations: The bullets got shorter, which also serves the rule-cost gate — 
   Correction to an earlier note in this log: the round counter RESETS on a clean mark. The
   c19aec7 review reported rounds=1, not 5. The 3-round cap was exceeded exactly once, at
   round 4, with the maintainer's explicit authorization — not repeatedly.
+
+[2026-09-04T11:05:00Z]
+Task: Final P2 — a directory target reported SKIP instead of failing closed
+Action: Split the existence test: `-e` decides "does this path exist at all" (absent → SKIP,
+  exit 0, the one honest non-pass), and a separate `-f` decides "is it a regular file"
+  (exists but is a directory, device or FIFO → fail closed, exit 1). Added the directory
+  case to the test suite and corrected the exit-0 contract in the header.
+Files: skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.test.sh
+Commit: (pending)
+Status: DONE
+Notes: Same failure class as the original P1-1, one level subtler. A bare `[[ ! -f ]]` folds
+  two different questions — "is it absent" and "is it not a regular file" — into one branch,
+  and the branch it lands on is the one that exits 0. That is the third time in this PR a
+  fail-open has hidden inside a test that looked like it was checking for presence.
+  The pattern worth carrying: every guard has exactly one honest exit-0-without-scanning
+  case (the subject genuinely does not exist), and every other "I did not scan it" state
+  must be exit 1. Whenever one predicate answers two questions, check which answer the
+  silent path takes.
+  STOPPING THE REVIEW LOOP HERE by prior intent, not because the findings ran out. Each
+  round has returned fewer and smaller findings (11 → 4 → 2 → 0 → 3 → 1), all P2 since the
+  branch check was deleted, and the rulebook's own rule is that P2s are logged rather than
+  re-looped. Whatever the confirming round returns gets logged.
+Observations: Guard test 22 → 23 assertions. All five gates pass. This is the eighth commit
+  on the branch; the branch has never been pushed and no PR exists yet.

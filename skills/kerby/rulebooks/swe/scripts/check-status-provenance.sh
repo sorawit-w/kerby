@@ -17,11 +17,12 @@
 # Run: bash skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh [file]
 # Default file: .kerby/STATUS.md relative to the current directory.
 # Exit 0 has TWO cases, and only one is a pass: either the file was scanned and
-# stated no version or SHA-shaped token, or the file does not exist and a SKIP
-# line says so in words. Exit 1 = one was found, or the file exists and could not
-# be scanned. Exit 0 says nothing about branch names — see below. It never exits 0
-# on an UNREADABLE file: a guard that cannot read its subject must not report a
-# pass.
+# stated no version or SHA-shaped token, or the path does not exist at all and a
+# SKIP line says so in words. Exit 1 = a token was found, or the path exists and
+# could not be scanned — unreadable, or not a regular file (a directory, device
+# or FIFO). Exit 0 says nothing about branch names — see below. A guard that
+# cannot read its subject must never report a pass, so every "exists but I did
+# not scan it" state fails closed.
 #
 # WHAT IT MATCHES — two things, both unambiguous shapes:
 #   version  a whole dotted token of exactly three parts, optional `v` prefix
@@ -83,12 +84,21 @@ finish() {
   exit 1
 }
 
-if [[ ! -f "$FILE" ]]; then
+if [[ ! -e "$FILE" ]]; then
   # Say this plainly. A missing file reported as a bare PASS is how "nobody
   # checked" turns into "the check passed".
   echo "SKIP: $FILE does not exist — nothing to check (this is not a pass)."
   echo "---"
   exit 0
+fi
+
+# The path exists but may not be a regular file. Test -e above, -f here: a bare
+# `! -f` folds "absent" and "is a directory" into one branch, so passing a
+# directory reported "does not exist" and exited 0 — a silent pass on something
+# never scanned, the same failure class as the unreadable-file case below.
+if [[ ! -f "$FILE" ]]; then
+  fail "$FILE exists but is not a regular file — it was NOT scanned"
+  finish
 fi
 
 # The file exists but may still be unreadable. Check before scanning, and check

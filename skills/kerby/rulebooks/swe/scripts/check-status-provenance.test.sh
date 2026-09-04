@@ -137,6 +137,18 @@ else
 fi
 chmod 644 "$UNREADABLE"
 
+# A DIRECTORY is not a missing file. A bare `! -f` folds the two together, so a
+# directory target reported "does not exist" and exited 0 — a pass on something
+# never scanned. Same class as the unreadable case above.
+mkdir -p "$TMP/adir"
+out=$(bash "$GUARD" "$TMP/adir" 2>&1); got=$?
+if [[ "$got" -ne 0 ]] && printf '%s' "$out" | grep -q "NOT scanned"; then
+  pass "a directory target fails closed rather than reporting SKIP"
+else
+  fail "directory target: expected non-zero exit naming the failure, got exit $got"
+  printf '%s\n' "$out" | sed 's/^/      /'
+fi
+
 # A missing file is a different case: nothing to check, announced as SKIP so it
 # can never read as a green assertion.
 out=$(bash "$GUARD" "$TMP/nope.md" 2>&1); got=$?
