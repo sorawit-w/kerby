@@ -1146,3 +1146,41 @@ Notes: RETRACTING the previous entry's generalisation. It claimed every false cl
   where it goes wrong.
 Observations: Entry timestamp 2026-09-04T19:04:33Z from `date -u` at write time. Table, counts and range
   are command output, not recalled.
+
+[2026-09-04T19:26:16Z]
+Task: CORRECTION 3 — bounding the two claims that could not be true as written
+Action: The previous two corrections each made a claim about the WHOLE branch from inside
+  an entry that had not yet been committed to it. Such a claim is falsified by the act of
+  appending: the entry cannot count its own header, and the range cannot include its own
+  commit. That is a property of the claim's shape, not an oversight, so it would recur in
+  any further correction written the same way. This entry bounds both claims to the moment
+  it was generated, which is a claim that can be true.
+  MEASURED at generation time, before this entry was appended:
+    headers added to memory.log on this branch: 16
+    committed range, `git log --format=%cI main..HEAD | sort`:
+      2026-09-03T17:52:49-07:00  to  2026-09-04T12:05:06-07:00   (16 commits)
+  This entry then adds one more header, and the commit carrying it extends that range
+  past its stated end. Both facts above are true as of generation and are not claims
+  about the branch as it will stand once this lands.
+  WHAT THE PREVIOUS ENTRY GOT WRONG, precisely: it said its table covered "every header
+  added on this branch". The table was correct for every header that existed when it ran —
+  each of its rows was individually verified — but the sentence claimed more than the table
+  could show. Same for its range, which was accurate for the commits that existed and was
+  worded as though it were final.
+  ALSO RETRACTING one sentence from it: "Every attempt re-derives counts from recall." That
+  is another unsupported universal, and it is wrong on the facts — the correction before it
+  failed on an over-broad generalisation, not on a miscounted figure. Nothing generated here
+  can establish why I wrote something, only what I wrote.
+Files: .kerby/memory.log
+Commit: (pending)
+Status: DONE
+Notes: This is the last entry in this correction chain, by prior agreement with the
+  maintainer, and the stopping rule was fixed BEFORE it ran rather than after: if the review
+  of this entry is clean the branch ships; if it is not, the branch ships anyway with the
+  finding disclosed in the PR body. No fourth attempt. Three previous corrections each
+  introduced a new error of the class they corrected, and the thing missing every time was
+  not care — it was a pre-committed exit.
+  The durable lesson from the whole chain, stated once: a record that describes the file it
+  is being written into must scope its claims to the moment it was generated. "Every X on
+  this branch" cannot be written from inside the branch. "N as of <time>" can.
+Observations: Entry timestamp 2026-09-04T19:26:16Z, and every figure above, read at generation time.
