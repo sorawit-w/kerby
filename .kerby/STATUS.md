@@ -87,9 +87,6 @@ re-review:
   documentation gap, not a record of past work.
 - The installed kerby is older than what this repo ships, so a session here governs by
   rules the repo has already moved past. Open until the plugin work lands.
-- **Decision needed: is a clean local Codex review sufficient to merge?** The documented
-  workflow says yes, and the previous release merged on one. The GitHub-side review then found three
-  portability defects the local venue structurally cannot see — it runs on macOS, the
-  findings were mawk, GNU dirname and a 4096-byte PATH_MAX. For a tool that ships as
-  portable shell the two venues are not redundant, and the workflow currently treats them
-  as if they were.
+- **Settled: a clean local Codex review is sufficient to merge.** Portability defects the
+  local venue cannot see are follow-up work, not a merge blocker. The standing cost is that
+  a release can carry one until someone reads the merged PR's review comments.

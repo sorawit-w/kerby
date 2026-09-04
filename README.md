@@ -214,7 +214,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.26.4` — the provenance guard was not portable, and the platform hid it. Three defects found by the GitHub-side review, which runs on Linux, after a clean local review on macOS: a CSS hex colour read as a commit SHA, a directory input that can pass under mawk because opening a directory succeeds and only BSD awk's i/o error stopped it, and an over-long-path fixture hard-coded to macOS's `PATH_MAX` so it tested nothing on Linux. The two venues are not redundant — for portable shell, the second sees a class the first structurally cannot. Previously: `9.26.3` — the status file holds position, never provenance. See [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.26.4` — the provenance guard was not portable, and the platform hid it. Three defects found by the GitHub-side review, which runs on Linux, after a clean local review on macOS — two of them invisible to that venue, one simply missed: a CSS hex colour read as a commit SHA, a directory input that can pass under mawk because opening a directory succeeds and only BSD awk's i/o error stopped it, and an over-long-path fixture hard-coded to macOS's `PATH_MAX` so it tested nothing on Linux. The two venues are not redundant — for portable shell, the second sees a class the first structurally cannot. Previously: `9.26.3` — the status file holds position, never provenance. See [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests

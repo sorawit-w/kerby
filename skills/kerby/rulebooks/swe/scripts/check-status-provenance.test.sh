@@ -92,9 +92,15 @@ expect "sha with digits and letters still fails" 1 'Reviewed at 1a2b3c today.' "
 # every non-alphanumeric discards a leading `#`, so a CSS colour became a SHA. A
 # brand colour is exactly what a real Next Up row carries.
 expect "CSS hex colours are not SHAs" 0 '| 1 | Change brand colour from #1a2b3c to #2f4f4f | design |'
-expect "issue references are not SHAs" 0 'Blocked behind #1a2b3c4 in the tracker.'
-# TRUE-POSITIVE TWIN: the same token without the `#` is still a SHA. Without this,
-# the colour fix could be "achieved" by dropping the SHA check entirely.
+expect "8-digit RGBA colours are not SHAs" 0 'Set the overlay to #1a2b3c4d this sprint.'
+expect "decimal issue references are not SHAs" 0 'Blocked behind #1234 in the tracker.'
+# TRUE-POSITIVE TWINS. The exemption is limited to CSS colour SHAPES (3, 4, 6, 8
+# hex digits), so a `#`-prefixed SHA of any other length must still fail —
+# blanking every `#`-hex run would have let this escape, which is what the
+# narrowing fixed. And the bare token must still fail, or the colour exemption
+# could be "achieved" by dropping the SHA check entirely.
+expect "a 7-hex sha after a # still fails" 1 'Reviewed commit #1a2b3c7 today.' "states a sha"
+expect "a long sha after a # still fails" 1 'Reviewed commit #e9163f1bd957 today.' "states a sha"
 expect "the same token bare is still a sha" 1 'Merged as 1a2b3c today.' "states a sha"
 
 # --- 4. branch names are NOT checked ------------------------------------------
@@ -248,19 +254,23 @@ chmod 755 "$TMP/lk"
 # The old version also asserted that `dirname` fails — GNU dirname is lexical and
 # does not, and the guard no longer calls dirname at all, so that assertion tested
 # neither the platform nor the code.
-_pmax=$(getconf PATH_MAX / 2>/dev/null || echo 4096)
-[[ "$_pmax" =~ ^[0-9]+$ ]] || _pmax=4096
-_seg=$(printf 'a%.0s' {1..200})
-_long="$TMP"
-while [[ "${#_long}" -le "$_pmax" ]]; do _long="$_long/$_seg"; done
-if [[ "${#_long}" -le "$_pmax" ]]; then
-  fail "over-long path fixture is ${#_long} bytes, not over the platform PATH_MAX of $_pmax"
+# Query the filesystem the fixture actually lives on, not `/`. The previous
+# version also "self-validated" with a length check the build loop had already
+# guaranteed — a check that cannot fail proves nothing, so it is gone; what is
+# asserted instead is that the guard names the precondition it failed, which an
+# ordinary absent path would also do, but which a silent pass would not.
+_pmax=$(getconf PATH_MAX "$TMP" 2>/dev/null || true)
+if ! [[ "$_pmax" =~ ^[0-9]+$ ]]; then
+  echo "SKIP: cannot determine PATH_MAX for $TMP — over-long-path case NOT verified"
 else
+  _seg=$(printf 'a%.0s' {1..200})
+  _long="$TMP"
+  while [[ "${#_long}" -le "$_pmax" ]]; do _long="$_long/$_seg"; done
   out=$(bash "$GUARD" "$_long" 2>&1); got=$?
-  if [[ "$got" -ne 0 ]]; then
+  if [[ "$got" -ne 0 ]] && printf '%s' "$out" | grep -q "NOT scanned"; then
     pass "a path over the platform PATH_MAX fails closed (${#_long} > $_pmax bytes)"
   else
-    fail "over-long path: expected non-zero exit, got exit $got"
+    fail "over-long path: expected non-zero exit naming the failure, got exit $got"
     printf '%s\n' "$out" | sed 's/^/      /'
   fi
 fi

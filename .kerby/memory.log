@@ -1222,3 +1222,38 @@ Notes: The regular-file precondition is NOT a reinstatement of the absence-class
   maintainer's decision — see Notes for Human Review in STATUS.md.
 Observations: Guard test 29 -> 32 assertions. All five gates pass. Timestamp 2026-09-04T19:38:59Z read
   from `date -u` at write time; PATH_MAX here measured as 1024 with `getconf`.
+
+[2026-09-04T19:45:50Z]
+Task: five P2s from the local review of the portability fix
+Action: (1) Whole-run `#` blanking created a new miss — `#1a2b3c7` escaped as SHA shorthand.
+  Narrowed to CSS colour SHAPES only (3, 4, 6, 8 hex digits), so any other length after a
+  `#` is still caught. (2) The PATH_MAX fixture queried `/` rather than the filesystem
+  holding the fixture, and "self-validated" with a length check the build loop had already
+  guaranteed. Now queries $TMP and asserts the failure message instead. (3) The release copy
+  said macOS "could not see any" of the three, then said two were platform-specific — the
+  CSS one reproduces anywhere and was simply missed. (4) The guard's design commentary still
+  said the open was the only test and denied a regular-file precondition, contradicting the
+  code; CLAUDE.md carried the same stale mechanism. (5) The STATUS note recorded the history
+  behind a decision rather than the decision.
+Files: skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.test.sh, CHANGELOG.md,
+  README.md, CLAUDE.md, .kerby/STATUS.md
+Commit: (pending)
+Status: DONE
+Notes: Finding (1) is the one to keep. Fixing the CSS false positive by blanking every
+  `#`-hex run traded a false positive for a false NEGATIVE, and the test I wrote alongside
+  it could not catch that because its fixture — "issue references are not SHAs" with a HEX
+  value — was not a realistic issue reference. A test written from the same misconception as
+  the fix confirms the fix. The exemption is now shape-limited and carries three
+  true-positive twins.
+  Finding (3) is the fourth accuracy defect in release copy on this work, and its shape is
+  now familiar: I wrote the vivid version of the story (macOS saw none of it) over the
+  accurate one (macOS could not see two of them), because the vivid version was the point I
+  wanted to make. I had already stated the accurate version correctly to the maintainer in
+  the same session.
+  A genuinely ambiguous case is documented rather than resolved silently: `#1a2b3c` is both
+  a valid CSS colour and a valid six-character SHA. It is read as a colour, because a status
+  file carries brand colours far more often than `#`-prefixed short SHAs, and the header
+  says so.
+Observations: Guard test 32 -> 35 assertions. All five gates pass. Timestamp 2026-09-04T19:45:50Z read
+  from `date -u`; PATH_MAX for the fixture filesystem measured at run time.

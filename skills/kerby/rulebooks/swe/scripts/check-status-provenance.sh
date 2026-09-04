@@ -68,8 +68,12 @@
 #     these misses are not.
 #   - A four-part version ("1.2.3.4") is not matched. That shape is exactly what
 #     separates an IP address from a semver, and this repo ships semver.
-#   - A hex run written after a `#` is skipped as a CSS colour or issue reference.
-#     A SHA is not written that way; a brand colour in a Next Up row is.
+#   - `#` plus exactly 3, 4, 6 or 8 hex digits is treated as a CSS colour and
+#     skipped. Lengths 3, 4 and 8 cost nothing. Length SIX is genuinely ambiguous
+#     — `#1a2b3c` is both a valid colour and a valid short SHA — and is resolved
+#     in the colour's favour, because a status file carries brand colours far more
+#     often than `#`-prefixed SHAs. A SHA written as `#<7 or more hex>` is still
+#     caught.
 
 set -u
 
@@ -89,9 +93,9 @@ finish() {
   exit 1
 }
 
-# THE OPEN IS THE ONLY TEST. There is deliberately no attempt to classify the
-# path before scanning it — no "does it exist", no "is it a regular file", no
-# parent-permission probe. Four fail-opens on this branch all came from a
+# ONE PRECONDITION, THEN THE OPEN. The path must be a regular file; everything
+# else about it is left to the open. There is deliberately no attempt to classify
+# WHY a path is unavailable — no "does it exist", no parent-permission probe. Four fail-opens on this branch all came from a
 # predicate that answered two questions at once, with the silent answer winning:
 # `! -f` folded absent with not-a-regular-file; `! -e` folded absent with
 # cannot-be-stat'd; a parent check missed a locked GRANDPARENT and a path long
@@ -100,8 +104,13 @@ finish() {
 # ancestor, every resolution failure, every path-length limit is another way to
 # fail to observe something that is really there.
 #
-# So the question is removed rather than answered. Open the file; if the open
-# succeeds, scan it; if it does not, exit 1. Absence is no longer a special case
+# So that question is removed rather than answered. The one test that remains is
+# bounded and has a single answer: a regular file, or not. Absence lands in "not",
+# alongside a directory and a dangling symlink, and they are reported identically.
+# (The precondition is not optional. Opening a DIRECTORY succeeds on Linux and
+# macOS; only the scanner erroring afterwards stopped it, and whether it errors is
+# implementation-specific — mawk can exit 0 having read nothing.) Then open the
+# file; if the open succeeds, scan it; if it does not, exit 1. Absence is no longer a special case
 # — a file that is not there is simply one of the many ways an open can fail, and
 # all of them are reported the same way. That costs a caller who legitimately has
 # no STATUS.md yet a non-zero exit, which is the deliberate trade: this guard's
@@ -152,13 +161,16 @@ HITS=$( { awk '
         printf "%d\tversion\t%s\n", NR, t
     }
 
-    # A `#`-prefixed hex run is a CSS colour or an issue reference, never a git
-    # SHA. Splitting on every non-alphanumeric discards the `#`, so `#1a2b3c`
-    # became `1a2b3c` and matched — and a brand colour is exactly the kind of
-    # thing a real Next Up row carries. Blank those runs before tokenising; the
-    # version scan is untouched, since `#1.2.3` is not a shape anyone writes.
+    # A CSS colour is `#` plus exactly 3, 4, 6 or 8 hex digits. Blank ONLY those
+    # shapes before tokenising: blanking every `#`-hex run would let a SHA written
+    # as `#1a2b3c7` escape, which is plausible shorthand. Lengths 3, 4 and 8 are
+    # colour-only (3 and 4 are below the SHA minimum; 8 is not a common
+    # abbreviation but is a standard RGBA colour). Length 6 is genuinely
+    # ambiguous and is resolved in favour of the colour — see the header ceiling.
     shaline = line
-    gsub(/#[0-9a-fA-F]+/, " ", shaline)
+    gsub(/#[0-9a-fA-F]{8}([^0-9a-fA-F]|$)/, " ", shaline)
+    gsub(/#[0-9a-fA-F]{6}([^0-9a-fA-F]|$)/, " ", shaline)
+    gsub(/#[0-9a-fA-F]{3,4}([^0-9a-fA-F]|$)/, " ", shaline)
 
     # --- sha: hex token, 6-40 chars, containing BOTH a digit and a hex letter.
     # The digit keeps English words spelled in hex letters out ("defaced"); the
