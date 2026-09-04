@@ -9,7 +9,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | Review clean — 9.26.1 / swe 2.11.1 (P2-1 fixed). Codex P0=0 P1=0 at efc7162. P2-2 and P2-3 next. |
+| **Phase** | Review clean — 9.26.2 / swe 2.11.2. Codex P0/P1/P2/P3 all 0 at 3bec1ce. P2-1 and P2-3 done; P2-2 abandoned. Ready for PR. |
 | **Milestone** | Planning discipline — the Plan Gate stops deciding *whether* there is a plan |
 | **Milestone Goal** | A stated plan before every change, and the smallest change that still finishes the job |
 | **Working Branch** | feature/minimal-first-planning (release `9.26.0`) — rule-text change across 9 rulebook files |
@@ -21,9 +21,9 @@
 | Status | Count | Tasks |
 |--------|-------|-------|
 | Done | 5 | #54 protect-env scope · #55 decision-ladder artifacts · #56 shared state + finish order · #57 locator + trust rules · #63 `kerby hooks` |
-| In Review | 1 | 9.26.1 — `plan:` line, minimal-first, deferral sink, P2-1 re-approval narrowing. Codex clean |
+| In Review | 1 | 9.26.2 — `plan:` line, minimal-first, deferral sink, P2-1 re-approval narrowing, P2-3 vendor-adapters sink. Codex clean |
 | Blocked | 0 | — |
-| Ready | 4 | P2-2 escalate catch-all · P2-3 vendor-adapters sink · planThreshold runtime cap · fresh-session `skill-evaluator` passes |
+| Ready | 5 | quick-task § 3a escalation dispositions (was P2-2, needs fresh eyes) · three remaining sink sites · planThreshold runtime cap · investigate-route omit-don't-announce · fresh-session `skill-evaluator` passes |
 
 ---
 

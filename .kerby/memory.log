@@ -528,3 +528,23 @@ Observations: Codex has now caught an untrue claim in shipped release copy twice
   (the "three of four" count, and this one). Both times the claim was a summary I wrote about
   my own work rather than a statement about the rules. Release copy describing the completeness
   of a sweep deserves the same evidence bar as a rule.
+
+[2026-09-03T07:00:00Z]
+Task: swe 2.11.2 — review fully clean, branch ready for PR
+Action: P2-3 shipped. Codex P0=0 P1=0 P2=0 P3=0 at 3bec1ce; marker written. Eval: one executor
+  on a legacy vendor-coupled file in a repo with no ROADMAP.md and a writable Linear, graded
+  blind. 11/11.
+Files: .kerby/STATUS.md, .kerby/memory.log
+Commit: (pending)
+Status: DONE
+Notes: Of the three P2s logged against 2.11.0: P2-1 fixed and clean, P2-3 fixed and clean,
+  P2-2 abandoned after seven review passes and reverted — its diagnosis is in the entry above.
+  The eval result worth keeping from P2-3: the executor had MCP write access to the project's
+  tracker and declined to file a ticket for a migration it thought worth doing, saying that
+  having write access is not the same as having decided the work is worth doing. That is the
+  adjacent-finding rule landing in the exact situation it was written for.
+  Three corrections to release copy this session, all in summaries of my own work rather than
+  in rules: a miscount ("three of four"), a false completeness claim about a sweep, and a
+  claim the CHANGELOG had already qualified while the README had not. Release copy asserting
+  that something is complete deserves the same evidence bar as a rule, and I did not hold it
+  there until Codex made me.
