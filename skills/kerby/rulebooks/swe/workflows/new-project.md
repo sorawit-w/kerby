@@ -91,7 +91,7 @@ Complete ALL of these before declaring done:
    {build_command} && {lint_command}
    ```
 2. **`.kerby/memory.log` created** with session summary
-3. **`.kerby/STATUS.md` created** with project state
+3. **`.kerby/STATUS.md` created** from the engine template — where things stand, not what happened. **Read `references/communication.md` § Status Tracking first** — that section is the authority on what may and may not go in the file
 4. **`CONTEXT.md` filled** with the project's core domain terms — at least 3 entries. The `context-bootstrap` hook scaffolds the file; you fill it before declaring done. See `references/domain-glossary.md`.
 5. **`ROADMAP.md` populated** from requirements — not just the empty bootstrap header. Active items reflect the planned scope; phase grouping if multi-phase.
 6. **Vendor-adapter structure scaffolded** — `ports/`, `adapters/`, and `composition.ts` exist under the source root, even if empty (adapters added per vendor on demand).

@@ -15,7 +15,7 @@ You are onboarding an **existing repo** (real code, git history, conventions) in
 2. **Diff-and-confirm every write.** Show the proposed file (or the proposed addition) and get a yes before writing. Same consent discipline as `install`. Never write silently.
 3. **Never clobber human-curated content.** Refresh re-derives only agent-owned material. Anything a human wrote or verified is frozen. Per-tier refresh rules below.
 4. **Never write secret contents.** When a scan surfaces `.env`-like or credential files, record *paths only*, never the values inside them.
-5. **No git repository = degrade, never improvise VCS.** If the repo has no git history (`git` commands fail), the code-derived tiers still run: `agent-context.yaml`, `CONTEXT.md`, and the `memory.log` stub populate from the filesystem. Skip the git-sourced work — the `git log` decision/lesson scan (§2.4) yields no candidates, and the STATUS stub records the branch as `n/a (no git)` (§2.5). Do **NOT** `git init` to satisfy a step — that is a repo-state change the human owns (see the ring-fence). Say so in the Finish handoff: which tiers ran, which were skipped for want of git. (This mirrors `audit`'s documented no-git stance — same skill, same input class, handled the same way.)
+5. **No git repository = degrade, never improvise VCS.** If the repo has no git history (`git` commands fail), the code-derived tiers still run: `agent-context.yaml`, `CONTEXT.md`, and the `memory.log` stub populate from the filesystem. Skip the git-sourced work — the `git log` decision/lesson scan (§2.4) yields no candidates. The STATUS stub is unaffected — it records no branch in any repo (`references/communication.md` § Status Tracking), so there is no no-git variant of it to write. Do **NOT** `git init` to satisfy a step — that is a repo-state change the human owns (see the ring-fence). Say so in the Finish handoff: which tiers ran, which were skipped for want of git. (This mirrors `audit`'s documented no-git stance — same skill, same input class, handled the same way.)
 </core_principles>
 
 ---
@@ -46,7 +46,7 @@ Build the raw material for population. **Read-only — no writes in this step.**
 
 4. **Decision/lesson signal** (feeds `.kerby/knowledge/`): scan `git log` bodies for recurring rationale, look for `docs/adr/` or design docs, note major dependency choices and large refactors (decision candidates) and recurring fix patterns (lesson candidates). Capture *pointers*, not conclusions — you draft these in step 3.
 
-5. **Current branch** (feeds `STATUS.md` stub): `git branch --show-current`.
+(There is deliberately no "read the current branch" step. `STATUS.md` holds position, never provenance — `references/communication.md` § Status Tracking — so the branch is read from `git branch --show-current` at the moment anyone needs it, never copied into a file that then goes stale.)
 </assess>
 
 ---
@@ -97,7 +97,7 @@ bash "${KERBY_DIR}/resources/hooks/knowledge-reindex.sh" --force
 
 ### Stub only — `.kerby/STATUS.md`
 
-Create from the engine template `<install-root>/resources/templates/STATUS.md.template` as an **honest onboarding stub**: phase `Onboarded`, current branch, no active tasks ("freshly onboarded, no active work"). Do not invent progress, milestones, or a task queue for a repo you just met. Confirm; write.
+Create from the engine template `<install-root>/resources/templates/STATUS.md.template` as an **honest onboarding stub**: phase `Onboarded`, no active tasks ("freshly onboarded, no active work"). Do not invent milestones or a task queue for a repo you just met, and write no version, SHA, or branch name — `references/communication.md` § Status Tracking. The guard `scripts/check-status-provenance.sh` covers the version and the SHA; the branch is yours to hold, and the template has no field for one. Confirm; write.
 
 ### Stub only — `.kerby/memory.log`
 

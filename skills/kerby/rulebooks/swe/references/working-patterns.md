@@ -164,11 +164,11 @@ Don't loop forever. Stop and escalate when:
 
 ### Progress Tracking
 
-Use `.kerby/STATUS.md` as your iteration state file. After each successful iteration:
+Split the record by what each file is for (`references/communication.md` § Status Tracking). After each successful iteration:
 
-1. Mark the completed task
-2. Note what's next
-3. Commit the status update alongside the code change
+1. Record the completed task in `.kerby/memory.log` — *what happened* is the log's job, and it is append-only, so a finished iteration is never overwritten
+2. Update `.kerby/STATUS.md` so its `Next Up` names what comes next, and drop the item you just finished from it — *where things stand* is the only thing this file carries
+3. Commit both alongside the code change
 
 This lets the next iteration (or the next session) pick up exactly where you left off.
 
@@ -372,8 +372,8 @@ Don't accumulate a session's worth of changes in a single commit at the end. **C
 
 When you've made significant progress or the conversation is getting long, create a session-level checkpoint:
 
-1. **Update `.kerby/STATUS.md`** — current position, what's done, what's next, key decisions
-2. **Update `.kerby/memory.log`** — detailed session summary with rationale and open questions
+1. **Update `.kerby/STATUS.md`** — current position and what's next, nothing else. What's done and the decisions behind it belong to the log and the knowledge base, not here (`references/communication.md` § Status Tracking)
+2. **Update `.kerby/memory.log`** — detailed session summary with what was completed, rationale and open questions
 3. **Commit and push** all current work, *including the two files above* — they are tracked, so a checkpoint that commits first leaves its own state behind
 4. **Compact or hand off** — trigger conversation compaction if available, or tell the developer a fresh session can resume from this checkpoint
 

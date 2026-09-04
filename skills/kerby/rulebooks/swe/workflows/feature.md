@@ -199,7 +199,7 @@ Complete ALL of these before declaring done:
    ```
 2. **Project state written — before the commit, not after.** These are shared, committed artifacts (`references/communication.md` § Session Logging), so they belong to the change that produced them. Writing them after the commit is what leaves them dangling outside the PR:
    - **`.kerby/memory.log`** — session summary appended
-   - **`.kerby/STATUS.md`** — reflects current state
+   - **`.kerby/STATUS.md`** — where things stand, not what happened. **Read `references/communication.md` § Status Tracking before writing it** — that section is the authority on what may and may not go in this file, and it is not loaded until you read it
    - **`.kerby/knowledge/` entry** — a new decision, convention, or lesson. Propose before writing; skip if nothing applies
    - **`CONTEXT.md`** — new domain terms used 2+ times. See `references/domain-glossary.md`
    - **The deferral sink** — one entry per item you named in the plan's `deferring:` list, each saying what it was deferred from. `references/guardrails.md` § Where a finding goes selects which sink. Nothing deferred means nothing to write
