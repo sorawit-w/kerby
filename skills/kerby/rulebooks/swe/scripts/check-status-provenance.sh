@@ -20,28 +20,38 @@
 # scanned. It never exits 0 on an unreadable file: a guard that cannot read its
 # subject must not report a pass.
 #
-# WHAT IT MATCHES
+# WHAT IT MATCHES — two things, both unambiguous shapes:
 #   version  a whole dotted token of exactly three parts, optional `v` prefix
 #   sha      a whole hex token 6-40 chars containing BOTH a digit and a hex letter
-#   branch   ONLY on a line containing the word "branch": a `<type>/<name>` token
-#            for the seven types in `references/communication.md` § Branch Naming,
-#            or a bare protected-branch name
 #
-# WHY THE BRANCH CHECK KEYS ON A LABEL, NOT A SHAPE. `docs/README` is a valid
-# branch name and a common file path, and nothing in the token tells you which.
-# Two rounds of path-shape heuristics (reject a second slash, reject a dot
-# suffix) each traded a false positive for a missed branch without converging —
-# the "if what it extracts is a phrasing, don't" case in `skills/kerby/CLAUDE.md`.
-# Keying on the label matches how the field actually appears ("Working Branch",
-# "branch=...") and removes the whole ambiguity class instead of patching it.
+# WHY THERE IS NO BRANCH CHECK. There was one, through three designs and three
+# review rounds, and it never converged:
+#   1. an unanchored regex        -> matched the `fix` inside "prefix/name"
+#   2. word boundary + path-shape -> missed `branch=feature/x`, fired on
+#      rejection                     `docs/README`, skipped git-valid `fix/v2.1`
+#   3. keyed on a "branch" label  -> missed `Working on feature/x now.` and a
+#                                    `| Git ref |` field, fired on "Review branch
+#                                    policy, then edit docs/README"
+# Each design fixed the cited cases and produced new ones, because the question
+# is undecidable from the text: `docs/README` is a valid branch name AND a common
+# file path, and no pattern separates them. This is exactly the case
+# `skills/kerby/CLAUDE.md` names — "ask what the guard extracts; if the answer is
+# a phrasing, don't" — and the reason its predecessor guard was deleted rather
+# than sharpened. A guard that under-matches is worse than no guard: it turns
+# *nobody checked* into *the check passed*.
+#
+# The branch field is already deleted from the STATUS.md template, so the failure
+# this would have caught is structurally prevented rather than merely detected.
+# A branch name written into a hand-edited STATUS.md is left to the rule text
+# (`references/communication.md` § Status Tracking) and to review — the same
+# place the wrong-`Phase`-sentence residual already sits.
 #
 # CEILINGS — stated rather than papered over. The PASS message is worded to
 # match these, so it never claims more than the guard checks:
+#   - It says NOTHING about branch names. See above.
 #   - It cannot catch a wrong `Phase` SENTENCE. "Shipped" when nothing shipped is
 #     prose, and prose is what the doctrine says not to guard. The independent
 #     review covers that residual.
-#   - A branch named on a line that never says "branch" is missed. That is the
-#     deliberate cost of the label rule above.
 #   - A hex token with no digit ("defaced") or no letter ("123456") is not
 #     matched — those two exclusions are what keep English words and ordinary
 #     numbers from firing. The cost is a SHA abbreviation that happens to be all
@@ -100,16 +110,6 @@ HITS=$(awk '
     gsub(/^\.+|\.+$/, "", s)                # leading ellipsis, trailing full stop
     return s
   }
-  BEGIN {
-    # The seven branch types in references/communication.md § Branch Naming.
-    # Keep this list in step with that table — a type missing here is a branch
-    # the guard silently allows.
-    split("feature fix refactor test docs chore wip", ty, " ")
-    for (k in ty) TYPE[ty[k]] = 1
-    # Protected branches, named bare on a branch-labelled line.
-    split("main master dev develop staging trunk", pb, " ")
-    for (k in pb) PROTECTED[pb[k]] = 1
-  }
   {
     line = $0
 
@@ -134,26 +134,7 @@ HITS=$(awk '
         printf "%d\tsha\t%s\n", NR, t
     }
 
-    # --- branch: ONLY on a line that says "branch". A bare <type>/<name> token
-    # is not decidable — `docs/README` is a valid branch name AND a common file
-    # path, and two rounds of path-shape heuristics traded false positives for
-    # missed branches without converging. So the guard stops guessing from shape
-    # and keys on the label instead, which is how the field actually appears
-    # ("Working Branch", "branch=..."). On such a line no path-shape filtering is
-    # needed, so the deep-path and dot-suffix misses go away too.
-    if (tolower(line) ~ /branch/) {
-      # Split on everything a branch name cannot contain, not on whitespace:
-      # `branch=feature/x` is one whitespace word but two tokens.
-      nw = split(line, w, /[^A-Za-z0-9._\/-]+/)
-      for (i = 1; i <= nw; i++) {
-        t = strip(w[i])
-        if (t ~ /^[A-Za-z]+\//) {
-          head = substr(t, 1, index(t, "/") - 1)
-          if (head in TYPE) { printf "%d\tbranch\t%s\n", NR, t; continue }
-        }
-        if (tolower(t) in PROTECTED) printf "%d\tbranch\t%s\n", NR, t
-      }
-    }
+    # There is deliberately NO branch check here. See the header.
   }
 ' "$FILE" 2>"$ERRFILE")
 awk_status=$?
@@ -164,7 +145,7 @@ if [[ "$awk_status" -ne 0 ]]; then
 fi
 
 if [[ -z "$HITS" ]]; then
-  pass "$FILE states no version, no SHA-shaped hex token, and no branch reference on a line saying \"branch\""
+  pass "$FILE states no version and no SHA-shaped hex token (branch names are not checked — see this script's header)"
 else
   while IFS=$'\t' read -r ln kind tokentext; do
     [[ -n "$ln" ]] || continue

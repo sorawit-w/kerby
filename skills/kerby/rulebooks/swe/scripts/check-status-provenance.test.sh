@@ -88,36 +88,27 @@ expect "ordinary six-digit numbers pass" 0 'Milestone 123456 is queued behind 98
 # The true-positive twin: a real SHA has both, and must still fail.
 expect "sha with digits and letters still fails" 1 'Reviewed at 1a2b3c today.' "states a sha"
 
-# --- 4. branches -------------------------------------------------------------
-# The branch check keys on a line SAYING "branch", not on token shape. Two rounds
-# of shape heuristics traded false positives for missed branches without
-# converging, because `docs/README` is both a valid branch name and a file path.
-# All seven types in communication.md § Branch Naming must be caught.
-for ty in feature fix refactor test docs chore wip; do
-  expect "branch type '$ty' fails" 1 "| Working Branch | $ty/status-cleanup |" "states a branch"
-done
-# The label can appear in any form the field actually takes.
-expect "branch=<value> form fails" 1 'Set branch=feature/status-cleanup before starting.' "states a branch"
-expect "bare protected name on a branch line fails" 1 '| Working Branch | main |' "states a branch"
-# Shapes the previous heuristics wrongly SKIPPED. Both are git-valid branch names
-# and both are caught now that no path-shape filtering runs.
-expect "dot-suffix branch name fails" 1 'On branch fix/v2.1 today.' "states a branch"
-expect "multi-segment branch name fails" 1 'On branch feature/api/v2 today.' "states a branch"
-# FALSE POSITIVES the shape heuristics produced. None of these lines says
-# "branch", so none of them is a branch reference.
-expect "type inside a longer word is not a branch" 0 'Use the prefix/name pair; the suffix/value pair mirrors it.'
-expect "nested source path is not a branch" 0 'Edit src/feature/parser.ts and src/fix/apply.ts.'
-expect "doc path with an extension is not a branch" 0 'See docs/rulebook-contract.md and test/fixtures/a.md.'
-expect "extensionless doc path is not a branch" 0 'See docs/README and test/fixtures for setup.'
-# Documented ceiling, asserted so it stays a known gap rather than an assumption:
-# a protected name in prose that never says "branch" is not matched.
-expect "bare protected name off a branch line is a documented miss" 0 'That is the main reason we did it; dev follows.'
+# --- 4. branch names are NOT checked ------------------------------------------
+# Deliberate removal, asserted so it stays a decision rather than rotting into an
+# assumption. Three designs over three review rounds each fixed their cited cases
+# and produced new ones, because `docs/README` is both a valid branch name and a
+# common file path and no pattern separates them. The script header carries the
+# full account. These cases lock in that BOTH directions are now silent: a real
+# branch is not flagged, and ordinary prose containing a slash is not either.
+expect "a real branch reference is not flagged" 0 '| Working Branch | feature/minimal-first-planning |'
+expect "an unlabelled branch reference is not flagged" 0 'Working on fix/status-accuracy now.'
+expect "prose mentioning branches and a path is not flagged" 0 'Review branch policy, then edit docs/README.'
+expect "nested source paths are not flagged" 0 'Edit src/feature/parser.ts and src/fix/apply.ts.'
+# The removal must not have cost the OTHER two checks anything: a line carrying a
+# branch plus a version plus a SHA still fails on the version and the SHA.
+expect "version and sha still caught on a branch-bearing line" 1 \
+  '| Working Branch | feature/x | shipped 1.2.3 as 095605e |' "states a version" "states a sha"
 
 # --- 5. reporting quality ----------------------------------------------------
-# All three categories on one line must ALL be reported. Asserting only one lets
-# the other two silently stop working.
-expect "every category on one line is reported" 1 '| Shipped 1.2.3 as 095605e on branch feature/x |' \
-  "states a version" "states a sha" "states a branch"
+# Both categories on one line must be reported. Asserting only one lets the
+# other silently stop working.
+expect "both categories on one line are reported" 1 '| Shipped 1.2.3 as 095605e |' \
+  "states a version" "states a sha"
 # The guard advertises line-numbered diagnostics; assert the number, not just the
 # category, or the diagnostic contract is untested.
 expect "the failing line number is named" 1 'clean line one
@@ -129,7 +120,7 @@ Shipped swe 2.11.3 here.' "STATUS.md:3 states a version"
 # capture empty — indistinguishable from a clean file — so the guard printed PASS
 # and exited 0. A guard that cannot read its subject must never report a pass.
 UNREADABLE="$TMP/unreadable.md"
-printf 'swe 2.11.3 at 095605e on fix/x\n' > "$UNREADABLE"
+printf 'swe 2.11.3 at 095605e\n' > "$UNREADABLE"
 chmod 000 "$UNREADABLE"
 if [[ -r "$UNREADABLE" ]]; then
   # Running as root, or a filesystem that ignores the mode — the case cannot be

@@ -768,3 +768,37 @@ Observations: Guard test 25 -> 33 assertions. All five repo gates pass, plus bas
   git diff --check. Codex verified the fail-closed path by simulating an awk exit 42.
   It found no BSD/gawk semantic difference; gawk is still unavailable here, so that
   remains reasoned rather than measured.
+
+[2026-09-04T09:20:00Z]
+Task: HELD resolved by user decision — the branch check is deleted, not fixed again
+Action: Round 3 returned HELD (cap reached, P1=1 open). Escalated to the maintainer with
+  three options; they chose deletion. Removed the branch check entirely from
+  check-status-provenance.sh: the type/protected lookup sets, the scan block, and every
+  claim about branch coverage in the five places that described it (script header, PASS
+  message, communication.md, CLAUDE.md, CHANGELOG, README). The guard now checks two
+  things — version and SHA — both unambiguous shapes.
+Files: skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.test.sh,
+  skills/kerby/rulebooks/swe/references/communication.md, CLAUDE.md, CHANGELOG.md, README.md
+Commit: (pending)
+Status: DONE
+Notes: Three designs, three review rounds, and every one fixed its cited cases and produced
+  new ones: an unanchored regex matched inside "prefix"; word-boundary plus path-shape
+  rejection missed `branch=feature/x` and fired on `docs/README`; keying on a "branch" label
+  missed unlabelled refs and fired on "Review branch policy, then edit docs/README". The
+  question is undecidable from the text — `docs/README` is a valid branch name AND a common
+  file path — which is precisely the case skills/kerby/CLAUDE.md names: ask what the guard
+  extracts, and if the answer is a phrasing, don't. The predecessor guard in this repo was
+  deleted for the same reason, and I rebuilt it anyway before recognising the pattern.
+  What makes deletion safe rather than a retreat: the branch FIELD is already gone from the
+  STATUS.md template, so the failure is structurally prevented instead of detected. The rule
+  text still forbids a branch; only the mechanical check is gone. Verified .kerby/STATUS.md
+  by hand (grep for all seven types plus release/hotfix and the bare protected names) since
+  no guard covers it now — clean.
+  The test asserts the removal in BOTH directions (a real branch is not flagged, ordinary
+  prose with a slash is not either) plus a case proving the version and SHA checks still
+  fire on a branch-bearing line, so the removal cannot silently become a coverage loss.
+Observations: Guard test 33 -> 22 assertions (eleven branch cases removed, five added for
+  the deliberate absence). All five repo gates pass, plus bash -n and git diff --check.
+  Round 4 exceeds the documented 3-round cap; the maintainer's explicit choice of this
+  option is the authorization, and it will be disclosed in the PR body.
