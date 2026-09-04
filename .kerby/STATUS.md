@@ -11,8 +11,8 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | Implementation — the status-file provenance work is finished; nothing else is in flight |
-| **Milestone** | Status-file accuracy — STATUS.md holds position, never provenance |
+| **Phase** | Implementation — fixing three portability defects in the shipped provenance guard |
+| **Milestone** | Status-file accuracy — the guard behaves the same on every host it ships to |
 | **Milestone Goal** | No fact that has an authority elsewhere is restated here; what stays is the judgment that has no other home |
 
 ---
@@ -87,3 +87,9 @@ re-review:
   documentation gap, not a record of past work.
 - The installed kerby is older than what this repo ships, so a session here governs by
   rules the repo has already moved past. Open until the plugin work lands.
+- **Decision needed: is a clean local Codex review sufficient to merge?** The documented
+  workflow says yes, and the previous release merged on one. The GitHub-side review then found three
+  portability defects the local venue structurally cannot see — it runs on macOS, the
+  findings were mawk, GNU dirname and a 4096-byte PATH_MAX. For a tool that ships as
+  portable shell the two venues are not redundant, and the workflow currently treats them
+  as if they were.

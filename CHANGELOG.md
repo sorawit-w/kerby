@@ -3,6 +3,16 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.26.4] — 2026-09-04
+
+**swe 2.11.4 — the provenance guard was not portable, and the platform hid it.** Three defects found by the GitHub-side Codex review, which runs on Linux; the local review that cleared 9.26.3 runs on macOS and could not see any of them. Two of the three only misbehave off macOS, which is the point: kerby ships to other people's machines, so "passes here" was never the claim worth making.
+
+- **A CSS colour was read as a commit SHA.** Tokenising on every non-alphanumeric discards a leading `#`, so `#1a2b3c` became `1a2b3c` and matched — and a brand colour is exactly what a real `Next Up` row carries. `#`-prefixed hex runs are now skipped before the SHA scan; a SHA is never written that way, an issue reference and a colour always are. The same token *without* the `#` still fails, asserted as a paired test so the fix cannot be "achieved" by weakening the check.
+- **A directory input could pass on Linux.** The guard's stated design is that the open is the only test — but opening a directory *succeeds* on Linux and macOS alike, and what stopped it here was BSD awk raising an i/o error. mawk can exit 0 having read nothing, leaving the capture empty and indistinguishable from a clean file. That is a fail-open on any host with mawk, reached through an implementation detail rather than a decision. A regular-file precondition now runs first. It does not reintroduce the absence-classification that was deleted in 9.26.3: every branch of it fails closed, so there is no "which kind of missing is this" question left to answer wrong.
+- **The over-long-path fixture tested nothing on Linux.** `PATH_MAX` is 1024 on macOS and commonly 4096 elsewhere, so a fixture hard-coded at ~1.2 KB is over the limit on one platform and under it on the other — where the suite's own self-validation then fails. The fixture now derives the limit with `getconf`. It also asserted that `dirname` fails, which GNU `dirname` does not (it is lexical) and which the guard no longer depends on, since it stopped calling `dirname` a release ago.
+
+**Process note, recorded because it changes what the gates are worth.** 9.26.3 merged on a clean local review; the GitHub review landed three minutes later with these three. The local and GitHub venues are not redundant — they run on different platforms, and for a tool that ships as portable shell the second one sees a class of defect the first structurally cannot.
+
 ## [9.26.3] — 2026-09-04
 
 **swe 2.11.3 — the status file holds position, never provenance.** `.kerby/STATUS.md` shipped in the previous release naming a version two patches behind every one of the five surfaces the release actually lives in, a commit SHA one marker stale, a timestamp two days old, and an In-Review row counting a pull request that had already merged. All four were wrong *at the moment they were written*, and no gate reads that file, so nothing caught them. The rule was not missing: `feature.md` § 7 says state is written before the commit, and it was — inside the merged PR. Ordering had been made mechanical; accuracy was left to care, and care is what fails at the end of a long session.

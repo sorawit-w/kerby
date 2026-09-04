@@ -1184,3 +1184,41 @@ Notes: This is the last entry in this correction chain, by prior agreement with 
   is being written into must scope its claims to the moment it was generated. "Every X on
   this branch" cannot be written from inside the branch. "N as of <time>" can.
 Observations: Entry timestamp 2026-09-04T19:26:16Z, and every figure above, read at generation time.
+
+[2026-09-04T19:38:59Z]
+Task: swe 2.11.4 — three portability defects the local review could not see
+Action: The GitHub-side Codex review of #66 landed three minutes AFTER that PR merged and
+  reported three P2s, all verified here. (1) A `#`-prefixed hex run was read as a SHA, so a
+  brand colour in a Next Up row failed the guard — reproduced on this machine. (2) A
+  directory input can PASS on Linux: opening a directory succeeds on both platforms, and
+  what stopped it here was BSD awk raising an i/o error, while mawk can exit 0 having read
+  nothing. (3) The over-long-path fixture was hard-coded to ~1.2 KB, over macOS's PATH_MAX
+  of 1024 but under Linux's 4096, so the suite's own self-validation would fail there; it
+  also asserted a `dirname` failure that GNU dirname does not produce and that the guard
+  stopped depending on a release ago.
+  Fixed: `#`-hex runs blanked before the SHA scan; a regular-file precondition ahead of the
+  open; the fixture derives PATH_MAX with `getconf`.
+Files: skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.test.sh, CHANGELOG.md,
+  README.md, .kerby/STATUS.md, .kerby/rulebooks.toml,
+  skills/kerby/rulebooks/swe/rulebook.toml, three plugin manifests
+Commit: (pending)
+Status: DONE
+Notes: The regular-file precondition is NOT a reinstatement of the absence-classification
+  deleted in 9.26.3. That one failed because it tried to decide WHY a path could not be
+  read, and every branch had a different answer, one of which exited 0. This one has a
+  single answer: not a regular file, fail closed — absence included. The distinction is
+  bounded-vs-unbounded, not "we added a check back".
+  The finding that matters beyond this fix: my design note said "the open is the only test",
+  and it was wrong on its own terms. Opening a directory SUCCEEDS. What actually stopped a
+  directory was the scanner erroring afterwards, which is implementation-specific. I wrote a
+  claim about a mechanism, verified the OUTCOME on one platform, and took the matching
+  outcome as confirmation of the mechanism — the same shape as "breaks dirname" earlier in
+  this series, and the reason a passing test is not evidence for why it passed.
+  PROCESS: 9.26.3 merged on a clean local review, per the repo's documented workflow, which
+  treats the local review as the independent one. That workflow is not wrong, but it is now
+  demonstrably incomplete for portable shell: the two venues run on different platforms and
+  the local one structurally cannot see mawk, GNU dirname or a 4096-byte PATH_MAX. Worth the
+  maintainer's decision — see Notes for Human Review in STATUS.md.
+Observations: Guard test 29 -> 32 assertions. All five gates pass. Timestamp 2026-09-04T19:38:59Z read
+  from `date -u` at write time; PATH_MAX here measured as 1024 with `getconf`.

@@ -16,7 +16,8 @@
 #
 # Run: bash skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh [file]
 # Default file: .kerby/STATUS.md relative to the current directory.
-# EXIT 0 HAS EXACTLY ONE CASE: the file was opened, read, and stated no version
+# EXIT 0 HAS EXACTLY ONE CASE: the file was a regular file, was opened, read, and
+# stated no version
 # and no SHA-shaped token. Every other outcome is non-zero — a token was found;
 # the file could not be opened for ANY reason, absence included; or the scan
 # itself could not run (no `awk`, a failed `mktemp`, an interpreter error). The
@@ -67,6 +68,8 @@
 #     these misses are not.
 #   - A four-part version ("1.2.3.4") is not matched. That shape is exactly what
 #     separates an IP address from a semver, and this repo ships semver.
+#   - A hex run written after a `#` is skipped as a CSS colour or issue reference.
+#     A SHA is not written that way; a brand colour in a Next Up row is.
 
 set -u
 
@@ -105,6 +108,24 @@ finish() {
 # whole purpose is to never report a pass on something it did not read, and a
 # loud "I could not read it" is the honest answer to every case at once.
 
+# A REGULAR FILE IS THE ONLY THING WORTH OPENING, and this test is bounded in a
+# way the deleted absence-classification was not: every branch below fails closed,
+# so there is no "which kind of missing is this" question to get wrong. Absence
+# lands here too and is reported like any other non-regular path.
+#
+# It is not redundant with the open. Opening a DIRECTORY succeeds on Linux and on
+# macOS; what stops it is the scanner erroring on the read, and whether it does is
+# implementation-specific — BSD awk reports an i/o error, mawk can exit 0 having
+# read nothing, which leaves the capture empty and indistinguishable from a clean
+# file. Relying on that was a fail-open on any host with mawk.
+if [[ ! -f "$FILE" ]]; then
+  fail "$FILE is not a regular file that can be scanned — it was NOT scanned"
+  echo "      (a directory, a device, a dangling symlink, or nothing there at all;" >&2
+  echo "      if this project has no .kerby/STATUS.md yet, that is fine — this check" >&2
+  echo "      does not apply until the file exists)" >&2
+  finish
+fi
+
 ERRFILE=$(mktemp) || { echo "FAIL: cannot create a temp file"; exit 1; }
 trap 'rm -f "$ERRFILE"' EXIT
 
@@ -131,12 +152,20 @@ HITS=$( { awk '
         printf "%d\tversion\t%s\n", NR, t
     }
 
+    # A `#`-prefixed hex run is a CSS colour or an issue reference, never a git
+    # SHA. Splitting on every non-alphanumeric discards the `#`, so `#1a2b3c`
+    # became `1a2b3c` and matched — and a brand colour is exactly the kind of
+    # thing a real Next Up row carries. Blank those runs before tokenising; the
+    # version scan is untouched, since `#1.2.3` is not a shape anyone writes.
+    shaline = line
+    gsub(/#[0-9a-fA-F]+/, " ", shaline)
+
     # --- sha: hex token, 6-40 chars, containing BOTH a digit and a hex letter.
     # The digit keeps English words spelled in hex letters out ("defaced"); the
     # letter keeps ordinary numbers out ("Milestone 123456"). Both classes are
     # frequent in a status file, so both are excluded. See the header for what
     # this misses.
-    n = split(line, tok, /[^0-9A-Za-z]+/)
+    n = split(shaline, tok, /[^0-9A-Za-z]+/)
     for (i = 1; i <= n; i++) {
       t = tok[i]
       if (length(t) >= 6 && length(t) <= 40 && t ~ /^[0-9a-fA-F]+$/ \

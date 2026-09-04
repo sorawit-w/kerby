@@ -88,6 +88,15 @@ expect "ordinary six-digit numbers pass" 0 'Milestone 123456 is queued behind 98
 # The true-positive twin: a real SHA has both, and must still fail.
 expect "sha with digits and letters still fails" 1 'Reviewed at 1a2b3c today.' "states a sha"
 
+# FALSE POSITIVE from GitHub-side review on a different platform: splitting on
+# every non-alphanumeric discards a leading `#`, so a CSS colour became a SHA. A
+# brand colour is exactly what a real Next Up row carries.
+expect "CSS hex colours are not SHAs" 0 '| 1 | Change brand colour from #1a2b3c to #2f4f4f | design |'
+expect "issue references are not SHAs" 0 'Blocked behind #1a2b3c4 in the tracker.'
+# TRUE-POSITIVE TWIN: the same token without the `#` is still a SHA. Without this,
+# the colour fix could be "achieved" by dropping the SHA check entirely.
+expect "the same token bare is still a sha" 1 'Merged as 1a2b3c today.' "states a sha"
+
 # --- 4. branch names are NOT checked ------------------------------------------
 # Deliberate removal, asserted so it stays a decision rather than rotting into an
 # assumption. Three designs over three review rounds each fixed their cited cases
@@ -232,20 +241,24 @@ else
 fi
 chmod 755 "$TMP/lk"
 
-# Components must stay under NAME_MAX (255) while the TOTAL exceeds PATH_MAX, or
-# the fixture tests the wrong limit: a 300-byte component fails on its own length,
-# `dirname` succeeds, and the over-long-path case is never exercised. Six 200-byte
-# segments give ~1.2 KB of legal components — there, `dirname` really does fail.
+# DERIVE the platform limit; do not assume one. PATH_MAX is 1024 on macOS and
+# commonly 4096 on Linux, so a fixture hard-coded for one is under the limit on
+# the other and the case silently stops testing anything. Components stay under
+# NAME_MAX (255 on both) so the path fails on its total length, not on a segment.
+# The old version also asserted that `dirname` fails — GNU dirname is lexical and
+# does not, and the guard no longer calls dirname at all, so that assertion tested
+# neither the platform nor the code.
+_pmax=$(getconf PATH_MAX / 2>/dev/null || echo 4096)
+[[ "$_pmax" =~ ^[0-9]+$ ]] || _pmax=4096
 _seg=$(printf 'a%.0s' {1..200})
-_long="$TMP"; for _i in 1 2 3 4 5 6; do _long="$_long/$_seg"; done
-if [[ "${#_long}" -le 1024 ]]; then
-  fail "over-long path fixture is only ${#_long} bytes — it does not exceed PATH_MAX"
-elif dirname -- "$_long" >/dev/null 2>&1; then
-  fail "over-long path fixture does not break dirname — it tests the wrong limit"
+_long="$TMP"
+while [[ "${#_long}" -le "$_pmax" ]]; do _long="$_long/$_seg"; done
+if [[ "${#_long}" -le "$_pmax" ]]; then
+  fail "over-long path fixture is ${#_long} bytes, not over the platform PATH_MAX of $_pmax"
 else
   out=$(bash "$GUARD" "$_long" 2>&1); got=$?
   if [[ "$got" -ne 0 ]]; then
-    pass "a path too long to resolve fails closed (${#_long} bytes, dirname fails)"
+    pass "a path over the platform PATH_MAX fails closed (${#_long} > $_pmax bytes)"
   else
     fail "over-long path: expected non-zero exit, got exit $got"
     printf '%s\n' "$out" | sed 's/^/      /'
