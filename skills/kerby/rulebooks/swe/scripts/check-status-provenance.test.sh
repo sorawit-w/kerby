@@ -160,8 +160,9 @@ else
   printf '%s\n' "$out" | sed 's/^/      /'
 fi
 
-# AN UNSEARCHABLE PARENT makes a file that really exists look absent to -e.
-# Absence must be provable, not merely unfalsifiable.
+# AN UNSEARCHABLE PARENT makes a file that really exists look absent to a stat.
+# The guard no longer tries to tell that apart from true absence — it just opens
+# the file — so this case is covered by the same rule as every other failed open.
 mkdir -p "$TMP/locked"; printf 'swe 1.2.3\n' > "$TMP/locked/f.md"; chmod 000 "$TMP/locked"
 if [[ -r "$TMP/locked" ]]; then
   echo "SKIP: cannot stage an unsearchable parent (running as root?) — case NOT verified"
@@ -231,13 +232,24 @@ else
 fi
 chmod 755 "$TMP/lk"
 
-_long="$TMP/$(printf 'a%.0s' {1..300})/$(printf 'b%.0s' {1..300})"
-out=$(bash "$GUARD" "$_long" 2>&1); got=$?
-if [[ "$got" -ne 0 ]]; then
-  pass "a path too long to resolve fails closed"
+# Components must stay under NAME_MAX (255) while the TOTAL exceeds PATH_MAX, or
+# the fixture tests the wrong limit: a 300-byte component fails on its own length,
+# `dirname` succeeds, and the over-long-path case is never exercised. Six 200-byte
+# segments give ~1.2 KB of legal components — there, `dirname` really does fail.
+_seg=$(printf 'a%.0s' {1..200})
+_long="$TMP"; for _i in 1 2 3 4 5 6; do _long="$_long/$_seg"; done
+if [[ "${#_long}" -le 1024 ]]; then
+  fail "over-long path fixture is only ${#_long} bytes — it does not exceed PATH_MAX"
+elif dirname -- "$_long" >/dev/null 2>&1; then
+  fail "over-long path fixture does not break dirname — it tests the wrong limit"
 else
-  fail "over-long path: expected non-zero exit, got exit $got"
-  printf '%s\n' "$out" | sed 's/^/      /'
+  out=$(bash "$GUARD" "$_long" 2>&1); got=$?
+  if [[ "$got" -ne 0 ]]; then
+    pass "a path too long to resolve fails closed (${#_long} bytes, dirname fails)"
+  else
+    fail "over-long path: expected non-zero exit, got exit $got"
+    printf '%s\n' "$out" | sed 's/^/      /'
+  fi
 fi
 
 # --- 7. the real tree --------------------------------------------------------

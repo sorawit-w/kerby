@@ -17,10 +17,14 @@
 # Run: bash skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh [file]
 # Default file: .kerby/STATUS.md relative to the current directory.
 # EXIT 0 HAS EXACTLY ONE CASE: the file was opened, read, and stated no version
-# and no SHA-shaped token. Every other outcome is exit 1 — a token was found, or
-# the file could not be opened for ANY reason, absence included. There is no SKIP
-# and no third state; see THE OPEN IS THE ONLY TEST below for why absence is not
-# special-cased. Exit 0 says nothing about branch names — see below.
+# and no SHA-shaped token. Every other outcome is non-zero — a token was found;
+# the file could not be opened for ANY reason, absence included; or the scan
+# itself could not run (no `awk`, a failed `mktemp`, an interpreter error). The
+# last group matters: those exits are neither a hit nor an open failure, and a
+# contract naming only the first two would be another claim wider than the code.
+# There is no SKIP and no third *passing* state; see THE OPEN IS THE ONLY TEST
+# below for why absence is not special-cased. Exit 0 says nothing about branch
+# names — see below.
 #
 # WHAT IT MATCHES — two things, both unambiguous shapes:
 #   version  a whole dotted token of exactly three parts, optional `v` prefix

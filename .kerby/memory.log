@@ -994,3 +994,36 @@ Observations: Guard test 27 -> 29 assertions; the two cases that defeated the pr
   design (locked grandparent, over-long path) are now pinned. All five gates pass. The exit
   contract was corrected in the script header, CLAUDE.md and the CHANGELOG in the same
   commit — a stale contract claim is the defect that has recurred most often in this branch.
+
+[2026-09-04T13:15:00Z]
+Task: CORRECTION to the 2026-09-04T12:45:00Z entry — a false claim, plus three P2/P3 fixes
+Action: The prior entry claims I verified "a 600-char path that breaks dirname". That claim is
+  FALSE and this entry corrects it; the log is append-only, so the original stands and this
+  is the correction of record.
+  What was actually true: the fixture built two 300-byte components for a 665-byte path.
+  `dirname` SUCCEEDS on it — measured just now — and the open failed because each COMPONENT
+  exceeds NAME_MAX (255), not because the path exceeds PATH_MAX. The guard did fail closed,
+  so the test passed, but it passed for a different reason than the one I wrote down, and
+  "breaks dirname" was never checked.
+  The fixture now uses six 200-byte components for 1269 bytes, where `dirname` genuinely
+  fails — verified. It also self-validates: the case FAILS the suite if the path is not over
+  1024 bytes or if `dirname` succeeds, so it cannot drift back to testing the wrong limit
+  without saying so.
+  Also fixed: the script header described every non-zero exit as a token hit or an open
+  failure, omitting scan-runtime failures (no `awk`, a failed `mktemp`); and one obsolete
+  "Absence must be provable" comment survived in the test file, contradicting the design
+  three comments below it.
+Files: skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.test.sh
+Commit: (pending)
+Status: DONE
+Notes: This is the third time in this branch that a claim of mine outran what I had actually
+  measured — the "six manifests" count, the "closes the class" assertions, and now
+  "breaks dirname". All three share one shape: I described the MECHANISM I had in mind rather
+  than the mechanism I observed, in a case where the observable outcome (the test passed)
+  was the same either way. A passing test is not evidence for the reason you think it passed.
+  That the PR fixing "claims outrunning reality" kept committing the same error is the
+  strongest argument in it for the independent review — every one of the three was caught by
+  Codex, none by me, and I was actively looking.
+Observations: Guard test 29 assertions, all pass. All five gates pass. Marker at 690b46e is
+  now stale; a re-review is required before the PR gate will let a PR open.
