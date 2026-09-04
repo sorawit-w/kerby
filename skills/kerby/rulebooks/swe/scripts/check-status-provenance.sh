@@ -16,10 +16,12 @@
 #
 # Run: bash skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh [file]
 # Default file: .kerby/STATUS.md relative to the current directory.
-# Exit 0 = no version or SHA-shaped token found; 1 = one was found, or the file
-# could not be scanned. Exit 0 says nothing about branch names — see below. It
-# never exits 0 on an unreadable file: a guard that cannot read its subject must
-# not report a pass.
+# Exit 0 has TWO cases, and only one is a pass: either the file was scanned and
+# stated no version or SHA-shaped token, or the file does not exist and a SKIP
+# line says so in words. Exit 1 = one was found, or the file exists and could not
+# be scanned. Exit 0 says nothing about branch names — see below. It never exits 0
+# on an UNREADABLE file: a guard that cannot read its subject must not report a
+# pass.
 #
 # WHAT IT MATCHES — two things, both unambiguous shapes:
 #   version  a whole dotted token of exactly three parts, optional `v` prefix

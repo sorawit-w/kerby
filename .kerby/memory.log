@@ -842,3 +842,34 @@ Observations: T1's grader flagged a residual the assertions did not cover — th
   independently noticed rather than only self-declared.
   All five repo gates pass. Guard test 22 assertions. The e108f72 Codex marker is now stale;
   a re-review and re-mark are required before any PR.
+
+[2026-09-04T10:40:00Z]
+Task: Three P2s from the c19aec7 review — pointers instead of copies
+Action: Replaced the three workflow bullets' copied exclusion inventory with a purpose cue
+  plus a mandatory pointer to the authority; narrowed an overbroad "count" claim by removing
+  it rather than restating the rule's "per-status count"; and named BOTH exit-0 cases in the
+  guard header (scanned-and-clean, and missing-file SKIP).
+Files: skills/kerby/rulebooks/swe/workflows/feature.md,
+  skills/kerby/rulebooks/swe/workflows/bugfix.md,
+  skills/kerby/rulebooks/swe/workflows/new-project.md,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh
+Commit: (pending)
+Status: DONE
+Notes: I fixed a routing gap by creating three new restatements — the exact drift pattern
+  this repo forbids, committed in the same change that exists to stop a second copy drifting
+  from its authority. Codex caught it because I asked it to look for that specific thing;
+  I would not have seen it, because the copies read as helpful rather than duplicative.
+  The lesson generalises past this diff: when the fix for "the agent never saw the rule" is
+  written in a hurry, the reflex is to inline the rule at the call site. That converts a
+  missing pointer into a future contradiction. A pointer plus a reason to follow it is the
+  fix; a summary of the destination is not.
+  The overbroad claim is the same failure one size down: the rule forbids a PER-STATUS count
+  and I wrote "count", which would have an agent rejecting legitimate numbers. Fixed by
+  deleting the clause rather than restating it more precisely — the pointer already carries
+  it, and a narrower copy is still a copy.
+Observations: The bullets got shorter, which also serves the rule-cost gate — a restatement
+  pays recurring input tokens forever to say what one pointer says once. All five gates
+  pass; 22 guard assertions. Marker at c19aec7 is stale again; re-review required.
+  Correction to an earlier note in this log: the round counter RESETS on a clean mark. The
+  c19aec7 review reported rounds=1, not 5. The 3-round cap was exceeded exactly once, at
+  round 4, with the maintainer's explicit authorization — not repeatedly.
