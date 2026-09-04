@@ -27,6 +27,12 @@
 #     fires on `docs/rulebook-contract.md` would be edited away rather than obeyed.
 #   - A 7+ char all-hex English word ("defaced") is a false positive. Accepted: a
 #     visible false positive is fixable, a silent false negative is not.
+#   - SHAs are matched in LOWERCASE only. This is a scope choice, not an oversight:
+#     git emits lowercase everywhere (`rev-parse`, `log`, `describe`), so an
+#     uppercase SHA is not a real failure mode, while matching uppercase would
+#     double the hex-English-word false-positive surface against ALLCAPS headings.
+#   - A four-part version ("1.2.3.4") is not matched — that shape is what
+#     distinguishes an IP address from a semver, and this repo ships semver.
 
 set -u
 
@@ -52,10 +58,19 @@ HITS=$(awk '
   {
     line = $0
 
-    if (match(line, /[0-9]+\.[0-9]+\.[0-9]+/))
-      printf "%d\tversion\t%s\n", NR, substr(line, RSTART, RLENGTH)
+    # version: test WHOLE dotted tokens, never a substring. Matching a bare
+    # /[0-9]+\.[0-9]+\.[0-9]+/ anywhere reads the first three octets of an IP
+    # address (127.0.0.1) as a semver; requiring the whole token to be exactly
+    # three parts rejects the four-part address and still catches a `v` prefix.
+    nv = split(line, vt, /[^0-9A-Za-z.]+/)
+    for (i = 1; i <= nv; i++) {
+      t = vt[i]
+      gsub(/^\.+|\.+$/, "", t)          # trailing sentence period, leading ellipsis
+      if (t ~ /^[vV]?[0-9]+\.[0-9]+\.[0-9]+$/)
+        printf "%d\tversion\t%s\n", NR, t
+    }
 
-    # Tokenise on anything that is not alphanumeric, then test each token whole.
+    # sha: tokenise on anything not alphanumeric, then test each token whole.
     n = split(line, tok, /[^0-9A-Za-z]+/)
     for (i = 1; i <= n; i++) {
       t = tok[i]
@@ -63,8 +78,13 @@ HITS=$(awk '
         printf "%d\tsha\t%s\n", NR, t
     }
 
-    if (match(line, /(feature|fix|refactor|chore)\/[A-Za-z0-9_-]+/))
-      printf "%d\tbranch\t%s\n", NR, substr(line, RSTART, RLENGTH)
+    # branch: the type must start at a word boundary, or the `fix` inside
+    # "prefix/name" matches and the guard fires on ordinary prose.
+    if (match(line, /(^|[^A-Za-z0-9_-])(feature|fix|refactor|chore)\/[A-Za-z0-9_-]+/)) {
+      b = substr(line, RSTART, RLENGTH)
+      sub(/^[^A-Za-z0-9_-]/, "", b)     # drop the boundary char from the report
+      printf "%d\tbranch\t%s\n", NR, b
+    }
   }
 ' "$FILE")
 

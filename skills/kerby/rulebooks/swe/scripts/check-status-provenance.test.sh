@@ -75,6 +75,27 @@ We faced a deed and abided by it.'
 # 6. Several hits on one line are all reported, not just the first.
 expect "multiple hits all reported" 1 '| Shipped 1.2.3 as 095605e on feature/x |' "states a branch"
 
+# 6a. FALSE POSITIVE, found by adversarial review: an IP address is not a semver.
+#     A bare three-part match reads the first three octets of 127.0.0.1 as one.
+expect "IPv4 address is not a version" 0 'The fixture listens on 127.0.0.1 and 192.168.1.10.'
+
+# 6b. FALSE POSITIVE, same source: the `fix` inside "prefix" is not a branch type.
+#     The type token has to start at a word boundary.
+expect "type inside a longer word is not a branch" 0 'Use the prefix/name pair; the suffix/value pair mirrors it.'
+
+# 6c. Those two fixes must not cost real coverage — the true positives they
+#     resemble still fail. Without this pair, 6a/6b could be "fixed" by gutting
+#     the checks and the suite would still be green.
+expect "a real semver still fails after the IPv4 fix" 1 'Shipped swe 2.11.3 today.' "states a version"
+expect "a real branch still fails after the boundary fix" 1 'Working on fix/status-accuracy now.' "states a branch"
+
+# 6d. A `v` prefix and a trailing sentence period must not hide a version.
+expect "v-prefixed version fails" 1 'Released as v9.26.3.' "states a version"
+
+# 6e. Directory names that collide with branch types stay clean — the documented
+#     reason docs/ and test/ are excluded from the type list.
+expect "docs/ and test/ paths pass" 0 'See docs/rulebook-contract.md and test/fixtures/a.md.'
+
 # 7. A missing file is announced as SKIP, never as a bare pass.
 rm -f "$TMP/STATUS.md"
 out=$(bash "$GUARD" "$TMP/STATUS.md" 2>&1); got=$?

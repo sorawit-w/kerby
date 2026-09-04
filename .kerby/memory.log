@@ -660,3 +660,31 @@ Observations: All four repo gates pass — check-skill-compat.py (parity at 9.26
   three releases of authored-but-unloaded rules. The stale-pin detection in SKILL.md exists
   but is report-only and lives in `status`, which no session runs; `load` never announced it.
   Maintainer deferred the upgrade in favour of a Claude Code plugin that auto-updates.
+
+[2026-09-04T02:05:00Z]
+Task: Codex review round 1 — guard hardened against two false positives
+Action: First headless review attempt was KILLED at its 316s ceiling (codex-run exit 4, no
+  verdict, no .complete sidecar) — delegation attempt 1 of 2 spent. The transcript showed the
+  run was working, not wedged: 457KB / 6383 lines of live fixtures driven against the new
+  guard. Two false positives it surfaced were re-verified DIRECTLY against the guard rather
+  than taken from the killed run's output (a killed transcript can hold verdict-shaped lines
+  quoted from earlier reviews, so no conclusion may be read from it): an IPv4 address
+  (127.0.0.1) was matched as a semver, and the `fix` inside "prefix/name" was matched as a
+  branch. Both fixed: versions are now tested as WHOLE dotted tokens so a four-part address
+  cannot look like a three-part semver, and the branch type must start at a word boundary.
+Files: skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.test.sh
+Commit: (pending)
+Status: DONE
+Notes: Six test cases added, not two. Fixing a false positive by loosening a check can gut
+  the real coverage and leave the suite green, so each fix ships with its true-positive twin
+  (a real semver and a real branch must still fail) plus a v-prefix case and a docs//test/
+  case. Without those twins, 6a/6b could have been "fixed" by deleting the checks.
+  Documented two scope choices rather than leaving them as silent gaps: SHAs match lowercase
+  only (git emits lowercase everywhere, so uppercase is not a real failure mode, and matching
+  it would double the hex-English-word false-positive surface against ALLCAPS headings), and
+  a four-part version is not matched because that shape is exactly what separates an IP from
+  a semver.
+Observations: Guard test now 14 assertions, all pass. Verified on BSD awk 20200816 (the macOS
+  default, /usr/bin/awk). gawk is NOT installed on this machine, so cross-awk behaviour is
+  reasoned from POSIX, not measured — stated rather than claimed.
