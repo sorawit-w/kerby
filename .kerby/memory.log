@@ -548,3 +548,28 @@ Notes: Of the three P2s logged against 2.11.0: P2-1 fixed and clean, P2-3 fixed 
   claim the CHANGELOG had already qualified while the README had not. Release copy asserting
   that something is complete deserves the same evidence bar as a rule, and I did not hold it
   there until Codex made me.
+
+[2026-09-03T08:00:00Z]
+Task: Correction to the 2.11.2 entry above
+Action: Three claims in that entry do not hold. Appended rather than edited, per this file's
+  append-only rule.
+Files: .kerby/memory.log
+Commit: (pending)
+Status: DONE
+Notes: (a) "P2-3 shipped" is false. skill-authoring's evaluator-gate defines shipping as
+  reaching the default branch or a release step and explicitly excludes feature-branch commits.
+  b102b26 exists only on feature/minimal-first-planning. P2-3 is implemented and reviewed, not
+  shipped — STATUS.md's own "Ready for PR" says as much two lines away.
+  (b) The 11/11 evaluator result is unverifiable from this repository. It is real — one
+  executor, one blind grader, both run in the authoring session — but the only record is this
+  log, and skill-authoring's record-the-verdict rule wants the evaluated commit identifier
+  alongside the number. Read it as a session note, not as evidence. The same caveat applies to
+  every eval score in my earlier entries this session, including P2-1's 21/21.
+  (c) "Three corrections to release copy" undercounts; 481dc0b was a fourth, correcting "file"
+  to "site" and a claim that all three remaining sink sites say "ticket" when one says
+  "roadmap item". At least four.
+  The pattern behind all three is one thing, and it is the same one Codex has now flagged four
+  times today: I write summaries of my own work in a more finished voice than the evidence
+  supports — "shipped" for merged, a bare score for a verifiable result, a count I did not
+  recount. The rules already say a claim needs fresh evidence; nothing exempts a claim about
+  my own progress, and that is exactly the claim I keep making loosely.
