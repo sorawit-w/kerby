@@ -46,7 +46,7 @@ Build the raw material for population. **Read-only — no writes in this step.**
 
 4. **Decision/lesson signal** (feeds `.kerby/knowledge/`): scan `git log` bodies for recurring rationale, look for `docs/adr/` or design docs, note major dependency choices and large refactors (decision candidates) and recurring fix patterns (lesson candidates). Capture *pointers*, not conclusions — you draft these in step 3.
 
-5. **Current branch** (feeds `STATUS.md` stub): `git branch --show-current`.
+(There is deliberately no "read the current branch" step. `STATUS.md` holds position, never provenance — `references/communication.md` § Status Tracking — so the branch is read from `git branch --show-current` at the moment anyone needs it, never copied into a file that then goes stale.)
 </assess>
 
 ---
@@ -97,7 +97,7 @@ bash "${KERBY_DIR}/resources/hooks/knowledge-reindex.sh" --force
 
 ### Stub only — `.kerby/STATUS.md`
 
-Create from the engine template `<install-root>/resources/templates/STATUS.md.template` as an **honest onboarding stub**: phase `Onboarded`, current branch, no active tasks ("freshly onboarded, no active work"). Do not invent progress, milestones, or a task queue for a repo you just met. Confirm; write.
+Create from the engine template `<install-root>/resources/templates/STATUS.md.template` as an **honest onboarding stub**: phase `Onboarded`, no active tasks ("freshly onboarded, no active work"). Do not invent milestones or a task queue for a repo you just met, and write no version, SHA, or branch name — `references/communication.md` § Status Tracking, checked by `scripts/check-status-provenance.sh`. Confirm; write.
 
 ### Stub only — `.kerby/memory.log`
 

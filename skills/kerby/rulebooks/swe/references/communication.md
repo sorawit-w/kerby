@@ -95,11 +95,14 @@ This governs things you noticed in code you did not touch. Work you deliberately
 ## Status Tracking
 
 Maintain `.kerby/STATUS.md` (create if missing) with:
-- Current position (phase, milestone, branch)
-- Progress (Done / In Progress / Blocked / Ready counts)
-- Recent completions (task, commit, date)
+- Current position (phase, milestone, milestone goal)
 - Next up (prioritized task queue)
 - Blockers (what's stuck and why)
+- Notes for human review
+
+**Position, never provenance.** STATUS.md answers *where do things stand* — never *what happened*, *which version*, or *what a PR is doing*. Each of those has an authority already: versions in the project's manifests, commits and branches in git, history in the append-only `memory.log`, ticket state in the tracker (the precedence below). Restating one here puts a second copy a tier *below* its authority, and a second copy can only drift out of date. What belongs here is the judgment that exists nowhere else — which phase this is, what is queued, what is stuck.
+
+That rules out a version string, a commit or review SHA, a working-branch name, and a per-status count. **A count is the specific trap:** it can disagree with the list beside it, which a list cannot, so keep the list and drop the number. `scripts/check-status-provenance.sh` enforces the mechanical half of this — it asserts the file states no version, SHA, or branch. It cannot judge whether a *phase sentence* is true; that stays yours.
 
 Only create `.kerby/BLOCKERS.md` when there is an actual blocker. Track using: project issue tracker > `.kerby/` files > commit messages.
 
@@ -109,7 +112,9 @@ Only create `.kerby/BLOCKERS.md` when there is an actual blocker. Track using: p
 
 **Do not give it `merge=union` either** — it is a table rewritten whole, so union would keep both sides of every row and produce duplicated headers with contradictory counts.
 
-**After any merge that touched STATUS.md, regenerate it — do not rely on getting a conflict.** Git merges non-overlapping edits cleanly, so two machines editing different sections produce a hybrid snapshot with no conflict at all: a status that was never true on either side, arriving silently. STATUS.md is *derived* state — every field restates something knowable from the branch, the task list, and the log — so rewriting it from current state is cheap and always correct. Never hand-merge it.
+**After any merge that touched STATUS.md, regenerate it — do not rely on getting a conflict.** Git merges non-overlapping edits cleanly, so two machines editing different sections produce a hybrid snapshot with no conflict at all: a status that was never true on either side, arriving silently. Never hand-merge it.
+
+**Rewrite it by reading, not by recalling.** "Regenerate from current state" is two different acts, and only one of them is correct: open the sources and read them back, or type what you remember. The second is what fails. A file you wrote an hour ago feels known rather than lookup-able, so **a fact you authored yourself is exactly the one to re-read** — the § Accuracy rule ("if you have not read a file, do not reference its contents") covers your own prior output too, and that is the reading under which it is most often skipped.
 
 ---
 

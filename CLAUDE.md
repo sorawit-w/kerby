@@ -88,6 +88,16 @@ those constants drift across the files that restate them — BOOTSTRAP, the
 workflows, working-patterns, the schema, the template; the checked set is listed
 in the script). If you add a new restatement, add the file to that set.
 
+Run `bash skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh` after editing
+`.kerby/STATUS.md` or the rule that governs it (`rulebooks/swe/references/communication.md`
+§ Status Tracking). It asserts an **absence** — the file states no version, no commit SHA,
+no branch name — because every one of those has an authority elsewhere and a second copy a
+tier below its authority can only drift. Absence is guardable where the commit-time gate
+rule is not: it matches shapes, not phrasings. It cannot judge whether a *phase sentence*
+is true, which is the residual the independent review covers. Its test
+(`check-status-provenance.test.sh`, same commit) carries a false-positive probe, so
+tightening the patterns without running it will be caught.
+
 Run `bash scripts/check-hook-disable-tier.sh` after **either** editing a hook script
 **or** changing a `[[check]]`'s `floor`, `severity`, or `enforcer`. It checks the mechanical half of
 the rule in `docs/rulebook-contract.md` § Hook tiers — that every shipped script

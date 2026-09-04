@@ -613,3 +613,50 @@ Notes: The rule is not missing. feature.md § 7 step 2 says project state is wri
   time: a summary of my own progress written in a more finished voice than the evidence
   supported. Codex caught the first two because they were in reviewable prose; this one is in a
   file no gate reads.
+
+[2026-09-04T01:33:03Z]
+Task: swe 2.11.3 / kerby 9.26.3 — STATUS.md holds position, never provenance
+Action: Deleted every restated fact from .kerby/STATUS.md and the engine template (versions,
+  commit/review SHAs, working branch, timestamps, Recent Completions, Session History, the
+  Progress table and its counts). Reordered so Current Position and Next Up both land inside
+  session-start-context.sh's head -30 window; the hook itself is untouched. Added
+  check-status-provenance.sh, an absence guard (no semver, no SHA-shaped token, no branch
+  name), with check-status-provenance.test.sh in the same commit. Rewrote communication.md
+  § Status Tracking and fixed the two adopt-existing.md lines that fed a branch into the stub.
+Files: .kerby/STATUS.md, .kerby/rulebooks.toml,
+  skills/kerby/resources/templates/STATUS.md.template,
+  skills/kerby/rulebooks/swe/references/communication.md,
+  skills/kerby/rulebooks/swe/workflows/adopt-existing.md,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.test.sh,
+  skills/kerby/rulebooks/swe/rulebook.toml, CLAUDE.md, CHANGELOG.md, README.md,
+  .claude-plugin/plugin.json, .claude-plugin/marketplace.json, .codex-plugin/plugin.json
+Commit: (pending)
+Status: DONE
+Notes: Deletion, not correction, is what made this guardable. An adversarial pass killed the
+  first design twice: deletion alone removes only two of the four failed fields (the version
+  lived INSIDE the Phase prose, and In Review is a derivable count), and my argument that no
+  guard was needed inverted the truth — after deletion the guard becomes trivial, because
+  asserting an absence matches shapes rather than phrasings. That is the exact property the
+  removed commit-time-gate guard lacked, where three versions were each defeated by ordinary
+  wording.
+  DEVIATION FROM THE APPROVED PLAN, stated so review can disagree: the plan kept a Progress
+  table with Ready and Blocked rows. I deleted the table outright. Next Up already IS the
+  ready queue and Blockers already IS the blocked list, so the surviving rows were a second
+  copy of each — the very defect this change exists to remove. The plan's own section-order
+  line omitted Progress, so the two halves of the plan disagreed; I resolved it toward the
+  principle rather than the sentence.
+  Known ceilings, not hidden: the guard cannot catch a wrong Phase SENTENCE (prose, which the
+  doctrine says not to guard); its branch check omits docs/ and test/ because they collide
+  with ordinary directory names; and a 7+ char all-hex English word ("defaced") is a false
+  positive, accepted because a visible false positive is fixable and a silent false negative
+  is not.
+Observations: All four repo gates pass — check-skill-compat.py (parity at 9.26.3),
+  check-plan-gate-parity.sh, check-hook-disable-tier.sh, and the new
+  check-status-provenance.sh. check-status-provenance.test.sh: 8 assertions, all pass,
+  including the false-positive probe and a check that this repo's own STATUS.md is clean.
+  session-start-context.test.sh still passes.
+  This session ran under the INSTALLED kerby at swe 2.10.0 while the repo shipped 2.11.2 —
+  three releases of authored-but-unloaded rules. The stale-pin detection in SKILL.md exists
+  but is report-only and lives in `status`, which no session runs; `load` never announced it.
+  Maintainer deferred the upgrade in favour of a Claude Code plugin that auto-updates.
