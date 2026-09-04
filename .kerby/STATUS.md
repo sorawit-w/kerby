@@ -11,9 +11,9 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | Implementation — the status-file provenance work is finished and reviewed; nothing else is in flight |
+| **Phase** | Implementation — the status-file provenance work is finished; nothing else is in flight |
 | **Milestone** | Status-file accuracy — STATUS.md holds position, never provenance |
-| **Milestone Goal** | Every fact in this file has exactly one authority, and this file is not it |
+| **Milestone Goal** | No fact that has an authority elsewhere is restated here; what stays is the judgment that has no other home |
 
 ---
 
