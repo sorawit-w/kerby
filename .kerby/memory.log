@@ -464,3 +464,39 @@ Notes: The shape of the fix changed twice under review and ended simpler than it
   Queue: P2-2 (the escalate catch-all's on-disk treatment is false for reasons like "unclear
   requirements") and P2-3 (vendor-adapters.md still names ROADMAP as a sink) remain, plus the
   planThreshold runtime-cap deferral opened during this work.
+
+[2026-09-03T05:00:00Z]
+Task: P2-2 abandoned — the diagnosis, kept after the commits were discarded
+Action: Reset the branch to this commit, discarding nine P2-2 commits (recoverable from tag
+  backup/p2-2-abandoned-20260903). Recording what was learned, since the entries holding it
+  went with the commits.
+Files: .kerby/memory.log
+Commit: (pending)
+Status: DONE
+Notes: THE FINDING, and the reason P2-2 should not be retried as scoped: the catch-all defect
+  and the § 3a table defect are one defect. The catch-all routed every escalation reason into
+  the risk row *because two rows were all there were* — four exits (LOC overrun, risk criterion,
+  grade ceiling, requirements you can no longer state) against two dispositions. Fixing the
+  routing while leaving the table does not shrink the job; it moves where the gap shows. Both
+  of the last review's P1s landed on exits the table cannot receive, and each arrived because a
+  correct fix had opened a legitimate new exit.
+  The real requirement, for whoever takes this next: **every escalation exit needs a disposition
+  for code already on disk.** Codex's shape for the two known holes — an offer to revert is
+  waited on, and "the code stands" is conditional on the pre-edit block having actually run.
+  Five repair attempts were made and all five reverted: a knowability split (§ 3's
+  traffic-shaping category is decided by what a value does, so it does not hold); a
+  miss-versus-discovery classifier (ambiguous where both answers fit, gameable by an agent that
+  skipped the very check it was reporting on); a row relabel (licensed a retroactive plan for a
+  file no plan had named); a three-question restructure (same holes, new prose); and a partial
+  revert (the two P1s above). Findings by pass: 5, 5, 4, 3, 3, 2, 2.
+  PROCESS LESSON, which is the part worth keeping: the count went flat at pass three and I kept
+  going for four more. The stopping rule should fire on a flat count, not on an exhausted cap —
+  by the cap the sunk cost is already large enough to bias the next call. Two of the three
+  stops in this session came from the maintainer, not from me.
+  Worth keeping from the discarded work, if P2-2 is retried: the two-step failing-check rule
+  (establish whether the failure is yours before spending a retry budget — stash, re-run the
+  check alone, restore) was eval-found and never faulted in review across four passes. It is in
+  the backup tag at 7d12cef.
+Observations: quick-task.md has no baseline step, unlike feature.md and bugfix.md, so on that
+  route a failure cannot be told apart from a pre-existing one without the stash technique.
+  Pre-existing; surfaced by this work, not caused by it.
