@@ -1,6 +1,6 @@
 # Project Status
 
-> **Last updated:** 2026-09-02T00:00:00Z
+> **Last updated:** 2026-09-04T00:44:26Z
 > **Updated by:** ai
 
 ---
@@ -9,10 +9,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | Review clean — 9.26.2 / swe 2.11.2. Codex P0/P1/P2/P3 all 0 at 3bec1ce. P2-1 and P2-3 done; P2-2 abandoned. Ready for PR. |
+| **Phase** | Shipped — 9.26.2 / swe 2.11.2 merged to `main` as `095605e` (PR #65). P2-1 and P2-3 landed; P2-2 abandoned. |
 | **Milestone** | Planning discipline — the Plan Gate stops deciding *whether* there is a plan |
 | **Milestone Goal** | A stated plan before every change, and the smallest change that still finishes the job |
-| **Working Branch** | feature/minimal-first-planning (release `9.26.0`) — rule-text change across 9 rulebook files |
+| **Working Branch** | none — `feature/minimal-first-planning` merged and deleted. Next branch starts from `main` at `095605e` |
 
 ---
 
@@ -20,8 +20,8 @@
 
 | Status | Count | Tasks |
 |--------|-------|-------|
-| Done | 5 | #54 protect-env scope · #55 decision-ladder artifacts · #56 shared state + finish order · #57 locator + trust rules · #63 `kerby hooks` |
-| In Review | 1 | 9.26.2 — `plan:` line, minimal-first, deferral sink, P2-1 re-approval narrowing, P2-3 vendor-adapters sink. Codex clean |
+| Done | 6 | 9.26.2 planning discipline · #54 protect-env scope · #55 decision-ladder artifacts · #56 shared state + finish order · #57 locator + trust rules · #63 `kerby hooks` |
+| In Review | 0 | — |
 | Blocked | 0 | — |
 | Ready | 5 | quick-task § 3a escalation dispositions (was P2-2, needs fresh eyes) · three remaining sink sites · planThreshold runtime cap · investigate-route omit-don't-announce · fresh-session `skill-evaluator` passes |
 
@@ -38,7 +38,7 @@
 | #58 — a killed review can no longer be marked clean | 3c9ef55 | 2026-08-21 |
 | #63 — `kerby hooks`, a read-only view of what install would register | 450a627 | 2026-08-24 |
 | 9.25.1 — Copilot/Windows hook claim corrected; engine change built then reverted | f03128d | 2026-08-25 |
-| 9.26.0 — a plan before every change; minimal-first with deferrals recorded, not promised | (pending) | 2026-09-02 |
+| 9.26.2 — a plan before every change; minimal-first with recorded deferrals; P2-1 re-approval narrowing; P2-3 sink deferral | 095605e | 2026-09-04 |
 
 ---
 

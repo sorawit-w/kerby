@@ -586,3 +586,30 @@ Notes: The entry above retracts unsupported claims and then makes one: it says t
   down. Strike it. What this repository supports about that result is nothing: no output was
   recorded here, so it carries no evidential weight and should be read as unrecorded rather
   than as true. Same for every other eval score in this session's entries.
+
+[2026-09-04T01:00:00Z]
+Task: Correct four wrong fields in STATUS.md, and name the gap that let them through
+Action: STATUS.md carried facts that were wrong when written, not merely stale on merge:
+  Last-updated two days behind, Working Branch naming release 9.26.0 when six other surfaces
+  said 9.26.2, the Codex sha at 3bec1ce when the final marker was 095c5c6, and In Review
+  counting a PR that had merged. Corrected against git rather than recall, and the merge
+  recorded (095605e, PR #65).
+Files: .kerby/STATUS.md
+Commit: (pending)
+Status: DONE
+Notes: The rule is not missing. feature.md § 7 step 2 says project state is written before the
+  commit so it lands inside the PR, and it did — 17 lines of STATUS.md and 308 of memory.log
+  were in #65. communication.md says STATUS.md "reflects current state". I followed the
+  ordering and broke the content.
+  THE GAP: every other forced thing in this rulebook has an artifact or a gate behind it — a
+  named line in the report, a verdict shape, a parity script. STATUS.md has neither. § 7 step 2
+  says WHEN to write it and says nothing that can be checked about WHETHER what was written is
+  true. check-skill-compat.py enforces version parity across six manifests and does not read
+  STATUS.md, so a state file can claim 9.26.0 while every manifest says 9.26.2 and no gate
+  notices. Ordering was made mechanical; accuracy was left to care, and care is what fails
+  under load at the end of a long session.
+  This is the third time in this session that a claim about my own work went out wrong — the
+  release-copy miscount, the false sweep-completeness claim, and now this. Same shape each
+  time: a summary of my own progress written in a more finished voice than the evidence
+  supported. Codex caught the first two because they were in reviewable prose; this one is in a
+  file no gate reads.
