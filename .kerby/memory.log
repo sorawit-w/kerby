@@ -802,3 +802,43 @@ Observations: Guard test 33 -> 22 assertions (eleven branch cases removed, five 
   the deliberate absence). All five repo gates pass, plus bash -n and git diff --check.
   Round 4 exceeds the documented 3-round cap; the maintainer's explicit choice of this
   option is the authorization, and it will be disclosed in the PR body.
+
+[2026-09-04T10:05:00Z]
+Task: skill-evaluator audit (6 tests, split-role) + the two Codex P2s
+Action: Ran the in-session skill-evaluator harness on the STATUS.md provenance rule: six
+  fresh-context executors, four independently graded by fresh-context graders that never
+  saw the rule text. T1 (the originating incident replayed) 8/8, T2 (completion-history
+  pull) 7/7, T3 (user demands version+branch) 7/7, T4 (handoff note) 3/7. T5 (memory.log
+  over-application) and T6 (absent memory.log) were author-assessed, not independently
+  graded — stated rather than glossed.
+  Fixed the T4 finding and the two Codex P2s.
+Files: skills/kerby/rulebooks/swe/workflows/feature.md,
+  skills/kerby/rulebooks/swe/workflows/bugfix.md,
+  skills/kerby/rulebooks/swe/workflows/new-project.md,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh,
+  skills/kerby/rulebooks/swe/workflows/adopt-existing.md
+Commit: (pending)
+Status: DONE
+Notes: THE FINDING: the rule works when loaded and was never routed to. The finish steps of
+  feature.md, bugfix.md and new-project.md said only ".kerby/STATUS.md — reflects current
+  state" and cited nothing. communication.md is token_cost=medium, so § Status Tracking is
+  NOT eager-loaded — an agent on the feature or bugfix route is told to write the file and
+  never told what may go in it. That is the exact path the originating incident took, and I
+  had edited five other files to point at the rule while leaving the three that matter most
+  silent. Verified by grep independently of the executors.
+  T4's executor did not read the rule files (a brief-framing defect of mine: the
+  STATED-INTENT instruction contradicted the "FIRST, read these" instruction). That makes
+  its A1 failure Layer 3, not Layer 1 — but its OUTPUT is the Layer 1 evidence: without the
+  rule in context it wrote `Updated:`, a `## Done` list and `## In progress`, reinventing
+  all three deleted sections. Its grader put the mechanism better than I would have: SHAs,
+  versions and branches are the easy half to remember; the hard half is resisting the pull
+  to narrate history, because a handoff note FEELS like it should say what was finished.
+  The rule's work is subtractive, and subtraction is what an unloaded rule cannot do.
+  T5 confirmed no over-application: memory.log correctly keeps the SHA and the version, with
+  the executor reasoning explicitly about why the two files differ.
+Observations: T1's grader flagged a residual the assertions did not cover — the Phase
+  sentence is itself a truth claim written from memory, immediately after the executor
+  argued that self-authored facts need a lookup. That is the known unguardable residual, now
+  independently noticed rather than only self-declared.
+  All five repo gates pass. Guard test 22 assertions. The e108f72 Codex marker is now stale;
+  a re-review and re-mark are required before any PR.

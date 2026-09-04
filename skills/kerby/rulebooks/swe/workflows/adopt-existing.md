@@ -97,7 +97,7 @@ bash "${KERBY_DIR}/resources/hooks/knowledge-reindex.sh" --force
 
 ### Stub only — `.kerby/STATUS.md`
 
-Create from the engine template `<install-root>/resources/templates/STATUS.md.template` as an **honest onboarding stub**: phase `Onboarded`, no active tasks ("freshly onboarded, no active work"). Do not invent milestones or a task queue for a repo you just met, and write no version, SHA, or branch name — `references/communication.md` § Status Tracking, checked by `scripts/check-status-provenance.sh`. Confirm; write.
+Create from the engine template `<install-root>/resources/templates/STATUS.md.template` as an **honest onboarding stub**: phase `Onboarded`, no active tasks ("freshly onboarded, no active work"). Do not invent milestones or a task queue for a repo you just met, and write no version, SHA, or branch name — `references/communication.md` § Status Tracking. The guard `scripts/check-status-provenance.sh` covers the version and the SHA; the branch is yours to hold, and the template has no field for one. Confirm; write.
 
 ### Stub only — `.kerby/memory.log`
 

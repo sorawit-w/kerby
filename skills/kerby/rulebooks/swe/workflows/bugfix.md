@@ -98,7 +98,7 @@ Complete ALL of these before declaring done:
 1. **Quality gates pass** — all tests green, no regressions
 2. **Project state written — before the commit, not after.** These are shared, committed artifacts (`references/communication.md` § Session Logging), so they belong to the change that produced them:
    - **`.kerby/memory.log`** — what the bug was, what caused it, how you fixed it
-   - **`.kerby/STATUS.md`** — reflects current state
+   - **`.kerby/STATUS.md`** — position only: current phase, what is queued, what is stuck. Read `references/communication.md` § Status Tracking before writing it — no version, SHA, branch, completion history or count belongs here, and each has an authority that does. Rewrite it by *reading* those sources, never from memory of what you set earlier this session
    - **`.kerby/knowledge/` lesson** if this bug reveals an operational lesson worth keeping. Propose before writing; skip if nothing applies
    - **`CONTEXT.md`** if a new domain term was introduced or renamed. See `references/domain-glossary.md`
    - **The deferral sink** — one entry per item you named as deferred; `references/guardrails.md` § Where a finding goes selects which. Sibling bugs found during diagnosis are not deferrals — `references/debugging.md` governs those
