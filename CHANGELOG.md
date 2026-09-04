@@ -5,9 +5,9 @@ All notable changes to `kerby` are documented here. Format follows
 
 ## [9.26.2] — 2026-09-03
 
-**swe 2.11.2 — the last file that picked a deferral sink for itself.** `guardrails.md` § Where a finding goes is meant to be the only place that decides which sink a deferral lands in; every other file carries a pointer and no restated detail, so there is nothing to drift. One line in `vendor-adapters.md` still named `ROADMAP.md` outright, which in a repo using an external tracker — or one with no roadmap at all — pointed at a file that does not exist.
+**swe 2.11.2 — one more file stops picking a deferral sink for itself.** `guardrails.md` § Where a finding goes is meant to be the only place that decides which sink a deferral lands in; every other file carries a pointer and no restated detail, so there is nothing to drift. `vendor-adapters.md` § Existing-Code Rule still named `ROADMAP.md` outright, which in a repo using an external tracker — or one with no roadmap at all — pointed at a file that does not exist. It now defers, keeping the part that was load-bearing: a vendor migration is its own scheduled workstream, never a side effect of touching a legacy file for some other reason.
 
-It keeps the part that was load-bearing: a vendor migration is its own scheduled workstream, never a side effect of touching a legacy file for some other reason. Only the destination defers now.
+**It is not the last one, and an earlier draft of this entry wrongly said it was.** Three more sites choose a destination independently, found by review after a grep of mine searched for the artifact names and missed the ones that say "ticket" or lowercase "roadmap item": `vendor-adapters.md`'s own cross-reference list, `working-patterns.md`'s ticket-instead escape for tests covering unchanged behavior, and `debugging.md`'s direction to open separate tickets for non-trivial sibling bugs. All three are logged as debt rather than fixed here — the sweep that closes them should search for the concept, not the filenames.
 
 ## [9.26.1] — 2026-09-03
 

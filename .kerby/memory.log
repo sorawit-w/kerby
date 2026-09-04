@@ -500,3 +500,31 @@ Notes: THE FINDING, and the reason P2-2 should not be retried as scoped: the cat
 Observations: quick-task.md has no baseline step, unlike feature.md and bugfix.md, so on that
   route a failure cannot be told apart from a pre-existing one without the stash technique.
   Pre-existing; surfaced by this work, not caused by it.
+
+[2026-09-03T06:00:00Z]
+Task: P2-3 — vendor-adapters stops picking a deferral sink; a false claim corrected
+Action: vendor-adapters.md § Existing-Code Rule now defers to guardrails.md for the
+  destination, keeping its load-bearing half. Codex clean at b102b26 (P0=0 P1=0); the P2s it
+  logged included a false claim of mine in the CHANGELOG, corrected in the follow-up commit.
+Files: references/vendor-adapters.md, CHANGELOG.md, README.md, manifests
+Commit: (pending)
+Status: DONE
+Notes: The claim "no file outside guardrails.md and roadmap.md now selects a sink" was false
+  when I wrote it. My sweep grepped ROADMAP / DEVELOPER_TODO / Follow-ups — the artifact names
+  — and so missed every site that names a destination in other words. Three remain:
+  [ ] vendor-adapters.md cross-reference list: "migrating legacy direct imports to
+      ports/adapters is a roadmap item" — same file, different section, same defect.
+  [ ] working-patterns.md Anti-Rationalization: the ticket-instead escape for tests covering
+      unchanged behavior independently picks a ticket sink.
+  [ ] debugging.md: "open separate tickets" for non-trivial sibling bugs, while bugfix.md
+      routes sibling findings as non-deferrals. Two authorities, one situation.
+  Deferred rather than fixed: they are P2s, the repo's rule is to log P2s rather than re-loop,
+  and expanding a one-line fix into four sites is the exact pattern that killed P2-2.
+  LESSON, and it is the third time this session: **sweep for the concept, not the token.** The
+  P2-2 sweep missed restatements that never used the word ROADMAP; this one missed sites that
+  say "ticket". A sweep that greps the artifact's name only finds text written by someone who
+  had that artifact in mind — which is precisely not the text that drifts.
+Observations: Codex has now caught an untrue claim in shipped release copy twice this session
+  (the "three of four" count, and this one). Both times the claim was a summary I wrote about
+  my own work rather than a statement about the rules. Release copy describing the completeness
+  of a sweep deserves the same evidence bar as a rule.

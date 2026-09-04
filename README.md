@@ -214,7 +214,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.26.2` — the last file that picked a deferral sink for itself. One place decides where deferred work is recorded, and every other file carries a pointer rather than a copy, so there is nothing to drift. A line in the vendor-adapter doctrine still named `ROADMAP.md` outright, which points at a file that does not exist in a repo using an external tracker. What it was really saying survives untouched: a vendor migration is scheduled work, never a side effect of touching a legacy file for some other reason. Previously: `9.26.1` — an approval you already hold, and when it stops covering the work. See [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.26.2` — one more file stops picking a deferral sink for itself. One place decides where deferred work is recorded, and every other file carries a pointer rather than a copy, so there is nothing to drift. A line in the vendor-adapter doctrine still named `ROADMAP.md` outright, which points at a file that does not exist in a repo using an external tracker. What it was really saying survives untouched: a vendor migration is scheduled work, never a side effect of touching a legacy file for some other reason. Three further sites still choose for themselves and are logged, not fixed — they say "ticket" rather than a filename, which is how the sweep missed them. Previously: `9.26.1` — an approval you already hold, and when it stops covering the work. See [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests
