@@ -35,6 +35,8 @@ git branch --show-current  # must NOT be main, master, dev, etc.
 <scaffold>
 ## 3. Scaffold
 
+This workflow has no plan section of its own. The `plan:` line (`BOOTSTRAP.md` § 4 Plan Gate) is emitted before your first edit here as anywhere else; at or above `plan_threshold` the full block in `workflows/feature.md` § 3 is added on top of it.
+
 1. Fill `agent-context.yaml` at project root — project name, description, runtime, stack, entry points (this file is versioned and shared with teammates)
 2. Create project structure based on requirements:
    - Infer platforms from the user's description (web, mobile, API, etc.)
@@ -98,7 +100,7 @@ Complete ALL of these before declaring done:
    git push -u origin $(git branch --show-current)
    ```
 8. **Manual verification instructions provided** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions). For a new project, include: how to install dependencies, how to run the dev server, and what to expect in the browser/terminal.
-9. **Realized Outcomes captured (grade ≥ `plan_threshold`)** — per `BOOTSTRAP.md` § 4 / `workflows/feature.md` § 7: place the actual run result (e.g. dev server up, home route renders) next to the § 3 Expected Outcome, emit `outcome: match | mismatch`, and route any mismatch (code-wrong / prediction-wrong / ambiguous). Skip only on a logged user opt-out (§ 2.5).
+9. **Realized Outcomes captured (grade ≥ `plan_threshold`)** — per `BOOTSTRAP.md` § 4 / `workflows/feature.md` § 7: place the actual run result (e.g. dev server up, home route renders) next to the Expected Outcome from `workflows/feature.md` § 3 (this workflow has no § 3 plan of its own — its § 3 is Scaffold), emit `outcome: match | mismatch`, and route any mismatch (code-wrong / prediction-wrong / ambiguous). Skip only on a logged user opt-out (§ 2.5).
 10. **DEVELOPER_TODO.md created** if human actions are needed
 11. **Working tree clean — the terminal gate.** Re-run `git status --short`; it must be empty, and `git log --oneline @{u}..` must be empty too. Steps 8–10 can each add or change a file after step 7's commit — and step 7 is the only push, so a terminal commit that is not pushed never reaches review. Commit **and push** anything outstanding now.
 12. **Do NOT merge** — leave for human review

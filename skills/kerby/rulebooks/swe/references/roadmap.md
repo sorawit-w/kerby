@@ -16,7 +16,8 @@ This doctrine targets **solo and small-team projects with AI agents in the loop.
 
 ## Shape
 
-A flat list at the top with status legends, plus a `## Shipped` archive section. That's it.
+A flat list at the top with status legends, a `## Follow-ups` section for work deferred
+out of shipped changes, and a `## Shipped` archive section. That's it.
 
 ```markdown
 # Roadmap
@@ -28,6 +29,11 @@ A flat list at the top with status legends, plus a `## Shipped` archive section.
 - [ ] Billing module — Stripe integration
 - [ ] Invoice PDF generation
 - [ ] Multi-tenant support
+
+## Follow-ups
+
+- [ ] Paginate the invoice list — deferred from Invoice PDF generation
+- [ ] Extract the retry helper shared by the mailer and the webhook sender
 
 ## Shipped
 
@@ -51,6 +57,8 @@ A flat list at the top with status legends, plus a `## Shipped` archive section.
 Top of list = sooner, bottom = later. **No `## Now` / `## Next` / `## Later` headers.** The legends and ordering already carry that signal — adding sections would duplicate information and create drift.
 
 `## Shipped` is the only horizon-style section and it earns its keep as an archive: without it, completed items pile up and drown the active list after a few months.
+
+`## Follow-ups` is the one other permitted section, and it is **not** a horizon — it is a category. Its items are work deliberately deferred out of a change that already shipped, so they are ordered by nothing in particular and carry no time signal. The prohibition above still stands: no `## Now` / `## Next` / `## Later`, ever.
 
 ### Optional: group by feature area
 
@@ -83,6 +91,8 @@ The parent's status reflects the rollup: any sub-item `[~]` makes the parent `[~
 | Externally visible behavior changes | Internal-only cleanups |
 
 **Rule of thumb:** items rated complexity ≥ 4 (per the 1–10 scale in `workflows/feature.md`) belong in `ROADMAP.md`. Below that stays in commit history. If unsure, ask: *would a future contributor want to know we did this?*
+
+**`## Follow-ups` is exempt from both the table and the rule of thumb.** `references/guardrails.md` § Where a finding goes decides *whether* a deferral comes here at all; this section only says what happens to it once it does. When it does, size and kind do not exclude it — a small refactor, an internal cleanup, hardening beyond the original ask. The table above governs what earns a place on the *active* list, which is a different question: an item nobody has committed to doing yet. A deferral is the opposite — a decision already made, by an agent or a human, that this work exists and was consciously left for later. Losing those to the commit log is what the section exists to prevent. See `BOOTSTRAP.md` § 1b for what may and may not be deferred.
 
 ---
 
@@ -139,6 +149,8 @@ For **new projects**, the agent populates `ROADMAP.md` from the requirements as 
 | Resuming after a block clears | Flip `[!]` back to `[~]`, remove the blocker note |
 | Completing | Flip to `[x]`, sweep to `## Shipped` (immediately or in batches when the active list gets crowded) |
 | Cancelling/descoping | Delete the line, note the decision in `.kerby/memory.log` |
+| Deferring work out of a change you shipped, where `guardrails.md` selects this file | Add a `[ ]` line under `## Follow-ups`, naming what it was deferred from |
+| Picking up a follow-up | Move the line out of `## Follow-ups` into the active list, then treat it as any other item |
 
 A finishing-checklist self-check ("`ROADMAP.md` reflects the work just shipped") closes the loop. Without this, the file silently drifts and stops being trustworthy within a few sprints.
 
@@ -150,6 +162,7 @@ A finishing-checklist self-check ("`ROADMAP.md` reflects the work just shipped")
 - **`.kerby/knowledge/`** — captures *why* a feature was built a certain way. Roadmap captures *what* is built or planned. Cross-reference from a roadmap item to a knowledge entry when the design rationale matters (e.g., `- [x] Auth (Clerk) — see [decision-auth.md](.kerby/knowledge/decision-auth.md)`).
 - **`.kerby/STATUS.md`** — ephemeral session state ("currently working on X, blocked on Y"). Roadmap is durable across sessions; STATUS.md is reset/overwritten as work moves.
 - **`.kerby/memory.log`** — append-only session log. Roadmap is curated and edited.
+- **`DEVELOPER_TODO.md`** and **`.kerby/BLOCKERS.md`** — neither is a deferral sink, and `## Follow-ups` does not replace either. `DEVELOPER_TODO.md` holds actions only a human can take (obtain an API key, create a cloud resource). `.kerby/BLOCKERS.md` holds a failure state — work that stopped against a wall. `## Follow-ups` holds work the agent *could* have done and deliberately did not. Three different situations; putting one in another's file is how all three stop being trusted.
 
 ---
 

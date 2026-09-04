@@ -68,6 +68,8 @@ If the fix touches 3+ files, involves iterative debugging cycles, or will take >
 <fix>
 ## 5. Fix — Commit Gate
 
+This workflow has no plan section of its own. The `plan:` line (`BOOTSTRAP.md` § 4 Plan Gate) is emitted before your first edit here as anywhere else; at or above `plan_threshold` the full block in `workflows/feature.md` § 3 is added on top of it. On this route the minimal version is the root-cause fix — never a symptom patch, however small it looks.
+
 Execute these steps in order. Do NOT skip the commit.
 
 1. Write a failing test that captures the bug (the test MUST fail before your fix)
@@ -99,13 +101,14 @@ Complete ALL of these before declaring done:
    - **`.kerby/STATUS.md`** — reflects current state
    - **`.kerby/knowledge/` lesson** if this bug reveals an operational lesson worth keeping. Propose before writing; skip if nothing applies
    - **`CONTEXT.md`** if a new domain term was introduced or renamed. See `references/domain-glossary.md`
+   - **The deferral sink** — one entry per item you named as deferred; `references/guardrails.md` § Where a finding goes selects which. Sibling bugs found during diagnosis are not deferrals — `references/debugging.md` governs those
 3. **All changes committed and pushed:**
    ```bash
    git status  # must show clean working tree
    git worktree list  # verify no other worktrees have uncommitted work
    ```
 4. **Manual verification instructions provided** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions). For a bug fix, include: steps to reproduce the original bug (should no longer occur), steps confirming the fix, and related areas to spot-check for regressions.
-5. **Realized Outcomes captured (grade ≥ `plan_threshold`)** — per `BOOTSTRAP.md` § 4 / `workflows/feature.md` § 7: place the actual run result next to the § 3 Expected Outcome, emit `outcome: match | mismatch`, and on mismatch route code-wrong (fix via this workflow's loop, bounded by the circuit breaker) / prediction-wrong (update + log) / ambiguous (STOP). Skip only when the plan was waived by a logged user opt-out (§ 2.5).
+5. **Realized Outcomes captured (grade ≥ `plan_threshold`)** — per `BOOTSTRAP.md` § 4 / `workflows/feature.md` § 7: place the actual run result next to the Expected Outcome from `workflows/feature.md` § 3 (this workflow has no § 3 plan of its own — its § 3 is Diagnose), emit `outcome: match | mismatch`, and on mismatch route code-wrong (fix via this workflow's loop, bounded by the circuit breaker) / prediction-wrong (update + log) / ambiguous (STOP). Skip only when the plan was waived by a logged user opt-out (§ 2.5).
 6. **Working tree clean — the terminal gate.** Re-run `git status --short`; it must be empty. Then `git push` and confirm it reported everything up to date. Do not use `git push -u origin HEAD` to force an upstream — on a branch already tracking a differently-named remote branch it creates a second remote branch and retargets the upstream to it. And check `git log @{u}..` only once an upstream exists; without one it exits `fatal: no upstream configured` rather than reporting success. Step 3 is not the last thing that writes — step 5 can find a real bug and change code, and per-iteration `memory.log` entries from § 5 are still uncommitted. Commit **and push** anything outstanding now, before the PR exists. **If step 7 itself writes anything** (the Preserve-branch option notes the branch and reason in `.kerby/memory.log`), commit and push that too, then re-run this check.
 7. **Branch finalization — pick one of four options** (same as feature workflow):
    - **Open PR** (default) — push branch; open PR; if a worktree was used, keep it until the PR is merged

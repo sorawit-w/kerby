@@ -11,7 +11,7 @@ The quick-task path is appropriate only when ALL of these hold. If even one fail
 
 - **A change is actually being made** — if the ask is to explain or investigate, the route is `investigate` (BOOTSTRAP.md § 3), not quick-task. Every step below writes; none of them check first
 - **No new files** — you're editing existing files only, not adding modules
-- **No test logic changes** — tests may *run* during checks, but you're not modifying assertions, test scaffolding, or fixtures
+- **No test edit required** — tests may *run* during checks, but the change must not require editing an assertion, fixture, or test scaffold. What matters is whether a test file has to change, not where the file you opened lives; a copy edit that a snapshot asserts requires a test edit and so fails this. This is the only definition — the checks below apply it, they do not redefine it
 - **No schema, contract, or public-type changes** — no DB migrations, no exported type/interface shape changes, no public API edits
 - **No high-stakes paths** — auth, payments, migrations, infra, CI/CD, production-traffic-shaping constants (see BOOTSTRAP.md §3 "High-stakes path override")
 - **Diff stays ≤ ~50 LOC** — rough budget; if you're approaching it, the change isn't a quick task
@@ -21,17 +21,40 @@ The quick-task path is appropriate only when ALL of these hold. If even one fail
 
 **Grade ceiling vs. risk guard — two independent axes.** The complexity ceiling tracks `plan_threshold` (raising the knob never lowers the bar here); the criteria above are independent risk guards. A change that introduces logic, refactors, exceeds the LOC budget, or touches schema/contracts escalates to the task-type workflow (`bugfix.md` / `feature.md`) *even when its grade is below the threshold*. Both the grade ceiling and the fit check must hold.
 
-**State your fit check before starting**, in 2–4 lines:
+### Verify the criteria you can verify *now*, before the first edit
+
+Six of the seven criteria above are knowable from the file list before you change anything. Only the LOC budget genuinely needs the diff. **Resolve the six first** — an escalation found now costs a re-route; the same escalation found after the edit leaves code on disk with no approved plan behind it.
+
+Open the target files and run these, adapting the commands to the project:
+
+```bash
+git ls-files <target-paths>                 # do they exist? (new file → escalate)
+git check-ignore -v <target-paths>          # untracked/ignored surprises
+```
+
+Then read each target and confirm, from what you actually see:
+
+- **No test edit required** — the criterion above, checked before you write. Check the path *and* whether the string you are changing is asserted anywhere: `grep -rn "<the literal>" <test-dirs>`. A hit means a test must change, so the criterion fails here rather than after the diff.
+- **Not schema / contract / public type** — no migration dir, no exported type or interface shape, no public API surface.
+- **Not a high-stakes path** — match the target against the `BOOTSTRAP.md` § 3 glob list *before* editing, including the prose-only category (retry/timeout/rate-limit constants, feature-flag defaults gating prod traffic, secrets loading). A path match is decided by which file the edit lands in, never by whether the changed lines look risky.
+- **Not new logic, refactoring, or behavior change** — you are changing strings, copy, comments, config values, data, or formatting.
+
+If any of the four fails, escalate **now**, before editing. That escalation is an ordinary pre-code re-route: `feature.md` § 3 (or `bugfix.md`) with its plan written the normal way, and the retroactive-plan carve-out in step 3a never comes into play.
+
+**State your fit check before starting**, in 4–6 lines:
 
 ```
 Quick-task fit:
 - Files: <list>
+- Change: <what will be different afterwards>
 - Estimated LOC: <number>
-- Type of change: <strings / config / comments / docs / formatting>
-- No new files / tests / schema / contracts / high-stakes paths: confirmed
+- Check: <how you will know it worked>
+- Verified before editing: not a test/schema/contract/high-stakes path, no new logic — <how you checked>
 ```
 
 If you can't state it cleanly, the task doesn't fit. Switch workflows.
+
+**The fit check is a risk declaration, not your plan.** The `plan:` line (`BOOTSTRAP.md` § 4 Plan Gate) is emitted on this route like any other. The two overlap on `Files:` and `Check:`, and that small duplication is deliberate: one rule that always holds beats a substitution rule that has to be got right.
 </fit_check>
 
 <do_it>
@@ -48,10 +71,27 @@ If you can't state it cleanly, the task doesn't fit. Switch workflows.
    Compare actual diff to your declared fit check. If ANY of these now hold, STOP and escalate to the task-type workflow (`bugfix.md` for a bug fix, else `workflows/feature.md`):
    - Diff exceeds ~50 LOC across the change
    - Diff introduces a new file you didn't declare
-   - Diff touches a test file, schema/migration file, contract/type file, or a high-stakes path (per BOOTSTRAP.md §3)
+   - Diff touches a test file, schema/migration file, contract/type file, or a high-stakes path (per BOOTSTRAP.md §3) — same criterion as the fit check, now measured against what actually changed
    - You found yourself changing behavior or logic mid-implementation, not just strings/config
 
    Escalation is not a setback — it's the system working. Do NOT commit a Tier-mismatched diff to escape the workflow change.
+
+   **Escalation means you have left quick-task. Do these, in order, in both cases:**
+
+   1. **Re-emit `complexity:`** with the new grade and route.
+   2. **Re-emit the `plan:` line.** Not only when the file set changed — an escalation from copy to logic makes the old `<change>` slot false even with the same files, and the line is required on the route you are moving to.
+   3. **The fit check is void.** Its declarations are what just failed. Do not re-state it; you are no longer on the route it belongs to.
+   4. **Add the full plan block** (`feature.md` § 3) if the new grade reaches `plan_threshold` and no full-plan opt-out is in force — the same condition as anywhere else.
+   5. **At grade ≥ 7, stop for user approval.** This is anchored to the grade, not to step 4's block (`BOOTSTRAP.md` § 4 Plan Gate): it fires even when an opt-out waived that block, and it fires here for the same reason it fires anywhere. An escalation is one of the ways a task reaches grade 7.
+
+   **These steps always come first — neither case lets you write through them.** What differs is what happens to the code already on disk, and what you do once they are done:
+
+   | Tripped | The code already written | After the steps above |
+   |---|---|---|
+   | **The LOC budget only** | Stands. The risk criteria were cleared before the first edit, so this is bounded work that merely grew. Writing step 4's block over existing code is licensed here and nowhere else: read your own `git diff` and record what changed rather than describing intentions. | Resume. |
+   | **A risk criterion** — new file, test, schema, contract, high-stakes path, or new logic | Say plainly what is on disk and offer to revert it — it reached the tree without the gate it was owed. | Resume only once step 5's approval, if the grade required one, has been given. Existing code does not approve itself. |
+
+   The risk row should be unreachable: § Fit Check verifies all of those against the file list before anything is written. Reaching it means that block was skipped or a target changed under you — note it in `.kerby/memory.log` as a miss, not a routine path.
 
    **3b. Quality-check (only if 3a passed):** while iterating, run the cheap check for what you are touching — `{lint_command}` for config/docs/comments/formatting, `{lint_command}` + related tests for logic.
 
@@ -62,14 +102,15 @@ If you can't state it cleanly, the task doesn't fit. Switch workflows.
    git commit -m "<type>(<scope>): <description>"
    ```
 5. **Log** — append to `.kerby/memory.log` (the entry carries the commit SHA, so it necessarily follows step 4 — see `references/communication.md` § Session Logging).
-6. **Commit the log.** `.kerby/memory.log` is tracked shared state, so step 5 leaves the tree dirty. `git status --short` must be empty before you finish; commit and push the log entry if it is not.
-7. **Tell the developer how to verify** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions).
+6. **Record anything you deferred** — one entry in the sink `references/guardrails.md` § Where a finding goes selects. Usually nothing: a quick task that needed a deferral was probably not a quick task.
+7. **Commit the log.** `.kerby/memory.log` is tracked shared state, so step 5 leaves the tree dirty. `git status --short` must be empty before you finish; commit and push the log entry (and any roadmap line) if it is not.
+8. **Tell the developer how to verify** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions).
 </do_it>
 
 <escalate>
 ## If It's Not Simple
 
-If the task turns out to be more complex than expected (touching multiple files, unexpected failures, unclear requirements), switch to the full workflow for the task type — **`bugfix.md` for a bug fix** (it keeps the reproduce → diagnose → failing-test path), otherwise **`feature.md`**:
+If the task turns out to be more complex than expected for any reason — touching multiple files, unexpected failures, unclear requirements, or a fit criterion you can no longer state truthfully — switch to the full workflow for the task type — **`bugfix.md` for a bug fix** (it keeps the reproduce → diagnose → failing-test path), otherwise **`feature.md`**:
 
-Read that workflow and start from its step 2 (Clarify in `feature.md`, Reproduce in `bugfix.md`).
+Read that workflow and start from its step 2 (Clarify in `feature.md`, Reproduce in `bugfix.md`). Step 3a above is the authority on the transition — its numbered steps run for **every** escalation reason, not only the two its table names. That table answers one narrower question: what happens to code already on disk. Only a pure LOC overrun leaves it standing; every other reason, including the three named above, takes the second row's treatment — say what is on disk and offer to revert. Entering `feature.md` at step 2 does not make its § 3 block unconditional; the threshold and the opt-out still decide, exactly as they do on any other route.
 </escalate>

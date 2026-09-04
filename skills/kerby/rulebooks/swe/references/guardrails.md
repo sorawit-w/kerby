@@ -58,9 +58,29 @@ These commands cause data loss that's hard or impossible to recover (`git reflog
 Stay on task. Agents tend to "fix while you're here" — refactoring adjacent code, updating unrelated imports, or improving docs that weren't part of the request. This creates larger diffs, unexpected changes, and risk of breaking unrelated functionality.
 
 **Rules:**
-- Only change what the task requires. If you notice an issue outside your scope, **log it** (in memory.log, a comment, or the issue tracker) but don't fix it unless asked.
-- If scope is growing, pause and check with the developer before continuing.
+- Only change what the task requires. If you notice an issue outside your scope, **log it** but don't fix it unless asked — see the sink table below for where.
+- If scope is growing, pause and check with the developer before continuing. This is a **scope** question — whether the extra work belongs in this task at all — and is owed at every grade, including well below the Plan Gate's approval point. It is not `BOOTSTRAP.md` § 4's approval stop and does not substitute for it; the two ask different things and can both apply. If the developer agrees to the expansion, that is new work: re-grade it, and § 4 handles the rest.
 - If refactoring is needed to complete your task, explain why and get approval for the expanded scope.
+
+### Where a finding goes
+
+Four sinks, four different situations. Picking the wrong one is how each of them stops being read.
+
+| What you have | Sink |
+|---|---|
+| Work you deliberately deferred out of **your own** change | The deferral sink — chosen by the ordered fallback below |
+| An action only a human can take (API key, cloud resource, account) | `DEVELOPER_TODO.md` |
+| A deliberate shortcut inside code you shipped | An in-code comment naming the upgrade trigger (`working-patterns.md` § Code Standards) |
+| An issue you noticed in **adjacent** code you did not touch | `.kerby/memory.log` Observations — a neutral fact, not a recommendation |
+
+The split that matters is the first row against the last. A deferral is yours: you decided not to do it, so you name it and record it. An adjacent finding is not yours: you noticed it in passing, so it stays a neutral observation and the developer decides. Do not promote an adjacent finding to a follow-up to make it look actioned.
+
+**This table is the single authority on where a finding goes.** Other files describe these sinks; when one of them disagrees with this table, this table wins. Two consequences worth stating, because they are the disagreements that actually arise:
+
+- **An external tracker replaces the first row, not the last — but only when you can actually write to it.** Where the project tracks work in Jira/Linear/GitHub Issues *and* you have MCP access to it (`references/communication.md` § External Board Sync), own-change deferrals go there instead of `ROADMAP.md`. A tracker you cannot reach is not a sink; fall through to the next one — a duplicate in-repo list drifts (`references/roadmap.md` § When NOT to Use This). That same permission does **not** reach the last row: an adjacent finding you noticed but did not touch stays a neutral observation. Discovering something is not deciding to do it.
+- **Deferred scope of your own is never "just an observation".** `.kerby/memory.log` Observations is facts-only. If the fallback below puts a deferral there because no other sink exists, it goes in `Notes:` as a deferral, not in `Observations:`.
+
+**Where the deferral sink does not exist yet — try these in order, take the first that works.** (1) A reachable external tracker. (2) `ROADMAP.md` § Follow-ups if the file exists. (3) If it does not, creating it needs the developer's agreement (`references/roadmap.md` § Bootstrap) — offer once. (4) Whenever the first three are unavailable, declined, or unanswered, record the deferral in the `Notes:` field of your `.kerby/memory.log` entry. Step 4 always terminates, so there is no case with nowhere to write. Never bootstrap the file silently, and never let a missing sink block the work — an unrecorded deferral is the failure this rule exists to prevent, so the weakest sink that actually records it beats stopping.
 
 ---
 

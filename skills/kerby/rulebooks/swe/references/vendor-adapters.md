@@ -74,7 +74,7 @@ The pattern is the structure; adapters are the work. Don't pre-build adapters fo
 
 **Agents do NOT refactor existing direct vendor imports.** The doctrine applies to **new vendor connections** and new code paths through new ports. Legacy code stays as-is until migration is deliberately scheduled.
 
-If touching a legacy file for an unrelated reason, no opportunistic refactor — keep the diff minimal. Migration is a workstream tracked in `ROADMAP.md`, not a side effect of unrelated work.
+If touching a legacy file for an unrelated reason, no opportunistic refactor — keep the diff minimal. Migration is its own scheduled workstream, not a side effect of unrelated work — tracked wherever this project tracks planned work, which `references/guardrails.md` § Where a finding goes settles when you are the one deferring it.
 
 ### What counts as refactoring (extension to legacy files)
 

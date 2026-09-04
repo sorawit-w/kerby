@@ -47,9 +47,12 @@ Check the knowledge base (`.kerby/knowledge/`) for relevant decisions, conventio
 <plan>
 ## 3. Plan
 
+This block is added *on top of* the `plan:` line (`BOOTSTRAP.md` § 4 Plan Gate), which is emitted on every change route regardless of grade. Steps 1–3 expand what that line states in one sentence.
+
 1. Restate the problem — confirm you understand what's being asked
 2. Identify affected files — scope the change before editing
 3. Check dependencies — will this change break anything downstream?
+3b. **State the check** — how you will know the change worked: the command to run, the endpoint to call, the screen to open. This is the third slot of the `plan:` line (`BOOTSTRAP.md` § 4 Plan Gate), restated in full here; at or above `plan_threshold` the Expected Outcomes block below refines it into a prediction, but the check itself is named here so a plan is never missing it.
 4. **If the feature introduces a new third-party vendor** (auth, db, payments, mailer, etc.), consult `references/vendor-adapters.md` for the ports/adapters pattern. Define the port from consumer needs; add the adapter under `adapters/<vendor>/`.
 5. Rate complexity (1–10). **This table is the canonical complexity ladder — the single source of truth; other files point here.**
 
@@ -74,6 +77,23 @@ Before any code, predict the **observable end-state** — what the change will l
 | Data / state | the state transition (before → after) |
 
 Below `plan_threshold` this block is optional.
+
+### Smallest version, and what you are deferring (grade ≥ `plan_threshold`)
+
+**This block belongs to the full plan only.** The `plan:` line does not carry it — below the threshold, a change small enough to skip the full block is small enough that "the smallest version" is the whole of it. Anything deferred there is still named in the report's `skipped:` line, which is never waived.
+
+The full plan states two things, in one line each:
+
+```
+smallest: <the least you can build that fully satisfies the request>
+deferring: <items, comma-separated> | none
+```
+
+**Fully satisfies** is the load-bearing half. Minimal is not partial (`BOOTSTRAP.md` § 1b) — you are building less *around* the request, never less *of* it. Only hardening beyond the ask, refactors, adjacent cleanup and polish are deferrable, and the never-defer list in § 1b overrides all of it.
+
+Every item you name in `deferring:` appears word for word in the report's `skipped:` line and in the deferral sink (`references/guardrails.md` § Where a finding goes). That is what makes this checkable rather than a good intention: a reviewer can compare the three.
+
+**On the bugfix route, the minimal version is the root-cause fix.** A symptom patch is never the minimal version, however few lines it is — `references/debugging.md` and `BOOTSTRAP.md` § Diagnosis both outrank this section, and the root-cause fix is usually the smaller diff anyway (one guard where the callers meet, not one per caller).
 </plan>
 
 <delegate_check>
@@ -182,6 +202,7 @@ Complete ALL of these before declaring done:
    - **`.kerby/STATUS.md`** — reflects current state
    - **`.kerby/knowledge/` entry** — a new decision, convention, or lesson. Propose before writing; skip if nothing applies
    - **`CONTEXT.md`** — new domain terms used 2+ times. See `references/domain-glossary.md`
+   - **The deferral sink** — one entry per item you named in the plan's `deferring:` list, each saying what it was deferred from. `references/guardrails.md` § Where a finding goes selects which sink. Nothing deferred means nothing to write
 3. **All changes committed and pushed:**
    ```bash
    git status  # must show clean working tree

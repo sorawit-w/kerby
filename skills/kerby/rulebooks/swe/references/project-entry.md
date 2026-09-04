@@ -161,10 +161,12 @@ Add a file for your IDE/agent:
 git commit -m "chore: setup development environment"
 ```
 
+> **The plan comes before this flow, not after it.** On the `new-project` route the scaffold **is** the requested deliverable, so `BOOTSTRAP.md` § 4 Plan Gate applies to the steps above: emit the `plan:` line before the first scaffold write, not at the decision below. The decision below is about the work that *follows* the scaffold.
+
 ### 9. Next Decision
 
-- **Simple task (<1 hour, single file):** Skip planning, proceed to implementation
-- **Complex task (multi-day, multiple files):** Proceed to `implementation-planning.md`
+- **Below `plan_threshold`:** the `plan:` line, then implement — no full plan block (`BOOTSTRAP.md` § 4 Plan Gate). Grade decides this, not duration or file count: a single-file change can be high-stakes or design-heavy and grade above the threshold. Nothing skips planning entirely
+- **At or above `plan_threshold`:** the full plan block too; for multi-session work, `implementation-planning.md`
 
 ---
 
@@ -284,7 +286,7 @@ Use the canonical format from `communication.md`. All entries follow the same st
 5. Setup Biome
 6. Create agent context file
 7. Commit
-8. Decide: simple task (skip planning) or complex (go to planning)
+8. Decide: simple task or complex — either way the `plan:` line is emitted first, and only the full block depends on the grade (`BOOTSTRAP.md` § 4 Plan Gate)
 
 ### Existing Project: Resume
 

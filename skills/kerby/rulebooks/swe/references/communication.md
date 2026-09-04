@@ -50,6 +50,8 @@ Observations: [optional — neutral facts noticed during the task, e.g. "Build t
 
 **Observations are facts, not suggestions.** Record what you noticed — build times, warnings, skipped tests, deprecation notices, audit results. Do NOT recommend actions or suggest improvements. The developer decides what to act on.
 
+This governs things you noticed in code you did not touch. Work you deliberately deferred out of **your own** change is a different artifact — name it and record it in the deferral sink (`references/guardrails.md` § Where a finding goes). One of that section's fallbacks is this file's own `Notes:` field, which is why the rule here is *not in Observations* rather than *never in this file*.
+
 **`Commit:` is `(pending)` when the entry precedes its own commit.** A commit cannot contain its own SHA, so the finish-step entry — written *before* the commit that carries it, see below — records `(pending)`. Per-iteration entries written inside the task loop run *after* their commit and carry the real SHA. Both shapes are correct; which one applies is decided by where in the workflow the entry is written.
 
 ### `memory.log` is shared project history — commit it
@@ -141,11 +143,13 @@ When a project uses an external tracker (Linear, Jira, Asana, GitHub Issues, etc
 
 1. **Check the board before starting** — Look for existing tickets related to your task. Don't create duplicates.
 2. **Update ticket status as you work** — Move tickets to "In Progress" when you start, "Done" when complete, "Blocked" when stuck.
-3. **Create new tickets for discovered work** — If you find bugs or tasks outside your scope, create tickets rather than fixing them silently.
+3. **Create new tickets for work you deferred out of your own change** — the deferrals named in your plan's `deferring:` line, when `references/guardrails.md` § Where a finding goes selects the tracker as the sink. That section decides; this one only says how to write the ticket.
+
+   **Not for a bug you merely noticed in adjacent code you did not touch.** That stays a neutral observation in `.kerby/memory.log` and the developer decides — tracker access does not change it, because filing a ticket is deciding the work should happen. Noticing is not deciding. The sink table in `guardrails.md` is the authority when this rule and it appear to disagree.
 4. **Link commits to tickets** — Use the `[#issue-id]` pattern in commit messages.
 5. **Keep the board in sync** — The board should reflect reality. If a task took longer than expected or was split into smaller pieces, update accordingly.
 
-The agent has PM authority to manage tickets — create, update, re-prioritize — as long as it serves the current task and keeps the board accurate.
+The agent has PM authority to manage tickets — create, update, re-prioritize — as long as it serves the current task and keeps the board accurate. That authority covers the task you were given and what you deferred out of it; it does not extend to filing the unrelated things you noticed on the way.
 
 ---
 

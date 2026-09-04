@@ -1,6 +1,6 @@
 # Project Status
 
-> **Last updated:** 2026-08-25T18:30:00Z
+> **Last updated:** 2026-09-02T00:00:00Z
 > **Updated by:** ai
 
 ---
@@ -9,10 +9,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | In review — 9.25.1, a documentation correction (Copilot invokes kerby's hooks) |
-| **Milestone** | Tiered hook opt-in — **complete** (9.23.0 → 9.25.0, three PRs, all merged) |
-| **Milestone Goal** | Let a user decline individual hooks, and see what would be registered before deciding |
-| **Working Branch** | feature/windows-hook-install (release `9.25.1`) — #61, #62, #63 merged; this branch is docs-only |
+| **Phase** | Review clean — 9.26.2 / swe 2.11.2. Codex P0/P1/P2/P3 all 0 at 3bec1ce. P2-1 and P2-3 done; P2-2 abandoned. Ready for PR. |
+| **Milestone** | Planning discipline — the Plan Gate stops deciding *whether* there is a plan |
+| **Milestone Goal** | A stated plan before every change, and the smallest change that still finishes the job |
+| **Working Branch** | feature/minimal-first-planning (release `9.26.0`) — rule-text change across 9 rulebook files |
 
 ---
 
@@ -21,9 +21,9 @@
 | Status | Count | Tasks |
 |--------|-------|-------|
 | Done | 5 | #54 protect-env scope · #55 decision-ladder artifacts · #56 shared state + finish order · #57 locator + trust rules · #63 `kerby hooks` |
-| In Review | 1 | 9.25.1 — Copilot invokes kerby's hooks through PowerShell (docs correction, this branch) |
+| In Review | 1 | 9.26.2 — `plan:` line, minimal-first, deferral sink, P2-1 re-approval narrowing, P2-3 vendor-adapters sink. Codex clean |
 | Blocked | 0 | — |
-| Ready | 2 | Fresh-session `skill-evaluator` passes · logged P2/P3 debt |
+| Ready | 5 | quick-task § 3a escalation dispositions (was P2-2, needs fresh eyes) · three remaining sink sites · planThreshold runtime cap · investigate-route omit-don't-announce · fresh-session `skill-evaluator` passes |
 
 ---
 
@@ -37,7 +37,8 @@
 | #57 — the locator stops letting the workspace choose the gate | e38eff9 | 2026-08-21 |
 | #58 — a killed review can no longer be marked clean | 3c9ef55 | 2026-08-21 |
 | #63 — `kerby hooks`, a read-only view of what install would register | 450a627 | 2026-08-24 |
-| 9.25.1 — Copilot/Windows hook claim corrected; engine change built then reverted | (pending) | 2026-08-25 |
+| 9.25.1 — Copilot/Windows hook claim corrected; engine change built then reverted | f03128d | 2026-08-25 |
+| 9.26.0 — a plan before every change; minimal-first with deferrals recorded, not promised | (pending) | 2026-09-02 |
 
 ---
 

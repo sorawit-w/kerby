@@ -5,7 +5,7 @@ domain: [rulebook, swe, routing]
 related: [decision-engine-rulebook-split.md, decision-code-to-swe-rename.md]
 confidence: high
 created: 2026-08-22
-updated: 2026-08-22
+updated: 2026-09-02
 ---
 
 ## Context
@@ -60,7 +60,7 @@ catches the mis-route where the old failure actually landed.
 | Considered | Rejected because |
 |---|---|
 | A fifth workflow file, `investigate.md` | Every rule costs recurring input tokens, and a fifth file must stay in sync with four others. A routing row plus one contract section covers it. |
-| A third forced line (`mode: read-only`) | § 2.5 already forces two lines. `route: investigate` **is** the declaration; adding a third artifact to every task to serve one route does not pay. |
+| A third forced line (`mode: read-only`) | § 2.5 already forces two lines. `route: investigate` **is** the declaration; adding a third artifact to every task to serve one route does not pay. *(Still stands as written. swe 2.11.0 did add a third forced line, `plan:`, but it is emitted at the first edit rather than in § 2.5's block, and it serves every change route rather than one — the reasoning that rejected `mode: read-only` is what makes `investigate` one of the routes that waives it.)* |
 | A `git status --short` conditional on the finish blocks in `feature.md` § 7 / `bugfix.md` § 6 | **The subtle one.** It looks like the general fix — "skip the write steps when nothing changed" — and it is wrong. After a clean task loop the tree **is** empty at § 7 and the session summary is still required, so the conditional would suppress exactly the entry whose ordering was fixed in `d0afdf7`. Scope the guard to `quick-task.md`, where the change is uncommitted by construction. |
 | A parity guard for the new prose | `skills/kerby/CLAUDE.md` § "Guard a constant, not a sentence": a prose guard was written, defeated three times by ordinary authoring wording, and removed for converting *nobody checked* into *the check passed*. |
 | Fixing it in `base` instead | The base floor's `iron-law-claims.md` ("identify the verification command … run it fresh") genuinely has no referent for an answer, and that ambiguity is still open. Deliberately left as separate work — see Open below. |
