@@ -3,6 +3,12 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [9.26.2] — 2026-09-03
+
+**swe 2.11.2 — the last file that picked a deferral sink for itself.** `guardrails.md` § Where a finding goes is meant to be the only place that decides which sink a deferral lands in; every other file carries a pointer and no restated detail, so there is nothing to drift. One line in `vendor-adapters.md` still named `ROADMAP.md` outright, which in a repo using an external tracker — or one with no roadmap at all — pointed at a file that does not exist.
+
+It keeps the part that was load-bearing: a vendor migration is its own scheduled workstream, never a side effect of touching a legacy file for some other reason. Only the destination defers now.
+
 ## [9.26.1] — 2026-09-03
 
 **swe 2.11.1 — an approval you already hold, and when it stops covering the work.** 2.11.0 shipped a rule that re-graded whenever the work's "shape moved" and demanded fresh approval of any grade-7 task that had one. Together those asked the user to re-approve *identical text* every time the work merely looked harder. The harm is fatigue: a reader asked to approve the same paragraph three times stops reading it, which is how the amendment that mattered goes through unread.
