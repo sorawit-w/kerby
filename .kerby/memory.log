@@ -962,3 +962,35 @@ Notes: The vacuous tests are the worse half of this round. A guard that under-ma
 Observations: Test suite 27 assertions, all pass; all five gates pass. The open P1 means the
   branch is NOT mergeable: codex-mark is DENIED at round 2 of 3, no marker, and the PR gate
   will block gh pr create.
+
+[2026-09-04T12:45:00Z]
+Task: Option 2 — delete the SKIP branch; the open is the only test
+Action: Maintainer chose to remove the absence question rather than answer it a fourth time.
+  Deleted the entire pre-scan classification block — no -e, no -L, no -f, no -r, no parent
+  probe. The file is opened by redirect; if the open succeeds it is scanned, and if it fails
+  the guard exits 1 with the captured error. Absence is no longer special: it is one of the
+  many ways an open can fail, and all of them are reported identically. The brace group
+  captures the group's stderr so a REDIRECT failure — which happens before awk runs — is
+  reported instead of escaping the capture.
+Files: skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.test.sh, CLAUDE.md, CHANGELOG.md
+Commit: (pending)
+Status: DONE
+Notes: Four fail-opens, four designs, and the fix was to stop asking the question. Every
+  design failed the same way because "prove this path is absent" is unbounded — an ancestor
+  three levels up, a path too long for dirname, a resolution failure nobody enumerated. The
+  bounded question is "did the open succeed", and it has exactly two answers with no third
+  state to misfold. That is the general lesson, and it is worth more than the guard: when a
+  predicate keeps producing fail-opens, check whether the question itself has an unbounded
+  answer space, and delete the question rather than refine the predicate.
+  The cost is real and accepted: a project with no STATUS.md now gets exit 1 rather than a
+  SKIP. The failure message names that case in words so the exit is not mystifying. Callers
+  are the maintainer's run-after instruction and this test suite, both in repos where the
+  file exists; `prepare` creates the file rather than checking it first.
+  Verified by hand before writing tests: clean file (the ONLY exit 0), file with a version,
+  absent, dangling symlink, directory, unreadable file, locked GRANDparent, `-`, `x=y`, and a
+  600-char path that breaks dirname. Every one behaves correctly.
+Observations: Guard test 27 -> 29 assertions; the two cases that defeated the previous
+  design (locked grandparent, over-long path) are now pinned. All five gates pass. The exit
+  contract was corrected in the script header, CLAUDE.md and the CHANGELOG in the same
+  commit — a stale contract claim is the defect that has recurred most often in this branch.

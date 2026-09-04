@@ -16,13 +16,11 @@
 #
 # Run: bash skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh [file]
 # Default file: .kerby/STATUS.md relative to the current directory.
-# Exit 0 has TWO cases, and only one is a pass: either the file was scanned and
-# stated no version or SHA-shaped token, or the path does not exist at all and a
-# SKIP line says so in words. Exit 1 = a token was found, or the path exists and
-# could not be scanned — unreadable, or not a regular file (a directory, device
-# or FIFO). Exit 0 says nothing about branch names — see below. A guard that
-# cannot read its subject must never report a pass, so every "exists but I did
-# not scan it" state fails closed.
+# EXIT 0 HAS EXACTLY ONE CASE: the file was opened, read, and stated no version
+# and no SHA-shaped token. Every other outcome is exit 1 — a token was found, or
+# the file could not be opened for ANY reason, absence included. There is no SKIP
+# and no third state; see THE OPEN IS THE ONLY TEST below for why absence is not
+# special-cased. Exit 0 says nothing about branch names — see below.
 #
 # WHAT IT MATCHES — two things, both unambiguous shapes:
 #   version  a whole dotted token of exactly three parts, optional `v` prefix
@@ -84,48 +82,32 @@ finish() {
   exit 1
 }
 
-# EXIT 0 WITHOUT SCANNING HAS EXACTLY ONE HONEST CASE: the path genuinely is not
-# there. Everything else — a directory, a dangling symlink, an unreadable file, a
-# parent we cannot search — is "I did not scan it" and must fail closed. Three
-# fail-opens on this branch all came from one predicate answering two questions
-# and the silent answer winning, so the tests below are deliberately narrow and
-# the SCAN ITSELF is the final authority (see the redirect further down).
-if [[ -e "$FILE" || -L "$FILE" ]]; then
-  # -L is not redundant: a DANGLING symlink is false to -e while plainly existing,
-  # and reporting it as absent is a pass on an unresolvable path.
-  if [[ -L "$FILE" && ! -e "$FILE" ]]; then
-    fail "$FILE is a symlink whose target does not resolve — it was NOT scanned"
-    finish
-  fi
-  if [[ ! -f "$FILE" ]]; then
-    fail "$FILE exists but is not a regular file — it was NOT scanned"
-    finish
-  fi
-  if [[ ! -r "$FILE" ]]; then
-    fail "cannot read $FILE — it exists but is not readable, so it was NOT scanned"
-    finish
-  fi
-else
-  # -e and -L are both false, which usually means absent — but it ALSO means
-  # "cannot be stat'd", and a parent directory without search permission produces
-  # exactly that for a file that is really there. Absence has to be provable, not
-  # merely unfalsifiable.
-  _parent=$(dirname -- "$FILE")
-  if [[ -d "$_parent" && ! -x "$_parent" ]]; then
-    fail "cannot determine whether $FILE exists — its parent directory is not searchable, so it was NOT scanned"
-    finish
-  fi
-  # Say this plainly. A missing file reported as a bare PASS is how "nobody
-  # checked" turns into "the check passed".
-  echo "SKIP: $FILE does not exist — nothing to check (this is not a pass)."
-  echo "---"
-  exit 0
-fi
+# THE OPEN IS THE ONLY TEST. There is deliberately no attempt to classify the
+# path before scanning it — no "does it exist", no "is it a regular file", no
+# parent-permission probe. Four fail-opens on this branch all came from a
+# predicate that answered two questions at once, with the silent answer winning:
+# `! -f` folded absent with not-a-regular-file; `! -e` folded absent with
+# cannot-be-stat'd; a parent check missed a locked GRANDPARENT and a path long
+# enough to break `dirname`. Each fix answered the question more carefully and
+# was wrong again, because "prove this path is absent" is unbounded — every
+# ancestor, every resolution failure, every path-length limit is another way to
+# fail to observe something that is really there.
+#
+# So the question is removed rather than answered. Open the file; if the open
+# succeeds, scan it; if it does not, exit 1. Absence is no longer a special case
+# — a file that is not there is simply one of the many ways an open can fail, and
+# all of them are reported the same way. That costs a caller who legitimately has
+# no STATUS.md yet a non-zero exit, which is the deliberate trade: this guard's
+# whole purpose is to never report a pass on something it did not read, and a
+# loud "I could not read it" is the honest answer to every case at once.
 
 ERRFILE=$(mktemp) || { echo "FAIL: cannot create a temp file"; exit 1; }
 trap 'rm -f "$ERRFILE"' EXIT
 
-HITS=$(awk '
+# The brace group's stderr is captured too, so a failure of the redirect itself —
+# which happens BEFORE awk runs, and would otherwise print past the capture — is
+# reported rather than lost.
+HITS=$( { awk '
   # A whole-token test everywhere. Matching a bare pattern anywhere inside a line
   # is what made the first version read 127.0.0.1 as a semver and the "fix" inside
   # "prefix/name" as a branch.
@@ -163,11 +145,14 @@ HITS=$(awk '
     # is read as stdin and one containing `=` as a variable assignment, so both
     # would scan nothing and exit 0 on a file that does exist.
   }
-' < "$FILE" 2>"$ERRFILE")
-awk_status=$?
+' < "$FILE" ; } 2>"$ERRFILE" )
+scan_status=$?
 
-if [[ "$awk_status" -ne 0 ]]; then
-  fail "cannot scan $FILE — awk exited $awk_status: $(tr '\n' ' ' < "$ERRFILE")"
+if [[ "$scan_status" -ne 0 ]]; then
+  fail "$FILE was NOT scanned (exit $scan_status): $(tr '\n' ' ' < "$ERRFILE")"
+  echo "      If this project simply has no .kerby/STATUS.md yet, that is fine — this" >&2
+  echo "      check does not apply until the file exists. It reports non-zero rather" >&2
+  echo "      than passing, because it cannot tell 'absent' from 'there but unreadable'." >&2
   finish
 fi
 

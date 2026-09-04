@@ -202,13 +202,41 @@ else
   printf '%s\n' "$out" | sed 's/^/      /'
 fi
 
-# A missing file is a different case: nothing to check, announced as SKIP so it
-# can never read as a green assertion.
+# ABSENCE IS NOT SPECIAL-CASED. There is no SKIP: a file that is not there is one
+# of the many ways an open can fail, and all of them exit 1. Four fail-opens on
+# this branch came from trying to prove absence — a question with no bounded
+# answer, since every ancestor and every path limit is another way to fail to
+# observe something that is really there.
 out=$(bash "$GUARD" "$TMP/nope.md" 2>&1); got=$?
-if [[ "$got" -eq 0 ]] && printf '%s' "$out" | grep -q "this is not a pass"; then
-  pass "missing file exits 0 and says it is not a pass"
+if [[ "$got" -ne 0 ]] && printf '%s' "$out" | grep -q "NOT scanned"; then
+  pass "an absent file fails closed — no SKIP, no exit 0"
 else
-  fail "missing file: expected exit 0 with a SKIP notice, got exit $got"
+  fail "absent file: expected non-zero exit naming the failure, got exit $got"
+  printf '%s\n' "$out" | sed 's/^/      /'
+fi
+
+# The two cases that defeated the previous designs. A locked GRANDparent (not the
+# immediate parent), and a path long enough that `dirname` itself fails.
+mkdir -p "$TMP/lk/sub"; printf 'swe 1.2.3\n' > "$TMP/lk/sub/f.md"; chmod 000 "$TMP/lk"
+if [[ -r "$TMP/lk" ]]; then
+  echo "SKIP: cannot stage a locked ancestor (running as root?) — case NOT verified"
+else
+  out=$(bash "$GUARD" "$TMP/lk/sub/f.md" 2>&1); got=$?
+  if [[ "$got" -ne 0 ]]; then
+    pass "a file under a locked GRANDparent fails closed"
+  else
+    fail "locked grandparent: expected non-zero exit, got exit $got"
+    printf '%s\n' "$out" | sed 's/^/      /'
+  fi
+fi
+chmod 755 "$TMP/lk"
+
+_long="$TMP/$(printf 'a%.0s' {1..300})/$(printf 'b%.0s' {1..300})"
+out=$(bash "$GUARD" "$_long" 2>&1); got=$?
+if [[ "$got" -ne 0 ]]; then
+  pass "a path too long to resolve fails closed"
+else
+  fail "over-long path: expected non-zero exit, got exit $got"
   printf '%s\n' "$out" | sed 's/^/      /'
 fi
 
