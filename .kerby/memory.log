@@ -930,3 +930,35 @@ Notes: I said the previous commit was the last fix. That commitment assumed a P2
 Observations: Guard test 23 -> 27 assertions. All five gates pass. The two awk-special
   filenames are now SCANNED rather than merely rejected, which is strictly better than
   failing closed on them. Ninth commit; branch still unpushed, no PR.
+
+[2026-09-04T12:10:00Z]
+Task: Two VACUOUS tests corrected; P1 escalated to the maintainer
+Action: Review found that two tests I added last round pass against the buggy code they were
+  written to catch. `-` inherited ambient stdin, so the old operand-form guard could read
+  stdin and satisfy the assertion; `x=y` was passed as "$TMP/x=y", whose left-hand side
+  contains slashes, so awk fell back to treating it as a filename and the old guard scanned
+  it correctly. Both now run from $TMP with bare operands and stdin redirected from
+  /dev/null. CALIBRATED against a deliberately-broken copy of the guard (operand form
+  restored): both corrected tests fail against it and pass against the current code. Also
+  repaired a comment where my own python escaping wrote literal backslash-n into the script.
+Files: skills/kerby/rulebooks/swe/scripts/check-status-provenance.test.sh,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh
+Commit: (pending)
+Status: DONE
+Notes: The vacuous tests are the worse half of this round. A guard that under-matches turns
+  "nobody checked" into "the check passed" — this repo deleted a guard for that — and a TEST
+  that passes on the broken code does the same thing one layer up, while looking like proof.
+  I wrote both while explicitly reasoning about fail-open, which is the uncomfortable part:
+  the reasoning did not transfer to the fixture. The lesson is the calibration step, not the
+  two fixtures: a regression test earns its name only when it has been run against the
+  regression. I now have that as a repeatable move — copy the guard, reintroduce the bug,
+  assert the test fails.
+  P1 STILL OPEN and NOT fixed here — escalated instead. My parent-permission check tests
+  only the IMMEDIATE parent, so a chmod-000 GRANDPARENT still reports SKIP/exit 0
+  (reproduced), and a >1024-byte path makes `dirname` itself fail with a status I ignore.
+  This is the second consecutive round whose P1 is "absence is not provable", which is the
+  circuit-breaker signal, and I have twice claimed to have closed this class and been wrong.
+  Not making that claim a third time unilaterally.
+Observations: Test suite 27 assertions, all pass; all five gates pass. The open P1 means the
+  branch is NOT mergeable: codex-mark is DENIED at round 2 of 3, no marker, and the PR gate
+  will block gh pr create.

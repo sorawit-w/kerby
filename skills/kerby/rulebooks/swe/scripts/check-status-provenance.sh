@@ -158,7 +158,10 @@ HITS=$(awk '
         printf "%d\tsha\t%s\n", NR, t
     }
 
-    # There is deliberately NO branch check here. See the header.\n    # Input arrives by REDIRECT, never as an awk operand: an operand named `-`\n    # is read as stdin and one containing `=` as a variable assignment, so both\n    # would scan nothing and exit 0 on a file that does exist.
+    # There is deliberately NO branch check here. See the header.
+    # Input arrives by REDIRECT, never as an awk operand: an operand named `-`
+    # is read as stdin and one containing `=` as a variable assignment, so both
+    # would scan nothing and exit 0 on a file that does exist.
   }
 ' < "$FILE" 2>"$ERRFILE")
 awk_status=$?

@@ -180,7 +180,10 @@ chmod 755 "$TMP/locked"
 # assignment: both scan nothing and exit 0 on a file that does exist. The guard
 # feeds input by redirect for exactly this reason, so both must be scanned.
 printf 'swe 1.2.3\n' > "$TMP/-"
-out=$( cd "$TMP" && bash "$GUARD" "-" 2>&1 ); got=$?
+# stdin MUST be controlled: inherited stdin carrying a version would let the old
+# operand-form guard read that instead of the file and satisfy the assertion, and
+# a terminal stdin would hang. Empty stdin makes the old form scan nothing.
+out=$( cd "$TMP" && bash "$GUARD" "-" < /dev/null 2>&1 ); got=$?
 if [[ "$got" -ne 0 ]] && printf '%s' "$out" | grep -q "states a version"; then
   pass "a file named '-' is scanned, not read as stdin"
 else
@@ -188,7 +191,10 @@ else
   printf '%s\n' "$out" | sed 's/^/      /'
 fi
 printf 'swe 1.2.3\n' > "$TMP/x=y"
-out=$(bash "$GUARD" "$TMP/x=y" 2>&1); got=$?
+# The path must be BARE and relative. Prefixed with "$TMP/", the assignment's
+# left-hand side contains slashes, so awk falls back to treating it as a filename
+# and the old operand-form guard scanned it correctly — proving nothing.
+out=$( cd "$TMP" && bash "$GUARD" "x=y" < /dev/null 2>&1 ); got=$?
 if [[ "$got" -ne 0 ]] && printf '%s' "$out" | grep -q "states a version"; then
   pass "a file named 'x=y' is scanned, not read as an awk assignment"
 else
