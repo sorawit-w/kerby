@@ -1257,3 +1257,31 @@ Notes: Finding (1) is the one to keep. Fixing the CSS false positive by blanking
   says so.
 Observations: Guard test 32 -> 35 assertions. All five gates pass. Timestamp 2026-09-04T19:45:50Z read
   from `date -u`; PATH_MAX for the fixture filesystem measured at run time.
+
+[2026-09-04T19:51:15Z]
+Task: P1 — my own 8-digit RGBA exemption hid a real SHA
+Action: Dropped the 8-hex exemption from the CSS-colour skip; only 3, 4 and 6 remain.
+  Also fixed two P2s: the release copy called two defects macOS-specific when the directory
+  fail-open is awk-specific (mawk on macOS fails the same way), and CLAUDE.md attributed
+  five fail-opens to the same cause when the directory one was different in kind.
+Files: skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.test.sh, CHANGELOG.md,
+  README.md, CLAUDE.md
+Commit: (pending)
+Status: DONE
+Notes: The counterexample was this repo's own HEAD. `#0389e6bd` is eight hex characters, is
+  a real commit here, and my exemption skipped it as RGBA — while the header three lines up
+  claimed `#<7 or more hex>` was caught. I wrote the exemption and the contradicting claim
+  in the same commit.
+  Eight is an ordinary git abbreviation length; RGBA-8 is a real but much rarer CSS shape.
+  Exempting it bought a rare false positive and sold a common silent miss, which inverts
+  the trade this guard makes everywhere else. Now an RGBA literal reads as a SHA and the
+  test asserts that as a documented cost.
+  The pattern across this whole fix is worth stating once: EVERY widening I made to remove a
+  false positive introduced a false negative, and each time the test I wrote alongside it
+  shared the fix's blind spot — a hex "issue reference" that is not what issue references
+  look like, then an RGBA exemption whose test asserted the miss was correct. The test moved
+  with the misconception rather than against it. A regression test only bites when its
+  fixture comes from somewhere other than the reasoning that produced the fix.
+Observations: Guard test 35 -> 36 assertions. All five gates pass. Timestamp 2026-09-04T19:51:15Z read
+  from `date -u`. The 8-hex counterexample was verified against `git rev-parse`.

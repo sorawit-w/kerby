@@ -92,7 +92,13 @@ expect "sha with digits and letters still fails" 1 'Reviewed at 1a2b3c today.' "
 # every non-alphanumeric discards a leading `#`, so a CSS colour became a SHA. A
 # brand colour is exactly what a real Next Up row carries.
 expect "CSS hex colours are not SHAs" 0 '| 1 | Change brand colour from #1a2b3c to #2f4f4f | design |'
-expect "8-digit RGBA colours are not SHAs" 0 'Set the overlay to #1a2b3c4d this sprint.'
+# DOCUMENTED FALSE POSITIVE, asserted so it stays a decision. An 8-digit RGBA
+# literal reads as a SHA, because eight is an ordinary git abbreviation length and
+# exempting it hid a real one — the review's counterexample was this repo's own
+# HEAD. Visible false positive over silent miss, the trade this guard makes
+# everywhere.
+expect "8-digit RGBA reads as a sha (documented cost)" 1 'Set the overlay to #1a2b3c4d this sprint.' "states a sha"
+expect "an 8-hex sha after a # is caught" 1 'Reviewed commit #0389e6bd today.' "states a sha"
 expect "decimal issue references are not SHAs" 0 'Blocked behind #1234 in the tracker.'
 # TRUE-POSITIVE TWINS. The exemption is limited to CSS colour SHAPES (3, 4, 6, 8
 # hex digits), so a `#`-prefixed SHA of any other length must still fail —

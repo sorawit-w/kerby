@@ -95,8 +95,10 @@ hex token — because both have an authority elsewhere and a second copy a tier 
 authority can only drift. **It exits 0 on exactly one outcome** — the file was opened, read, and stated neither.
 Every other outcome, absence included, is a non-zero exit. It applies one bounded
 precondition — the path must be a regular file — and leaves everything else to the open;
-five fail-opens came from trying to decide *why* a path could not be read, so it no longer
-asks and reports every unreadable path the same way. Its header lists the
+four fail-opens came from trying to decide *why* a path could not be read, so it no longer
+asks and reports every unreadable path the same way. A fifth was different in kind — a
+directory passed the open and was caught only by the scanner erroring afterwards, which is
+implementation-specific — and that is what the precondition exists for. Its header lists the
 gaps it knowingly leaves (a SHA abbreviation that is all letters or all digits, a four-part
 version) so the guarantee is never read as wider than it is. **It deliberately does not check
 branch names at all** — three designs over three review rounds each fixed their cited cases

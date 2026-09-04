@@ -23,8 +23,9 @@
 # itself could not run (no `awk`, a failed `mktemp`, an interpreter error). The
 # last group matters: those exits are neither a hit nor an open failure, and a
 # contract naming only the first two would be another claim wider than the code.
-# There is no SKIP and no third *passing* state; see THE OPEN IS THE ONLY TEST
-# below for why absence is not special-cased. Exit 0 says nothing about branch
+# There is no SKIP and no third *passing* state; see ONE PRECONDITION, THEN THE
+# OPEN below for why absence is not special-cased — it is rejected by the
+# regular-file precondition, before any open is attempted. Exit 0 says nothing about branch
 # names — see below.
 #
 # WHAT IT MATCHES — two things, both unambiguous shapes:
@@ -68,12 +69,14 @@
 #     these misses are not.
 #   - A four-part version ("1.2.3.4") is not matched. That shape is exactly what
 #     separates an IP address from a semver, and this repo ships semver.
-#   - `#` plus exactly 3, 4, 6 or 8 hex digits is treated as a CSS colour and
-#     skipped. Lengths 3, 4 and 8 cost nothing. Length SIX is genuinely ambiguous
-#     — `#1a2b3c` is both a valid colour and a valid short SHA — and is resolved
-#     in the colour's favour, because a status file carries brand colours far more
-#     often than `#`-prefixed SHAs. A SHA written as `#<7 or more hex>` is still
-#     caught.
+#   - `#` plus exactly 3, 4 or 6 hex digits is treated as a CSS colour and
+#     skipped. 3 and 4 cost nothing. SIX is genuinely ambiguous — `#1a2b3c` is
+#     both a valid colour and a valid short SHA — and is resolved in favour of the
+#     colour, because a status file carries brand colours far more often than
+#     `#`-prefixed short SHAs. A SHA written as `#<any other length>` is caught,
+#     eight included: eight is an ordinary git abbreviation, so exempting it as
+#     RGBA hid a real SHA. The cost is that an 8-digit RGBA literal reads as a
+#     SHA — a visible false positive, which this guard prefers to a silent miss.
 
 set -u
 
@@ -110,9 +113,9 @@ finish() {
 # (The precondition is not optional. Opening a DIRECTORY succeeds on Linux and
 # macOS; only the scanner erroring afterwards stopped it, and whether it errors is
 # implementation-specific — mawk can exit 0 having read nothing.) Then open the
-# file; if the open succeeds, scan it; if it does not, exit 1. Absence is no longer a special case
-# — a file that is not there is simply one of the many ways an open can fail, and
-# all of them are reported the same way. That costs a caller who legitimately has
+# file; if the open succeeds, scan it; if it does not, exit 1. Absence is no longer
+# a special case — it is one of the many ways the PRECONDITION can fail, alongside
+# a directory and a dangling symlink, and all of them are reported the same way. That costs a caller who legitimately has
 # no STATUS.md yet a non-zero exit, which is the deliberate trade: this guard's
 # whole purpose is to never report a pass on something it did not read, and a
 # loud "I could not read it" is the honest answer to every case at once.
@@ -161,14 +164,17 @@ HITS=$( { awk '
         printf "%d\tversion\t%s\n", NR, t
     }
 
-    # A CSS colour is `#` plus exactly 3, 4, 6 or 8 hex digits. Blank ONLY those
-    # shapes before tokenising: blanking every `#`-hex run would let a SHA written
-    # as `#1a2b3c7` escape, which is plausible shorthand. Lengths 3, 4 and 8 are
-    # colour-only (3 and 4 are below the SHA minimum; 8 is not a common
-    # abbreviation but is a standard RGBA colour). Length 6 is genuinely
-    # ambiguous and is resolved in favour of the colour — see the header ceiling.
+    # Blank CSS colour shapes before tokenising: `#` plus exactly 3, 4 or 6 hex
+    # digits. Blanking every `#`-hex run would let a SHA written as `#1a2b3c7`
+    # escape, which is plausible shorthand. 3 and 4 are below the SHA minimum and
+    # cost nothing. 6 is genuinely ambiguous and is resolved in favour of the
+    # colour, because a status file carries brand colours far more often than
+    # `#`-prefixed short SHAs.
+    # EIGHT IS NOT EXEMPT, though 8-digit RGBA is valid CSS: eight is an ordinary
+    # git abbreviation length, so exempting it hid a real SHA. An RGBA literal is
+    # therefore a false positive here — visible and fixable, which is the trade
+    # this guard makes everywhere over a silent miss.
     shaline = line
-    gsub(/#[0-9a-fA-F]{8}([^0-9a-fA-F]|$)/, " ", shaline)
     gsub(/#[0-9a-fA-F]{6}([^0-9a-fA-F]|$)/, " ", shaline)
     gsub(/#[0-9a-fA-F]{3,4}([^0-9a-fA-F]|$)/, " ", shaline)
 
