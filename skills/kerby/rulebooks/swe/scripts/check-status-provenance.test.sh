@@ -88,6 +88,27 @@ expect "ordinary six-digit numbers pass" 0 'Milestone 123456 is queued behind 98
 # The true-positive twin: a real SHA has both, and must still fail.
 expect "sha with digits and letters still fails" 1 'Reviewed at 1a2b3c today.' "states a sha"
 
+# FALSE POSITIVE from GitHub-side review on a different platform: splitting on
+# every non-alphanumeric discards a leading `#`, so a CSS colour became a SHA. A
+# brand colour is exactly what a real Next Up row carries.
+expect "CSS hex colours are not SHAs" 0 '| 1 | Change brand colour from #1a2b3c to #2f4f4f | design |'
+# DOCUMENTED FALSE POSITIVE, asserted so it stays a decision. An 8-digit RGBA
+# literal reads as a SHA, because eight is an ordinary git abbreviation length and
+# exempting it hid a real one — the review's counterexample was this repo's own
+# HEAD. Visible false positive over silent miss, the trade this guard makes
+# everywhere.
+expect "8-digit RGBA reads as a sha (documented cost)" 1 'Set the overlay to #1a2b3c4d this sprint.' "states a sha"
+expect "an 8-hex sha after a # is caught" 1 'Reviewed commit #0389e6bd today.' "states a sha"
+expect "decimal issue references are not SHAs" 0 'Blocked behind #1234 in the tracker.'
+# TRUE-POSITIVE TWINS. The exemption is limited to CSS colour SHAPES (3, 4 and 6
+# hex digits — NOT 8), so a `#`-prefixed SHA of any other length must still fail —
+# blanking every `#`-hex run would have let this escape, which is what the
+# narrowing fixed. And the bare token must still fail, or the colour exemption
+# could be "achieved" by dropping the SHA check entirely.
+expect "a 7-hex sha after a # still fails" 1 'Reviewed commit #1a2b3c7 today.' "states a sha"
+expect "a long sha after a # still fails" 1 'Reviewed commit #e9163f1bd957 today.' "states a sha"
+expect "the same token bare is still a sha" 1 'Merged as 1a2b3c today.' "states a sha"
+
 # --- 4. branch names are NOT checked ------------------------------------------
 # Deliberate removal, asserted so it stays a decision rather than rotting into an
 # assumption. Three designs over three review rounds each fixed their cited cases
@@ -232,22 +253,30 @@ else
 fi
 chmod 755 "$TMP/lk"
 
-# Components must stay under NAME_MAX (255) while the TOTAL exceeds PATH_MAX, or
-# the fixture tests the wrong limit: a 300-byte component fails on its own length,
-# `dirname` succeeds, and the over-long-path case is never exercised. Six 200-byte
-# segments give ~1.2 KB of legal components — there, `dirname` really does fail.
-_seg=$(printf 'a%.0s' {1..200})
-_long="$TMP"; for _i in 1 2 3 4 5 6; do _long="$_long/$_seg"; done
-if [[ "${#_long}" -le 1024 ]]; then
-  fail "over-long path fixture is only ${#_long} bytes — it does not exceed PATH_MAX"
-elif dirname -- "$_long" >/dev/null 2>&1; then
-  fail "over-long path fixture does not break dirname — it tests the wrong limit"
+# DERIVE the platform limit; do not assume one. PATH_MAX is 1024 on macOS and
+# commonly 4096 on Linux, so a fixture hard-coded for one is under the limit on
+# the other and the case silently stops testing anything. Components stay under
+# NAME_MAX (255 on both) so the path fails on its total length, not on a segment.
+# The old version also asserted that `dirname` fails — GNU dirname is lexical and
+# does not, and the guard no longer calls dirname at all, so that assertion tested
+# neither the platform nor the code.
+# Query the filesystem the fixture actually lives on, not `/`. The previous
+# version also "self-validated" with a length check the build loop had already
+# guaranteed — a check that cannot fail proves nothing, so it is gone; what is
+# asserted instead is that the guard names the precondition it failed, which an
+# ordinary absent path would also do, but which a silent pass would not.
+_pmax=$(getconf PATH_MAX "$TMP" 2>/dev/null || true)
+if ! [[ "$_pmax" =~ ^[0-9]+$ ]]; then
+  echo "SKIP: cannot determine PATH_MAX for $TMP — over-long-path case NOT verified"
 else
+  _seg=$(printf 'a%.0s' {1..200})
+  _long="$TMP"
+  while [[ "${#_long}" -le "$_pmax" ]]; do _long="$_long/$_seg"; done
   out=$(bash "$GUARD" "$_long" 2>&1); got=$?
-  if [[ "$got" -ne 0 ]]; then
-    pass "a path too long to resolve fails closed (${#_long} bytes, dirname fails)"
+  if [[ "$got" -ne 0 ]] && printf '%s' "$out" | grep -q "NOT scanned"; then
+    pass "a path over the platform PATH_MAX fails closed (${#_long} > $_pmax bytes)"
   else
-    fail "over-long path: expected non-zero exit, got exit $got"
+    fail "over-long path: expected non-zero exit naming the failure, got exit $got"
     printf '%s\n' "$out" | sed 's/^/      /'
   fi
 fi

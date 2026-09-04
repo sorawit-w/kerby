@@ -11,8 +11,8 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | Implementation — the status-file provenance work is finished; nothing else is in flight |
-| **Milestone** | Status-file accuracy — STATUS.md holds position, never provenance |
+| **Phase** | Implementation — fixing three portability defects in the shipped provenance guard |
+| **Milestone** | Status-file accuracy — the guard behaves the same on every host it ships to |
 | **Milestone Goal** | No fact that has an authority elsewhere is restated here; what stays is the judgment that has no other home |
 
 ---
@@ -87,3 +87,6 @@ re-review:
   documentation gap, not a record of past work.
 - The installed kerby is older than what this repo ships, so a session here governs by
   rules the repo has already moved past. Open until the plugin work lands.
+- **Settled: a clean local Codex review is sufficient to merge.** Portability defects the
+  local venue cannot see are follow-up work, not a merge blocker. The standing cost is that
+  a release can carry one until someone reads the merged PR's review comments.

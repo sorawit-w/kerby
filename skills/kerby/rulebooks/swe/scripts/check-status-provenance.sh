@@ -16,14 +16,16 @@
 #
 # Run: bash skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh [file]
 # Default file: .kerby/STATUS.md relative to the current directory.
-# EXIT 0 HAS EXACTLY ONE CASE: the file was opened, read, and stated no version
+# EXIT 0 HAS EXACTLY ONE CASE: the file was a regular file, was opened, read, and
+# stated no version
 # and no SHA-shaped token. Every other outcome is non-zero — a token was found;
 # the file could not be opened for ANY reason, absence included; or the scan
 # itself could not run (no `awk`, a failed `mktemp`, an interpreter error). The
 # last group matters: those exits are neither a hit nor an open failure, and a
 # contract naming only the first two would be another claim wider than the code.
-# There is no SKIP and no third *passing* state; see THE OPEN IS THE ONLY TEST
-# below for why absence is not special-cased. Exit 0 says nothing about branch
+# There is no SKIP and no third *passing* state; see ONE PRECONDITION, THEN THE
+# OPEN below for why absence is not special-cased — it is rejected by the
+# regular-file precondition, before any open is attempted. Exit 0 says nothing about branch
 # names — see below.
 #
 # WHAT IT MATCHES — two things, both unambiguous shapes:
@@ -67,6 +69,16 @@
 #     these misses are not.
 #   - A four-part version ("1.2.3.4") is not matched. That shape is exactly what
 #     separates an IP address from a semver, and this repo ships semver.
+#   - `#` plus exactly 3, 4 or 6 hex digits is treated as a CSS colour and
+#     skipped. 3 and 4 cost nothing. SIX is genuinely ambiguous — `#1a2b3c` is
+#     both a valid colour and a valid short SHA — and is resolved in favour of the
+#     colour, because a status file carries brand colours far more often than
+#     `#`-prefixed short SHAs. A SHA written as `#` plus 7-40 hex digits is
+#     caught, eight included: eight is an ordinary git abbreviation, so exempting it as
+#     RGBA hid a real SHA. The cost is that an 8-digit RGBA literal reads as a
+#     SHA — a visible false positive, which this guard prefers to a silent miss.
+#     (A five-digit run is not exempted either, but passes anyway: it is below the
+#     six-character SHA minimum, so nothing was ever going to match it.)
 
 set -u
 
@@ -86,9 +98,9 @@ finish() {
   exit 1
 }
 
-# THE OPEN IS THE ONLY TEST. There is deliberately no attempt to classify the
-# path before scanning it — no "does it exist", no "is it a regular file", no
-# parent-permission probe. Four fail-opens on this branch all came from a
+# ONE PRECONDITION, THEN THE OPEN. The path must be a regular file; everything
+# else about it is left to the open. There is deliberately no attempt to classify
+# WHY a path is unavailable — no "does it exist", no parent-permission probe. Four fail-opens on this branch all came from a
 # predicate that answered two questions at once, with the silent answer winning:
 # `! -f` folded absent with not-a-regular-file; `! -e` folded absent with
 # cannot-be-stat'd; a parent check missed a locked GRANDPARENT and a path long
@@ -97,13 +109,36 @@ finish() {
 # ancestor, every resolution failure, every path-length limit is another way to
 # fail to observe something that is really there.
 #
-# So the question is removed rather than answered. Open the file; if the open
-# succeeds, scan it; if it does not, exit 1. Absence is no longer a special case
-# — a file that is not there is simply one of the many ways an open can fail, and
-# all of them are reported the same way. That costs a caller who legitimately has
+# So that question is removed rather than answered. The one test that remains is
+# bounded and has a single answer: a regular file, or not. Absence lands in "not",
+# alongside a directory and a dangling symlink, and they are reported identically.
+# (The precondition is not optional. Opening a DIRECTORY succeeds on Linux and
+# macOS; only the scanner erroring afterwards stopped it, and whether it errors is
+# implementation-specific — mawk can exit 0 having read nothing.) Then open the
+# file; if the open succeeds, scan it; if it does not, exit 1. Absence is no longer
+# a special case — it is one of the many ways the PRECONDITION can fail, alongside
+# a directory and a dangling symlink, and all of them are reported the same way. That costs a caller who legitimately has
 # no STATUS.md yet a non-zero exit, which is the deliberate trade: this guard's
 # whole purpose is to never report a pass on something it did not read, and a
 # loud "I could not read it" is the honest answer to every case at once.
+
+# A REGULAR FILE IS THE ONLY THING WORTH OPENING, and this test is bounded in a
+# way the deleted absence-classification was not: every branch below fails closed,
+# so there is no "which kind of missing is this" question to get wrong. Absence
+# lands here too and is reported like any other non-regular path.
+#
+# It is not redundant with the open. Opening a DIRECTORY succeeds on Linux and on
+# macOS; what stops it is the scanner erroring on the read, and whether it does is
+# implementation-specific — BSD awk reports an i/o error, mawk can exit 0 having
+# read nothing, which leaves the capture empty and indistinguishable from a clean
+# file. Relying on that was a fail-open on any host with mawk.
+if [[ ! -f "$FILE" ]]; then
+  fail "$FILE is not a regular file that can be scanned — it was NOT scanned"
+  echo "      (a directory, a device, a dangling symlink, or nothing there at all;" >&2
+  echo "      if this project has no .kerby/STATUS.md yet, that is fine — this check" >&2
+  echo "      does not apply until the file exists)" >&2
+  finish
+fi
 
 ERRFILE=$(mktemp) || { echo "FAIL: cannot create a temp file"; exit 1; }
 trap 'rm -f "$ERRFILE"' EXIT
@@ -131,12 +166,26 @@ HITS=$( { awk '
         printf "%d\tversion\t%s\n", NR, t
     }
 
+    # Blank CSS colour shapes before tokenising: `#` plus exactly 3, 4 or 6 hex
+    # digits. Blanking every `#`-hex run would let a SHA written as `#1a2b3c7`
+    # escape, which is plausible shorthand. 3 and 4 are below the SHA minimum and
+    # cost nothing. 6 is genuinely ambiguous and is resolved in favour of the
+    # colour, because a status file carries brand colours far more often than
+    # `#`-prefixed short SHAs.
+    # EIGHT IS NOT EXEMPT, though 8-digit RGBA is valid CSS: eight is an ordinary
+    # git abbreviation length, so exempting it hid a real SHA. An RGBA literal is
+    # therefore a false positive here — visible and fixable, which is the trade
+    # this guard makes everywhere over a silent miss.
+    shaline = line
+    gsub(/#[0-9a-fA-F]{6}([^0-9a-fA-F]|$)/, " ", shaline)
+    gsub(/#[0-9a-fA-F]{3,4}([^0-9a-fA-F]|$)/, " ", shaline)
+
     # --- sha: hex token, 6-40 chars, containing BOTH a digit and a hex letter.
     # The digit keeps English words spelled in hex letters out ("defaced"); the
     # letter keeps ordinary numbers out ("Milestone 123456"). Both classes are
     # frequent in a status file, so both are excluded. See the header for what
     # this misses.
-    n = split(line, tok, /[^0-9A-Za-z]+/)
+    n = split(shaline, tok, /[^0-9A-Za-z]+/)
     for (i = 1; i <= n; i++) {
       t = tok[i]
       if (length(t) >= 6 && length(t) <= 40 && t ~ /^[0-9a-fA-F]+$/ \

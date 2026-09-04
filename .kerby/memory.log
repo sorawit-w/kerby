@@ -1184,3 +1184,127 @@ Notes: This is the last entry in this correction chain, by prior agreement with 
   is being written into must scope its claims to the moment it was generated. "Every X on
   this branch" cannot be written from inside the branch. "N as of <time>" can.
 Observations: Entry timestamp 2026-09-04T19:26:16Z, and every figure above, read at generation time.
+
+[2026-09-04T19:38:59Z]
+Task: swe 2.11.4 — three portability defects the local review could not see
+Action: The GitHub-side Codex review of #66 landed three minutes AFTER that PR merged and
+  reported three P2s, all verified here. (1) A `#`-prefixed hex run was read as a SHA, so a
+  brand colour in a Next Up row failed the guard — reproduced on this machine. (2) A
+  directory input can PASS on Linux: opening a directory succeeds on both platforms, and
+  what stopped it here was BSD awk raising an i/o error, while mawk can exit 0 having read
+  nothing. (3) The over-long-path fixture was hard-coded to ~1.2 KB, over macOS's PATH_MAX
+  of 1024 but under Linux's 4096, so the suite's own self-validation would fail there; it
+  also asserted a `dirname` failure that GNU dirname does not produce and that the guard
+  stopped depending on a release ago.
+  Fixed: `#`-hex runs blanked before the SHA scan; a regular-file precondition ahead of the
+  open; the fixture derives PATH_MAX with `getconf`.
+Files: skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.test.sh, CHANGELOG.md,
+  README.md, .kerby/STATUS.md, .kerby/rulebooks.toml,
+  skills/kerby/rulebooks/swe/rulebook.toml, three plugin manifests
+Commit: (pending)
+Status: DONE
+Notes: The regular-file precondition is NOT a reinstatement of the absence-classification
+  deleted in 9.26.3. That one failed because it tried to decide WHY a path could not be
+  read, and every branch had a different answer, one of which exited 0. This one has a
+  single answer: not a regular file, fail closed — absence included. The distinction is
+  bounded-vs-unbounded, not "we added a check back".
+  The finding that matters beyond this fix: my design note said "the open is the only test",
+  and it was wrong on its own terms. Opening a directory SUCCEEDS. What actually stopped a
+  directory was the scanner erroring afterwards, which is implementation-specific. I wrote a
+  claim about a mechanism, verified the OUTCOME on one platform, and took the matching
+  outcome as confirmation of the mechanism — the same shape as "breaks dirname" earlier in
+  this series, and the reason a passing test is not evidence for why it passed.
+  PROCESS: 9.26.3 merged on a clean local review, per the repo's documented workflow, which
+  treats the local review as the independent one. That workflow is not wrong, but it is now
+  demonstrably incomplete for portable shell: the two venues run on different platforms and
+  the local one structurally cannot see mawk, GNU dirname or a 4096-byte PATH_MAX. Worth the
+  maintainer's decision — see Notes for Human Review in STATUS.md.
+Observations: Guard test 29 -> 32 assertions. All five gates pass. Timestamp 2026-09-04T19:38:59Z read
+  from `date -u` at write time; PATH_MAX here measured as 1024 with `getconf`.
+
+[2026-09-04T19:45:50Z]
+Task: five P2s from the local review of the portability fix
+Action: (1) Whole-run `#` blanking created a new miss — `#1a2b3c7` escaped as SHA shorthand.
+  Narrowed to CSS colour SHAPES only (3, 4, 6, 8 hex digits), so any other length after a
+  `#` is still caught. (2) The PATH_MAX fixture queried `/` rather than the filesystem
+  holding the fixture, and "self-validated" with a length check the build loop had already
+  guaranteed. Now queries $TMP and asserts the failure message instead. (3) The release copy
+  said macOS "could not see any" of the three, then said two were platform-specific — the
+  CSS one reproduces anywhere and was simply missed. (4) The guard's design commentary still
+  said the open was the only test and denied a regular-file precondition, contradicting the
+  code; CLAUDE.md carried the same stale mechanism. (5) The STATUS note recorded the history
+  behind a decision rather than the decision.
+Files: skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.test.sh, CHANGELOG.md,
+  README.md, CLAUDE.md, .kerby/STATUS.md
+Commit: (pending)
+Status: DONE
+Notes: Finding (1) is the one to keep. Fixing the CSS false positive by blanking every
+  `#`-hex run traded a false positive for a false NEGATIVE, and the test I wrote alongside
+  it could not catch that because its fixture — "issue references are not SHAs" with a HEX
+  value — was not a realistic issue reference. A test written from the same misconception as
+  the fix confirms the fix. The exemption is now shape-limited and carries three
+  true-positive twins.
+  Finding (3) is the fourth accuracy defect in release copy on this work, and its shape is
+  now familiar: I wrote the vivid version of the story (macOS saw none of it) over the
+  accurate one (macOS could not see two of them), because the vivid version was the point I
+  wanted to make. I had already stated the accurate version correctly to the maintainer in
+  the same session.
+  A genuinely ambiguous case is documented rather than resolved silently: `#1a2b3c` is both
+  a valid CSS colour and a valid six-character SHA. It is read as a colour, because a status
+  file carries brand colours far more often than `#`-prefixed short SHAs, and the header
+  says so.
+Observations: Guard test 32 -> 35 assertions. All five gates pass. Timestamp 2026-09-04T19:45:50Z read
+  from `date -u`; PATH_MAX for the fixture filesystem measured at run time.
+
+[2026-09-04T19:51:15Z]
+Task: P1 — my own 8-digit RGBA exemption hid a real SHA
+Action: Dropped the 8-hex exemption from the CSS-colour skip; only 3, 4 and 6 remain.
+  Also fixed two P2s: the release copy called two defects macOS-specific when the directory
+  fail-open is awk-specific (mawk on macOS fails the same way), and CLAUDE.md attributed
+  five fail-opens to the same cause when the directory one was different in kind.
+Files: skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.test.sh, CHANGELOG.md,
+  README.md, CLAUDE.md
+Commit: (pending)
+Status: DONE
+Notes: The counterexample was this repo's own HEAD. `#0389e6bd` is eight hex characters, is
+  a real commit here, and my exemption skipped it as RGBA — while the header three lines up
+  claimed `#<7 or more hex>` was caught. I wrote the exemption and the contradicting claim
+  in the same commit.
+  Eight is an ordinary git abbreviation length; RGBA-8 is a real but much rarer CSS shape.
+  Exempting it bought a rare false positive and sold a common silent miss, which inverts
+  the trade this guard makes everywhere else. Now an RGBA literal reads as a SHA and the
+  test asserts that as a documented cost.
+  The pattern across this whole fix is worth stating once: EVERY widening I made to remove a
+  false positive introduced a false negative, and each time the test I wrote alongside it
+  shared the fix's blind spot — a hex "issue reference" that is not what issue references
+  look like, then an RGBA exemption whose test asserted the miss was correct. The test moved
+  with the misconception rather than against it. A regression test only bites when its
+  fixture comes from somewhere other than the reasoning that produced the fix.
+Observations: Guard test 35 -> 36 assertions. All five gates pass. Timestamp 2026-09-04T19:51:15Z read
+  from `date -u`. The 8-hex counterexample was verified against `git rev-parse`.
+
+[2026-09-04T19:55:19Z]
+Task: three stale claims left describing the superseded colour exemption
+Action: The script header said a SHA of "any other length" is caught — five hex digits are
+  not exempted but pass anyway, because the SHA minimum is six; it now says 7-40 and states
+  the five-digit case explicitly. The CHANGELOG still described the superseded whole-run
+  blanking and asserted SHAs are never written after a `#`, which the 8-hex fix disproved.
+  A test comment still listed 8 as exempt.
+Files: skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.test.sh, CHANGELOG.md
+Commit: (pending)
+Status: DONE
+Notes: All three are the same defect: text describing behaviour one revision out of date,
+  left behind when the behaviour changed under it. Nothing here is a logic error — the code
+  was already right and measured right — which is exactly why they survived three reviews.
+  A wrong claim next to correct code reads as confirmation of the code.
+  Measured the full matrix rather than asserting it: N=3,4,5,6 pass and N=7,8,9,12 are
+  caught. That matches the corrected header line for line. The five-digit case is the one
+  worth having written down — it passes for a reason unrelated to the exemption, and a
+  reader checking the exemption list against behaviour would otherwise find a discrepancy
+  and have to re-derive why.
+Observations: 36 assertions, all five gates pass. Timestamp 2026-09-04T19:55:19Z from `date -u`. The
+  N-hex matrix was measured, not reasoned.
