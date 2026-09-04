@@ -11,7 +11,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | Shipped — planning discipline landed. P2-1 and P2-3 in; P2-2 abandoned after seven passes without converging |
+| **Phase** | Between milestones — the planning-discipline work is out; nothing is mid-flight |
 | **Milestone** | Planning discipline — the Plan Gate stops deciding *whether* there is a plan |
 | **Milestone Goal** | A stated plan before every change, and the smallest change that still finishes the job |
 
@@ -82,16 +82,8 @@ re-review:
 
 ## Notes for Human Review
 
-- Recurring pattern worth knowing: across the merged series, roughly half the findings in
-  any round were defects introduced by the *previous* round's fix. Two shipped rules had
-  to be reversed after review disproved their premise — `merge=union` on `memory.log` (it
-  silently truncates records sharing a trailing line) and the enumerated install-path list
-  (a project-local path is workspace content, so it reopened the hole it was meant to
-  close).
 - `protect-git` over-blocks a Bash call whose *heredoc text* merely contains a destructive
-  git string. Safe direction, documented as a ceiling for the PR gate, but not mentioned
-  in `protect-git`'s own docs.
-- This file previously carried a `Progress` table, a `Recent Completions` table and a
-  `Session History` table. All three restated git and `memory.log`, and the counts could
-  disagree with the lists beside them. `Next Up` is the ready queue; `Blockers` is the
-  blocked list; history is `memory.log`'s job.
+  git string. Safe direction, but not mentioned in `protect-git`'s own docs — an open
+  documentation gap, not a record of past work.
+- The installed kerby is older than what this repo ships, so a session here governs by
+  rules the repo has already moved past. Open until the plugin work lands.

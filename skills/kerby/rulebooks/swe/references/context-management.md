@@ -34,7 +34,7 @@ Sources: first three bullets distilled from `drona23/claude-token-efficient` (20
 
 When the conversation is getting long, **proactively create a full checkpoint before it's too late**. A session checkpoint captures everything the next session needs to resume seamlessly:
 
-1. **Update `.kerby/STATUS.md`** — Record current position, what's done, what's next, and any decisions made
+1. **Update `.kerby/STATUS.md`** — Record current position and what's next. Nothing else: what was accomplished and the decisions behind it go to the log in step 2, never here (`references/communication.md` § Status Tracking)
 2. **Update `.kerby/memory.log`** — Write a detailed session summary covering: what was accomplished, key decisions and their rationale, open questions, and exact next steps
 3. **Git checkpoint — LAST, not first.** Commit and push all current work *including the two files above*. Anything uncommitted will not survive a session boundary, and a checkpoint that commits before writing its own state strands exactly the state the next session needs. `git status --short` must be empty before you stop.
 4. **Compact or request a new session** — If the agent supports conversation compaction/summarization, trigger it. Otherwise, tell the developer: *"This session is getting long. I've created a checkpoint — committed all work and updated `.kerby/STATUS.md` and `memory.log`. A fresh session can pick up from where I left off."*

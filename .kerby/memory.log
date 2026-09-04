@@ -688,3 +688,46 @@ Notes: Six test cases added, not two. Fixing a false positive by loosening a che
 Observations: Guard test now 14 assertions, all pass. Verified on BSD awk 20200816 (the macOS
   default, /usr/bin/awk). gawk is NOT installed on this machine, so cross-awk behaviour is
   reasoned from POSIX, not measured — stated rather than claimed.
+
+[2026-09-04T02:35:00Z]
+Task: Codex round 1 DENIED (P0=0 P1=5 P2=5 P3=1) — all 11 findings addressed
+Action: Verified every finding directly before acting on it, then fixed all eleven.
+  P1-1 (worst class): the guard FAILED OPEN on an unreadable file — awk exited non-zero,
+  the capture came back empty, and empty was indistinguishable from clean, so it printed
+  PASS and exited 0. Now checks readability up front AND awk's exit status, and fails
+  closed. P1-2: 6-char and uppercase SHAs were missed (095605 resolves to a real commit
+  here). P1-3: the type list had four of the seven branch types documented in
+  communication.md § Branch Naming — wip, docs and test were silently allowed. P1-4:
+  adopt-existing.md:18 still told the no-git stub to record branch "n/a (no git)" while
+  :100 forbade any branch. P1-5: working-patterns.md:167/375 and context-management.md:37
+  still sent "what's done" and decisions to STATUS.md, which after this change has nowhere
+  to put them. P2-1: the live STATUS.md still narrated history in its Phase line and Notes.
+  P2-2: src/feature/parser.ts false-positived as branch feature/parser. P2-3/P3-1: the
+  multi-hit test asserted only one of three categories and never asserted a line number.
+  P2-4: "defaced" failed while the test claimed English words pass. P2-5: CHANGELOG/README
+  overstated the guarantee, and "six manifests" was wrong.
+Files: skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.test.sh,
+  skills/kerby/rulebooks/swe/workflows/adopt-existing.md,
+  skills/kerby/rulebooks/swe/references/working-patterns.md,
+  skills/kerby/rulebooks/swe/references/context-management.md,
+  .kerby/STATUS.md, CLAUDE.md, CHANGELOG.md, README.md
+Commit: (pending)
+Status: DONE
+Notes: The digit rule is the change worth remembering. Requiring a hex token to contain at
+  least one DIGIT dissolved two findings at once: it lets "decade", "facade", "defaced" and
+  "DEFACED" through while catching 6-char and uppercase abbreviations, so the minimum length
+  could drop from 7 to 6 and the case restriction could go. Cost is a real SHA abbreviating
+  to all letters — (6/16)^6, about 0.3% — which is documented. The earlier design traded
+  those the wrong way round.
+  P2-5 is the one that stings: "six manifests" was a count I restated from my own earlier
+  note without checking. check-skill-compat.py reads FIVE version surfaces, only three of
+  which are manifests. That is the exact failure this PR exists to prevent, committed inside
+  the PR that prevents it. Fixed in CHANGELOG and README.
+  Claims were narrowed to match the guard rather than the guard stretched to match the
+  claims, where the gap was genuinely not worth closing: a bare `main` is ordinary English
+  and matching it would fire on "the main reason". Every such gap is now named in the
+  script header, in CLAUDE.md, and in the release copy.
+Observations: Guard test grew from 14 to 25 assertions. All five repo gates pass. The
+  fail-closed case self-skips with a loud SKIP notice if run as root, where the unreadable
+  fixture cannot be staged — it never reports a pass for a check that did not run.
