@@ -84,31 +84,42 @@ finish() {
   exit 1
 }
 
-if [[ ! -e "$FILE" ]]; then
+# EXIT 0 WITHOUT SCANNING HAS EXACTLY ONE HONEST CASE: the path genuinely is not
+# there. Everything else — a directory, a dangling symlink, an unreadable file, a
+# parent we cannot search — is "I did not scan it" and must fail closed. Three
+# fail-opens on this branch all came from one predicate answering two questions
+# and the silent answer winning, so the tests below are deliberately narrow and
+# the SCAN ITSELF is the final authority (see the redirect further down).
+if [[ -e "$FILE" || -L "$FILE" ]]; then
+  # -L is not redundant: a DANGLING symlink is false to -e while plainly existing,
+  # and reporting it as absent is a pass on an unresolvable path.
+  if [[ -L "$FILE" && ! -e "$FILE" ]]; then
+    fail "$FILE is a symlink whose target does not resolve — it was NOT scanned"
+    finish
+  fi
+  if [[ ! -f "$FILE" ]]; then
+    fail "$FILE exists but is not a regular file — it was NOT scanned"
+    finish
+  fi
+  if [[ ! -r "$FILE" ]]; then
+    fail "cannot read $FILE — it exists but is not readable, so it was NOT scanned"
+    finish
+  fi
+else
+  # -e and -L are both false, which usually means absent — but it ALSO means
+  # "cannot be stat'd", and a parent directory without search permission produces
+  # exactly that for a file that is really there. Absence has to be provable, not
+  # merely unfalsifiable.
+  _parent=$(dirname -- "$FILE")
+  if [[ -d "$_parent" && ! -x "$_parent" ]]; then
+    fail "cannot determine whether $FILE exists — its parent directory is not searchable, so it was NOT scanned"
+    finish
+  fi
   # Say this plainly. A missing file reported as a bare PASS is how "nobody
   # checked" turns into "the check passed".
   echo "SKIP: $FILE does not exist — nothing to check (this is not a pass)."
   echo "---"
   exit 0
-fi
-
-# The path exists but may not be a regular file. Test -e above, -f here: a bare
-# `! -f` folds "absent" and "is a directory" into one branch, so passing a
-# directory reported "does not exist" and exited 0 — a silent pass on something
-# never scanned, the same failure class as the unreadable-file case below.
-if [[ ! -f "$FILE" ]]; then
-  fail "$FILE exists but is not a regular file — it was NOT scanned"
-  finish
-fi
-
-# The file exists but may still be unreadable. Check before scanning, and check
-# awk's status after: an awk that cannot open its input writes to stderr and
-# exits non-zero, leaving the capture EMPTY — which is indistinguishable from a
-# clean file unless the status is tested. That is a guard reporting a pass on a
-# file it never read.
-if [[ ! -r "$FILE" ]]; then
-  fail "cannot read $FILE — the file exists but is not readable, so it was NOT scanned"
-  finish
 fi
 
 ERRFILE=$(mktemp) || { echo "FAIL: cannot create a temp file"; exit 1; }
@@ -147,9 +158,9 @@ HITS=$(awk '
         printf "%d\tsha\t%s\n", NR, t
     }
 
-    # There is deliberately NO branch check here. See the header.
+    # There is deliberately NO branch check here. See the header.\n    # Input arrives by REDIRECT, never as an awk operand: an operand named `-`\n    # is read as stdin and one containing `=` as a variable assignment, so both\n    # would scan nothing and exit 0 on a file that does exist.
   }
-' "$FILE" 2>"$ERRFILE")
+' < "$FILE" 2>"$ERRFILE")
 awk_status=$?
 
 if [[ "$awk_status" -ne 0 ]]; then

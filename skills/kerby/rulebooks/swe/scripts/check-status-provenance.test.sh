@@ -149,6 +149,53 @@ else
   printf '%s\n' "$out" | sed 's/^/      /'
 fi
 
+# A DANGLING SYMLINK exists as a link but is false to -e. Reporting it absent is
+# a pass on an unresolvable path.
+ln -s "$TMP/no-such-target" "$TMP/dangling"
+out=$(bash "$GUARD" "$TMP/dangling" 2>&1); got=$?
+if [[ "$got" -ne 0 ]] && printf '%s' "$out" | grep -q "NOT scanned"; then
+  pass "a dangling symlink fails closed rather than reporting SKIP"
+else
+  fail "dangling symlink: expected non-zero exit naming the failure, got exit $got"
+  printf '%s\n' "$out" | sed 's/^/      /'
+fi
+
+# AN UNSEARCHABLE PARENT makes a file that really exists look absent to -e.
+# Absence must be provable, not merely unfalsifiable.
+mkdir -p "$TMP/locked"; printf 'swe 1.2.3\n' > "$TMP/locked/f.md"; chmod 000 "$TMP/locked"
+if [[ -r "$TMP/locked" ]]; then
+  echo "SKIP: cannot stage an unsearchable parent (running as root?) — case NOT verified"
+else
+  out=$(bash "$GUARD" "$TMP/locked/f.md" 2>&1); got=$?
+  if [[ "$got" -ne 0 ]] && printf '%s' "$out" | grep -q "NOT scanned"; then
+    pass "a file under an unsearchable parent fails closed"
+  else
+    fail "unsearchable parent: expected non-zero exit, got exit $got"
+    printf '%s\n' "$out" | sed 's/^/      /'
+  fi
+fi
+chmod 755 "$TMP/locked"
+
+# AWK-SPECIAL FILENAMES. As an awk OPERAND, `-` is stdin and `x=y` is a variable
+# assignment: both scan nothing and exit 0 on a file that does exist. The guard
+# feeds input by redirect for exactly this reason, so both must be scanned.
+printf 'swe 1.2.3\n' > "$TMP/-"
+out=$( cd "$TMP" && bash "$GUARD" "-" 2>&1 ); got=$?
+if [[ "$got" -ne 0 ]] && printf '%s' "$out" | grep -q "states a version"; then
+  pass "a file named '-' is scanned, not read as stdin"
+else
+  fail "file named '-': expected it to be scanned and fail, got exit $got"
+  printf '%s\n' "$out" | sed 's/^/      /'
+fi
+printf 'swe 1.2.3\n' > "$TMP/x=y"
+out=$(bash "$GUARD" "$TMP/x=y" 2>&1); got=$?
+if [[ "$got" -ne 0 ]] && printf '%s' "$out" | grep -q "states a version"; then
+  pass "a file named 'x=y' is scanned, not read as an awk assignment"
+else
+  fail "file named 'x=y': expected it to be scanned and fail, got exit $got"
+  printf '%s\n' "$out" | sed 's/^/      /'
+fi
+
 # A missing file is a different case: nothing to check, announced as SKIP so it
 # can never read as a green assertion.
 out=$(bash "$GUARD" "$TMP/nope.md" 2>&1); got=$?

@@ -898,3 +898,35 @@ Notes: Same failure class as the original P1-1, one level subtler. A bare `[[ ! 
   re-looped. Whatever the confirming round returns gets logged.
 Observations: Guard test 22 → 23 assertions. All five gates pass. This is the eighth commit
   on the branch; the branch has never been pushed and no PR exists yet.
+
+[2026-09-04T11:35:00Z]
+Task: P1 — close the fail-open CLASS instead of its instances
+Action: Round returned P1 (a dangling symlink and a file under a chmod-000 parent both
+  reported "does not exist" and exited 0) plus P2 (files named `-` or `x=y` were consumed by
+  awk as stdin/an assignment, scanning nothing and passing). Both are the same class as the
+  two fail-opens already fixed on this branch, so this change removes the way the class
+  arises rather than patching the two instances.
+  Existence is now decided by `-e OR -L`, and every "exists but I did not scan it" state
+  fails closed: dangling symlink, non-regular file, unreadable file. Absence must be
+  PROVABLE — when -e and -L are both false the parent is tested for search permission,
+  because an unsearchable parent makes a real file look absent. And input reaches awk by
+  REDIRECT, never as an operand, which removes the filename-interpretation class entirely.
+Files: skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.test.sh
+Commit: (pending)
+Status: DONE
+Notes: I said the previous commit was the last fix. That commitment assumed a P2; a P1 is a
+  blocker the rulebook forbids logging as debt, so the class of finding changed and the
+  commitment did not hold. Saying so rather than quietly continuing.
+  Four fail-opens on this branch now, all one shape: a predicate that answers two questions,
+  where the silent answer wins. `! -f` folded absent with not-a-regular-file. `! -e` folded
+  absent with cannot-be-stat'd. An awk operand folded filename with stdin/assignment. The
+  general rule, worth more than any of the fixes: a guard has exactly ONE honest way to exit
+  0 without scanning — the subject provably is not there — and proving absence is a
+  different, harder claim than failing to observe presence.
+  Verified all seven paths by hand before writing the tests: dangling symlink, unsearchable
+  parent, `-`, `x=y`, directory, clean file, genuinely absent. Exactly two exit-0 paths
+  remain and both are honest.
+Observations: Guard test 23 -> 27 assertions. All five gates pass. The two awk-special
+  filenames are now SCANNED rather than merely rejected, which is strictly better than
+  failing closed on them. Ninth commit; branch still unpushed, no PR.
