@@ -100,8 +100,8 @@ expect "CSS hex colours are not SHAs" 0 '| 1 | Change brand colour from #1a2b3c 
 expect "8-digit RGBA reads as a sha (documented cost)" 1 'Set the overlay to #1a2b3c4d this sprint.' "states a sha"
 expect "an 8-hex sha after a # is caught" 1 'Reviewed commit #0389e6bd today.' "states a sha"
 expect "decimal issue references are not SHAs" 0 'Blocked behind #1234 in the tracker.'
-# TRUE-POSITIVE TWINS. The exemption is limited to CSS colour SHAPES (3, 4, 6, 8
-# hex digits), so a `#`-prefixed SHA of any other length must still fail —
+# TRUE-POSITIVE TWINS. The exemption is limited to CSS colour SHAPES (3, 4 and 6
+# hex digits — NOT 8), so a `#`-prefixed SHA of any other length must still fail —
 # blanking every `#`-hex run would have let this escape, which is what the
 # narrowing fixed. And the bare token must still fail, or the colour exemption
 # could be "achieved" by dropping the SHA check entirely.

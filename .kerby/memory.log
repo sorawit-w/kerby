@@ -1285,3 +1285,26 @@ Notes: The counterexample was this repo's own HEAD. `#0389e6bd` is eight hex cha
   fixture comes from somewhere other than the reasoning that produced the fix.
 Observations: Guard test 35 -> 36 assertions. All five gates pass. Timestamp 2026-09-04T19:51:15Z read
   from `date -u`. The 8-hex counterexample was verified against `git rev-parse`.
+
+[2026-09-04T19:55:19Z]
+Task: three stale claims left describing the superseded colour exemption
+Action: The script header said a SHA of "any other length" is caught — five hex digits are
+  not exempted but pass anyway, because the SHA minimum is six; it now says 7-40 and states
+  the five-digit case explicitly. The CHANGELOG still described the superseded whole-run
+  blanking and asserted SHAs are never written after a `#`, which the 8-hex fix disproved.
+  A test comment still listed 8 as exempt.
+Files: skills/kerby/rulebooks/swe/scripts/check-status-provenance.sh,
+  skills/kerby/rulebooks/swe/scripts/check-status-provenance.test.sh, CHANGELOG.md
+Commit: (pending)
+Status: DONE
+Notes: All three are the same defect: text describing behaviour one revision out of date,
+  left behind when the behaviour changed under it. Nothing here is a logic error — the code
+  was already right and measured right — which is exactly why they survived three reviews.
+  A wrong claim next to correct code reads as confirmation of the code.
+  Measured the full matrix rather than asserting it: N=3,4,5,6 pass and N=7,8,9,12 are
+  caught. That matches the corrected header line for line. The five-digit case is the one
+  worth having written down — it passes for a reason unrelated to the exemption, and a
+  reader checking the exemption list against behaviour would otherwise find a discrepancy
+  and have to re-derive why.
+Observations: 36 assertions, all five gates pass. Timestamp 2026-09-04T19:55:19Z from `date -u`. The
+  N-hex matrix was measured, not reasoned.

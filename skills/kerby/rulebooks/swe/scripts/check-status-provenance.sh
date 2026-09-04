@@ -73,10 +73,12 @@
 #     skipped. 3 and 4 cost nothing. SIX is genuinely ambiguous — `#1a2b3c` is
 #     both a valid colour and a valid short SHA — and is resolved in favour of the
 #     colour, because a status file carries brand colours far more often than
-#     `#`-prefixed short SHAs. A SHA written as `#<any other length>` is caught,
-#     eight included: eight is an ordinary git abbreviation, so exempting it as
+#     `#`-prefixed short SHAs. A SHA written as `#` plus 7-40 hex digits is
+#     caught, eight included: eight is an ordinary git abbreviation, so exempting it as
 #     RGBA hid a real SHA. The cost is that an 8-digit RGBA literal reads as a
 #     SHA — a visible false positive, which this guard prefers to a silent miss.
+#     (A five-digit run is not exempted either, but passes anyway: it is below the
+#     six-character SHA minimum, so nothing was ever going to match it.)
 
 set -u
 
