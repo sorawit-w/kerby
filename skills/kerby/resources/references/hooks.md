@@ -16,6 +16,27 @@ kerby ships with these hooks:
 > `references/hooks.md`. This engine reference covers only the engine-owned
 > SessionStart/knowledge hooks below.
 
+### The launcher — how a registration finds its script
+
+Since 9.27.0 `kerby install` does not write a script's absolute path into
+`settings.json`. It writes `~/.claude/kerby/bin/hook <event> <relpath>`: a
+small POSIX `sh` launcher (shipped as `resources/scripts/hook-launcher.sh`,
+copied to your user-local `~/.claude/kerby/bin/` by `install`) plus the
+script's path relative to the install root. At hook time the launcher reads
+the root from `KERBY_DIR`, else from `~/.claude/kerby/install-root` — one line
+that every `kerby load` refreshes from the copy it actually loaded — and
+`exec`s the script with stdin untouched. Move the install, run any session
+once, and every hook follows.
+
+**It fails open, visibly.** If the pointer is missing or the script is not
+there, the launcher exits 0 and says so on the channel the event reads: an
+`additionalContext` line for `PreToolUse`, a plain line for `SessionStart`,
+stderr for the git hook. An absolute path that stopped resolving used to fail
+silently for weeks — nine dead entries and a pre-commit scan that never ran —
+which is the failure this replaces. `kerby status` reports the launcher and
+pointer state; the SessionStart heartbeat (first line of every session) does
+too.
+
 ### SessionStart → Context Injection
 
 **Script:** `hooks/session-start-context.sh`
@@ -226,7 +247,7 @@ Committing before the session ends and updating the checkpoint files
 ## Windows
 
 **Claude Code runs hooks through Git Bash on Windows**, so kerby registers exactly what it
-registers everywhere else — the absolute path of the script — and it works unchanged. The
+registers everywhere else — the launcher line, `~/.claude/kerby/bin/hook <event> <relpath>` — and it works unchanged (the launcher is POSIX `sh`, and Git Bash runs it). The
 hook schema's `shell` defaults to `bash`, falling back to `powershell` only when Git Bash
 is not installed.
 

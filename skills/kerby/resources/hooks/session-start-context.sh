@@ -12,6 +12,23 @@ case ",${CODING_RULES_HOOK_DISABLED:-}," in
   *,session-start-context,*) exit 0 ;;
 esac
 
+# Engine heartbeat — the first line of every session. Root is THIS script's
+# own location (the copy actually executing) and version comes from
+# <root>/VERSION, so the line can diagnose a stale launcher or pointer rather
+# than trust either. No jq, no python: it must run wherever sh runs.
+ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." >/dev/null 2>&1 && pwd -P )"
+VERSION=$(tr -d '[:space:]' < "$ROOT/VERSION" 2>/dev/null); VERSION="${VERSION:-unknown}"
+LAUNCHER="${HOME:-}/.claude/kerby/bin/hook"
+if   [[ ! -f "$LAUNCHER" ]]; then LSTATE="missing — run kerby install"
+elif cmp -s "$LAUNCHER" "$ROOT/resources/scripts/hook-launcher.sh"; then LSTATE="ok"
+else LSTATE="outdated — run kerby install"; fi
+PTR="${KERBY_DIR:-}"
+[[ -z "$PTR" && -r "${HOME:-}/.claude/kerby/install-root" ]] && IFS= read -r PTR < "$HOME/.claude/kerby/install-root"
+PTRP=""; [[ -n "$PTR" ]] && PTRP=$(cd "$PTR" 2>/dev/null && pwd -P)
+[[ -n "$PTR" && "$PTRP" != "$ROOT" ]] && LSTATE="$LSTATE; install-root pointer names $PTR, not this copy — run kerby load"
+echo "kerby engine $VERSION at $ROOT — hooks via launcher: $LSTATE"
+echo ""
+
 # Check for project state files and surface them
 echo "=== AI Playbook Active ==="
 echo "Follow the 9-step workflow: ASSESS → CLARIFY → PLAN → IMPLEMENT → DELEGATE → VALIDATE → LOG → CHECKPOINT → STOP"
