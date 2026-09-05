@@ -1335,3 +1335,12 @@ Commit: (this commit)
 Status: DONE (pending scoped round-3 review — the cap)
 Notes: the predicate's regression test is the launcher's own symlink and `..` cases, because the predicate is defined as the launcher's behavior.
 Observations: hook-launcher.test.sh 27 assertions (sh + dash); session-start-context.test.sh 26. All gates pass.
+
+[2026-09-04T00:00:00Z]
+Task: swe 2.12.0 / engine 9.28.0 — a case table in every plan, and docs you read this session (PR 2 of 2 from the rule-audit discussion)
+Action: feature.md § 3 Expected Outcomes gains a forced case table (happy / edge / failure, or `none`); § 7 step 6 fills `actual` per row and emits `outcome:` per case; validation.md Iron Law extension judges per case and Stage 1 uses the table as its checklist; BOOTSTRAP § 4 Plan Gate names the table and the per-case outcome; bugfix/new-project finish steps carry the per-case clause; implementation-planning YAML comment; BOOTSTRAP § Accuracy docs-read-this-session clause; context7 row in external-resources § MCP Servers with the explicit-listing rationale extended; recommendations.md signal row; swe 2.12.0; engine 9.28.0 across six surfaces; CHANGELOG
+Files: skills/kerby/rulebooks/swe/{BOOTSTRAP.md,rulebook.toml,workflows/feature.md,workflows/bugfix.md,workflows/new-project.md,references/validation.md,references/implementation-planning.md,references/external-resources.md,references/recommendations.md}, skills/kerby/VERSION, .claude-plugin/plugin.json, .claude-plugin/marketplace.json, .codex-plugin/plugin.json, README.md, CHANGELOG.md
+Commit: (this commit)
+Status: DONE (pending in-session skill-evaluator and Codex review)
+Notes: no numeric `≥ N` added to feature.md or BOOTSTRAP.md — the parity guard's approval extractor greps for it; the rule text names the tool class, the registry names the vendor. Manual step for the maintainer, not a repo edit: one context7 line in ~/.claude/CLAUDE.md.
+Observations: check-skill-compat (6 surfaces at 9.28.0), check-plan-gate-parity, check-hook-disable-tier, validate-rulebook swe all pass.

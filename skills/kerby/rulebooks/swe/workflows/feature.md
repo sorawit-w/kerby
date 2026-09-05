@@ -76,6 +76,18 @@ Before any code, predict the **observable end-state** — what the change will l
 | CLI / script | the output lines the user will see |
 | Data / state | the state transition (before → after) |
 
+**Case table — the tester's half of the prediction.** The medium table predicts one end-state; a tester enumerates cases. Add, in the same block:
+
+```
+| case | action / input | expected |
+|---|---|---|
+| happy path | <what is done> | <what is observed> |
+| edge | … | … |
+| failure | … | … |
+```
+
+At least the happy path plus one edge case and one failure case, where the change has them; where it has none, one row whose `case` is `none`. This is a forced artifact, not advice: an absent table is a missing plan, not a stylistic choice. Each row is a check the finish step (§ 7 step 6) runs for real and fills an `actual` column for, and at the High/Critical tiers it is the QA sub-agent's Stage 1 checklist (`references/validation.md`).
+
 Below `plan_threshold` this block is optional.
 
 ### Smallest version, and what you are deferring (grade ≥ `plan_threshold`)
@@ -211,9 +223,9 @@ Complete ALL of these before declaring done:
 4. **`ROADMAP.md` self-check** — completed features flipped to `[x]` and swept to `## Shipped`; new in-scope items added if scope expanded mid-task. The flips should already have happened in the COMMIT step of the loop; this is the verification
 5. **Manual verification instructions provided** — emit the **How to Verify** block per `BOOTSTRAP.md` § 4 (Manual Verification Instructions): steps to test, what to look for, edge cases, env setup.
 6. **Realized Outcomes captured (grade ≥ `plan_threshold`)** — distinct from "How to Verify" above (that's instructions for the human; this is *your* check against the § 3 prediction). *Skip this step only when the plan was waived by a logged user opt-out (`BOOTSTRAP.md` § 2.5) — there is no Expected Outcome to compare against; standard Verification (§ 6) still applies.* After implementing:
-   1. Capture the **actual** result from a real run — or a dry-run transcript where no runnable surface exists — and place it next to the § 3 Expected Outcome. Evidence is an object (screenshot path / captured JSON / CLI dump / diff), **not** prose.
-   2. Emit `outcome: match | mismatch`.
-   3. On `mismatch`, classify the cause and route — **only one branch changes code**:
+   1. Capture the **actual** result from a real run — or a dry-run transcript where no runnable surface exists — and place it next to the § 3 Expected Outcome. Evidence is an object (screenshot path / captured JSON / CLI dump / diff), **not** prose. When the plan carries a case table, fill its `actual` column row by row from real runs — one evidence object per row.
+   2. Emit `outcome: match | mismatch` — one line per case when the plan carries a case table (`outcome: <case> — match | mismatch`), a single line otherwise.
+   3. On any `mismatch`, classify the cause and route — **only one branch changes code**:
       - **Code wrong** (real bug) → fix via the § 5 task loop, bounded by the existing circuit breaker (`references/working-patterns.md`: 3 no-progress / same error 3×; `references/error-handling.md`: build 5 / test 3 / lint 5 → BLOCKED). No new loop.
       - **Prediction wrong** (system is fine) → update the § 3 Expected Outcome with a one-line reason and log it to `.kerby/memory.log` (recurring wrong predictions signal mis-calibrated planning). No code change.
       - **Ambiguous** → STOP. Surface both artifacts + your hypothesis. The human adjudicates.

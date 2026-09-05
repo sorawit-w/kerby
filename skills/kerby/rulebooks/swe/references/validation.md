@@ -2,7 +2,7 @@
 
 **The Iron Law, the Verification Gate, and the Red Flag Phrases moved to the base rulebook:** `rulebooks/base/rules/iron-law-claims.md` (`iron-law-claims`, floor). This file carries the coding-specific layers on top of that floor: outcome verification, what counts as evidence for code, the tiered verification ladder, and the Security Lens.
 
-**Iron Law extension — outcome verification.** When a plan declared **Expected Outcomes**, the finish step captures **Realized Outcomes** from a real run — or a dry-run transcript where no runnable surface exists. Realized evidence is recorded as-observed and is **never edited to match the prediction**; a doctored result is the one failure this whole discipline exists to prevent. Judge `match` vs `mismatch` on **material intent** — does the behavior do what was predicted — not byte-exact comparison. Mismatch routing lives in `workflows/feature.md` § 7.
+**Iron Law extension — outcome verification.** When a plan declared **Expected Outcomes**, the finish step captures **Realized Outcomes** from a real run — or a dry-run transcript where no runnable surface exists. Realized evidence is recorded as-observed and is **never edited to match the prediction**; a doctored result is the one failure this whole discipline exists to prevent. Judge `match` vs `mismatch` on **material intent** — does the behavior do what was predicted — not byte-exact comparison. When the plan carries a case table (`workflows/feature.md` § 3), the judgment is per case: each row's `actual` against its `expected`. Mismatch routing lives in `workflows/feature.md` § 7.
 
 ---
 
@@ -65,6 +65,7 @@ Spawn a **separate QA sub-agent** that performs both stages independently. The s
 **Stage 1 — Spec Compliance:**
 > "Does this do what was asked?"
 - Same checks as medium complexity, but performed by a separate agent
+- When the plan carries a case table (`workflows/feature.md` § 3), that table **is** this checklist: re-derive each row's `actual` yourself from a real run — never trust the implementer's `outcome:` lines
 - Catches the "wrong thing built well" failure mode
 
 **Stage 2 — Code Quality:**
