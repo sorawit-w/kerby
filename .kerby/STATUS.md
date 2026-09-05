@@ -11,9 +11,9 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | Implementation — fixing three portability defects in the shipped provenance guard |
-| **Milestone** | Status-file accuracy — the guard behaves the same on every host it ships to |
-| **Milestone Goal** | No fact that has an authority elsewhere is restated here; what stays is the judgment that has no other home |
+| **Phase** | Release — retiring the `codex-review` builtin and the `code` → `swe` migration residue |
+| **Milestone** | Three builtins; one PR-review path |
+| **Milestone Goal** | No engine surface names a rulebook that does not ship, and the independent review lives where it converges — on the pull request |
 
 ---
 
@@ -24,7 +24,9 @@
 | 1 | **Fresh-session `skill-evaluator` pass for #54, #56, #57.** All three are the higher-bar class in `skills/kerby/CLAUDE.md` § Gate tiers (safety / commit-discipline / new behavioral surface) and all three shipped without it. It cannot run in the session that authored the change — that is the point of the outer-bias check | a session other than the authoring one |
 | 2 | Resolve the `prepare` ring-fence contradiction — `adopt-existing.md` creates tracked artifacts while its own ring-fence forbids committing them. Open P1 from #56, deliberately left as a scope decision | maintainer |
 | 3 | Upgrade the installed kerby so a session governs by the rules this repo ships. Deferred in favour of a Claude Code plugin that auto-updates | plugin work |
-| 4 | Work the logged P2/P3 debt (below) | none |
+| 4 | **Sibling-repo cleanup** — agent-skills, declair, dunkuri, konthai, oh-shift, piggy-hero each still select `codex-review` and register its gate hook: `kerby unload codex-review` then `kerby install` in each; konthai also drops the entry from its committed `.kerby/rulebooks.toml` | row 3 — the installed plugin must be on this release first |
+| 5 | **laney follow-up** — seed `examples/swe`'s review phase with the `CODEX_VERDICT` grammar and P0/P1 triage from the retired rulebook (git history, not this tree) | laney |
+| 6 | Work the logged P2/P3 debt (below) | none |
 
 ---
 
@@ -62,17 +64,12 @@ re-review:
 - **`memory.log`** — one record written before #56 landed the format rules is missing its
   `[timestamp]` header and `Commit:` field. Append-only, so it needs a correction entry
   rather than an edit.
-- **Four P2s from the final review round of the review-machinery series.** One is a
-  disagreement worth the maintainer's eye: Codex holds that DELETING the flaky temp-file
-  assertion lost real coverage and that isolating `TMPDIR` would have been better, because
-  a broken `EXIT` trap could now leak a snapshot on every mark unnoticed. The other three:
-  the read-once pin can still pass for an unrelated failure after its single read
-  (reproduced) and should also assert the `DENIED` diagnostic; the signal comment's "both
-  cost a re-review" is too strong; and the README row wrongly implies a missing sidecar
-  always means the run never finished.
 - **State-write ordering** — `context-management.md`'s shutdown path and
   `implementation-planning.md`'s validation step still write after their commit. Part of
   the same scope question as `prepare`'s ring-fence above.
+- **`uninstall <id>` on an id the install no longer ships is undefined** — the scoped
+  sweep derives signatures from that rulebook's manifest, which cannot resolve. `install`'s
+  dead-script prune is the working path; the text should say so or define the case.
 - **`BOOTSTRAP.md` § 1b** — `rung:` is emitted with the grade, before investigation could
   change the approach, and nothing requires re-emitting it. Emitting at the decision point
   is what makes it bind, so moving it later has a real cost — a deliberate call, not a
@@ -87,6 +84,7 @@ re-review:
   documentation gap, not a record of past work.
 - The installed kerby is older than what this repo ships, so a session here governs by
   rules the repo has already moved past. Open until the plugin work lands.
-- **Settled: a clean local Codex review is sufficient to merge.** Portability defects the
-  local venue cannot see are follow-up work, not a merge blocker. The standing cost is that
-  a release can carry one until someone reads the merged PR's review comments.
+- **Settled: the independent review is the GitHub `@codex review` on the PR, and it is
+  the only path.** The local loop was retired because it could not converge. The standing
+  cost — a release carrying a defect the review finds — is now paid before merge, by
+  addressing every comment against the current head.
