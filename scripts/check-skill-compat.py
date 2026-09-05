@@ -20,8 +20,10 @@ We target a 1000-character soft cap (LIMIT - MARGIN) so later edits keep a littl
 headroom before the hard 1024-character wall.
 
 This script also asserts VERSION PARITY across the release manifests (the Codex
-addition turned the old "4-file" version ritual into a 5-file one — drift in any
-one silently breaks a platform). See check_versions().
+addition turned the old "4-file" version ritual into a 5-file one, and
+skills/kerby/VERSION made it six — the one copy the scripts inside an install
+can read without knowing the plugin layout. Drift in any one silently breaks a
+platform). See check_versions().
 
 Exit code 0 = all good; 1 = at least one violation. Run from repo root:
     python3 scripts/check-skill-compat.py
@@ -138,6 +140,15 @@ def _version_sources(root):
             out["README.md"] = m.group(1) if m else None
     except OSError:
         out["README.md"] = None
+
+    # skills/kerby/VERSION — the copy shipped inside the skill dir, read at
+    # runtime by the SessionStart heartbeat and the `load` announcement.
+    try:
+        with open(os.path.join(root, "skills/kerby/VERSION"), encoding="utf-8") as f:
+            m = re.fullmatch(r"(\d+\.\d+\.\d+)\s*", f.read())
+            out["skills/kerby/VERSION"] = m.group(1) if m else None
+    except OSError:
+        out["skills/kerby/VERSION"] = None
 
     return out
 

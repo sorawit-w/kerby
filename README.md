@@ -160,7 +160,7 @@ npx skills add sorawit-w/kerby
 /kerby rulebooks   # list every rulebook this install can see
 /kerby commands    # list every command the current selection provides
 /kerby hooks         # read-only: what `install` would register, and what is bound now
-/kerby check-updates # read-only freshness report (builtins offline; only locally-approved pinned remotes fetched)
+/kerby check-updates # freshness report: engine version fetched, builtins offline, only locally-approved pinned remotes fetched; writes only ~/.claude/kerby/last-check-updates
 ```
 
 ### Selection model
@@ -182,10 +182,13 @@ To *share* a selection, commit the optional intent manifest `.kerby/rulebooks.to
 (created by `kerby install`'s offer, or by hand) — path-free and trust-inert: it names
 the rulebooks and exact versions this repo uses, a teammate's fresh checkout resolves
 it on first load, and externals still go through the trust prompt on every machine.
-`kerby check-updates` reports freshness for the *pinned* selection: builtins compare
-offline against the install; a remote is fetched only when its pin matches your
-per-machine approval store (manifest-only entries are listed as adoptable, never
-fetched). Read-only — applying an update is always an ordinary `load`.
+`kerby check-updates` reports freshness for the engine and the *pinned* selection: the
+engine's released version is fetched from GitHub; builtins compare offline against the
+install; a remote is fetched only when its pin matches your per-machine approval store
+(manifest-only entries are listed as adoptable, never fetched). Read-only in the
+workspace — its one write is the user-local `~/.claude/kerby/last-check-updates`
+timestamp that `load` uses to nudge after 30 days; applying an update is always an
+ordinary `load`, or your harness's plugin update for the engine itself.
 
 Rulebook commands (e.g. `kerby swe prepare`, `kerby swe audit`) are documented in each
 rulebook's own README — for the software-engineering rulebook, see
@@ -214,7 +217,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `9.26.4` — the provenance guard was not portable, and the platform hid it. Three defects found by the GitHub-side review, which runs on Linux, after a clean local review on macOS — two of them invisible to that venue, one simply missed: a CSS hex colour read as a commit SHA, a directory input that can pass under mawk on any OS, because opening a directory succeeds and only BSD awk's i/o error stopped it here, and an over-long-path fixture hard-coded to macOS's `PATH_MAX` so it tested nothing on Linux. The two venues are not redundant — for portable shell, the second sees a class the first structurally cannot. Previously: `9.26.3` — the status file holds position, never provenance. See [CHANGELOG.md](CHANGELOG.md) for the full history.
+Current release: `9.27.0` — hook registration survives an install that moves. `install` used to write each hook's absolute path into `settings.json`; when the install directory moved, every entry and the git pre-commit scan went silently dead, and only a hand-run `status` could tell. Registrations now go through a user-local launcher that resolves the install root at hook time from a pointer every `kerby load` refreshes, and fail open *visibly* when it cannot. When the SessionStart hook is registered, its first line is now an engine heartbeat naming the version, the root, and the launcher state; `load` prints the engine version; `check-updates` gains an engine row. Previously: `9.26.4` — the provenance guard was not portable, and the platform hid it. Three defects found by the GitHub-side review, which runs on Linux, after a clean local review on macOS — two of them invisible to that venue, one simply missed: a CSS hex colour read as a commit SHA, a directory input that can pass under mawk on any OS, because opening a directory succeeds and only BSD awk's i/o error stopped it here, and an over-long-path fixture hard-coded to macOS's `PATH_MAX` so it tested nothing on Linux. The two venues are not redundant — for portable shell, the second sees a class the first structurally cannot. Previously: `9.26.3` — the status file holds position, never provenance. See [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests

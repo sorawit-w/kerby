@@ -12,6 +12,31 @@ case ",${CODING_RULES_HOOK_DISABLED:-}," in
   *,session-start-context,*) exit 0 ;;
 esac
 
+# Engine heartbeat — the first line of every session in which this hook is
+# registered and enabled. Root is THIS script's own location (the copy
+# actually executing) and version comes from <root>/VERSION, so the line can
+# diagnose a stale launcher or pointer rather than trust either. The launcher
+# reads only the pointer file, never KERBY_DIR, so neither does this check.
+# No jq, no python: it must run wherever sh runs.
+ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." >/dev/null 2>&1 && pwd -P )"
+VERSION="unknown"; [[ -r "$ROOT/VERSION" ]] && VERSION=$(tr -d '[:space:]' < "$ROOT/VERSION") && VERSION="${VERSION:-unknown}"
+LAUNCHER="${HOME:-}/.claude/kerby/bin/hook"
+if   [[ -z "${HOME:-}" ]]; then LSTATE="HOME unset — launcher state unknown"
+elif [[ ! -f "$LAUNCHER" ]]; then LSTATE="missing — run kerby install"
+elif ! grep -q '^# kerby-managed:launcher' "$LAUNCHER"; then LSTATE="not kerby's (no marker) — kerby will not touch it"
+elif [[ ! -x "$LAUNCHER" ]]; then LSTATE="not executable — run kerby install"
+elif cmp -s "$LAUNCHER" "$ROOT/resources/scripts/hook-launcher.sh"; then LSTATE="ok"
+else LSTATE="outdated — run kerby install"; fi
+PTR=""
+[[ -n "${HOME:-}" && -r "$HOME/.claude/kerby/install-root" ]] && IFS= read -r PTR < "$HOME/.claude/kerby/install-root"
+PTR="${PTR%$'\r'}"
+if   [[ -z "$PTR" ]]; then PSTATE="pointer missing — run kerby load"
+elif ! PTRP=$(cd "$PTR" 2>/dev/null && pwd -P) || [[ ! -d "$PTR/resources" ]]; then PSTATE="pointer dead ($PTR) — run kerby load"
+elif [[ "$PTRP" != "$ROOT" ]]; then PSTATE="pointer names $PTR, not this copy — run kerby load"
+else PSTATE="pointer ok"; fi
+echo "kerby engine $VERSION at $ROOT — launcher: $LSTATE; $PSTATE"
+echo ""
+
 # Check for project state files and surface them
 echo "=== AI Playbook Active ==="
 echo "Follow the 9-step workflow: ASSESS → CLARIFY → PLAN → IMPLEMENT → DELEGATE → VALIDATE → LOG → CHECKPOINT → STOP"
