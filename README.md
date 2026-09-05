@@ -166,7 +166,7 @@ npx skills add sorawit-w/kerby
 ### Selection model
 
 A project's active rulebooks are a **pinned set** (`.kerby/rulebooks.lock`), not a
-single slot. `kerby load <rulebook>` **adds** to that set — loading `codex-review`
+single slot. `kerby load <rulebook>` **adds** to that set — loading `skill-authoring`
 alongside `swe` never drops `swe` — and loading something already selected just
 refreshes it in context. Removing is always its own explicit act: `kerby unload <id>`.
 To swap gates, unload one, then load the other; nothing replaces the selection as a

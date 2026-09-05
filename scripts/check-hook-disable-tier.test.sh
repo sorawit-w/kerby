@@ -65,8 +65,8 @@ echo "$OUT" | grep -q "^unclassified: 0$" \
 # Every enumerated script must actually be reported on — under-coverage is the exact
 # failure this guard was written to avoid, so assert the count, not just the exit code.
 n=$(echo "$OUT" | grep -cE '^(PASS|FAIL|ERROR): ')
-[[ "$n" -eq 12 ]] && pass "real tree: all 12 scripts classified" \
-                  || fail "real tree: classified $n scripts (expected 12)"
+[[ "$n" -eq 11 ]] && pass "real tree: all 11 scripts classified" \
+                  || fail "real tree: classified $n scripts (expected 11)"
 # hollow-test-check.sh is the file a naive `grep -v test` silently drops. Name it
 # explicitly so that shortcut can never be reintroduced unnoticed.
 echo "$OUT" | grep -q "hollow-test-check.sh" \
@@ -290,12 +290,12 @@ R="$(fresh_root 15)"
 sed -i '' 's/^\[\[check\]\]/  [[check]]/' "$R/skills/kerby/rulebooks/swe/rulebook.toml"
 run_guard "$R"
 n=$(echo "$OUT" | grep -cE '^(PASS|FAIL|ERROR): ')
-[[ "$n" -eq 12 ]] && pass "case 15: indented [[check]] headers keep all 12 hooks covered" \
+[[ "$n" -eq 11 ]] && pass "case 15: indented [[check]] headers keep all 11 hooks covered" \
                   || fail "case 15: indented headers dropped coverage to $n hooks"
 
 # --- Case 16: derivation is manifest-driven for base too --------------------
 # Cases 7-8 only exercised swe. Without these, a guard could hardcode the tiers of
-# base and codex-review and still pass the suite.
+# base and still pass the suite.
 R="$(fresh_root 16)"
 M="$R/skills/kerby/rulebooks/base/rulebook.toml"
 sed -i '' 's/^floor = true$//' "$M"
@@ -305,14 +305,8 @@ echo "$OUT" | grep -q "pre-commit-check.sh — optional must declare a canonical
   && pass "case 16: base's floor hook reclassifies from its own manifest" \
   || fail "case 16: pre-commit-check did not follow base's manifest — tier may be hardcoded"
 
-# --- Case 17: ...and for codex-review -------------------------------------
-R="$(fresh_root 17)"
-M="$R/skills/kerby/rulebooks/codex-review/rulebook.toml"
-sed -i '' 's/^severity = "block"$/severity = "warn"/' "$M"
-run_guard "$R"
-echo "$OUT" | grep -q "codex-pr-gate.sh — optional must declare a canonical disable block" \
-  && pass "case 17: codex-review's gate reclassifies from its own manifest" \
-  || fail "case 17: codex-pr-gate did not follow its manifest — tier may be hardcoded"
+# (Case 17 retired with the builtin it exercised; case 7 already covers a
+# recommended->optional flip.)
 
 # --- Case 18: an earlier arm shadowing the canonical one --------------------
 # The round-3 false green, and the reason the whole block must be canonical rather

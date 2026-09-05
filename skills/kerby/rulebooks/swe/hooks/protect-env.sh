@@ -191,8 +191,8 @@ case "$BASENAME" in
       if ! name_is_exact "$FILE_PATH"; then
         block "'$BASENAME' resolves to a file stored under a different name — the filesystem folded the lookup; a template must match its real name exactly."
       fi
-      # GNU form FIRST, BSD second — the order the rest of this repo already uses
-      # (codex-mark.sh, codex-run.test.sh). GNU `-f` selects filesystem mode and
+      # GNU form FIRST, BSD second (protect-env.test.sh asserts the order). GNU
+      # `-f` selects filesystem mode and
       # treats a bare `%l` as an operand rather than a format, so BSD-first is not
       # guaranteed to fail cleanly there; GNU-first sidesteps the question because
       # BSD stat has no `-c` at all and errors straight through. Unknown or
