@@ -35,8 +35,8 @@
 #
 # Why a guard and not prose: the hook set has relocated four times (v9.0 code->swe
 # rename, v9.3 hollow-test moving out of base, v9.16 git_hook), and the hand-written
-# table in resources/references/hooks.md fell behind each time — it omitted
-# codex-pr-gate entirely. The correspondence is also invisible to a human reading the
+# table in resources/references/hooks.md fell behind each time — it omitted one
+# rulebook's enforcer entirely. The correspondence is also invisible to a human reading the
 # files, which is exactly when a machine check earns its place.
 #
 # SHAPE NOTES — both of these produced CONFIDENTLY WRONG answers during design, so
@@ -45,8 +45,8 @@
 #      drops hollow-test-check.sh, whose own filename contains it. Enforcers come from
 #      [[check]].enforcer in the manifests; engine services are globbed with a `.test.sh`
 #      SUFFIX exclusion, which is precise where the substring is not.
-#   2. NEVER match the bare token CODING_RULES_HOOK_DISABLED. protect-env.sh,
-#      protect-git.sh and codex-pr-gate.sh all mention it in COMMENTS that say they
+#   2. NEVER match the bare token CODING_RULES_HOOK_DISABLED. protect-env.sh and
+#      protect-git.sh both mention it in COMMENTS that say they
 #      REFUSE it. Only a canonical arm inside the `case` block counts, the block must
 #      not be heredoc data, and the token must sit in the arm's PATTERN — a trailing
 #      comment carrying ",<token>," once satisfied an arm that named something else.

@@ -33,7 +33,6 @@ The pinned set of active rulebooks for a project, recorded in `.kerby/rulebooks.
 - `skills/kerby/rulebooks/base/` — universal floor rules, merged under every selection
 - `skills/kerby/rulebooks/swe/` — the software-engineering rulebook (`BOOTSTRAP.md`, workflows, hooks, commands `audit`/`prepare`)
 - `skills/kerby/rulebooks/skill-authoring/` — verification gate for repos that author agent skills
-- `skills/kerby/rulebooks/codex-review/` — opt-in Codex-workflow rulebook (PR gate, plan review, delegation)
 - `docs/` — `rulebook-contract.md` (the manifest schema authority) and `AUTHORING-RULEBOOKS.md`
 - `scripts/` — repo-level dev tooling (`check-skill-compat.py`)
 
@@ -41,3 +40,4 @@ The pinned set of active rulebooks for a project, recorded in `.kerby/rulebooks.
 
 <!-- When a term is retired, mark it here with the replacement. Don't delete. -->
 <!-- - **Old name** → **New name** — one-line reason. -->
+- **`codex-review` rulebook** → **GitHub `@codex review` on the PR** (future home: a laney workflow) — a capped review → fix → re-review loop is a sequence with a judge, a workflow engine's shape, not a rulebook's.

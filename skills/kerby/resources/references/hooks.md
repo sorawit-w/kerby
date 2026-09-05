@@ -284,7 +284,7 @@ detail and the caveats.
 
 ### Runtime Toggles (env vars)
 
-Some hooks respect a single env var for ad-hoc disabling during a session — which ones is a tier question, not a security judgement (see the rule below; `codex-pr-gate` is not security-critical and still refuses it):
+Some hooks respect a single env var for ad-hoc disabling during a session — which ones is a tier question, not a security judgement (see the rule below):
 
 ```bash
 # Disable one hook
@@ -306,7 +306,7 @@ Hook names match the `# Name:` header in each script.
 
 Two rules finish it. Engine services under `resources/hooks/` declare no check at all and are every one `optional`. And where a single script backs several checks, the strictest tier wins — a script sharing an enforcer with a `floor` check is `locked` too, even if its other check is not.
 
-**No inventory lives here, deliberately.** The hook set has relocated four times (the v9.0 `code` → `swe` rename, v9.3 moving `hollow-test-check` out of base, v9.16 adding `git_hook`), and each move left the hand-written table that used to sit here further behind — it had omitted `codex-pr-gate` entirely. Any list reintroduced here would start drifting the same day. To settle a specific hook, read the two fields in its manifest; that answer is current by construction.
+**No inventory lives here, deliberately.** The hook set has relocated four times (the v9.0 `code` → `swe` rename, v9.3 moving `hollow-test-check` out of base, v9.16 adding `git_hook`), and each move left the hand-written table that used to sit here further behind — it had omitted one rulebook's enforcer entirely. Any list reintroduced here would start drifting the same day. To settle a specific hook, read the two fields in its manifest; that answer is current by construction.
 
 Two notes the rule does not carry:
 

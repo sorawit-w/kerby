@@ -5,7 +5,7 @@ domain: [architecture, naming, migration]
 related: [decision-engine-rulebook-split.md]
 confidence: high
 created: 2026-08-02
-updated: 2026-08-02
+updated: 2026-09-05
 ---
 
 ## Context
@@ -35,6 +35,7 @@ v10) so a pre-v9 `.kerby/rulebooks.lock` pinning `code` still resolves.
 
 ## Revisit When
 
-- At kerby v10, when the migration-residue section is scheduled for removal —
-  a stale `code` pin will then fail closed like any other unknown builtin id
+- Done at kerby 10.0.0: the residue was removed with the `codex-review`
+  retirement (see `decision-remove-codex-review.md`); a stale `code` pin now
+  fails closed like any other unknown builtin id
   instead of auto-migrating.
