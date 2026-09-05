@@ -140,7 +140,7 @@ task:
     |---|---|---|
     | happy path | bun run dev, open / | welcome page, 200 |
     | edge | open /nonexistent | SvelteKit 404 page, not a crash |
-    | failure | none — a scaffold has no failure path yet | not exercised |
+    | none — a scaffold has no failure path yet | — | no failure case to exercise |
 ```
 
 ### Plan-Fits-Fresh-Context Heuristic

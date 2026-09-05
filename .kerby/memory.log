@@ -1353,3 +1353,11 @@ Commit: (this commit)
 Status: DONE (pending scoped round-2 review)
 Notes: skill-evaluator split-role run, 7 tests / 49 assertions: 45 pass, 0 fail, 4 unclear (two rubric-layer, two brief-layer: stated-intent executors transcribed expected outputs as observed — pre-existing Iron Law territory, not the new rules). The `not exercised` state came from T3, where the executor did the right thing by explanation because the rule had no word for it.
 Observations: parity, compat, validator, diff --check all pass.
+
+[2026-09-04T00:00:00Z]
+Task: round-2 fixes for swe 2.12.0 (Codex P1×1, P2×1)
+Action: implementation-planning YAML example puts `none — <why>` in the `case` column with `no failure case to exercise` as expected; README release summary names all three accepted sources
+Files: skills/kerby/rulebooks/swe/references/implementation-planning.md, README.md
+Commit: (this commit)
+Status: DONE (pending scoped round-3 review — the cap)
+Observations: compat, parity, validator, diff --check pass.
