@@ -65,7 +65,7 @@ Spawn a **separate QA sub-agent** that performs both stages independently. The s
 **Stage 1 — Spec Compliance:**
 > "Does this do what was asked?"
 - Same checks as medium complexity, but performed by a separate agent
-- When the plan carries a case table (`workflows/feature.md` § 3), that table **is** this checklist: re-derive each row's `actual` yourself from a real run — never trust the implementer's `outcome:` lines
+- When the plan carries a case table (`workflows/feature.md` § 3), that table **is** this checklist: re-derive each row's `actual` yourself from a real run — never trust the implementer's `outcome:` lines. A row the implementer marked `not exercised` stays so unless you can exercise it; if you can, do, and its outcome is yours
 - Catches the "wrong thing built well" failure mode
 
 **Stage 2 — Code Quality:**

@@ -1344,3 +1344,12 @@ Commit: (this commit)
 Status: DONE (pending in-session skill-evaluator and Codex review)
 Notes: no numeric `≥ N` added to feature.md or BOOTSTRAP.md — the parity guard's approval extractor greps for it; the rule text names the tool class, the registry names the vendor. Manual step for the maintainer, not a repo edit: one context7 line in ~/.claude/CLAUDE.md.
 Observations: check-skill-compat (6 surfaces at 9.28.0), check-plan-gate-parity, check-hook-disable-tier, validate-rulebook swe all pass.
+
+[2026-09-04T00:00:00Z]
+Task: round-1 fixes for swe 2.12.0 (Codex P1×4, P2×3) plus one gap the in-session skill-evaluator surfaced
+Action: case-table contract made unambiguous — happy path always, edge/failure where present else `none — <why>`, a row whose condition never arose is `not exercised` (never `match`); per-case outcome lines unconditional whenever Realized Outcomes are owed and a missing table is a plan defect (feature.md § 7, BOOTSTRAP § 4, bugfix, new-project); implementation-planning YAML example carries a real table; § Accuracy admits the installed package's own source/types as session-read evidence (reconciles working-patterns and the context7 row; matches T4's correct offline behavior); § Diagnosis citation list gains documentation; context7 row no longer overclaims; README/CHANGELOG say "threshold-gated plan"; validation.md Stage 1 handles not-exercised rows
+Files: skills/kerby/rulebooks/swe/{BOOTSTRAP.md,workflows/feature.md,workflows/bugfix.md,workflows/new-project.md,references/validation.md,references/implementation-planning.md,references/external-resources.md}, README.md, CHANGELOG.md
+Commit: (this commit)
+Status: DONE (pending scoped round-2 review)
+Notes: skill-evaluator split-role run, 7 tests / 49 assertions: 45 pass, 0 fail, 4 unclear (two rubric-layer, two brief-layer: stated-intent executors transcribed expected outputs as observed — pre-existing Iron Law territory, not the new rules). The `not exercised` state came from T3, where the executor did the right thing by explanation because the rule had no word for it.
+Observations: parity, compat, validator, diff --check all pass.

@@ -136,6 +136,11 @@ task:
     - "Lint passes"
   expected_outcomes: |   # grade >= plan_threshold — predicted end-state plus the case table (see workflows/feature.md § 3)
     bun run dev serves apps/web at :5173; the home route renders the SvelteKit welcome page.
+    | case | action / input | expected |
+    |---|---|---|
+    | happy path | bun run dev, open / | welcome page, 200 |
+    | edge | open /nonexistent | SvelteKit 404 page, not a crash |
+    | failure | none — a scaffold has no failure path yet | not exercised |
 ```
 
 ### Plan-Fits-Fresh-Context Heuristic
