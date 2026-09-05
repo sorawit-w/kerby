@@ -52,11 +52,11 @@ PTR="$HOME_T/.claude/kerby/install-root"
 setptr() { printf '%s\n' "$1" > "$PTR"; }
 
 run() { HOME="$HOME_T" PATH="$SBIN" sh "$L" "$@"; }
-# Is a string valid JSON? Uses python3 when present; otherwise a shape check.
-is_json() {
-  if command -v python3 >/dev/null 2>&1; then python3 -c 'import json,sys; json.loads(sys.stdin.read())' 2>/dev/null
-  else grep -q '^{"hookSpecificOutput":{"hookEventName":"[^"]*","additionalContext":"[^"]*"}}$'; fi
-}
+# Is a string valid JSON? A real parser, never a regex: kerby already requires
+# python3 (resources/scripts/validate-rulebook.py runs on every load), so its
+# absence here is a broken host, and the JSON assertions fail rather than skip.
+if ! command -v python3 >/dev/null 2>&1; then echo "FAIL: python3 not found — the JSON assertions need a real parser"; exit 1; fi
+is_json() { python3 -c 'import json,sys; json.loads(sys.stdin.read())' 2>/dev/null; }
 lines() { printf '%s' "$1" | grep -c ''; }
 
 # 0. POSIX syntax, and the sandbox really has no jq.

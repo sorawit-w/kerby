@@ -21,7 +21,8 @@ kerby ships with these hooks:
 Since 9.27.0 `kerby install` does not write an install-owned script's absolute
 path into `settings.json` (an approved external rulebook's enforcer keeps its
 absolute path — it lives outside the install). It writes
-`"~/.claude/kerby/bin/hook" <event> <relpath>`: a
+`"<home>/.claude/kerby/bin/hook" <event> <relpath>` (`<home>` expanded — a
+quoted `~` would not be): a
 small POSIX `sh` launcher (shipped as `resources/scripts/hook-launcher.sh`,
 copied to your user-local `~/.claude/kerby/bin/` by `install`) plus the
 script's path relative to the install root. At hook time the launcher reads

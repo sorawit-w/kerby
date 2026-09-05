@@ -1326,3 +1326,12 @@ Commit: (amended into this commit)
 Status: DONE (pending scoped round-2 review)
 Notes: Downgraded one P0 to a documented known ceiling: one pointer per user, last load wins across concurrent sessions on different kerby copies — both trusted installs, version skew only, heartbeat names the copy; this is the last-load-wins behavior the maintainer asked for. Symlinked *file* inside the trusted root remains runnable by design and is stated in the launcher header.
 Observations: hook-launcher.test.sh 27 assertions (sh + dash); session-start-context.test.sh 26. All gates pass. dash is installed on this host at /bin/dash.
+
+[2026-09-04T00:00:00Z]
+Task: round-2 Codex review fixes for the launcher branch (engine 9.27.0)
+Action: external git-hook template runs the scanner as a child and translates 126/127 to a visible fail-open; binding predicate mirrors the launcher's confinement (relative, no `..`, directory resolves inside the pointer root); launcher header states the one-pointer-per-user ceiling; README/hooks.md use `<home>` not a quoted `~`; test makes python3 an explicit prerequisite for the JSON assertions; CHANGELOG heartbeat example matches the emitted format
+Files: skills/kerby/SKILL.md, skills/kerby/resources/scripts/hook-launcher.sh, hook-launcher.test.sh, skills/kerby/README.md, skills/kerby/resources/references/hooks.md, CHANGELOG.md
+Commit: (this commit)
+Status: DONE (pending scoped round-3 review — the cap)
+Notes: the predicate's regression test is the launcher's own symlink and `..` cases, because the predicate is defined as the launcher's behavior.
+Observations: hook-launcher.test.sh 27 assertions (sh + dash); session-start-context.test.sh 26. All gates pass.

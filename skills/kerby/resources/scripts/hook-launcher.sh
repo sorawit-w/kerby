@@ -18,6 +18,11 @@
 # the exact thing the pointer exists to prevent. `kerby load` writes the pointer
 # from the locator's trusted rungs; this file just reads it.
 #
+# Known ceiling: there is one pointer per user, so two live sessions on the
+# same machine loaded from different kerby copies share it and the last
+# `kerby load` wins. Both are trusted installs — the difference is version
+# skew — and the SessionStart heartbeat names which copy the hooks run from.
+#
 # Fails OPEN, visibly: a vanished install must never wedge a tool call or a
 # commit (SKILL.md § Phase 3 doctrine), and it must never be silent either —
 # the message names the gap and the fix, on the channel the event reads. stdin
