@@ -114,39 +114,48 @@ rm -rf "$CLEAN_TMP"
 rm -rf "$LEGACY_TMP"
 
 
-# 10. Engine heartbeat: first line, names version and root, reports launcher state.
-OUT_HB=$(HOME="$HOME_T" KERBY_DIR= bash "$HOOK")
-FIRST=$(echo "$OUT_HB" | head -1)
-echo "$FIRST" | grep -qE '^kerby engine [0-9]+\.[0-9]+\.[0-9]+ at .* — hooks via launcher: ' \
+# 10. Engine heartbeat: first line, names version and root, classifies launcher and pointer.
+hb() { HOME="$HOME_T" bash "$HOOK" | head -1; }
+FIRST=$(hb)
+echo "$FIRST" | grep -qE '^kerby engine [0-9]+\.[0-9]+\.[0-9]+ at .* — launcher: .*; pointer ' \
   && pass "heartbeat is the first line and carries a version" \
   || fail "heartbeat missing or malformed: $FIRST"
-echo "$FIRST" | grep -qF "$ENGINE_ROOT" \
-  && pass "heartbeat names this script's own root" \
-  || fail "heartbeat root wrong: $FIRST"
-echo "$FIRST" | grep -q 'launcher: missing — run kerby install' \
-  && pass "no launcher → missing" || fail "no launcher not reported: $FIRST"
-# ok: a byte-identical copy of the shipped launcher.
-cp "$LAUNCHER_SRC" "$HOME_T/.claude/kerby/bin/hook"
-FIRST=$(HOME="$HOME_T" KERBY_DIR= bash "$HOOK" | head -1)
-echo "$FIRST" | grep -q 'launcher: ok$' && pass "byte-identical launcher → ok" || fail "identical launcher not ok: $FIRST"
+echo "$FIRST" | grep -qF "$ENGINE_ROOT" && pass "heartbeat names this script's own root" || fail "heartbeat root wrong: $FIRST"
+echo "$FIRST" | grep -q 'launcher: missing — run kerby install' && pass "no launcher → missing" || fail "no launcher not reported: $FIRST"
+echo "$FIRST" | grep -q 'pointer missing — run kerby load' && pass "no pointer → pointer missing (never ok)" || fail "no pointer not reported: $FIRST"
+# a file with no marker is not kerby's — never called outdated.
+printf '#!/bin/sh\nexit 0\n' > "$HOME_T/.claude/kerby/bin/hook"; chmod +x "$HOME_T/.claude/kerby/bin/hook"
+FIRST=$(hb); echo "$FIRST" | grep -q "launcher: not kerby's" && pass "unmarked launcher → not kerby's" || fail "unmarked launcher misclassified: $FIRST"
+# ok: a byte-identical, executable copy of the shipped launcher.
+cp "$LAUNCHER_SRC" "$HOME_T/.claude/kerby/bin/hook"; chmod +x "$HOME_T/.claude/kerby/bin/hook"
+FIRST=$(hb); echo "$FIRST" | grep -q 'launcher: ok;' && pass "byte-identical launcher → ok" || fail "identical launcher not ok: $FIRST"
+# not executable: same bytes, mode 644.
+chmod 644 "$HOME_T/.claude/kerby/bin/hook"
+FIRST=$(hb); echo "$FIRST" | grep -q 'launcher: not executable' && pass "0644 launcher → not executable" || fail "0644 launcher not flagged: $FIRST"
+chmod +x "$HOME_T/.claude/kerby/bin/hook"
 # outdated: bytes differ, marker still present.
 printf '# drift\n' >> "$HOME_T/.claude/kerby/bin/hook"
-FIRST=$(HOME="$HOME_T" KERBY_DIR= bash "$HOOK" | head -1)
-echo "$FIRST" | grep -q 'launcher: outdated — run kerby install' && pass "changed launcher → outdated" || fail "changed launcher not flagged: $FIRST"
+FIRST=$(hb); echo "$FIRST" | grep -q 'launcher: outdated — run kerby install' && pass "changed launcher → outdated" || fail "changed launcher not flagged: $FIRST"
 cp "$LAUNCHER_SRC" "$HOME_T/.claude/kerby/bin/hook"
-# pointer naming another dir → flagged.
-mkdir -p "$TMP/elsewhere"; printf '%s\n' "$TMP/elsewhere" > "$HOME_T/.claude/kerby/install-root"
-FIRST=$(HOME="$HOME_T" KERBY_DIR= bash "$HOOK" | head -1)
-echo "$FIRST" | grep -q 'install-root pointer names .*elsewhere, not this copy — run kerby load' \
-  && pass "pointer to another dir → flagged" || fail "stale pointer not flagged: $FIRST"
-# pointer naming this root through a symlink → normalized, no complaint.
-ln -s "$ENGINE_ROOT" "$TMP/link"; printf '%s\n' "$TMP/link" > "$HOME_T/.claude/kerby/install-root"
-FIRST=$(HOME="$HOME_T" KERBY_DIR= bash "$HOOK" | head -1)
-echo "$FIRST" | grep -q 'not this copy' && fail "symlinked pointer wrongly flagged: $FIRST" || pass "symlinked pointer to this root is accepted"
-# KERBY_DIR wins over the pointer.
+# pointer naming another dir (with a resources/ dir, so it is live but wrong) → flagged.
+mkdir -p "$TMP/elsewhere/resources"; printf '%s\n' "$TMP/elsewhere" > "$HOME_T/.claude/kerby/install-root"
+FIRST=$(hb); echo "$FIRST" | grep -q 'pointer names .*elsewhere, not this copy — run kerby load' \
+  && pass "pointer to another copy → flagged" || fail "stale pointer not flagged: $FIRST"
+# dead pointer → dead.
+printf '%s\n' "$TMP/nowhere" > "$HOME_T/.claude/kerby/install-root"
+FIRST=$(hb); echo "$FIRST" | grep -q 'pointer dead' && pass "dead pointer → dead" || fail "dead pointer not flagged: $FIRST"
+# pointer naming this root through a symlink, CRLF-terminated → normalized, ok.
+ln -s "$ENGINE_ROOT" "$TMP/link"; printf '%s\r\n' "$TMP/link" > "$HOME_T/.claude/kerby/install-root"
+FIRST=$(hb); echo "$FIRST" | grep -q 'pointer ok' && pass "symlinked CRLF pointer to this root → ok" || fail "symlinked pointer wrongly flagged: $FIRST"
+# KERBY_DIR is NOT consulted (the launcher never reads it either).
 FIRST=$(HOME="$HOME_T" KERBY_DIR="$TMP/elsewhere" bash "$HOOK" | head -1)
-echo "$FIRST" | grep -q 'pointer names .*elsewhere' && pass "KERBY_DIR is checked before the pointer file" || fail "KERBY_DIR not honored: $FIRST"
+echo "$FIRST" | grep -q 'pointer ok' && pass "KERBY_DIR is not consulted" || fail "KERBY_DIR changed the verdict: $FIRST"
 rm -f "$HOME_T/.claude/kerby/install-root"
+# VERSION missing → "unknown", and no shell diagnostic leaks on stderr.
+mkdir -p "$TMP/fake/resources/hooks"; cp "$HOOK" "$TMP/fake/resources/hooks/ssc.sh"
+FIRST=$(HOME="$HOME_T" bash "$TMP/fake/resources/hooks/ssc.sh" 2>"$TMP/hb-err" | head -1)
+echo "$FIRST" | grep -q '^kerby engine unknown at ' && [[ ! -s "$TMP/hb-err" ]] \
+  && pass "missing VERSION → unknown, stderr clean" || fail "missing VERSION: $FIRST / $(cat "$TMP/hb-err")"
 
 echo "---"
 if [[ "$FAILS" -eq 0 ]]; then

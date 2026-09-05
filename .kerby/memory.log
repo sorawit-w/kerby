@@ -1317,3 +1317,12 @@ Commit: 2190097
 Status: DONE (pending Codex review)
 Notes: fail-open-visibly chosen for every tier (user decision). Heartbeat root is the script's own location, not the pointer. External rulebook enforcers stay bare-path. PowerShell launcher twin out of scope. PR 2 (swe 2.12.0: § Accuracy docs clause, context7 registry row, case table in Expected Outcomes) follows.
 Observations: this repo's .claude/settings.local.json and .git/hooks/pre-commit still point at the vanished ~/.claude/skills/kerby; the git hook printed "scanner missing — NOT scanning this commit" on 2190097. check-skill-compat.py has no test of its own (pre-existing). Test counts: hook-launcher 18, session-start-context 20.
+
+[2026-09-04T00:00:00Z]
+Task: round-1 Codex review fixes for the launcher branch (engine 9.27.0)
+Action: launcher reads only the pointer (KERBY_DIR dropped), directory-level canonical confinement, child-not-exec so 126/127 is a visible fail-open, full JSON escaping, CRLF/HOME-unset tolerance; SKILL.md single binding predicate shared by status/hooks/Phase 3, canonical-shape-only registrations, staged preflight applied after the one confirmation, Phase 3 own preflight + external template; heartbeat five-state classification; doc corrections
+Files: skills/kerby/resources/scripts/hook-launcher.sh, hook-launcher.test.sh, skills/kerby/resources/hooks/session-start-context.sh, session-start-context.test.sh, skills/kerby/SKILL.md, skills/kerby/resources/references/hooks.md, skills/kerby/README.md, README.md, CHANGELOG.md
+Commit: (amended into this commit)
+Status: DONE (pending scoped round-2 review)
+Notes: Downgraded one P0 to a documented known ceiling: one pointer per user, last load wins across concurrent sessions on different kerby copies — both trusted installs, version skew only, heartbeat names the copy; this is the last-load-wins behavior the maintainer asked for. Symlinked *file* inside the trusted root remains runnable by design and is stated in the launcher header.
+Observations: hook-launcher.test.sh 27 assertions (sh + dash); session-start-context.test.sh 26. All gates pass. dash is installed on this host at /bin/dash.
