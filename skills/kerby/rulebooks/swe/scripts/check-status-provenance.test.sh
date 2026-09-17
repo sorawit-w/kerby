@@ -99,7 +99,10 @@ expect "CSS hex colours are not SHAs" 0 '| 1 | Change brand colour from #1a2b3c 
 # everywhere.
 expect "8-digit RGBA reads as a sha (documented cost)" 1 'Set the overlay to #1a2b3c4d this sprint.' "states a sha"
 expect "an 8-hex sha after a # is caught" 1 'Reviewed commit #0389e6bd today.' "states a sha"
-expect "decimal issue references are not SHAs" 0 'Blocked behind #1234 in the tracker.'
+# v2.13.0: a decimal issue reference is no longer a pass — it is a PR/issue number,
+# caught by its own pass (§ 5 below); it is still NOT a sha, which is what this
+# case's needle pins.
+expect "a decimal issue reference is a PR/issue number, not a sha" 1 'Blocked behind #1234 in the tracker.' "states a PR/issue number"
 # TRUE-POSITIVE TWINS. The exemption is limited to CSS colour SHAPES (3, 4 and 6
 # hex digits — NOT 8), so a `#`-prefixed SHA of any other length must still fail —
 # blanking every `#`-hex run would have let this escape, which is what the
@@ -108,6 +111,25 @@ expect "decimal issue references are not SHAs" 0 'Blocked behind #1234 in the tr
 expect "a 7-hex sha after a # still fails" 1 'Reviewed commit #1a2b3c7 today.' "states a sha"
 expect "a long sha after a # still fails" 1 'Reviewed commit #e9163f1bd957 today.' "states a sha"
 expect "the same token bare is still a sha" 1 'Merged as 1a2b3c today.' "states a sha"
+
+# --- 5. PR and issue numbers (v2.13.0) ----------------------------------------
+# Tracker identity has a home already — the tracker and the commit message — and a
+# completed PR is history. The two shapes are tokens, not phrasings: `PR` + digits,
+# and `#` + digits ONLY. Each positive carries a negative twin that a careless
+# widening would swallow.
+expect "PR + space + digits fails" 1 'PR 7271 scoped the agent-facing rule.' "states a pull-request number"
+expect "PR#digits fails" 1 'Tracked as PR#7271 upstream.' "states a pull-request number"
+expect "lowercase pr + digits fails" 1 'see pr 12 for the shape' "states a pull-request number"
+expect "a completed PR is still provenance" 1 '| Done | PR 7362 — MERGED |' "states a pull-request number"
+expect "Closes #142 is an issue number" 1 'Closes #142 once the flag ships.' "states a PR/issue number"
+expect "six-digit # reference reads as an issue number (documented: colour is the miss)" 1 'Blocked on #123456 in the tracker.' "states a PR/issue number"
+expect "APR is not PR" 0 'APR 2026 is the target quarter.'
+expect "PRs without a number pass" 0 'PRs are squashed on merge; the PR review is the one path.'
+expect "a markdown heading number is not an issue" 0 '# 1 Intro'
+expect "hyphenated PR-NNN is a branch-shaped token and is not matched" 0 'Branch feature/PR-7552 was deleted.'
+expect "hex after # is still a colour, not an issue" 0 'Brand colour #1a2b3c stays.'
+expect "PR at line start and line end" 1 'PR 7552
+shipped in PR 7553' "STATUS.md:1 states a pull-request number" "STATUS.md:2 states a pull-request number"
 
 # --- 4. branch names are NOT checked ------------------------------------------
 # Deliberate removal, asserted so it stays a decision rather than rotting into an

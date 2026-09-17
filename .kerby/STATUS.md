@@ -24,8 +24,8 @@
 | 1 | **Ship the compaction re-injection PR** — Codex review on the pull request, address every comment against HEAD, squash-merge, then refresh the installed copy with `npx skills add sorawit-w/kerby` (the copy at `~/.agents/skills/kerby` is what every sibling repo's hooks run) | Codex review |
 | 2 | **swe: the STATUS guard at commit time, and no footprint** — two new token shapes in the provenance guard (`#` + digits, `PR` + digits), a new block-severity `PreToolUse/Bash` enforcer that runs the guard on the staged STATUS.md, one commit-convention sentence that commit/PR text never names the tool, model or vendor; this repo's own STATUS.md rows that cite PR numbers are reworded in the same change | row 1 merged (same version surfaces) |
 | 3 | **limeade alignment** — drop its AGENTS.md "Allowed" line for SHAs and PR numbers, import AGENTS.md from CLAUDE.md so it survives compaction, clean the two SHAs and two PR numbers its STATUS.md carries, drop the harness-attribution sentence from its Azure DevOps PR skill | row 1 merged and the install copy refreshed |
-| 4 | **Fresh-session `skill-evaluator` pass for #54, #56, #57.** All three are the higher-bar class in `skills/kerby/CLAUDE.md` § Gate tiers (safety / commit-discipline / new behavioral surface) and all three shipped without it. It cannot run in the session that authored the change — that is the point of the outer-bias check | a session other than the authoring one |
-| 5 | Resolve the `prepare` ring-fence contradiction — `adopt-existing.md` creates tracked artifacts while its own ring-fence forbids committing them. Open P1 from #56, deliberately left as a scope decision | maintainer |
+| 4 | **Fresh-session `skill-evaluator` pass for the protect-env scope change, the state-lands-inside-the-PR change, and the codex-mark transcript fix.** All three are the higher-bar class in `skills/kerby/CLAUDE.md` § Gate tiers (safety / commit-discipline / new behavioral surface) and all three shipped without it. It cannot run in the session that authored the change — that is the point of the outer-bias check | a session other than the authoring one |
+| 5 | Resolve the `prepare` ring-fence contradiction — `adopt-existing.md` creates tracked artifacts while its own ring-fence forbids committing them. Open P1 from the state-lands-inside-the-PR change, deliberately left as a scope decision | maintainer |
 | 6 | Keep the installed copy current — it is a plain copy fetched with `npx skills add sorawit-w/kerby`, not a link to this repo, so every merged release needs that command re-run before a session anywhere governs by it | none |
 | 7 | **Sibling-repo cleanup** — agent-skills, declair, dunkuri, konthai, oh-shift, piggy-hero each still select `codex-review` and register its gate hook: `kerby unload codex-review` then `kerby install` in each; konthai also drops the entry from its committed `.kerby/rulebooks.toml` | row 6 — the installed copy must be on this release first |
 | 8 | **laney follow-up** — seed `examples/swe`'s review phase with the `CODEX_VERDICT` grammar and P0/P1 triage from the retired rulebook (git history, not this tree) | laney |
@@ -64,7 +64,7 @@ re-review:
 - **Pin canonicalization** — the reconcile rewrites only when `version` or `path_or_url`
   differ, so a pin that is otherwise current but carries a non-null `sha256` or a stray
   `local_path` stays non-canonical.
-- **`memory.log`** — one record written before #56 landed the format rules is missing its
+- **`memory.log`** — one record written before the state-lands-inside-the-PR change landed the format rules is missing its
   `[timestamp]` header and `Commit:` field. Append-only, so it needs a correction entry
   rather than an edit.
 - **State-write ordering** — `context-management.md`'s shutdown path and

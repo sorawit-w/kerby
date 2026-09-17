@@ -53,11 +53,12 @@ Makes BOOTSTRAP §3's high-stakes path override **[enforced-partial]** instead o
 
 ---
 
-### PreToolUse → git commit (two independent hooks)
+### PreToolUse → git commit (three independent hooks)
 
-Two hooks register on `Bash` running `git commit`, and run independently — a
-hard floor from `base`, and swe's own soft advisory. Before v9.3 both lived in one
-bundled script; they are now cleanly separated.
+Three hooks register on `Bash` running `git commit`, and run independently — a
+hard floor from `base`, swe's own soft advisory, and (v2.13.0) swe's commit-time
+STATUS.md provenance check. Before v9.3 the first two lived in one bundled script;
+they are now cleanly separated.
 
 **a. Secret scan — the base floor (hard-block).**
 **Script:** `<install-root>/rulebooks/base/hooks/pre-commit-check.sh` (base's, not swe's)
@@ -72,6 +73,11 @@ Two soft advisories, never blocking:
 - **Quality gate reminder** — reminds the agent to run lint/test/build on changed files. Because a PreToolUse `additionalContext` surfaces *with* the tool result (next turn), it arrives as the commit completes — a **post-commit safety net** (run the gates, amend if your changes broke them), not a pre-commit veto. Turning it into a checkpoint would mean `permissionDecision: ask`/`deny` — a deliberate commit-discipline change, intentionally not made.
 
 Disable both with `CODING_RULES_HOOK_DISABLED=hollow-test-check` (the legacy `pre-commit-check` token is also honored). Self-tested by `hooks/hollow-test-check.test.sh`.
+
+**c. STATUS.md provenance — swe's commit-time block (v2.13.0).**
+**Script:** `hooks/status-provenance-check.sh`
+**Strictness:** Hard-block (exit 2 + stderr) when the `.kerby/STATUS.md` this commit records states a version, a SHA, or a PR/issue number; silent exit 0 otherwise; **not disablable** (`recommended` tier — decline it at `kerby install` instead)
+Runs `scripts/check-status-provenance.sh` — the guard `references/communication.md` § Status Tracking describes — against the **staged** blob (`git show :.kerby/STATUS.md`), because that is what the commit records; a clean working tree over a dirty index is exactly what a working-tree scan would miss. When the command bypasses the index (`-a`/`--all`, `-i`/`--include`, or a pathspec naming the file) it scans the working-tree file instead. Nothing staged, or no STATUS.md → exit 0. The guard existed since v2.11.3 but nothing ran it; a STATUS.md naming a PR number, "awaiting review" and a SHA still shipped with the prose rule in force, after a compaction had summarized the rule away. Ceilings, stated in the script: `^git commit` recognition only (`git -C` and `cd … &&` forms are not seen — the same ceiling as b.), and a **visible fail-open** (additionalContext + exit 0) when the guard script itself is missing, the launcher's doctrine. Self-tested by `hooks/status-provenance-check.test.sh`.
 
 ---
 

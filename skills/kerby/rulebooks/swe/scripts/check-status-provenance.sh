@@ -28,9 +28,15 @@
 # regular-file precondition, before any open is attempted. Exit 0 says nothing about branch
 # names — see below.
 #
-# WHAT IT MATCHES — two things, both unambiguous shapes:
+# WHAT IT MATCHES — four things, all unambiguous shapes:
 #   version  a whole dotted token of exactly three parts, optional `v` prefix
 #   sha      a whole hex token 6-40 chars containing BOTH a digit and a hex letter
+#   pr       a `PR` token (either case) + optional space or `#` + digits: `PR 7552`,
+#            `PR#7552`, `pr 12` — never `APR 2026`, `PRs`, or a `PR` with no number
+#   issue    a `#` immediately followed by digits ONLY: `#54`, `#1234` — an issue or
+#            pull-request reference, whose authority is the tracker and the commit
+#            message (v2.13.0: PR numbers left STATUS.md by decision; a completed PR
+#            is history, and history has a home already)
 #
 # WHY THERE IS NO BRANCH CHECK. There was one, through three designs and three
 # review rounds, and it never converged:
@@ -69,6 +75,12 @@
 #     these misses are not.
 #   - A four-part version ("1.2.3.4") is not matched. That shape is exactly what
 #     separates an IP address from a semver, and this repo ships semver.
+#   - `#` plus digits ONLY is a PR/issue reference even at six digits, although
+#     `#123456` is also a valid CSS colour. The mirror of the 8-digit RGBA trade
+#     below: a status file names issues far more often than all-digit colours,
+#     and a visible false positive beats a silent miss. A hyphenated `PR-7552`
+#     is not matched — that shape is a branch-name habit, and branch names are
+#     deliberately not guarded (above).
 #   - `#` plus exactly 3, 4 or 6 hex digits is treated as a CSS colour and
 #     skipped. 3 and 4 cost nothing. SIX is genuinely ambiguous — `#1a2b3c` is
 #     both a valid colour and a valid short SHA — and is resolved in favour of the
@@ -166,6 +178,28 @@ HITS=$( { awk '
         printf "%d\tversion\t%s\n", NR, t
     }
 
+    # --- pr / issue number: tracker identity. Tested on the RAW line, before the
+    # colour blanking below, because `#1234` and `#123456` are exactly the shapes
+    # that blanking removes. `#` + digits ONLY — a hex letter makes it a colour or
+    # a SHA, which the passes below decide.
+    np = split(line, pt, /[^0-9A-Za-z#]+/)
+    for (i = 1; i <= np; i++) {
+      t = pt[i]
+      if (t ~ /^#[0-9]+$/)
+        printf "%d\tPR/issue number\t%s\n", NR, t
+    }
+    # `PR` (either case) + optional space or `#` + digits, bounded on both sides by
+    # a non-letter: `PR 7552`, `PR#7552`, `pr 12` match; `APR 2026`, `PRs`, `PR-less`
+    # and a `PR` with no number do not. The line is padded with a space on each
+    # side so the boundary classes need no `^`/`$` inside a group (BSD awk).
+    rest = " " line " "
+    while (match(rest, /[^A-Za-z][Pp][Rr] ?#?[0-9]+[^0-9A-Za-z]/)) {
+      t = substr(rest, RSTART, RLENGTH)
+      gsub(/^[^Pp]+|[^0-9]+$/, "", t)
+      printf "%d\tpull-request number\t%s\n", NR, t
+      rest = substr(rest, RSTART + RLENGTH - 1)
+    }
+
     # Blank CSS colour shapes before tokenising: `#` plus exactly 3, 4 or 6 hex
     # digits. Blanking every `#`-hex run would let a SHA written as `#1a2b3c7`
     # escape, which is plausible shorthand. 3 and 4 are below the SHA minimum and
@@ -210,7 +244,7 @@ if [[ "$scan_status" -ne 0 ]]; then
 fi
 
 if [[ -z "$HITS" ]]; then
-  pass "$FILE states no version and no SHA-shaped hex token (branch names are not checked — see this script's header)"
+  pass "$FILE states no version, no SHA-shaped hex token, and no PR or issue number (branch names are not checked — see this script's header)"
 else
   while IFS=$'\t' read -r ln kind tokentext; do
     [[ -n "$ln" ]] || continue
