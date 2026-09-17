@@ -269,6 +269,17 @@ OUT_RJ=$(cd "$RJ_TMP" && printf '{"source":"compact"}' | HOME="$HOME_T" bash "$I
 [[ $rc -eq 0 ]] && pass "delete-swe drill exits 0" || fail "delete-swe drill rc=$rc"
 echo "$OUT_RJ" | grep -q '^rulebook swe is pinned but does not ship in this install' && pass "missing builtin → does-not-ship nudge" || fail "missing builtin not nudged"
 echo "$OUT_RJ" | grep -q '^--- base: rules/iron-law-claims.md ---$' && pass "floor prints from the reduced install" || fail "floor missing in the reduced install"
+# 11f2. TOML literal (single-quoted) strings are a valid manifest form (third
+#       independent-review finding): a builtin written that way still re-injects.
+mkdir -p "$INST/rulebooks/quotebook/rules"
+printf "[rulebook]\nid = 'quotebook'\n\n[[check]]\nid = 'q1'\nkind = 'prose'\nbody = 'rules/one.md'   # literal strings throughout\ntoken_cost = 'low'\n" > "$INST/rulebooks/quotebook/rulebook.toml"
+printf '# Quotebook rule one\n' > "$INST/rulebooks/quotebook/rules/one.md"
+cat > "$RJ_TMP/.kerby/rulebooks.lock" <<'EOF'
+{ "selected": ["quotebook"], "rulebooks": [ { "id": "quotebook", "version": "0.0.1", "origin": "builtin", "path_or_url": "/nowhere", "sha256": null } ] }
+EOF
+OUT_RJ=$(cd "$RJ_TMP" && printf '{"source":"compact"}' | HOME="$HOME_T" bash "$INST/resources/hooks/session-start-context.sh")
+echo "$OUT_RJ" | grep -q '^--- quotebook: rules/one.md ---$' && pass "single-quoted TOML strings derive the eager body" || fail "single-quoted manifest did not re-inject: $(echo "$OUT_RJ" | grep quotebook | head -2)"
+echo "$OUT_RJ" | grep -qx '# Quotebook rule one' && pass "single-quoted manifest body text printed" || fail "single-quoted manifest body text missing"
 # 11g. A body path that leaves its folder is refused, even from a lock-marked builtin.
 mkdir -p "$INST/rulebooks/evilbook/rules"
 printf '[rulebook]\nid = "evilbook"\n\n[[check]]\nid = "x"\nkind = "prose"\nbody = "../../../../../../../etc/passwd"\nfloor = true\n' > "$INST/rulebooks/evilbook/rulebook.toml"

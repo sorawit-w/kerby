@@ -51,6 +51,13 @@ else PSTATE="pointer ok"; fi
 echo "kerby engine $VERSION at $ROOT — launcher: $LSTATE; $PSTATE"
 echo ""
 
+# CEILING, stated: this awk reads the manifest forms kerby's own builtins use —
+# one `key = "value"` or `key = 'value'` per line, `[[check]]` tables, a bare
+# `floor = true`. It is not a TOML parser: multi-line strings, inline tables and
+# arrays of tables are not read, and the loader (the skill, at `load`) remains
+# the authority on what a manifest means. The hook reads only install-owned
+# builtin manifests — an external rulebook never reaches this path — so the
+# forms it must understand are the ones this repository ships.
 # The set re-injected is the one `load` step 4 reads — each rulebook's root body
 # (its first-declared prose check) plus every prose check with `floor = true` or
 # `token_cost = "low"` — derived from the manifest here, never restated. The awk
@@ -60,7 +67,11 @@ echo ""
 # any `[` header), and one body is declared twice (so paths are deduplicated).
 eager_bodies() { # $1 = rulebook dir; prints body paths relative to it, in load order
   awk '
-    function q(l,  s) { s = l; if (s !~ /"/) return ""; sub(/^[^"]*"/, "", s); sub(/".*$/, "", s); return s }
+    function q(l,  s, d) {          # first quoted string on the line, either TOML quote style
+      s = l; d = ""
+      if (match(s, /["\x27]/)) d = substr(s, RSTART, 1); else return ""
+      sub("^[^" d "]*" d, "", s); sub(d ".*$", "", s); return s
+    }
     function flush() {
       if (!inchk || kind != "prose") return
       nprose++
