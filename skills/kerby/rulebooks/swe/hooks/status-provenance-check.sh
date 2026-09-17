@@ -28,7 +28,7 @@
 # not list (an abbreviation like `--inc`, an unknown short letter, a flag git adds
 # later), a variable, glob or tilde in a pathspec (the shell expands them after
 # this hook sees the text), a heredoc, an unbalanced quote, a quoted line in a
-# pathspec file. An unquoted `#` ends the command; `-u<mode>` and `-S<key>` carry
+# pathspec file. An unquoted `#` or newline ends the command; `-u<mode>` and `-S<key>` carry
 # their value attached; `--only --amend` with no pathspec records HEAD's tree. The cost is a
 # visible block on a working-tree STATUS.md that was not going to be committed;
 # the alternative is a silent miss, and this hook always takes the block.
@@ -88,6 +88,7 @@ warn_open() { # $1 = why; visible fail-open via additionalContext, exit 0
 # can stop at the first separator; `>&`, `<&` and `&>` stay redirections.
 tokens() {
   printf '%s' "$1" | awk '
+    BEGIN { RS = "\001" }                       # the whole command is ONE record, so a newline reaches the loop
     function flush() { if (t != "") { print t; t = "" } }
     { s = $0; L = length(s); q = ""; t = ""
       for (i = 1; i <= L; i++) { c = substr(s, i, 1); nx = substr(s, i + 1, 1)
@@ -95,6 +96,7 @@ tokens() {
         else if (c == "\"" || c == "\047") q = c
         else if (c == "\\") { i++; t = t substr(s, i, 1) }
         else if (c == " " || c == "\t") flush()
+        else if (c == "\n" || c == "\r") { flush(); print ";" }   # an unquoted newline separates commands
         else if (c == ";") { flush(); print ";" }
         else if (c == "|") { flush(); if (nx == "|") { print "||"; i++ } else print "|" }
         else if (c == "&") {
@@ -218,8 +220,17 @@ run_guard() { # $1 = file to scan, $2 = which source; blocks (exit 2) on a hit
 }
 
 scan_worktree() { # the working-tree file, when it differs from HEAD (or HEAD is absent)
-  [[ -f "$STATUS" ]] || return 0
+  [[ -e "$STATUS" || -L "$STATUS" ]] || return 0
   git -C "$TOP" diff --quiet HEAD -- "$STATUS_REL" 2>/dev/null && return 0
+  if [[ -L "$STATUS" ]]; then
+    # a symlink commits as a blob holding its TARGET TEXT — that is what is scanned,
+    # not the file it points at (which may not even exist)
+    TMPF=$(mktemp) || warn_open "cannot create a temp file for the symlink target"
+    readlink "$STATUS" > "$TMPF"
+    run_guard "$TMPF" "working tree, symlink target"
+    rm -f "$TMPF"; TMPF=""
+    return 0
+  fi
   run_guard "$STATUS" "working tree"
 }
 scan_index() { # the staged blob, when STATUS.md is staged

@@ -157,6 +157,16 @@ printf '.kerby/STATUS.md' > "$REPO/paths.nul"
 blocks 'git commit --pathspec-from-file=paths.nul --pathspec-file-nul -m x' "a NUL pathspec file without a trailing NUL keeps its last entry → worktree scanned → blocked"
 rm -f "$REPO/paths.nul"; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
 
+# 7f. Fifth round: an unquoted newline separates commands; a working-tree symlink
+#     commits as its target text.
+printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+blocks 'git commit -m x
+echo ok' "an unquoted newline ends the command → index scanned → blocked"
+git -C "$REPO" reset -q .kerby/STATUS.md; rm -f "$REPO/.kerby/STATUS.md"; ln -s "PR 123" "$REPO/.kerby/STATUS.md"
+blocks 'git commit -a -m x' "-a over a working-tree symlink scans the target text → blocked"
+blocks 'git commit .kerby -m x' "a covering pathspec over a working-tree symlink scans the target text → blocked"
+rm -f "$REPO/.kerby/STATUS.md"; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+
 # 8. Index dirty, working tree clean → plain commit records the INDEX → blocked.
 printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md
 printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
