@@ -28,7 +28,9 @@
 # not list (an abbreviation like `--inc`, an unknown short letter, a flag git adds
 # later), a variable, glob or tilde in a pathspec (the shell expands them after
 # this hook sees the text), a heredoc, an unbalanced quote, a quoted line in a
-# pathspec file. An unquoted `#` or newline ends the command; `-u<mode>` and `-S<key>` carry
+# pathspec file. An unquoted `$` or backtick anywhere is an expansion the shell
+# word-splits after this hook looks, so it is undecidable too (a quoted one is one
+# word and is fine). `--dry-run` records nothing and is let through. An unquoted `#` or newline ends the command; `-u<mode>` and `-S<key>` carry
 # their value attached; `--only --amend` with no pathspec records HEAD's tree. The cost is a
 # visible block on a working-tree STATUS.md that was not going to be committed;
 # the alternative is a silent miss, and this hook always takes the block.
@@ -89,8 +91,8 @@ warn_open() { # $1 = why; visible fail-open via additionalContext, exit 0
 tokens() {
   printf '%s' "$1" | awk '
     BEGIN { RS = "\001" }                       # the whole command is ONE record, so a newline reaches the loop
-    function flush() { if (t != "") { print t; t = "" } }
-    { s = $0; L = length(s); q = ""; t = ""
+    function flush() { if (t != "") { if (x) print "\002"; print t; t = ""; x = 0 } }
+    { s = $0; L = length(s); q = ""; t = ""; x = 0
       for (i = 1; i <= L; i++) { c = substr(s, i, 1); nx = substr(s, i + 1, 1)
         if (q != "") { if (c == q) q = ""; else t = t c }
         else if (c == "\"" || c == "\047") q = c
@@ -103,7 +105,7 @@ tokens() {
           if (t ~ /[<>]$/) t = t c
           else if (nx == ">") t = t c
           else { flush(); if (nx == "&") { print "&&"; i++ } else print "&" } }
-        else t = t c }
+        else { if (c == "$" || c == "`") x = 1; t = t c } }
       flush()
       if (q != "") print "\001" }'
 }
@@ -112,10 +114,11 @@ tokens() {
 # positional pathspecs. Git's last-option-wins applies (`--all --no-all`).
 # Shell redirections are not pathspecs; a heredoc, a command substitution or a
 # newline inside a token is undecidable and falls to the safe side (both).
-ALL=0; INCLUDE=0; INTERACTIVE=0; ONLY=0; AMEND=0; SPECS=(); UNDECIDABLE=0; PSFILE=""; NUL=0
+ALL=0; INCLUDE=0; INTERACTIVE=0; ONLY=0; AMEND=0; DRYRUN=0; SPECS=(); UNDECIDABLE=0; PSFILE=""; NUL=0
 n=0; expect_value=0; expect_psfile=0; after_dashdash=0
 while IFS= read -r tok; do
   [[ "$tok" == $'\001' ]] && { UNDECIDABLE=1; break; }
+  [[ "$tok" == $'\002' ]] && { UNDECIDABLE=1; break; }   # an UNQUOTED expansion: the shell word-splits it into words this hook cannot see
   case "$tok" in '<<'*) UNDECIDABLE=1; break ;; esac      # a heredoc makes the rest unparseable
   n=$((n + 1)); [[ $n -le 2 ]] && continue            # `git` `commit`
   if [[ $after_dashdash -eq 1 ]]; then SPECS+=("$tok"); continue; fi
@@ -133,6 +136,7 @@ while IFS= read -r tok; do
     --include) INCLUDE=1 ;;  --no-include) INCLUDE=0 ;;
     --only) ONLY=1 ;;        --no-only) ONLY=0 ;;
     --amend) AMEND=1 ;;      --no-amend) AMEND=0 ;;
+    --dry-run) DRYRUN=1 ;;   --no-dry-run) DRYRUN=0 ;;
     --patch|--interactive) INTERACTIVE=1 ;;
     --no-patch|--no-interactive) INTERACTIVE=0 ;;
     --pathspec-from-file=*) PSFILE="${tok#*=}" ;;
@@ -143,7 +147,7 @@ while IFS= read -r tok; do
     # long options that select no content — the only ones passed through. An
     # option this list does not know (an abbreviation like `--inc`, a new flag) is
     # undecidable: git may resolve it to something content-selecting.
-    --edit|--no-edit|--quiet|--no-quiet|--verbose|--no-verbose|--signoff|--no-signoff|--verify|--no-verify|--allow-empty|--no-allow-empty|--allow-empty-message|--status|--no-status|--dry-run|--short|--branch|--no-branch|--porcelain|--long|--null|--post-rewrite|--no-post-rewrite|--reset-author|--gpg-sign|--gpg-sign=*|--no-gpg-sign|--untracked-files|--untracked-files=*|--ahead-behind|--no-ahead-behind) ;;
+    --edit|--no-edit|--quiet|--no-quiet|--verbose|--no-verbose|--signoff|--no-signoff|--verify|--no-verify|--allow-empty|--no-allow-empty|--allow-empty-message|--status|--no-status|--short|--branch|--no-branch|--porcelain|--long|--null|--post-rewrite|--no-post-rewrite|--reset-author|--gpg-sign|--gpg-sign=*|--no-gpg-sign|--untracked-files|--untracked-files=*|--ahead-behind|--no-ahead-behind) ;;
     --*) UNDECIDABLE=1; break ;;
     -?*)                                               # short cluster: -am "x", -i, -p, -mfoo, -Ffile, -uall, -Skey
       letters="${tok#-}"
@@ -190,7 +194,8 @@ covered() { # do the pathspecs resolve to STATUS.md? 0 yes / 1 no / 2 undecidabl
   grep -qx "$STATUS_REL" <<<"$out"
 }
 
-if [[ $UNDECIDABLE -eq 1 || $INTERACTIVE -eq 1 ]]; then MODE=both   # -p/--interactive pick worktree hunks over the index
+if [[ $DRYRUN -eq 1 ]]; then MODE=none                              # --dry-run records nothing; previewing the state is the point
+elif [[ $UNDECIDABLE -eq 1 || $INTERACTIVE -eq 1 ]]; then MODE=both   # -p/--interactive pick worktree hunks over the index
 elif [[ $ALL -eq 1 ]]; then MODE=worktree
 elif [[ $ONLY -eq 1 && $AMEND -eq 1 && ${#SPECS[@]} -eq 0 ]]; then MODE=none   # --only --amend: HEAD's tree, the staged blob stays staged
 elif [[ ${#SPECS[@]} -gt 0 ]]; then

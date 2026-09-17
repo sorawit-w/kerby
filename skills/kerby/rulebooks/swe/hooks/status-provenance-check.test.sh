@@ -167,6 +167,16 @@ blocks 'git commit -a -m x' "-a over a working-tree symlink scans the target tex
 blocks 'git commit .kerby -m x' "a covering pathspec over a working-tree symlink scans the target text → blocked"
 rm -f "$REPO/.kerby/STATUS.md"; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
 
+# 7g. Sixth round: an unquoted expansion anywhere is undecidable; --dry-run records nothing.
+printf '%s' "$DIRTY_PR" > "$REPO/.kerby/STATUS.md"
+blocks 'git commit -m $(printf '"'"'x .kerby/STATUS.md'"'"')' "an unquoted expansion as an option value word-splits → undecidable → both → blocked"
+allows 'git commit -m "$(printf x)" src/other.ts' "a quoted expansion is one word → the non-covering pathspec records nothing of STATUS.md → allowed"
+printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+allows 'git commit --dry-run -m x' "--dry-run records nothing → allowed even over a dirty index"
+blocks 'git commit --dry-run --no-dry-run -m x' "--no-dry-run negates → index scanned → blocked"
+git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+
 # 8. Index dirty, working tree clean → plain commit records the INDEX → blocked.
 printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md
 printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
