@@ -195,6 +195,15 @@ printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby
 blocks 'git commit {fd}>out -m x' "a {fd}> redirection is undecidable → both → index scanned → blocked"
 git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
 
+# 7j. A quoted word is literal: `">"` is a message, not a redirection; `";"` is a pathspec, not a separator.
+printf '%s' "$DIRTY_PR" > "$REPO/.kerby/STATUS.md"
+blocks 'git commit -m ">" .kerby/STATUS.md' "a quoted > is the message; the pathspec is honoured → worktree scanned → blocked"
+blocks 'git commit -m "x" ";" .kerby' "a quoted ; is a pathspec, not a separator → the covering .kerby is seen → blocked"
+printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+blocks 'git commit -m "x #not a comment" >/dev/null' "a quoted # inside the message is text; the real redirection is stripped → index scanned → blocked"
+git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+
 # 8. Index dirty, working tree clean → plain commit records the INDEX → blocked.
 printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md
 printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"

@@ -93,11 +93,11 @@ warn_open() { # $1 = why; visible fail-open via additionalContext, exit 0
 tokens() {
   printf '%s' "$1" | awk '
     BEGIN { RS = "\001" }                       # the whole command is ONE record, so a newline reaches the loop
-    function flush() { if (t != "") { if (x) print "\002"; print t; t = ""; x = 0 } }
-    { s = $0; L = length(s); q = ""; t = ""; x = 0
+    function flush() { if (t != "" || qd) { if (x) print "\002"; if (qd) print "\003"; print t; t = ""; x = 0; qd = 0 } }
+    { s = $0; L = length(s); q = ""; t = ""; x = 0; qd = 0
       for (i = 1; i <= L; i++) { c = substr(s, i, 1); nx = substr(s, i + 1, 1)
         if (q != "") { if (c == q) q = ""; else t = t c }
-        else if (c == "\"" || c == "\047") q = c
+        else if (c == "\"" || c == "\047") { q = c; qd = 1 }          # a quoted word: shell operators inside it are literal
         else if (c == "\\") { i++; t = t substr(s, i, 1) }
         else if (c == " " || c == "\t") flush()
         else if (c == "\n" || c == "\r") { flush(); print ";" }   # an unquoted newline separates commands
@@ -117,10 +117,12 @@ tokens() {
 # Shell redirections are not pathspecs; a heredoc, a command substitution or a
 # newline inside a token is undecidable and falls to the safe side (both).
 ALL=0; INCLUDE=0; INTERACTIVE=0; ONLY=0; AMEND=0; DRYRUN=0; SPECS=(); UNDECIDABLE=0; PSFILE=""; NUL=0
-n=0; expect_value=0; expect_psfile=0; expect_redirect_target=0; after_dashdash=0
+n=0; expect_value=0; expect_psfile=0; expect_redirect_target=0; after_dashdash=0; literal=0
 while IFS= read -r tok; do
   [[ "$tok" == $'\001' ]] && { UNDECIDABLE=1; break; }
   [[ "$tok" == $'\002' ]] && { UNDECIDABLE=1; break; }   # an UNQUOTED expansion: the shell word-splits it into words this hook cannot see
+  [[ "$tok" == $'\003' ]] && { literal=1; continue; }     # the next word was quoted: `>` `;` `#` `|` `&` inside it are text, not operators
+  was_literal=$literal; literal=0                           # the flag belongs to THIS word only
   case "$tok" in '<<'*) UNDECIDABLE=1; break ;; esac      # a heredoc makes the rest unparseable
   n=$((n + 1)); [[ $n -le 2 ]] && continue            # `git` `commit`
   # redirections: the shell removes them from the arguments wherever they sit, so
@@ -128,16 +130,18 @@ while IFS= read -r tok; do
   # bare operator takes the next token as its target; an attached one is
   # self-contained.
   if [[ $expect_redirect_target -eq 1 ]]; then expect_redirect_target=0; continue; fi
-  case "$tok" in
-    '>'|'>>'|'>|'|'<'|'<>'|'&>'|'&>>'|[0-9]'>'|[0-9]'>>'|[0-9]'>|'|[0-9]'<'|[0-9]'<>') expect_redirect_target=1; continue ;;
-    '>'*|'<'*|'&>'*|[0-9]'>'*|[0-9]'<'*) continue ;;
-  esac
+  if [[ $was_literal -eq 0 ]]; then
+    case "$tok" in
+      '>'|'>>'|'>|'|'<'|'<>'|'&>'|'&>>'|[0-9]'>'|[0-9]'>>'|[0-9]'>|'|[0-9]'<'|[0-9]'<>') expect_redirect_target=1; continue ;;
+      '>'*|'<'*|'&>'*|[0-9]'>'*|[0-9]'<'*) continue ;;
+    esac
+  fi
   if [[ $after_dashdash -eq 1 ]]; then SPECS+=("$tok"); continue; fi
   if [[ $expect_psfile -eq 1 ]]; then expect_psfile=0; PSFILE="$tok"; continue; fi
   if [[ $expect_value -eq 1 ]]; then expect_value=0; continue; fi
   case "$tok" in
-    '&&'|'||'|';'|'|'|'&') break ;;
-    '#'*) break ;;                                     # an unquoted # starts a shell comment: the command ends here
+    '&&'|'||'|';'|'|'|'&') [[ $was_literal -eq 1 ]] && { SPECS+=("$tok"); continue; }; break ;;
+    '#'*) [[ $was_literal -eq 1 ]] && { SPECS+=("$tok"); continue; }; break ;;   # an unquoted # starts a shell comment
     --) after_dashdash=1 ;;
     --all) ALL=1 ;;          --no-all) ALL=0 ;;
     --include) INCLUDE=1 ;;  --no-include) INCLUDE=0 ;;
