@@ -140,6 +140,23 @@ rm -f "$REPO/.kerby/STATUS.md"; ln -s "PR 123" "$REPO/.kerby/STATUS.md"; git -C 
 blocks 'git commit -m x' "a staged type change (symlink blob) is scanned → blocked"
 git -C "$REPO" reset -q .kerby/STATUS.md; rm -f "$REPO/.kerby/STATUS.md"; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
 
+# 7e. Fourth independent-review round — the classifier's default is now the block:
+#     only listed options pass through; -u/-S carry attached values; # ends the
+#     command; --only --amend records HEAD's tree; a trailing NUL is optional.
+printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+blocks 'git commit -uall -m x' "-uall carries its value attached; the a is not --all → index scanned → blocked"
+blocks 'git commit -m x # explain' "an unquoted # ends the command → index scanned → blocked"
+blocks 'git commit --inc src/other.ts -m x' "an abbreviated --include is undecidable → both scanned → blocked"
+blocks 'git commit --some-new-flag -m x' "an unknown long option is undecidable → both scanned → blocked"
+blocks 'git commit -X -m x' "an unknown short letter is undecidable → both scanned → blocked"
+allows 'git commit --only --amend --no-edit' "--only --amend with no pathspec records HEAD's tree → allowed"
+allows 'git commit -o --amend --no-edit' "-o --amend, same → allowed"
+blocks 'git commit --amend --no-edit -q -v -s -n -z -Skey -uno --allow-empty' "listed no-content options pass through and the dirty index is scanned → blocked"
+git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$DIRTY_PR" > "$REPO/.kerby/STATUS.md"
+printf '.kerby/STATUS.md' > "$REPO/paths.nul"
+blocks 'git commit --pathspec-from-file=paths.nul --pathspec-file-nul -m x' "a NUL pathspec file without a trailing NUL keeps its last entry → worktree scanned → blocked"
+rm -f "$REPO/paths.nul"; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+
 # 8. Index dirty, working tree clean → plain commit records the INDEX → blocked.
 printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md
 printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"

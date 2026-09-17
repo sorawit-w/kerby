@@ -24,9 +24,12 @@
 # `--pathspec-from-file` contributes pathspecs like the command line; `--no-all`
 # and friends negate (last option wins); a redirection is never a pathspec; the
 # command ends at the first unquoted separator, attached or not.
-# EVERYTHING THE CLASSIFIER CANNOT PROVE SCANS BOTH SOURCES: a variable, glob or
-# tilde in a pathspec (the shell expands them after this hook sees the text), a
-# heredoc, an unbalanced quote, a quoted line in a pathspec file. The cost is a
+# EVERYTHING THE CLASSIFIER CANNOT PROVE SCANS BOTH SOURCES: an option it does
+# not list (an abbreviation like `--inc`, an unknown short letter, a flag git adds
+# later), a variable, glob or tilde in a pathspec (the shell expands them after
+# this hook sees the text), a heredoc, an unbalanced quote, a quoted line in a
+# pathspec file. An unquoted `#` ends the command; `-u<mode>` and `-S<key>` carry
+# their value attached; `--only --amend` with no pathspec records HEAD's tree. The cost is a
 # visible block on a working-tree STATUS.md that was not going to be committed;
 # the alternative is a silent miss, and this hook always takes the block.
 # A pathspec need not spell the file name — `.`, `.kerby`, `:/`, a relative path
@@ -107,7 +110,7 @@ tokens() {
 # positional pathspecs. Git's last-option-wins applies (`--all --no-all`).
 # Shell redirections are not pathspecs; a heredoc, a command substitution or a
 # newline inside a token is undecidable and falls to the safe side (both).
-ALL=0; INCLUDE=0; INTERACTIVE=0; SPECS=(); UNDECIDABLE=0; PSFILE=""; NUL=0
+ALL=0; INCLUDE=0; INTERACTIVE=0; ONLY=0; AMEND=0; SPECS=(); UNDECIDABLE=0; PSFILE=""; NUL=0
 n=0; expect_value=0; expect_psfile=0; after_dashdash=0
 while IFS= read -r tok; do
   [[ "$tok" == $'\001' ]] && { UNDECIDABLE=1; break; }
@@ -118,6 +121,7 @@ while IFS= read -r tok; do
   if [[ $expect_value -eq 1 ]]; then expect_value=0; continue; fi
   case "$tok" in
     '&&'|'||'|';'|'|'|'&') break ;;
+    '#'*) break ;;                                     # an unquoted # starts a shell comment: the command ends here
     # redirections: a bare operator takes the next token as its target; an
     # attached one (`>/dev/null`, `2>&1`) is self-contained
     '>'|'>>'|'<'|'&>'|'&>>'|[0-9]'>'|[0-9]'>>'|[0-9]'<') expect_value=1 ;;
@@ -125,23 +129,33 @@ while IFS= read -r tok; do
     --) after_dashdash=1 ;;
     --all) ALL=1 ;;          --no-all) ALL=0 ;;
     --include) INCLUDE=1 ;;  --no-include) INCLUDE=0 ;;
-    --only) ;;
+    --only) ONLY=1 ;;        --no-only) ONLY=0 ;;
+    --amend) AMEND=1 ;;      --no-amend) AMEND=0 ;;
     --patch|--interactive) INTERACTIVE=1 ;;
     --no-patch|--no-interactive) INTERACTIVE=0 ;;
     --pathspec-from-file=*) PSFILE="${tok#*=}" ;;
     --pathspec-from-file) expect_psfile=1 ;;
     --pathspec-file-nul) NUL=1 ;;
     --author|--date|--cleanup|--template|--file|--message|--fixup|--squash|--reuse-message|--reedit-message|--trailer) expect_value=1 ;;
-    --*) ;;                                            # long option, value attached with = or none
-    -?*)                                               # short cluster: -am "x", -i, -p, -mfoo, -Ffile
+    --author=*|--date=*|--cleanup=*|--template=*|--file=*|--message=*|--fixup=*|--squash=*|--reuse-message=*|--reedit-message=*|--trailer=*) ;;
+    # long options that select no content — the only ones passed through. An
+    # option this list does not know (an abbreviation like `--inc`, a new flag) is
+    # undecidable: git may resolve it to something content-selecting.
+    --edit|--no-edit|--quiet|--no-quiet|--verbose|--no-verbose|--signoff|--no-signoff|--verify|--no-verify|--allow-empty|--no-allow-empty|--allow-empty-message|--status|--no-status|--dry-run|--short|--branch|--no-branch|--porcelain|--long|--null|--post-rewrite|--no-post-rewrite|--reset-author|--gpg-sign|--gpg-sign=*|--no-gpg-sign|--untracked-files|--untracked-files=*|--ahead-behind|--no-ahead-behind) ;;
+    --*) UNDECIDABLE=1; break ;;
+    -?*)                                               # short cluster: -am "x", -i, -p, -mfoo, -Ffile, -uall, -Skey
       letters="${tok#-}"
       while [[ -n "$letters" ]]; do
         l="${letters:0:1}"; letters="${letters:1}"
         case "$l" in
           a) ALL=1 ;;
           i) INCLUDE=1 ;;
+          o) ONLY=1 ;;
           p) INTERACTIVE=1 ;;
+          e|q|v|s|n|z) ;;                                     # no content selection
+          u|S) break ;;                                       # optional value is attached: the rest of the token is it
           m|F|C|c|t) if [[ -z "$letters" ]]; then expect_value=1; fi; break ;;   # attached value, or the next token
+          *) UNDECIDABLE=1; break 2 ;;                        # an unknown letter is undecidable
         esac
       done ;;
     *) # a pathspec: the shell expands variables, globs and tildes AFTER this hook
@@ -154,7 +168,7 @@ done < <(tokens "$COMMAND")
 # --pathspec-from-file: the file's entries are pathspecs too (`-` is stdin, undecidable).
 if [[ -n "$PSFILE" && $UNDECIDABLE -eq 0 ]]; then
   if [[ "$PSFILE" == "-" || ! -r "$PSFILE" ]]; then UNDECIDABLE=1
-  elif [[ $NUL -eq 1 ]]; then while IFS= read -r -d '' spec; do [[ -n "$spec" ]] && SPECS+=("$spec"); done < "$PSFILE"
+  elif [[ $NUL -eq 1 ]]; then while IFS= read -r -d '' spec || [[ -n "$spec" ]]; do [[ -n "$spec" ]] && SPECS+=("$spec"); done < "$PSFILE"
   else
     # git's file syntax: one pathspec per line, CRLF tolerated, a line in double
     # quotes is C-style quoted — decoding that is git's job, so it is undecidable.
@@ -176,6 +190,7 @@ covered() { # do the pathspecs resolve to STATUS.md? 0 yes / 1 no / 2 undecidabl
 
 if [[ $UNDECIDABLE -eq 1 || $INTERACTIVE -eq 1 ]]; then MODE=both   # -p/--interactive pick worktree hunks over the index
 elif [[ $ALL -eq 1 ]]; then MODE=worktree
+elif [[ $ONLY -eq 1 && $AMEND -eq 1 && ${#SPECS[@]} -eq 0 ]]; then MODE=none   # --only --amend: HEAD's tree, the staged blob stays staged
 elif [[ ${#SPECS[@]} -gt 0 ]]; then
   covered; rc=$?
   case $rc in
