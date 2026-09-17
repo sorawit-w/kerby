@@ -187,6 +187,14 @@ blocks 'git commit -m x >| out' "bare >| consumes its target → index scanned �
 blocks 'git commit -m x 2>| out' "bare 2>| consumes its target → index scanned → blocked"
 git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
 
+# 7i. Eighth round: an unquoted { is undecidable (brace expansion, {fd}> redirections).
+printf '%s' "$DIRTY_PR" > "$REPO/.kerby/STATUS.md"
+blocks 'git commit -m x .kerby/{STATUS.md,nothing}' "brace expansion in a pathspec is undecidable → both → blocked"
+printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+blocks 'git commit {fd}>out -m x' "a {fd}> redirection is undecidable → both → index scanned → blocked"
+git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+
 # 8. Index dirty, working tree clean → plain commit records the INDEX → blocked.
 printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md
 printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"

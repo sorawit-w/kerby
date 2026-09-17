@@ -28,9 +28,11 @@
 # not list (an abbreviation like `--inc`, an unknown short letter, a flag git adds
 # later), a variable, glob or tilde in a pathspec (the shell expands them after
 # this hook sees the text), a heredoc, an unbalanced quote, a quoted line in a
-# pathspec file. An unquoted `$` or backtick anywhere is an expansion the shell
-# word-splits after this hook looks, so it is undecidable too (a quoted one is one
-# word and is fine). `--dry-run` records nothing and is let through. An unquoted `#` or newline ends the command; `-u<mode>` and `-S<key>` carry
+# pathspec file. An unquoted `$`, backtick or `{` anywhere is an expansion (or a
+# `{fd}>` redirection) the shell rewrites after this hook looks, so it is
+# undecidable too (a quoted one is one literal word and is fine). A quoted word
+# that merely LOOKS like a redirection (`'>x'`) is treated as one — the cost is a
+# false block on a pathspec named `>x`, never a miss. `--dry-run` records nothing and is let through. An unquoted `#` or newline ends the command; `-u<mode>` and `-S<key>` carry
 # their value attached; `--only --amend` with no pathspec records HEAD's tree. The cost is a
 # visible block on a working-tree STATUS.md that was not going to be committed;
 # the alternative is a silent miss, and this hook always takes the block.
@@ -105,7 +107,7 @@ tokens() {
           if (t ~ /[<>]$/) t = t c
           else if (nx == ">") t = t c
           else { flush(); if (nx == "&") { print "&&"; i++ } else print "&" } }
-        else { if (c == "$" || c == "`") x = 1; t = t c } }
+        else { if (c == "$" || c == "`" || c == "{") x = 1; t = t c } }   # expansion, substitution, brace expansion or a {fd}> redirection
       flush()
       if (q != "") print "\001" }'
 }
