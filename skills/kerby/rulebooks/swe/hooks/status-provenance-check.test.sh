@@ -25,6 +25,7 @@ mkdir -p "$REPO/.kerby" "$REPO/sub"
 git -C "$REPO" init -q
 git -C "$REPO" config user.email t@example.com
 git -C "$REPO" config user.name t
+mkdir -p "$REPO/src"; printf "x\n" > "$REPO/src/other.ts"; git -C "$REPO" add src/other.ts; git -C "$REPO" commit -q -m "seed other"
 
 CLEAN='# Project Status
 
@@ -75,6 +76,27 @@ blocks 'git commit -am "x"' "git commit -am scans the working tree and blocks PR
 blocks 'git commit --all -m "x"' "git commit --all scans the working tree"
 # 7. …and a pathspec naming the file commits the working tree → blocked.
 blocks 'git commit .kerby/STATUS.md -m "x"' "pathspec commit of STATUS.md scans the working tree"
+
+# 7b. Pathspecs are RESOLVED, not text-matched (independent-review P1): a directory,
+#     `.`, `:/`, and a relative path from a subdirectory all reach STATUS.md;
+#     a pathspec that does not cover it records nothing of the file.
+blocks 'git commit .kerby -m "x"' "directory pathspec .kerby commits the working-tree STATUS.md → blocked"
+blocks 'git commit . -m "x"' "pathspec . commits the working-tree STATUS.md → blocked"
+blocks 'git commit :/ -m "x"' "magic pathspec :/ commits the working-tree STATUS.md → blocked"
+blocks 'git commit ../.kerby -m "x"' "relative pathspec from a subdirectory resolves to STATUS.md → blocked" sub
+blocks 'git commit -m "x" -- .kerby/STATUS.md' "pathspec after -- is honoured → blocked"
+printf 'y\n' > "$REPO/src/other.ts"
+allows 'git commit src/other.ts -m "x"' "pathspec that does not cover STATUS.md records nothing of it → allowed"
+allows 'git commit -m "x" src/other.ts' "pathspec after the message, not covering STATUS.md → allowed"
+# -i/--include: the named paths are refreshed AND the index is recorded.
+printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+allows 'git commit --include src/other.ts -m "x"' "--include other with a clean index → allowed"
+printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+blocks 'git commit --include src/other.ts -m "x"' "--include other still records the dirty index STATUS.md → blocked"
+blocks 'git commit -i src/other.ts -m "x"' "-i short form, same → blocked"
+git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$DIRTY_PR" > "$REPO/.kerby/STATUS.md"
+blocks 'git commit -m "unbalanced src/other.ts' "an unbalanced quote is undecidable → both sources scanned → blocked"
+printf 'x\n' > "$REPO/src/other.ts"; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
 
 # 8. Index dirty, working tree clean → plain commit records the INDEX → blocked.
 printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md
