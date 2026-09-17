@@ -242,6 +242,15 @@ cat > "$RJ_TMP/.kerby/rulebooks.lock" <<'EOF'
 EOF
 OUT_RJ=$(rj compact)
 echo "$OUT_RJ" | grep -q 'rulebook swe is not a builtin' && pass "a local fork named swe is not re-injected from the install" || fail "local fork named swe was re-injected as the builtin"
+# 11d3. A `}` (or an escaped quote) inside a string value must not end the entry
+#       (second independent-review finding): the split is string-aware.
+cat > "$RJ_TMP/.kerby/rulebooks.lock" <<'EOF'
+{ "selected": ["swe", "skill-authoring"], "rulebooks": [ { "id": "swe", "path_or_url": "/tmp/a}b", "origin": "builtin", "version": "2.12.0", "sha256": null }, { "id": "skill-authoring", "path_or_url": "/tmp/q\"}x", "origin": "builtin", "version": "1.2.0", "sha256": null } ] }
+EOF
+OUT_RJ=$(rj compact)
+echo "$OUT_RJ" | grep -q '^--- swe: BOOTSTRAP.md ---$' && pass "a brace inside path_or_url does not split the entry" || fail "brace inside a string split the entry (swe misclassified)"
+echo "$OUT_RJ" | grep -q '^--- skill-authoring: rules/evaluator-gate.md ---$' && pass "an escaped quote and brace inside a string do not split the entry" || fail "escaped quote + brace split the entry (skill-authoring misclassified)"
+echo "$OUT_RJ" | grep -q 'is not a builtin' && fail "a builtin was misclassified as external" || pass "no builtin misclassified"
 # 11e. No lock: the load nudge, exit 0.
 rm -f "$RJ_TMP/.kerby/rulebooks.lock"
 OUT_RJ=$(rj compact); rc=$?

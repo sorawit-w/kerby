@@ -77,6 +77,26 @@ eager_bodies() { # $1 = rulebook dir; prints body paths relative to it, in load 
   ' "$1/rulebook.toml"
 }
 
+# One structural object per line. A `}` inside a JSON string (a path_or_url is
+# free text) must not end an entry, so the split is string-aware: a character walk
+# that tracks quotes and backslash escapes and breaks only on a structural `}`.
+lock_entries() { # stdin: the flattened lock; stdout: one entry per line
+  awk '
+    {
+      n = length($0); instr = 0; esc = 0; out = ""
+      for (i = 1; i <= n; i++) {
+        c = substr($0, i, 1)
+        if (instr) {
+          if (esc) { esc = 0 } else if (c == "\\") { esc = 1 } else if (c == "\"") { instr = 0 }
+          out = out c
+        } else if (c == "\"") { instr = 1; out = out c }
+        else if (c == "}") { print out; out = "" }
+        else { out = out c }
+      }
+      if (out != "") print out
+    }'
+}
+
 # TRUST. The lock is workspace content. Only its `selected` ids are read; only an
 # entry the lock itself marks `"origin": "builtin"` counts (the floor is implicit
 # and never has an entry); only a slug-shaped id — the validator's own rule — is
@@ -87,10 +107,10 @@ eager_bodies() { # $1 = rulebook dir; prints body paths relative to it, in load 
 # admitting its prose is the trust prompt's job, and only `load`/`reload` run it.
 print_rulebook() { # $1 = id; $2 = "implicit" for the floor, else the flattened lock text
   local id="$1" flat="$2" dir body
-  # One entry per line (the lock nests nothing, so `}` ends an entry), then both
-  # keys tested on that line — JSON key order is not significant, so an entry
-  # written `origin` before `id` must classify the same as the loader's own.
-  if [[ "$flat" != implicit ]] && ! printf '%s' "$flat" | tr '}' '\n' \
+  # One entry per line (string-aware, above), then both keys tested on that line —
+  # JSON key order is not significant, so an entry written `origin` before `id`
+  # classifies the same as the loader's own.
+  if [[ "$flat" != implicit ]] && ! printf '%s' "$flat" | lock_entries \
       | grep -E "\"id\"[[:space:]]*:[[:space:]]*\"$id\"" \
       | grep -qE '"origin"[[:space:]]*:[[:space:]]*"builtin"'; then
     echo "rulebook $id is not a builtin — not re-injected; invoke kerby (args: reload) to restore it through the trust prompt."
