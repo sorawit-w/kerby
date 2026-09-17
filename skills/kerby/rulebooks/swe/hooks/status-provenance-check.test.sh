@@ -56,6 +56,8 @@ reset_all(){ git -C "$REPO" reset -q .kerby/STATUS.md 2>/dev/null; rm -f "$REPO/
 # 1. Not a commit → exit 0 regardless of state.
 stage "$DIRTY_ISSUE"
 allows 'git status' "a non-commit command is ignored even with a dirty STATUS staged"
+allows 'git commit-tree HEAD^{tree} -m x' "git commit-tree is not git commit → ignored"
+allows 'git commit-graph write' "git commit-graph is not git commit → ignored"
 
 # 2. Staged copy with an issue number → blocked; the message names copy, line and token.
 blocks 'git commit -m "x"' "staged STATUS.md naming #54 is blocked"

@@ -11,7 +11,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | Release — the status file checked at commit time, and no footprint in the history (in review); next, limeade alignment |
+| **Phase** | Release — the status file checked at commit time, and no footprint in the history; next, limeade alignment |
 | **Milestone** | Rules that survive a compaction, and a STATUS file that cannot state provenance |
 | **Milestone Goal** | After a compaction the SessionStart hook re-supplies every pinned builtin's rules without the agent asking; a staged STATUS.md naming a version, SHA or PR number is refused at commit time; commit and PR text carries no tool footprint |
 

@@ -52,7 +52,7 @@ INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 # Only git commit commands.
-if ! echo "$COMMAND" | grep -qE '^git commit'; then
+if ! echo "$COMMAND" | grep -qE '^git commit([[:space:]]|$)'; then   # the subcommand itself, not commit-tree / commit-graph
   exit 0
 fi
 
