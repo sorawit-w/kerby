@@ -100,7 +100,7 @@ tokens() {
         else if (c == " " || c == "\t") flush()
         else if (c == "\n" || c == "\r") { flush(); print ";" }   # an unquoted newline separates commands
         else if (c == ";") { flush(); print ";" }
-        else if (c == "|") { flush(); if (nx == "|") { print "||"; i++ } else print "|" }
+        else if (c == "|") { if (t ~ />$/) t = t c; else { flush(); if (nx == "|") { print "||"; i++ } else print "|" } }
         else if (c == "&") {
           if (t ~ /[<>]$/) t = t c
           else if (nx == ">") t = t c
@@ -115,22 +115,27 @@ tokens() {
 # Shell redirections are not pathspecs; a heredoc, a command substitution or a
 # newline inside a token is undecidable and falls to the safe side (both).
 ALL=0; INCLUDE=0; INTERACTIVE=0; ONLY=0; AMEND=0; DRYRUN=0; SPECS=(); UNDECIDABLE=0; PSFILE=""; NUL=0
-n=0; expect_value=0; expect_psfile=0; after_dashdash=0
+n=0; expect_value=0; expect_psfile=0; expect_redirect_target=0; after_dashdash=0
 while IFS= read -r tok; do
   [[ "$tok" == $'\001' ]] && { UNDECIDABLE=1; break; }
   [[ "$tok" == $'\002' ]] && { UNDECIDABLE=1; break; }   # an UNQUOTED expansion: the shell word-splits it into words this hook cannot see
   case "$tok" in '<<'*) UNDECIDABLE=1; break ;; esac      # a heredoc makes the rest unparseable
   n=$((n + 1)); [[ $n -le 2 ]] && continue            # `git` `commit`
+  # redirections: the shell removes them from the arguments wherever they sit, so
+  # they are handled BEFORE an option consumes its value or `--` takes effect. A
+  # bare operator takes the next token as its target; an attached one is
+  # self-contained.
+  if [[ $expect_redirect_target -eq 1 ]]; then expect_redirect_target=0; continue; fi
+  case "$tok" in
+    '>'|'>>'|'>|'|'<'|'<>'|'&>'|'&>>'|[0-9]'>'|[0-9]'>>'|[0-9]'>|'|[0-9]'<'|[0-9]'<>') expect_redirect_target=1; continue ;;
+    '>'*|'<'*|'&>'*|[0-9]'>'*|[0-9]'<'*) continue ;;
+  esac
   if [[ $after_dashdash -eq 1 ]]; then SPECS+=("$tok"); continue; fi
   if [[ $expect_psfile -eq 1 ]]; then expect_psfile=0; PSFILE="$tok"; continue; fi
   if [[ $expect_value -eq 1 ]]; then expect_value=0; continue; fi
   case "$tok" in
     '&&'|'||'|';'|'|'|'&') break ;;
     '#'*) break ;;                                     # an unquoted # starts a shell comment: the command ends here
-    # redirections: a bare operator takes the next token as its target; an
-    # attached one (`>/dev/null`, `2>&1`) is self-contained
-    '>'|'>>'|'<'|'&>'|'&>>'|[0-9]'>'|[0-9]'>>'|[0-9]'<') expect_value=1 ;;
-    '>'*|'<'*|'&>'*|[0-9]'>'*|[0-9]'<'*) ;;
     --) after_dashdash=1 ;;
     --all) ALL=1 ;;          --no-all) ALL=0 ;;
     --include) INCLUDE=1 ;;  --no-include) INCLUDE=0 ;;
@@ -194,8 +199,8 @@ covered() { # do the pathspecs resolve to STATUS.md? 0 yes / 1 no / 2 undecidabl
   grep -qx "$STATUS_REL" <<<"$out"
 }
 
-if [[ $DRYRUN -eq 1 ]]; then MODE=none                              # --dry-run records nothing; previewing the state is the point
-elif [[ $UNDECIDABLE -eq 1 || $INTERACTIVE -eq 1 ]]; then MODE=both   # -p/--interactive pick worktree hunks over the index
+if [[ $UNDECIDABLE -eq 1 || $INTERACTIVE -eq 1 ]]; then MODE=both   # undecidable first: an expansion may negate anything below, --dry-run included
+elif [[ $DRYRUN -eq 1 ]]; then MODE=none                             # --dry-run records nothing; previewing the state is the point
 elif [[ $ALL -eq 1 ]]; then MODE=worktree
 elif [[ $ONLY -eq 1 && $AMEND -eq 1 && ${#SPECS[@]} -eq 0 ]]; then MODE=none   # --only --amend: HEAD's tree, the staged blob stays staged
 elif [[ ${#SPECS[@]} -gt 0 ]]; then

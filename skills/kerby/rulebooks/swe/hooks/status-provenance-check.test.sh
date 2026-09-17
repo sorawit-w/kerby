@@ -177,6 +177,16 @@ allows 'git commit --dry-run -m x' "--dry-run records nothing → allowed even o
 blocks 'git commit --dry-run --no-dry-run -m x' "--no-dry-run negates → index scanned → blocked"
 git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
 
+# 7h. Seventh round: undecidable outranks --dry-run; redirections are stripped
+#     before an option consumes its value; bare <> and >| take a target.
+printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+blocks 'git commit --dry-run $opts -m x' "an unquoted expansion beside --dry-run is undecidable → both → blocked"
+blocks 'git commit -m >outfile x' "a redirection is removed before -m takes its value → index scanned → blocked"
+blocks 'git commit -m x <> rwfile' "bare <> consumes its target → index scanned → blocked"
+blocks 'git commit -m x >| out' "bare >| consumes its target → index scanned → blocked"
+blocks 'git commit -m x 2>| out' "bare 2>| consumes its target → index scanned → blocked"
+git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+
 # 8. Index dirty, working tree clean → plain commit records the INDEX → blocked.
 printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md
 printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
