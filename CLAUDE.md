@@ -169,7 +169,7 @@ but this section is authoritative for kerby).
    Codex review the rule-text gate in `skills/kerby/CLAUDE.md` requires (Codex ≠ the
    authoring agent).
 
-**Footprint:** commit messages, PR titles and PR bodies carry no attribution trailer or badge — no `Co-authored-by` for the agent, no "Generated with" line, no name of the person the agent acts for. A PR comment written by an agent ends with `Posted by an agent.` and nothing more.
+**Footprint:** commit messages, PR titles and PR bodies carry no attribution trailer or badge — no `Co-authored-by` for the agent, no "Generated with" line, no name of the person the agent acts for. PR comments are exempt: a comment may say who wrote it and for whom.
 
 **Merge conventions:** squash is the default — one commit per PR on `main`; don't use
 `--merge` / `--rebase` without being asked. Always pass `--delete-branch` (this repo's
