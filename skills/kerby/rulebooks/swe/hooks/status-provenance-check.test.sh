@@ -5,8 +5,9 @@
 # Exit 0 = all assertions pass; non-zero = a failure.
 #
 # Every case runs inside a fresh `git init` fixture so the index-vs-working-tree
-# distinction is real, not simulated: the hook's whole reason to exist is that
-# the STAGED file is what a commit records.
+# distinction is real. The hook scans BOTH copies on every commit, whatever the
+# flags, so the cases are about the two copies and the command shapes that once
+# fooled a classifier — each of which must now scan, never skip.
 
 set -u
 
@@ -21,11 +22,11 @@ TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
 REPO="$TMP/repo"
-mkdir -p "$REPO/.kerby" "$REPO/sub"
+mkdir -p "$REPO/.kerby" "$REPO/sub" "$REPO/src"
 git -C "$REPO" init -q
 git -C "$REPO" config user.email t@example.com
 git -C "$REPO" config user.name t
-mkdir -p "$REPO/src"; printf "x\n" > "$REPO/src/other.ts"; git -C "$REPO" add src/other.ts; git -C "$REPO" commit -q -m "seed other"
+printf "x\n" > "$REPO/src/other.ts"; git -C "$REPO" add src/other.ts; git -C "$REPO" commit -q -m "seed other"
 
 CLEAN='# Project Status
 
@@ -48,187 +49,74 @@ run() { # $1=command $2=subdir(optional) ; sets RC, ERR, OUT
 }
 blocks() { run "$1" "${3:-}"; [[ "$RC" -eq 2 ]] && pass "$2" || fail "$2 (exit $RC; err: $(echo "$ERR" | head -2 | tr '\n' ' '))"; }
 allows() { run "$1" "${3:-}"; [[ "$RC" -eq 0 ]] && pass "$2" || fail "$2 (exit $RC; err: $(echo "$ERR" | head -2 | tr '\n' ' '))"; }
+stage()   { printf '%s' "$1" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; }
+worktree(){ printf '%s' "$1" > "$REPO/.kerby/STATUS.md"; }
+reset_all(){ git -C "$REPO" reset -q .kerby/STATUS.md 2>/dev/null; rm -f "$REPO/.kerby/STATUS.md"; git -C "$REPO" checkout -q -- .kerby/STATUS.md 2>/dev/null || true; }
 
 # 1. Not a commit → exit 0 regardless of state.
-printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md
+stage "$DIRTY_ISSUE"
 allows 'git status' "a non-commit command is ignored even with a dirty STATUS staged"
 
-# 2. Staged STATUS.md with an issue number → blocked, and the message names line + token.
+# 2. Staged copy with an issue number → blocked; the message names copy, line and token.
 blocks 'git commit -m "x"' "staged STATUS.md naming #54 is blocked"
-echo "$ERR" | grep -q 'states a PR/issue number' && pass "block names the token kind" || fail "block message lacks the token kind: $ERR"
-echo "$ERR" | grep -q '\.kerby/STATUS\.md:3 ' && pass "block names the file and line, not the temp path" || fail "block message lacks .kerby/STATUS.md:3: $ERR"
-echo "$ERR" | grep -q '^BLOCKED:' && pass "block opens with BLOCKED:" || fail "no BLOCKED: line"
+echo "$ERR" | grep -q '^BLOCKED: .kerby/STATUS.md (staged)' && pass "block names the staged copy" || fail "block does not name the copy: $ERR"
+echo "$ERR" | grep -q 'states a PR/issue number' && pass "block names the token kind" || fail "block message lacks the token kind"
+echo "$ERR" | grep -q '\.kerby/STATUS\.md:3 ' && pass "block names the file and line, not the temp path" || fail "block message lacks .kerby/STATUS.md:3"
 
-# 3. Staged clean STATUS.md → allowed. Commit it so later cases have a HEAD.
-printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md
+# 3. Staged clean copy → allowed. Commit it so later cases have a HEAD version.
+stage "$CLEAN"
 allows 'git commit -m "x"' "staged clean STATUS.md is allowed"
 git -C "$REPO" commit -q -m "clean baseline"
 
-# 4. Nothing staged → allowed.
-allows 'git commit -m "x"' "nothing staged → allowed"
+# 4. Nothing staged, working tree equal to HEAD → allowed.
+allows 'git commit -m "x"' "nothing changed → allowed"
 
-# 5. Working tree dirty, index clean, plain commit → the INDEX is what commits → allowed.
-printf '%s' "$DIRTY_PR" > "$REPO/.kerby/STATUS.md"
-allows 'git commit -m "x"' "dirty working tree over a clean index is allowed for a plain commit"
-
-# 6. …but `-a` commits the working tree → blocked.
-blocks 'git commit -am "x"' "git commit -am scans the working tree and blocks PR 7552"
-blocks 'git commit --all -m "x"' "git commit --all scans the working tree"
-# 7. …and a pathspec naming the file commits the working tree → blocked.
-blocks 'git commit .kerby/STATUS.md -m "x"' "pathspec commit of STATUS.md scans the working tree"
-
-# 7b. Pathspecs are RESOLVED, not text-matched (independent-review P1): a directory,
-#     `.`, `:/`, and a relative path from a subdirectory all reach STATUS.md;
-#     a pathspec that does not cover it records nothing of the file.
-blocks 'git commit .kerby -m "x"' "directory pathspec .kerby commits the working-tree STATUS.md → blocked"
-blocks 'git commit . -m "x"' "pathspec . commits the working-tree STATUS.md → blocked"
-blocks 'git commit :/ -m "x"' "magic pathspec :/ commits the working-tree STATUS.md → blocked"
-blocks 'git commit ../.kerby -m "x"' "relative pathspec from a subdirectory resolves to STATUS.md → blocked" sub
-blocks 'git commit -m "x" -- .kerby/STATUS.md' "pathspec after -- is honoured → blocked"
-printf 'y\n' > "$REPO/src/other.ts"
-allows 'git commit src/other.ts -m "x"' "pathspec that does not cover STATUS.md records nothing of it → allowed"
-allows 'git commit -m "x" src/other.ts' "pathspec after the message, not covering STATUS.md → allowed"
-# -i/--include: the named paths are refreshed AND the index is recorded.
-printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-allows 'git commit --include src/other.ts -m "x"' "--include other with a clean index → allowed"
-printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-blocks 'git commit --include src/other.ts -m "x"' "--include other still records the dirty index STATUS.md → blocked"
-blocks 'git commit -i src/other.ts -m "x"' "-i short form, same → blocked"
-git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$DIRTY_PR" > "$REPO/.kerby/STATUS.md"
-blocks 'git commit -m "unbalanced src/other.ts' "an unbalanced quote is undecidable → both sources scanned → blocked"
-printf 'x\n' > "$REPO/src/other.ts"; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-
-# 7c. Second independent-review round: redirections are not pathspecs, -p/--interactive
-#     scan both sources, --pathspec-from-file contributes pathspecs, --no-all negates.
-printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-blocks 'git commit -m "x" >/dev/null 2>&1' "attached redirections do not turn a plain commit into a pathspec commit → index scanned → blocked"
-blocks 'git commit -m "x" > /dev/null' "a bare redirection operator consumes its target → index scanned → blocked"
-blocks 'git commit --all --no-all -m "x"' "--no-all negates --all → index recorded → blocked"
-blocks 'git commit -F - <<'"'"'EOF'"'"'
+# 5. Working-tree copy dirty (unstaged) → blocked on EVERY command shape: the hook
+#    does not guess which copy the commit records.
+worktree "$DIRTY_PR"
+for cmd in 'git commit -m "x"' 'git commit -am "x"' 'git commit src/other.ts -m "x"' 'git commit --only --amend --no-edit' \
+           'git commit --dry-run -m "x"' 'git commit -m ">" .kerby/STATUS.md' 'git commit -m x; echo ok' 'git commit -m x>/dev/null 2>&1' \
+           'git commit -m "$(printf x)" src/other.ts' 'git commit -m {x,y}' 'git commit {fd}>out -m x' 'git commit -m \> x' \
+           'git commit --inc src/other.ts -m x' 'git commit -uall -m x' 'git commit -p -m x' 'git commit -F - <<EOF
 fix: something
-EOF' "a heredoc is undecidable → both sources scanned → blocked"
-git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$DIRTY_PR" > "$REPO/.kerby/STATUS.md"
-allows 'git commit --all --no-all -m "x"' "--all --no-all with a clean index → allowed"
-blocks 'git commit -p -m "x"' "-p picks worktree hunks → both sources scanned → blocked"
-blocks 'git commit --interactive -m "x"' "--interactive picks worktree hunks → blocked"
-printf '.kerby/STATUS.md\n' > "$REPO/paths.txt"
-blocks 'git commit --pathspec-from-file=paths.txt -m "x"' "--pathspec-from-file naming STATUS.md → worktree scanned → blocked"
-blocks 'git commit --pathspec-from-file paths.txt -m "x"' "--pathspec-from-file with a separate value → blocked"
-printf 'src/other.ts\n' > "$REPO/paths.txt"
-allows 'git commit --pathspec-from-file=paths.txt -m "x"' "--pathspec-from-file naming only other paths → allowed"
-blocks 'git commit --pathspec-from-file=- -m "x"' "--pathspec-from-file=- (stdin) is undecidable → both scanned → blocked"
-rm -f "$REPO/paths.txt"; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+EOF'; do
+  blocks "$cmd" "working-tree copy naming PR 7552 blocks: $(printf '%s' "$cmd" | head -1 | cut -c1-48)"
+done
+echo "$ERR" | grep -q '^BLOCKED: .kerby/STATUS.md (working tree)' && pass "block names the working-tree copy" || fail "block does not name the working-tree copy: $ERR"
+blocks 'git commit -m "x"' "commit from a subdirectory still finds the file" sub
 
-# 7d. Third independent-review round: attached separators, shell-expanded
-#     pathspecs, git's pathspec-file syntax, staged type changes.
-printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-blocks 'git commit -m x; echo ok' "an attached ; ends the command → index scanned → blocked"
-blocks 'git commit -m x&&echo ok' "an attached && ends the command → index scanned → blocked"
-blocks 'git commit -m x|cat' "an attached | ends the command → index scanned → blocked"
-blocks 'git commit -m "x" 2>&1' ">& stays a redirection after the separator change → blocked"
-git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$DIRTY_PR" > "$REPO/.kerby/STATUS.md"
-blocks 'git commit "$p" -m x' "a variable pathspec is undecidable → both scanned → blocked"
-blocks 'git commit .kerby/*.md -m x' "a glob pathspec is undecidable → both scanned → blocked"
-allows 'git commit -m "costs $5 and a ? mark" src/other.ts' "a variable or ? inside the message value is not a pathspec → allowed"
-printf '".kerby/STATUS.md"\n' > "$REPO/paths.txt"
-blocks 'git commit --pathspec-from-file=paths.txt -m x' "a quoted pathspec-file line is undecidable → both scanned → blocked"
-printf '.kerby/STATUS.md\r\n' > "$REPO/paths.txt"
-blocks 'git commit --pathspec-from-file=paths.txt -m x' "a CRLF pathspec-file line resolves → blocked"
-rm -f "$REPO/paths.txt"; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-# staged type change: STATUS.md becomes a symlink whose target text is the token
+# 6. Staged copy dirty, working tree restored to HEAD → still blocked (the staged copy).
+stage "$DIRTY_ISSUE"; worktree "$CLEAN"
+blocks 'git commit -m "x"' "dirty staged copy under a clean working tree is blocked"
+blocks 'git commit src/other.ts -m "x"' "…even for a pathspec commit that would not record it (the state itself is forbidden)"
+echo "$ERR" | grep -q '(staged)' && pass "the message names the staged copy" || fail "message does not name the staged copy"
+
+# 7. Both copies clean again → allowed, whatever the flags.
+reset_all
+for cmd in 'git commit -m "x"' 'git commit -am "x"' 'git commit --amend --no-edit -q -v -s -n' 'git commit -m "fix #12 closes PR 3" src/other.ts'; do
+  allows "$cmd" "both copies clean → allowed: $cmd"
+done
+
+# 8. Type changes: a symlink commits as its target text — staged and in the working tree.
 rm -f "$REPO/.kerby/STATUS.md"; ln -s "PR 123" "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md
 blocks 'git commit -m x' "a staged type change (symlink blob) is scanned → blocked"
-git -C "$REPO" reset -q .kerby/STATUS.md; rm -f "$REPO/.kerby/STATUS.md"; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-
-# 7e. Fourth independent-review round — the classifier's default is now the block:
-#     only listed options pass through; -u/-S carry attached values; # ends the
-#     command; --only --amend records HEAD's tree; a trailing NUL is optional.
-printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-blocks 'git commit -uall -m x' "-uall carries its value attached; the a is not --all → index scanned → blocked"
-blocks 'git commit -m x # explain' "an unquoted # ends the command → index scanned → blocked"
-blocks 'git commit --inc src/other.ts -m x' "an abbreviated --include is undecidable → both scanned → blocked"
-blocks 'git commit --some-new-flag -m x' "an unknown long option is undecidable → both scanned → blocked"
-blocks 'git commit -X -m x' "an unknown short letter is undecidable → both scanned → blocked"
-allows 'git commit --only --amend --no-edit' "--only --amend with no pathspec records HEAD's tree → allowed"
-allows 'git commit -o --amend --no-edit' "-o --amend, same → allowed"
-blocks 'git commit --amend --no-edit -q -v -s -n -z -Skey -uno --allow-empty' "listed no-content options pass through and the dirty index is scanned → blocked"
-git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$DIRTY_PR" > "$REPO/.kerby/STATUS.md"
-printf '.kerby/STATUS.md' > "$REPO/paths.nul"
-blocks 'git commit --pathspec-from-file=paths.nul --pathspec-file-nul -m x' "a NUL pathspec file without a trailing NUL keeps its last entry → worktree scanned → blocked"
-rm -f "$REPO/paths.nul"; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-
-# 7f. Fifth round: an unquoted newline separates commands; a working-tree symlink
-#     commits as its target text.
-printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-blocks 'git commit -m x
-echo ok' "an unquoted newline ends the command → index scanned → blocked"
-git -C "$REPO" reset -q .kerby/STATUS.md; rm -f "$REPO/.kerby/STATUS.md"; ln -s "PR 123" "$REPO/.kerby/STATUS.md"
-blocks 'git commit -a -m x' "-a over a working-tree symlink scans the target text → blocked"
-blocks 'git commit .kerby -m x' "a covering pathspec over a working-tree symlink scans the target text → blocked"
-rm -f "$REPO/.kerby/STATUS.md"; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-
-# 7g. Sixth round: an unquoted expansion anywhere is undecidable; --dry-run records nothing.
-printf '%s' "$DIRTY_PR" > "$REPO/.kerby/STATUS.md"
-blocks 'git commit -m $(printf '"'"'x .kerby/STATUS.md'"'"')' "an unquoted expansion as an option value word-splits → undecidable → both → blocked"
-allows 'git commit -m "$(printf x)" src/other.ts' "a quoted expansion is one word → the non-covering pathspec records nothing of STATUS.md → allowed"
-printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-allows 'git commit --dry-run -m x' "--dry-run records nothing → allowed even over a dirty index"
-blocks 'git commit --dry-run --no-dry-run -m x' "--no-dry-run negates → index scanned → blocked"
-git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-
-# 7h. Seventh round: undecidable outranks --dry-run; redirections are stripped
-#     before an option consumes its value; bare <> and >| take a target.
-printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-blocks 'git commit --dry-run $opts -m x' "an unquoted expansion beside --dry-run is undecidable → both → blocked"
-blocks 'git commit -m >outfile x' "a redirection is removed before -m takes its value → index scanned → blocked"
-blocks 'git commit -m x <> rwfile' "bare <> consumes its target → index scanned → blocked"
-blocks 'git commit -m x >| out' "bare >| consumes its target → index scanned → blocked"
-blocks 'git commit -m x 2>| out' "bare 2>| consumes its target → index scanned → blocked"
-git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-
-# 7i. Eighth round: an unquoted { is undecidable (brace expansion, {fd}> redirections).
-printf '%s' "$DIRTY_PR" > "$REPO/.kerby/STATUS.md"
-blocks 'git commit -m x .kerby/{STATUS.md,nothing}' "brace expansion in a pathspec is undecidable → both → blocked"
-printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-blocks 'git commit {fd}>out -m x' "a {fd}> redirection is undecidable → both → index scanned → blocked"
-git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-
-# 7j. A quoted word is literal: `">"` is a message, not a redirection; `";"` is a pathspec, not a separator.
-printf '%s' "$DIRTY_PR" > "$REPO/.kerby/STATUS.md"
-blocks 'git commit -m ">" .kerby/STATUS.md' "a quoted > is the message; the pathspec is honoured → worktree scanned → blocked"
-blocks 'git commit -m "x" ";" .kerby' "a quoted ; is a pathspec, not a separator → the covering .kerby is seen → blocked"
-printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-blocks 'git commit -m "x #not a comment" >/dev/null' "a quoted # inside the message is text; the real redirection is stripped → index scanned → blocked"
-git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-
-# 8. Index dirty, working tree clean → plain commit records the INDEX → blocked.
-printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md
-printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
-blocks 'git commit -m "x"' "clean working tree over a dirty index is blocked (the index commits)"
-# `-a` here re-stages the clean working tree → allowed.
-allows 'git commit -a -m "x"' "git commit -a with a clean working tree is allowed"
-
-# 9. Commit from a subdirectory still finds the file.
-blocks 'git commit -m "x"' "commit from a subdirectory still scans the staged STATUS.md" sub
-
-# 10. --amend with nothing staged → allowed (not an index bypass).
 git -C "$REPO" reset -q .kerby/STATUS.md
-allows 'git commit --amend --no-edit' "--amend with nothing staged is allowed"
+blocks 'git commit -a -m x' "a working-tree symlink is scanned as its target text → blocked"
+echo "$ERR" | grep -q 'symlink target' && pass "the message names the symlink target" || fail "message does not name the symlink target"
+reset_all
 
-# 11. Guard script missing → visible fail-open: exit 0 + additionalContext naming it.
+# 9. Guard script missing → visible fail-open: exit 0 + additionalContext naming it.
 FAKE="$TMP/fake/hooks"; mkdir -p "$FAKE"; cp "$HOOK" "$FAKE/status-provenance-check.sh"
-printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md
+stage "$DIRTY_ISSUE"
 json=$(jq -n --arg c 'git commit -m "x"' '{tool_input:{command:$c}}')
 OUT=$(cd "$REPO" && printf '%s' "$json" | bash "$FAKE/status-provenance-check.sh" 2>/dev/null); rc=$?
 [[ $rc -eq 0 ]] && pass "missing guard → exit 0 (fail open)" || fail "missing guard → exit $rc"
 echo "$OUT" | jq -e '.hookSpecificOutput.additionalContext | test("NOT checked")' >/dev/null 2>&1 \
   && pass "missing guard → visible additionalContext warning" || fail "missing guard → no warning JSON: $OUT"
+reset_all
 
-# 12. A repo with no .kerby/STATUS.md at all → allowed.
-git -C "$REPO" reset -q .kerby/STATUS.md; rm -f "$REPO/.kerby/STATUS.md"
+# 10. A repo with no .kerby/STATUS.md at all → allowed.
+git -C "$REPO" rm -q --cached .kerby/STATUS.md; rm -f "$REPO/.kerby/STATUS.md"; git -C "$REPO" commit -q -m "drop status"
 allows 'git commit -m "x"' "no STATUS.md → allowed"
 
 echo "---"
