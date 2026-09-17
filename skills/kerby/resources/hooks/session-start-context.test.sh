@@ -228,6 +228,20 @@ EOF
 OUT_RJ=$(rj compact)
 echo "$OUT_RJ" | grep -qi 'evil' && fail "a non-slug id reached the output" || pass "non-slug ids are dropped"
 echo "$OUT_RJ" | grep -qF "selection: base (floor) + (none)" && pass "empty selection is named as such" || fail "empty selection not named"
+# 11d2. JSON key order is not significant: `origin` before `id` still classifies as
+#       builtin (the independent review of the first cut caught the order-dependent regex).
+cat > "$RJ_TMP/.kerby/rulebooks.lock" <<'EOF'
+{ "selected": ["swe"], "rulebooks": [ { "origin": "builtin", "version": "2.12.0", "id": "swe", "path_or_url": "/nowhere", "sha256": null } ] }
+EOF
+OUT_RJ=$(rj compact)
+echo "$OUT_RJ" | grep -q '^--- swe: BOOTSTRAP.md ---$' && pass "origin-before-id entry still re-injects the builtin" || fail "key order changed the builtin verdict"
+echo "$OUT_RJ" | grep -q 'rulebook swe is not a builtin' && fail "origin-before-id entry misclassified as external" || pass "origin-before-id entry not misclassified"
+# …and an entry whose id matches but whose origin is not builtin, in either order, stays external.
+cat > "$RJ_TMP/.kerby/rulebooks.lock" <<'EOF'
+{ "selected": ["swe"], "rulebooks": [ { "origin": "local", "id": "swe", "version": "2.12.0", "path_or_url": "/tmp/fork", "sha256": "abc" } ] }
+EOF
+OUT_RJ=$(rj compact)
+echo "$OUT_RJ" | grep -q 'rulebook swe is not a builtin' && pass "a local fork named swe is not re-injected from the install" || fail "local fork named swe was re-injected as the builtin"
 # 11e. No lock: the load nudge, exit 0.
 rm -f "$RJ_TMP/.kerby/rulebooks.lock"
 OUT_RJ=$(rj compact); rc=$?

@@ -87,8 +87,12 @@ eager_bodies() { # $1 = rulebook dir; prints body paths relative to it, in load 
 # admitting its prose is the trust prompt's job, and only `load`/`reload` run it.
 print_rulebook() { # $1 = id; $2 = "implicit" for the floor, else the flattened lock text
   local id="$1" flat="$2" dir body
-  if [[ "$flat" != implicit ]] && ! printf '%s' "$flat" \
-      | grep -qE "\"id\"[[:space:]]*:[[:space:]]*\"$id\"[^}]*\"origin\"[[:space:]]*:[[:space:]]*\"builtin\""; then
+  # One entry per line (the lock nests nothing, so `}` ends an entry), then both
+  # keys tested on that line — JSON key order is not significant, so an entry
+  # written `origin` before `id` must classify the same as the loader's own.
+  if [[ "$flat" != implicit ]] && ! printf '%s' "$flat" | tr '}' '\n' \
+      | grep -E "\"id\"[[:space:]]*:[[:space:]]*\"$id\"" \
+      | grep -qE '"origin"[[:space:]]*:[[:space:]]*"builtin"'; then
     echo "rulebook $id is not a builtin — not re-injected; invoke kerby (args: reload) to restore it through the trust prompt."
     return
   fi
