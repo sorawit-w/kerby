@@ -6,7 +6,7 @@
 # uniform confinement, no builtin exemption.
 # Contract: docs/rulebook-contract.md (contract 2).
 id = "swe"
-version = "2.12.0"
+version = "2.13.0"
 contract = 2
 accepts = ["git_change"]
 extends = ["base"]
@@ -180,6 +180,17 @@ event = "PreToolUse"
 matcher = "Bash"
 gap = "runtime fakes (0-match runs, gates over stubs) stay agent-judged"
 severity = "warn"
+
+[[check]]
+id = "status-provenance"
+kind = "code"
+needs = ["staged_content"]
+enforcement = "partial"
+enforcer = "hooks/status-provenance-check.sh"   # runs scripts/check-status-provenance.sh on the .kerby/STATUS.md this commit records
+event = "PreToolUse"
+matcher = "Bash"
+gap = "fails open, visibly, when the guard script is missing; `git commit` reached through `git -C` or `cd … &&` is not recognised"
+severity = "block"                        # STATUS.md holds position, never provenance — a version, SHA or PR number is refused at commit time
 
 # --- commands: user-invocable flows this rulebook provides (V2/V3) ----------
 

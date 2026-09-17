@@ -53,11 +53,12 @@ Makes BOOTSTRAP §3's high-stakes path override **[enforced-partial]** instead o
 
 ---
 
-### PreToolUse → git commit (two independent hooks)
+### PreToolUse → git commit (three independent hooks)
 
-Two hooks register on `Bash` running `git commit`, and run independently — a
-hard floor from `base`, and swe's own soft advisory. Before v9.3 both lived in one
-bundled script; they are now cleanly separated.
+Three hooks register on `Bash` running `git commit`, and run independently — a
+hard floor from `base`, swe's own soft advisory, and (v2.13.0) swe's commit-time
+STATUS.md provenance check. Before v9.3 the first two lived in one bundled script;
+they are now cleanly separated.
 
 **a. Secret scan — the base floor (hard-block).**
 **Script:** `<install-root>/rulebooks/base/hooks/pre-commit-check.sh` (base's, not swe's)
@@ -72,6 +73,11 @@ Two soft advisories, never blocking:
 - **Quality gate reminder** — reminds the agent to run lint/test/build on changed files. Because a PreToolUse `additionalContext` surfaces *with* the tool result (next turn), it arrives as the commit completes — a **post-commit safety net** (run the gates, amend if your changes broke them), not a pre-commit veto. Turning it into a checkpoint would mean `permissionDecision: ask`/`deny` — a deliberate commit-discipline change, intentionally not made.
 
 Disable both with `CODING_RULES_HOOK_DISABLED=hollow-test-check` (the legacy `pre-commit-check` token is also honored). Self-tested by `hooks/hollow-test-check.test.sh`.
+
+**c. STATUS.md provenance — swe's commit-time block (v2.13.0).**
+**Script:** `hooks/status-provenance-check.sh`
+**Strictness:** Hard-block (exit 2 + stderr) when either copy of `.kerby/STATUS.md` — the staged blob or the working-tree file — differs from HEAD and states a version, a SHA, or a PR/issue number; silent exit 0 otherwise; **not disablable** (`recommended` tier — decline it at `kerby install` instead)
+Runs `scripts/check-status-provenance.sh` — the guard `references/communication.md` § Status Tracking describes — against **both copies, every time**: the staged blob (`git show :.kerby/STATUS.md`, type changes included) and the working-tree file (a symlink as its target text), whichever differ from HEAD. It does not work out which copy a given `git commit` records: the first cut did — tokenizing the command, resolving pathspecs, modelling `-a`/`-i`/`-p`/`--only`/`--dry-run`, stripping redirections — and nine review rounds found a hole in every model of the shell it tried, each one a miss. The cost of scanning both is a block on a STATUS.md that carries a token in a copy this commit would not have recorded, a state the rule forbids anyway; the message names the copy. The guard existed since v2.11.3 but nothing ran it; a STATUS.md naming a PR number, "awaiting review" and a SHA still shipped with the prose rule in force, after a compaction had summarized the rule away. Ceilings, stated in the script: `^git commit` recognition only (`git -C` and `cd … &&` forms are not seen — the same ceiling as b.), a **visible fail-open** (additionalContext + exit 0) when the guard script itself is missing, a `--dry-run` blocked like a real commit, and the tool-boundary limit every PreToolUse hook shares (`references/threat-model.md`): it runs before the shell evaluates the command, so a command that rewrites STATUS.md as part of its own execution is out of reach — the post-expansion home is git's pre-commit hook, and chaining a second script into it is logged debt. Self-tested by `hooks/status-provenance-check.test.sh`.
 
 ---
 
