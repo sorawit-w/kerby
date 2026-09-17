@@ -117,9 +117,14 @@ echo "$OUT" | jq -e '.hookSpecificOutput.additionalContext | test("NOT checked")
   && pass "missing guard → visible additionalContext warning" || fail "missing guard → no warning JSON: $OUT"
 reset_all
 
-# 10. A repo with no .kerby/STATUS.md at all → allowed.
+# 10. A repo with no .kerby/STATUS.md at all → allowed; an UNTRACKED one carrying a
+#     token is scanned too (an interactive commit can add it).
 git -C "$REPO" rm -q --cached .kerby/STATUS.md; rm -f "$REPO/.kerby/STATUS.md"; git -C "$REPO" commit -q -m "drop status"
 allows 'git commit -m "x"' "no STATUS.md → allowed"
+worktree "$DIRTY_PR"
+blocks 'git commit --interactive -m x' "an untracked STATUS.md naming PR 7552 is scanned → blocked"
+blocks 'git commit -m x' "…on a plain commit too: the state itself is forbidden"
+rm -f "$REPO/.kerby/STATUS.md"
 
 echo "---"
 if [[ "$FAILS" -eq 0 ]]; then

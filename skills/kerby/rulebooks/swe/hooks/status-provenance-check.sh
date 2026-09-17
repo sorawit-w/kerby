@@ -96,9 +96,10 @@ if git -C "$TOP" diff --cached --name-only --diff-filter=ACMRT -- ":(top)$STATUS
   rm -f "$TMPF"; TMPF=""
 fi
 
-# The working-tree copy, when it differs from HEAD (or HEAD is absent). A symlink
-# commits as a blob holding its TARGET TEXT, so that is what is scanned.
-if [[ -e "$STATUS" || -L "$STATUS" ]] && ! git -C "$TOP" diff --quiet HEAD -- "$STATUS_REL" 2>/dev/null; then
+# The working-tree copy, when it is untracked or differs from HEAD (or HEAD is
+# absent) — an interactive commit can add an untracked file. A symlink commits as
+# a blob holding its TARGET TEXT, so that is what is scanned.
+if [[ -e "$STATUS" || -L "$STATUS" ]] && { ! git -C "$TOP" ls-files --error-unmatch -- "$STATUS_REL" >/dev/null 2>&1 || ! git -C "$TOP" diff --quiet HEAD -- "$STATUS_REL" 2>/dev/null; }; then
   if [[ -L "$STATUS" ]]; then
     TMPF=$(mktemp) || warn_open "cannot create a temp file for the symlink target"
     readlink "$STATUS" > "$TMPF"
