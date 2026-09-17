@@ -98,6 +98,27 @@ git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$DIRTY_PR" > "$REPO/.kerb
 blocks 'git commit -m "unbalanced src/other.ts' "an unbalanced quote is undecidable → both sources scanned → blocked"
 printf 'x\n' > "$REPO/src/other.ts"; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
 
+# 7c. Second independent-review round: redirections are not pathspecs, -p/--interactive
+#     scan both sources, --pathspec-from-file contributes pathspecs, --no-all negates.
+printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+blocks 'git commit -m "x" >/dev/null 2>&1' "attached redirections do not turn a plain commit into a pathspec commit → index scanned → blocked"
+blocks 'git commit -m "x" > /dev/null' "a bare redirection operator consumes its target → index scanned → blocked"
+blocks 'git commit --all --no-all -m "x"' "--no-all negates --all → index recorded → blocked"
+blocks 'git commit -F - <<'"'"'EOF'"'"'
+fix: something
+EOF' "a heredoc is undecidable → both sources scanned → blocked"
+git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$DIRTY_PR" > "$REPO/.kerby/STATUS.md"
+allows 'git commit --all --no-all -m "x"' "--all --no-all with a clean index → allowed"
+blocks 'git commit -p -m "x"' "-p picks worktree hunks → both sources scanned → blocked"
+blocks 'git commit --interactive -m "x"' "--interactive picks worktree hunks → blocked"
+printf '.kerby/STATUS.md\n' > "$REPO/paths.txt"
+blocks 'git commit --pathspec-from-file=paths.txt -m "x"' "--pathspec-from-file naming STATUS.md → worktree scanned → blocked"
+blocks 'git commit --pathspec-from-file paths.txt -m "x"' "--pathspec-from-file with a separate value → blocked"
+printf 'src/other.ts\n' > "$REPO/paths.txt"
+allows 'git commit --pathspec-from-file=paths.txt -m "x"' "--pathspec-from-file naming only other paths → allowed"
+blocks 'git commit --pathspec-from-file=- -m "x"' "--pathspec-from-file=- (stdin) is undecidable → both scanned → blocked"
+rm -f "$REPO/paths.txt"; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+
 # 8. Index dirty, working tree clean → plain commit records the INDEX → blocked.
 printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md
 printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"

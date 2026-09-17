@@ -19,6 +19,10 @@
 #   -a / --all            the WORKING TREE of every tracked file
 #   <pathspec>...         the WORKING TREE of the named paths ONLY; the index is
 #                         NOT recorded — unless -i/--include adds it as well
+#   -p / --interactive    hunks chosen from the working tree over the index — BOTH
+#                         sources are scanned
+# `--pathspec-from-file` contributes pathspecs like the command line; `--no-all`
+# and friends negate (last option wins); a redirection is never a pathspec.
 # A pathspec need not spell the file name — `.`, `.kerby`, `:/`, a relative path
 # from a subdirectory — so it is RESOLVED, never text-matched: the tokens are
 # handed to `git ls-files --full-name` from the cwd, and the answer is whether
@@ -84,33 +88,57 @@ tokens() {
       if (q != "") print "\001" }'
 }
 
-# --- Classify the commit: ALL (-a), INCLUDE (-i), and the positional pathspecs.
-ALL=0; INCLUDE=0; SPECS=(); UNDECIDABLE=0; n=0; expect_value=0; after_dashdash=0
+# --- Classify the commit: ALL (-a), INCLUDE (-i), INTERACTIVE (-p), and the
+# positional pathspecs. Git's last-option-wins applies (`--all --no-all`).
+# Shell redirections are not pathspecs; a heredoc, a command substitution or a
+# newline inside a token is undecidable and falls to the safe side (both).
+ALL=0; INCLUDE=0; INTERACTIVE=0; SPECS=(); UNDECIDABLE=0; PSFILE=""; NUL=0
+n=0; expect_value=0; expect_psfile=0; after_dashdash=0
 while IFS= read -r tok; do
   [[ "$tok" == $'\001' ]] && { UNDECIDABLE=1; break; }
+  case "$tok" in *$'\n'*|'<<'*|*'$('*|*'`'*) UNDECIDABLE=1; break ;; esac
   n=$((n + 1)); [[ $n -le 2 ]] && continue            # `git` `commit`
   if [[ $after_dashdash -eq 1 ]]; then SPECS+=("$tok"); continue; fi
+  if [[ $expect_psfile -eq 1 ]]; then expect_psfile=0; PSFILE="$tok"; continue; fi
   if [[ $expect_value -eq 1 ]]; then expect_value=0; continue; fi
   case "$tok" in
     '&&'|'||'|';'|'|') break ;;
+    # redirections: a bare operator takes the next token as its target; an
+    # attached one (`>/dev/null`, `2>&1`) is self-contained
+    '>'|'>>'|'<'|'&>'|'&>>'|[0-9]'>'|[0-9]'>>'|[0-9]'<') expect_value=1 ;;
+    '>'*|'<'*|'&>'*|[0-9]'>'*|[0-9]'<'*) ;;
     --) after_dashdash=1 ;;
-    --all) ALL=1 ;;
-    --include) INCLUDE=1 ;;
-    --author|--date|--cleanup|--template|--file|--message|--fixup|--squash|--reuse-message|--reedit-message|--trailer|--pathspec-from-file) expect_value=1 ;;
+    --all) ALL=1 ;;          --no-all) ALL=0 ;;
+    --include) INCLUDE=1 ;;  --no-include) INCLUDE=0 ;;
+    --only) ;;
+    --patch|--interactive) INTERACTIVE=1 ;;
+    --no-patch|--no-interactive) INTERACTIVE=0 ;;
+    --pathspec-from-file=*) PSFILE="${tok#*=}" ;;
+    --pathspec-from-file) expect_psfile=1 ;;
+    --pathspec-file-nul) NUL=1 ;;
+    --author|--date|--cleanup|--template|--file|--message|--fixup|--squash|--reuse-message|--reedit-message|--trailer) expect_value=1 ;;
     --*) ;;                                            # long option, value attached with = or none
-    -?*)                                               # short cluster: -am "x", -i, -mfoo, -Ffile
+    -?*)                                               # short cluster: -am "x", -i, -p, -mfoo, -Ffile
       letters="${tok#-}"
       while [[ -n "$letters" ]]; do
         l="${letters:0:1}"; letters="${letters:1}"
         case "$l" in
           a) ALL=1 ;;
           i) INCLUDE=1 ;;
+          p) INTERACTIVE=1 ;;
           m|F|C|c|t) if [[ -z "$letters" ]]; then expect_value=1; fi; break ;;   # attached value, or the next token
         esac
       done ;;
     *) SPECS+=("$tok") ;;
   esac
 done < <(tokens "$COMMAND")
+
+# --pathspec-from-file: the file's entries are pathspecs too (`-` is stdin, undecidable).
+if [[ -n "$PSFILE" && $UNDECIDABLE -eq 0 ]]; then
+  if [[ "$PSFILE" == "-" || ! -r "$PSFILE" ]]; then UNDECIDABLE=1
+  elif [[ $NUL -eq 1 ]]; then while IFS= read -r -d '' spec; do [[ -n "$spec" ]] && SPECS+=("$spec"); done < "$PSFILE"
+  else while IFS= read -r spec || [[ -n "$spec" ]]; do [[ -n "$spec" ]] && SPECS+=("$spec"); done < "$PSFILE"; fi
+fi
 
 covered() { # do the pathspecs resolve to STATUS.md? 0 yes / 1 no / 2 undecidable
   [[ ${#SPECS[@]} -gt 0 ]] || return 1
@@ -119,7 +147,7 @@ covered() { # do the pathspecs resolve to STATUS.md? 0 yes / 1 no / 2 undecidabl
   grep -qx "$STATUS_REL" <<<"$out"
 }
 
-if [[ $UNDECIDABLE -eq 1 ]]; then MODE=both
+if [[ $UNDECIDABLE -eq 1 || $INTERACTIVE -eq 1 ]]; then MODE=both   # -p/--interactive pick worktree hunks over the index
 elif [[ $ALL -eq 1 ]]; then MODE=worktree
 elif [[ ${#SPECS[@]} -gt 0 ]]; then
   covered; rc=$?
