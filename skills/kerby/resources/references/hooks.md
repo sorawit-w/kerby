@@ -48,12 +48,13 @@ hook is registered and enabled) does too.
 **Script:** `hooks/session-start-context.sh`
 **Strictness:** Informational (no blocking)
 
-Runs at the start of every session. Injects:
+Runs at the start of every session — and again after every compaction, since Claude Code fires SessionStart with `source: "compact"`. Injects:
 - Reminder of the 9-step workflow
 - Contents of `.kerby/STATUS.md` (if it exists) — so the agent knows where the previous session left off
 - Last entries from `.kerby/memory.log` (if it exists) — recent decisions and context
+- **After a compaction only:** every pinned builtin's eager prose (root body, `floor = true`, `token_cost = "low"` — the set `load` step 4 reads), re-read from this script's own install root. The rules come back without the agent asking; `reload` stays the manual path. Builtins only — only ids the lock itself marks `builtin`, only slug-shaped ids, every path under the install root, a body path that leaves its folder refused — and an external rulebook gets a one-line `reload` nudge, never its text. Rule text prints un-prefixed (install-trusted); the state blocks keep their `DATA>` prefix. About 62 KB for the three bundled builtins, the cost of a `reload`.
 
-This replaces the need for the agent to "remember" to read project state — it's surfaced automatically.
+This replaces the need for the agent to "remember" to read project state — or to reload the rules after a compaction — it's surfaced automatically.
 
 ---
 

@@ -53,6 +53,7 @@ Consequences for other runtimes:
 
 - **Codex** does not invoke `hooks/*.sh` automatically. The rules in `BOOTSTRAP.md` and `references/*.md` still apply — the agent is expected to follow them manually.
 - **Cursor** likewise. `.cursorrules` can be a symlink to `BOOTSTRAP.md` if you want Cursor's rule-injection to see the playbook.
+- **Re-injection after compaction is Claude Code-only.** It rides the SessionStart event (`source: "compact"`), which no other runtime raises; on Codex and Cursor a compacted session needs a manual `kerby reload`.
 - The text rules are the source of truth. Hooks are *enforcement scaffolding*, not the rules themselves.
 
 If you need a hook-equivalent in Codex, write it as a shell command in Codex's configuration and have it invoke the same script in `kerby/hooks/`. The scripts are plain bash and don't depend on Claude Code internals beyond the JSON input format (which you can mock for Codex via a thin wrapper).

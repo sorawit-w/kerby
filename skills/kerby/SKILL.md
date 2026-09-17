@@ -414,7 +414,7 @@ Two independent, opt-in phases:
 3. For each file NOT already installed, show the user the proposed addition. Default install line:
 
    ```
-   At session start, invoke the `kerby` skill (args: load) to load kerby guardrails into context.
+   At session start, invoke the `kerby` skill (args: load) to load kerby guardrails into context. After a context compaction the kerby SessionStart hook re-injects the rules; if that block is missing, invoke `kerby` (args: reload).
    ```
 
 4. Ask per file (one prompt per file, sequential, not batched):
@@ -869,7 +869,7 @@ After the phases — reached on **every** uninstall path, including a `n` to hoo
 
 ## Compaction caveat
 
-Once `load` runs, BOOTSTRAP enters conversation context. Claude Code's compaction may strip or summarize that context during long sessions. **If the rules seem to stop applying, invoke with `args: reload`.** Running `args: status` is the safest way to verify whether the rules are still in context after compaction.
+Once `load` runs, each selected rulebook's eager prose enters conversation context as a tool result, and Claude Code's compaction summarizes tool results — after a compaction the rules are gone while the pin still says loaded. **When the SessionStart engine service is registered, the hook re-injects that prose automatically after a compaction:** `resources/hooks/session-start-context.sh` reads the payload's `source` and, on `compact`, prints every pinned builtin's eager prose (root body, `floor = true`, `token_cost = "low"` — the same set `load` step 4 reads, derived from each manifest) from its own install root. Builtins only, and only ids the lock itself marks `builtin`; an external rulebook gets a one-line `reload` nudge and no text, because admitting its prose is the trust prompt's job. This rides the SessionStart event, so it is Claude Code-only (`resources/references/multi-tool.md`). **If the re-injected block is missing — the service is not registered, the harness is not Claude Code, or the selection includes an external — invoke with `args: reload`.** Running `args: status` is the safest way to verify whether the rules are still in context after compaction.
 
 ---
 

@@ -29,7 +29,7 @@ None are required — `kerby` works on its own. They sharpen the edges where it 
 - **Loads the selected rulebook's root body** (for `swe`, `rulebooks/swe/BOOTSTRAP.md`) into the current session via the `Read` tool, so the rules enter conversation context as a tool result (not a paraphrase).
 - **Engine sub-commands** routed via the `args` parameter: `load` (default), `unload`, `reload`, `status`, `install`, `uninstall`, `rulebooks list|create`, `commands`, `hooks`, `check-updates`. Loaded rulebooks add their own commands — the `swe` rulebook provides `prepare` and `audit` ([its README](rulebooks/swe/README.md) documents them).
 - **Per-project install** appends a single instruction line to your `CLAUDE.md` / `AGENTS.md` / `AI-CONTEXT.md` / `.cursorrules` so future sessions auto-invoke `kerby` at start. **Per-file confirmation required — never silent.**
-- **Compaction-safe.** Long sessions can strip earlier context; `args: status` checks whether each selected rulebook's markers are still present (for the bundled `swe`, its BOOTSTRAP signatures; other rulebooks scan via their own manifest `[identity]`), `args: reload` re-injects them.
+- **Compaction-safe.** Long sessions can strip earlier context; when the SessionStart hook is registered it re-injects each selected builtin's rules after a compaction by itself. `args: status` checks whether each selected rulebook's markers are still present (for the bundled `swe`, its BOOTSTRAP signatures; other rulebooks scan via their own manifest `[identity]`), `args: reload` re-injects them by hand — externals, or a harness without SessionStart.
 
 ## What it doesn't do
 
@@ -43,7 +43,7 @@ None are required — `kerby` works on its own. They sharpen the edges where it 
 
 - You're working with Claude Code, Codex, Cursor, or another agent and you want a **shared frame** the agent will follow without you re-typing it every session.
 - You've already fork-and-edited the rules so they reflect *your* taste — and want them to load reliably across sessions in a project.
-- You want a **compaction-safe loader**: even if a long session strips earlier context, a one-line reload restores the rules.
+- You want a **compaction-safe loader**: the SessionStart hook puts the rules back after a compaction, and a one-line reload covers everything else.
 - You want per-project install hygiene that touches one line in your vendor agent-instruction file and stops there.
 
 ## When not to use it
@@ -78,7 +78,7 @@ Slash command (recommended — unambiguous):
 ```bash
 /kerby               # default sub-command: load
 /kerby load          # explicit
-/kerby reload        # after compaction
+/kerby reload        # after compaction, if the hook's re-injected block is missing
 /kerby status        # check whether rules are still loaded
 /kerby install       # persistent per-project setup
 /kerby uninstall     # mirror — both phases
@@ -126,7 +126,7 @@ Neither command requires the other. Typical patterns:
 
 After `install` is applied to a project, every future session in that project auto-loads via the install line — you shouldn't need to type anything. Exceptions:
 
-- **Mid-session compaction** stripped BOOTSTRAP → `/kerby reload` (or run `status` first to confirm).
+- **Mid-session compaction** stripped BOOTSTRAP → the SessionStart hook re-injects it when registered; otherwise `/kerby reload` (or run `status` first to confirm).
 - **You want to verify** the rules are still active → `/kerby status`.
 
 ## What `install` actually does — two independent phases
@@ -138,7 +138,7 @@ This is the most surface-area part of the skill, so the contract is laid out exp
 For each detected file (`CLAUDE.md`, `AGENTS.md`, `AI-CONTEXT.md`, `.cursorrules`), the skill asks per-file before appending:
 
 ```
-At session start, invoke the `kerby` skill (args: load) to load kerby guardrails into context.
+At session start, invoke the `kerby` skill (args: load) to load kerby guardrails into context. After a context compaction the kerby SessionStart hook re-injects the rules; if that block is missing, invoke `kerby` (args: reload).
 ```
 
 Skipping a file leaves it untouched. Already-installed files are detected and skipped silently. No other content is modified.
