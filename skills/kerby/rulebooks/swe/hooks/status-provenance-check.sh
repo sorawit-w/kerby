@@ -22,7 +22,13 @@
 #   -p / --interactive    hunks chosen from the working tree over the index — BOTH
 #                         sources are scanned
 # `--pathspec-from-file` contributes pathspecs like the command line; `--no-all`
-# and friends negate (last option wins); a redirection is never a pathspec.
+# and friends negate (last option wins); a redirection is never a pathspec; the
+# command ends at the first unquoted separator, attached or not.
+# EVERYTHING THE CLASSIFIER CANNOT PROVE SCANS BOTH SOURCES: a variable, glob or
+# tilde in a pathspec (the shell expands them after this hook sees the text), a
+# heredoc, an unbalanced quote, a quoted line in a pathspec file. The cost is a
+# visible block on a working-tree STATUS.md that was not going to be committed;
+# the alternative is a silent miss, and this hook always takes the block.
 # A pathspec need not spell the file name — `.`, `.kerby`, `:/`, a relative path
 # from a subdirectory — so it is RESOLVED, never text-matched: the tokens are
 # handed to `git ls-files --full-name` from the cwd, and the answer is whether
@@ -74,17 +80,26 @@ warn_open() { # $1 = why; visible fail-open via additionalContext, exit 0
 [[ -r "$GUARD" ]] || warn_open "guard script missing at $GUARD"
 
 # --- Tokenize the command: one shell word per line; a final \001 line means an
-# unbalanced quote (undecidable).
+# unbalanced quote (undecidable). Unquoted `;` `|` `||` `&` `&&` are emitted as
+# their own tokens even when attached to a word (`-m x;echo`), so the loop below
+# can stop at the first separator; `>&`, `<&` and `&>` stay redirections.
 tokens() {
   printf '%s' "$1" | awk '
+    function flush() { if (t != "") { print t; t = "" } }
     { s = $0; L = length(s); q = ""; t = ""
-      for (i = 1; i <= L; i++) { c = substr(s, i, 1)
+      for (i = 1; i <= L; i++) { c = substr(s, i, 1); nx = substr(s, i + 1, 1)
         if (q != "") { if (c == q) q = ""; else t = t c }
         else if (c == "\"" || c == "\047") q = c
         else if (c == "\\") { i++; t = t substr(s, i, 1) }
-        else if (c == " " || c == "\t") { if (t != "") { print t; t = "" } }
+        else if (c == " " || c == "\t") flush()
+        else if (c == ";") { flush(); print ";" }
+        else if (c == "|") { flush(); if (nx == "|") { print "||"; i++ } else print "|" }
+        else if (c == "&") {
+          if (t ~ /[<>]$/) t = t c
+          else if (nx == ">") t = t c
+          else { flush(); if (nx == "&") { print "&&"; i++ } else print "&" } }
         else t = t c }
-      if (t != "") print t
+      flush()
       if (q != "") print "\001" }'
 }
 
@@ -96,13 +111,13 @@ ALL=0; INCLUDE=0; INTERACTIVE=0; SPECS=(); UNDECIDABLE=0; PSFILE=""; NUL=0
 n=0; expect_value=0; expect_psfile=0; after_dashdash=0
 while IFS= read -r tok; do
   [[ "$tok" == $'\001' ]] && { UNDECIDABLE=1; break; }
-  case "$tok" in *$'\n'*|'<<'*|*'$('*|*'`'*) UNDECIDABLE=1; break ;; esac
+  case "$tok" in '<<'*) UNDECIDABLE=1; break ;; esac      # a heredoc makes the rest unparseable
   n=$((n + 1)); [[ $n -le 2 ]] && continue            # `git` `commit`
   if [[ $after_dashdash -eq 1 ]]; then SPECS+=("$tok"); continue; fi
   if [[ $expect_psfile -eq 1 ]]; then expect_psfile=0; PSFILE="$tok"; continue; fi
   if [[ $expect_value -eq 1 ]]; then expect_value=0; continue; fi
   case "$tok" in
-    '&&'|'||'|';'|'|') break ;;
+    '&&'|'||'|';'|'|'|'&') break ;;
     # redirections: a bare operator takes the next token as its target; an
     # attached one (`>/dev/null`, `2>&1`) is self-contained
     '>'|'>>'|'<'|'&>'|'&>>'|[0-9]'>'|[0-9]'>>'|[0-9]'<') expect_value=1 ;;
@@ -129,7 +144,10 @@ while IFS= read -r tok; do
           m|F|C|c|t) if [[ -z "$letters" ]]; then expect_value=1; fi; break ;;   # attached value, or the next token
         esac
       done ;;
-    *) SPECS+=("$tok") ;;
+    *) # a pathspec: the shell expands variables, globs and tildes AFTER this hook
+       # sees the text, and a stray heredoc body lands here too — undecidable, both.
+       case "$tok" in *'$'*|*'`'*|*'*'*|*'?'*|*'['*|'~'*|*$'\n'*) UNDECIDABLE=1; break ;; esac
+       SPECS+=("$tok") ;;
   esac
 done < <(tokens "$COMMAND")
 
@@ -137,7 +155,16 @@ done < <(tokens "$COMMAND")
 if [[ -n "$PSFILE" && $UNDECIDABLE -eq 0 ]]; then
   if [[ "$PSFILE" == "-" || ! -r "$PSFILE" ]]; then UNDECIDABLE=1
   elif [[ $NUL -eq 1 ]]; then while IFS= read -r -d '' spec; do [[ -n "$spec" ]] && SPECS+=("$spec"); done < "$PSFILE"
-  else while IFS= read -r spec || [[ -n "$spec" ]]; do [[ -n "$spec" ]] && SPECS+=("$spec"); done < "$PSFILE"; fi
+  else
+    # git's file syntax: one pathspec per line, CRLF tolerated, a line in double
+    # quotes is C-style quoted — decoding that is git's job, so it is undecidable.
+    while IFS= read -r spec || [[ -n "$spec" ]]; do
+      spec="${spec%$'\r'}"
+      [[ -n "$spec" ]] || continue
+      case "$spec" in '"'*) UNDECIDABLE=1; break ;; esac
+      SPECS+=("$spec")
+    done < "$PSFILE"
+  fi
 fi
 
 covered() { # do the pathspecs resolve to STATUS.md? 0 yes / 1 no / 2 undecidable
@@ -181,7 +208,7 @@ scan_worktree() { # the working-tree file, when it differs from HEAD (or HEAD is
   run_guard "$STATUS" "working tree"
 }
 scan_index() { # the staged blob, when STATUS.md is staged
-  git -C "$TOP" diff --cached --name-only --diff-filter=ACMR -- ":(top)$STATUS_REL" 2>/dev/null | grep -q . || return 0
+  git -C "$TOP" diff --cached --name-only --diff-filter=ACMRT -- ":(top)$STATUS_REL" 2>/dev/null | grep -q . || return 0
   TMPF=$(mktemp) || warn_open "cannot create a temp file for the staged blob"
   git -C "$TOP" show ":$STATUS_REL" > "$TMPF" 2>/dev/null || warn_open "cannot read the staged .kerby/STATUS.md"
   run_guard "$TMPF" "staged"

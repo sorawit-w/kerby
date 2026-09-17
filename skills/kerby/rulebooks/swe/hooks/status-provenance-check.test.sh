@@ -119,6 +119,27 @@ allows 'git commit --pathspec-from-file=paths.txt -m "x"' "--pathspec-from-file 
 blocks 'git commit --pathspec-from-file=- -m "x"' "--pathspec-from-file=- (stdin) is undecidable → both scanned → blocked"
 rm -f "$REPO/paths.txt"; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
 
+# 7d. Third independent-review round: attached separators, shell-expanded
+#     pathspecs, git's pathspec-file syntax, staged type changes.
+printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+blocks 'git commit -m x; echo ok' "an attached ; ends the command → index scanned → blocked"
+blocks 'git commit -m x&&echo ok' "an attached && ends the command → index scanned → blocked"
+blocks 'git commit -m x|cat' "an attached | ends the command → index scanned → blocked"
+blocks 'git commit -m "x" 2>&1' ">& stays a redirection after the separator change → blocked"
+git -C "$REPO" reset -q .kerby/STATUS.md; printf '%s' "$DIRTY_PR" > "$REPO/.kerby/STATUS.md"
+blocks 'git commit "$p" -m x' "a variable pathspec is undecidable → both scanned → blocked"
+blocks 'git commit .kerby/*.md -m x' "a glob pathspec is undecidable → both scanned → blocked"
+allows 'git commit -m "costs $5 and a ? mark" src/other.ts' "a variable or ? inside the message value is not a pathspec → allowed"
+printf '".kerby/STATUS.md"\n' > "$REPO/paths.txt"
+blocks 'git commit --pathspec-from-file=paths.txt -m x' "a quoted pathspec-file line is undecidable → both scanned → blocked"
+printf '.kerby/STATUS.md\r\n' > "$REPO/paths.txt"
+blocks 'git commit --pathspec-from-file=paths.txt -m x' "a CRLF pathspec-file line resolves → blocked"
+rm -f "$REPO/paths.txt"; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+# staged type change: STATUS.md becomes a symlink whose target text is the token
+rm -f "$REPO/.kerby/STATUS.md"; ln -s "PR 123" "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md
+blocks 'git commit -m x' "a staged type change (symlink blob) is scanned → blocked"
+git -C "$REPO" reset -q .kerby/STATUS.md; rm -f "$REPO/.kerby/STATUS.md"; printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
+
 # 8. Index dirty, working tree clean → plain commit records the INDEX → blocked.
 printf '%s' "$DIRTY_ISSUE" > "$REPO/.kerby/STATUS.md"; git -C "$REPO" add .kerby/STATUS.md
 printf '%s' "$CLEAN" > "$REPO/.kerby/STATUS.md"
