@@ -45,6 +45,12 @@
 #     commit run from a subdirectory still finds the file.
 #   - A `--dry-run` is blocked like a real commit when a copy carries a token: the
 #     block message is the preview.
+#   - It runs BEFORE the shell evaluates the command, at the tool boundary. A
+#     command that rewrites STATUS.md as part of its own execution — a command
+#     substitution with a side effect, a chained write — is out of reach of any
+#     PreToolUse hook (references/threat-model.md § the tool-boundary limit). The
+#     post-expansion home for this check is git's own pre-commit hook; install
+#     Phase 3 writes one script per hook file today, and chaining is logged debt.
 
 set -u
 
