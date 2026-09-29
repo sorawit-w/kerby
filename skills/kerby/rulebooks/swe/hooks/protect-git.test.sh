@@ -29,6 +29,30 @@ BLOCK=(
   "git reset --hard HEAD~1"
   "git clean -fd"
   "git clean --force"
+  # Real clean forms: every spelling must stay blocked.
+  "git clean -f"
+  "git clean -xfd"
+  "git clean -d -f"
+  "git clean -e keep -fd"
+  "git clean -ffd"
+  "git clean -fd -- path"
+  "cd x && git clean -fd"
+  "git -C repo clean -fd"
+  "git -C \"my repo\" clean -fd"
+  "git -c k=v clean -fd"
+  "bash -c \"git clean -fd\""
+  "GIT_TRACE=1 git clean -fdx"
+  "sudo git clean -fd"
+  # Quoted spellings and separators inside an argument. A pattern that demands a
+  # bare space or forbids ; & | between the words lets every one of these through.
+  "git clean '-fd'"
+  "git clean \"-fd\""
+  "git 'clean' -fd"
+  "git \"clean\" -fd"
+  "git -C \"/tmp/a&b\" clean -fd"
+  "git clean -e 'a;b' -fd"
+  "git clean -e 'a|b' -fd"
+  "git clean -e \"*.log\" \"-fd\""
   "git branch -D oldfeature"
   "git checkout ."
   "git restore ."
@@ -46,12 +70,32 @@ ALLOW=(
   "git checkout -- src/foo.ts"
   "git restore --staged src/foo.ts"
   "git clean -n"
+  "git clean -nd"
   "git branch -d oldfeature"
   "git status"
+  # Text that only MENTIONS the words. A short flag always starts a word, so a
+  # `-profile` glued to `business` is a filename, not a force flag.
+  "echo 'log: git diff --check clean ; touched business-profile-form.tsx'"
+  "echo \"git diff --check clean, business-profile-form.tsx\""
+  "git commit -m 'make the tree clean and update business-profile-form.tsx'"
 )
 for cmd in "${ALLOW[@]}"; do
   run "$cmd"
   [[ "$RC" -eq 0 ]] && pass "allows: $cmd" || fail "should allow (got $RC): $cmd"
+done
+
+# --- KNOWN over-blocks (deliberate) ------------------------------------------
+# The destructive matchers read the command as text and stay loose: over-blocking
+# is the safe direction for a data-loss guard, and telling these apart from a real
+# command needs a shell parser. Pinned as BLOCK so loosening one is a decision that
+# shows up here, not an accident. If you make one precise, move it to ALLOW.
+KNOWN_OVERBLOCK=(
+  "git log --oneline | grep clean -f"
+  "git commit -m 'fix: push handler runs on main loop'"
+)
+for cmd in "${KNOWN_OVERBLOCK[@]}"; do
+  run "$cmd"
+  [[ "$RC" -eq 2 ]] && pass "known over-block: $cmd" || fail "known over-block changed (got $RC): $cmd"
 done
 
 # Empty command -> exit 0.

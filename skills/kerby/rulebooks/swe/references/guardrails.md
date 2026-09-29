@@ -49,6 +49,8 @@ These commands cause data loss that's hard or impossible to recover (`git reflog
 
 **[enforced-when-installed]** — `hooks/protect-git.sh` hard-blocks every command in this list (and allows the targeted/safe variants) when the Phase-2 hooks are registered. When they aren't, the rule is **[behavioral]**: rely on the self-check above. See `references/threat-model.md`.
 
+The hook reads the command as text, so it can block a command that only *mentions* these words (a log line, a commit message, a heredoc). That is deliberate: over-blocking is the safe direction for a data-loss guard. If it happens, reword the text or run the command yourself in a terminal.
+
 **Commit while on a protected branch** is also hard-blocked by `protect-git.sh` (section 7) when installed — but as a *workflow* guard, not data loss, so it has a scoped escape hatch the destructive blocks above do not: set `CODING_RULES_ALLOW_PROTECTED_COMMIT=1` inline directly before the commit (`CODING_RULES_ALLOW_PROTECTED_COMMIT=1 git commit …`), and **only when the user has explicitly authorized committing to that branch** — never to bypass the guard on your own. The override counts only as a direct prefix of `git commit`; an exported var or the token appearing elsewhere in the command does not. Carve-outs (the repo's first-ever commit, detached HEAD) keep it quiet otherwise; do branch changes — creating (`git switch -c`) **or** switching (`git switch <branch>` / `git checkout <branch>`) — as a **separate** command before committing, not a `&&` one-liner. A branch *switch* chained into a commit (`git switch main && git commit`) can't be reliably caught by the hook (the switch happens after the hook runs, and may fail), so this is enforced behaviorally, not mechanically.
 
 ---

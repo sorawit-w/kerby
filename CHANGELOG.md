@@ -3,6 +3,15 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [10.2.1] — 2026-09-29
+
+**swe 2.13.1 — `protect-git` stops reading a hyphenated word as a force flag.** A Bash call that only mentioned a filename was blocked as a forced clean: the flag pattern had no left boundary, so `-profile` inside `business-profile-form.tsx` counted as `-f`. The report was right, and it reproduced while investigating it.
+
+- **One boundary, nothing else.** A real short flag always starts a word, so the flag must now follow a character that is not a letter, digit, `_` or `-`. A log line, an `echo`, and a commit message that name the words are allowed. Every real spelling stays blocked: bundled and separate flags, `--force`, `-C`/`-c` globals, `sudo`, `bash -c "…"`, an env prefix, a quoted flag or subcommand, and a path or pattern holding `;`, `&` or `|`.
+- **The proposed rewrite was not taken.** A tighter pattern that also bounded the gap between the words allowed eight real destructive forms in testing — a quoted flag, a quoted subcommand, and a quoted `;`, `&` or `|` in an argument — because it demanded a bare space and could not cross a quoted separator. The gaps stay loose by design: over-blocking is the safe direction for a data-loss guard, and telling a mention from a command needs a shell parser, which is the class of fix that took many review rounds elsewhere.
+- **The remaining over-blocks are written down and pinned.** `guardrails.md` and `threat-model.md` say the hook reads the command as text. The test asserts two known over-blocks as blocks (a pipe to `grep … -f`, and a commit message that has `push` and `main`), so making one precise is a visible decision. The commit-message case (rule 2) is the most likely to hit real work and is not fixed here.
+- **Tested first.** The three new allow cases failed before the change and pass after; 22 real forms are pinned as blocks, eight of them the bypass forms above.
+
 ## [10.2.0] — 2026-09-16
 
 **swe 2.13.0 — the status file is checked at commit time, and the history carries no footprint.** The provenance guard has existed since 2.11.3 and nothing ran it: a STATUS.md naming a pull-request number, "awaiting review" and a SHA shipped in a sibling repo with the prose rule in force, after a compaction had summarized the rule away (10.1.0 closes that gap for the rules; this closes it for the file). A prose rule cannot hold through that. A commit-time check on the staged file can, and the shapes it matches are tokens, not phrasings — the same principle that made the guard checkable in the first place.

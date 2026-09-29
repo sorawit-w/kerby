@@ -71,8 +71,13 @@ if echo "$LC" | grep -qE '\bgit\b.*\breset\b.*--hard\b'; then
   block "git reset --hard"
 fi
 
-# 4. Clean with force flag.
-if echo "$LC" | grep -qE '\bgit\b.*\bclean\b.*(-[a-z]*f[a-z]*\b|--force\b)'; then
+# 4. Clean with force flag. The flag must START a word: a real short flag is never
+# glued to a letter, digit, `_` or `-` before it, so the `-profile` in
+# `business-profile-form` is a filename, not `-f`. Only that boundary is tightened.
+# The `.*` gaps stay loose on purpose (see the header of section 7): a bounded gap
+# would need to cross quoted `;` `&` `|` and quoted subcommands, and it let those
+# through in testing.
+if echo "$LC" | grep -qE '\bgit\b.*\bclean\b.*[^[:alnum:]_-](-[a-z]*f[a-z]*|--force)\b'; then
   block "git clean -f / --force"
 fi
 
