@@ -83,9 +83,11 @@ re-review:
 
 ## Notes for Human Review
 
-- `protect-git` over-blocks a Bash call whose *heredoc text* merely contains a destructive
-  git string. Safe direction, but not mentioned in `protect-git`'s own docs — an open
-  documentation gap, not a record of past work.
+- `protect-git` over-blocks a Bash call whose text merely contains a destructive git
+  string. Settled as deliberate (safe direction) and documented in `guardrails.md` and
+  `threat-model.md`; only the `clean` flag boundary was tightened. Rule 2 (a commit message
+  with `push` and a protected branch name) is the most likely to hit real work and has no
+  issue yet.
 - The installed kerby is a copy, refreshed by hand (`npx skills add sorawit-w/kerby`); until it
   is refreshed after a merge, a session anywhere governs by the previous release.
 - **Settled: the independent review is the GitHub `@codex review` on the PR, and it is
