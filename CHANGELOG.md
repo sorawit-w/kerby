@@ -3,6 +3,13 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [10.2.2] — 2026-10-05
+
+**swe 2.13.2 — the README's check count matches the manifest.** The swe README said "Eleven checks: five hook-backed", then named six hook-backed checks and five prose gates. `rulebook.toml` declares thirteen: seven code checks and six prose checks. The two added since the count was written — `status-provenance` (2.13.0) and `intent-gate-on-behavior-change` — were missing from the list.
+
+- **Documentation only.** The README now says thirteen, and names all seven hook-backed and all six prose checks. No rule, hook or manifest field changed beyond the version.
+- **Checked against the manifest.** A one-off comparison of the README's ids with the `[[check]]` ids in `rulebook.toml` matches 7 of 7 and 6 of 6.
+
 ## [10.2.1] — 2026-09-29
 
 **swe 2.13.1 — `protect-git` stops reading a hyphenated word as a force flag.** A Bash call that only mentioned a filename was blocked as a forced clean: the flag pattern had no left boundary, so `-profile` inside `business-profile-form.tsx` counted as `-f`. The report was right, and it reproduced while investigating it.
