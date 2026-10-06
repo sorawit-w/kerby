@@ -115,10 +115,11 @@ host dependency (and the secret-scan floor is `base`'s, registered directly by i
 
 ## Checks
 
-Eleven checks: five hook-backed (`destructive-git` — floor, `protected-branch-commit`,
-`protect-env`, `env-read-warning`, `high-stakes-routing`, `hollow-test-heuristic`) and
-five prose gates (`operating-rules` = BOOTSTRAP, `quality-gate-tiers`,
-`verification-before-completion`, `security-lens`, `guardrails-scope-security`).
+Thirteen checks: seven hook-backed (`destructive-git` — floor, `protected-branch-commit`,
+`protect-env`, `env-read-warning`, `high-stakes-routing`, `hollow-test-heuristic`,
+`status-provenance`) and six prose gates (`operating-rules` = BOOTSTRAP,
+`quality-gate-tiers`, `verification-before-completion`, `security-lens`,
+`guardrails-scope-security`, `intent-gate-on-behavior-change`).
 Declared enforcement is honest: `kerby status` shows what is mechanically bound
 versus behavioral, per check.
 

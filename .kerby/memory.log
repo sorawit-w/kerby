@@ -1397,3 +1397,12 @@ Commit: (pending)
 Status: DONE (pending the GitHub @codex review on the PR)
 Notes: a proposed bounded-gap rewrite (from a sibling repo) allowed eight real destructive forms in testing — quoted flag, quoted subcommand, quoted separator inside an argument — so only the flag boundary was taken; the gaps stay loose by design. Rule 2 over-blocks any commit message with push plus a protected branch name; left for a separate issue. skill-evaluator skipped (regex plus descriptive note, not rule text); the PR review is the gate.
 Observations: the installed copy is what every repo's hooks run, so the fix reaches other repos only after npx skills add sorawit-w/kerby; the old hook blocked several of this session's own investigation and edit commands before the change, which reproduced the report.
+
+[2026-10-05T19:40:00Z]
+Task: kerby 10.2.2 / swe 2.13.2 — the swe README check count matches the manifest
+Action: swe README § Checks now says thirteen checks, naming all seven hook-backed (adds status-provenance) and all six prose (adds intent-gate-on-behavior-change); CHANGELOG 10.2.2; version surfaces bumped; swe 2.13.2 in both manifests.
+Files: skills/kerby/rulebooks/swe/README.md, skills/kerby/rulebooks/swe/rulebook.toml, .kerby/rulebooks.toml, skills/kerby/VERSION, .claude-plugin/plugin.json, .claude-plugin/marketplace.json, .codex-plugin/plugin.json, README.md, CHANGELOG.md
+Commit: (pending)
+Status: DONE (pending the GitHub @codex review on the PR)
+Notes: requested from kerby-web, whose swe guide reads its numbers from rulebook.toml and found the README disagreeing. A one-off script compared README ids with [[check]] ids: 7/7 code, 6/6 prose; not committed. skill-evaluator skipped (README count, not rule text); the PR review is the gate. Deferred (skipped): other doc disagreements seen while reading — retry figures differ across the loop SVGs, README and error-handling.md; threat-model.md's enforcement table has no rows for route-high-stakes, hollow-test-check or status-provenance; threat-model.md still describes protect-git's commit detection as a text matcher while the hook header says it is tokenized.
+Observations: STATUS.md left unchanged — the change does not move the project's position.
