@@ -189,7 +189,9 @@ enforcement = "partial"
 enforcer = "hooks/status-provenance-check.sh"   # runs scripts/check-status-provenance.sh on the .kerby/STATUS.md this commit records
 event = "PreToolUse"
 matcher = "Bash"
-gap = "fails open, visibly, when the guard script is missing; `git commit` reached through `git -C` or `cd … &&` is not recognised"
+git_hook = "pre-commit"                   # also runs as git's pre-commit (`--git-hook`), in the one
+                                          # file install Phase 3 writes for every git_hook check
+gap = "fails open, visibly, when the guard script is missing; the PreToolUse door reads command text and scans the cwd repo, so a wrapper (`env`, `bash -c`), a git alias, or a `-C`/`cd` target in another repo is caught only by the git door; the git door is skipped by `git commit --no-verify` and is absent until install Phase 3 is accepted in that clone"
 severity = "block"                        # STATUS.md holds position, never provenance — a version, SHA or PR number is refused at commit time
 
 # --- commands: user-invocable flows this rulebook provides (V2/V3) ----------
