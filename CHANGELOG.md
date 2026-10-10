@@ -3,6 +3,15 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [10.3.0] — 2026-10-09
+
+**swe 2.14.0 — the STATUS.md check holds however the commit is typed.** In a sibling repo an agent committed a STATUS.md naming a branch, a pull-request number and a review state. The commit-time guard was registered and never ran: it acted only when the command text started with `git commit`, and every commit there started `cd /path/to/repo; git add … && git commit`. Two doors now cover each other's holes.
+
+- **The pre-command door sees chained commits.** It recognises `git … commit` with the subcommand in position — after `;`, `&`, `|`, `(` or `$(`, with global options such as `-C <dir>` and `-c k=v` allowed between `git` and `commit`. `git log --grep commit` and `echo "git commit"` are not commits. It still scans both copies of STATUS.md once it decides a commit is happening. It reads text and scans the repo it runs in, so a wrapper (`env`, `bash -c`), a git alias, or a `-C` target in another repo is left to the git door; the header and the manifest `gap` say so.
+- **A git door.** `status-provenance-check.sh --git-hook` runs as git's own `pre-commit`, where git hands it the real index. It scans the staged STATUS.md only when the commit adds or changes it, uses no `jq` (a GUI git client runs hooks with `/usr/bin:/bin`), and fails open on stderr when its guard is missing. `git commit --no-verify` skips it; the pre-command door still sees that.
+- **One git pre-commit file runs every `git_hook` check.** Git runs one `pre-commit`, so install Phase 3 now writes one kerby-managed file that runs every in-scope check declaring `git_hook = "pre-commit"`: install-owned checks first, the floor's secret scan leading, then approved externals. The marker lists the ids. The first blocking check stops the commit; a missing launcher or scanner fails open for its own checks and never ends the file early. Phase 3 stays one answer for the whole file, so a check declined in Phase 2 still runs there. An older one-check file carries the marker and is upgraded through the existing diff-and-rewrite path; a scoped `uninstall` re-renders the file without that rulebook's checks.
+- **Tested.** Eight chained and prefixed command shapes block, and four non-commits that mention `commit` pass; the same eight failed against the old anchor. Real-git commits cover the git door, including the first commit of a fresh repo, `--amend`, no `jq` on `PATH`, a deleted file and a missing guard. The chained file is tested with stub scripts for order, first-block-wins and every fail-open.
+
 ## [10.2.2] — 2026-10-05
 
 **swe 2.13.2 — the README's check count matches the manifest.** The swe README said "Eleven checks: five hook-backed", then named six hook-backed checks and five prose gates. `rulebook.toml` declares thirteen: seven code checks and six prose checks. The two added since the count was written — `status-provenance` (2.13.0) and `intent-gate-on-behavior-change` — were missing from the list.
