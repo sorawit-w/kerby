@@ -126,6 +126,78 @@ blocks 'git commit --interactive -m x' "an untracked STATUS.md naming PR 7552 is
 blocks 'git commit -m x' "…on a plain commit too: the state itself is forbidden"
 rm -f "$REPO/.kerby/STATUS.md"
 
+# 11. Chained and prefixed commit shapes are recognised — the kerby-web miss was
+#     `cd /repo; git add … && git commit`, which a `^git commit` anchor never saw.
+#     Non-commits that merely mention `commit` stay ignored, even with a dirty file.
+worktree "$DIRTY_PR"
+for cmd in 'cd "$REPO"; git add .kerby/STATUS.md && git commit -m x' 'git add a&&git commit;echo ok' \
+           'git -C "$REPO" commit -m x' 'git -C "/a dir/repo" commit' 'GIT_DIR="$REPO/.git" git commit' \
+           'git --no-pager -c user.name=x commit --amend' '(cd sub && git commit)' 'x=$(git commit -m y)'; do
+  blocks "$cmd" "a chained/prefixed commit is recognised: $cmd"
+done
+for cmd in 'git log --grep commit' 'git log -1 --format=%s commit' 'echo "git commit"' 'git rebase --exec "make" main'; do
+  allows "$cmd" "a non-commit that mentions commit is ignored: $cmd"
+done
+rm -f "$REPO/.kerby/STATUS.md"
+
+# 12. --git-hook: a REAL git hook running REAL commits — decided by whether HEAD
+#     moved. GIT_CONFIG_GLOBAL=/dev/null keeps a developer's core.hooksPath from
+#     silently turning this section into a no-op (base's test explains why).
+gh_repo() { # $1=dir $2=hook script -> a repo whose pre-commit execs it with --git-hook
+  GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null git init -q "$1"
+  git -C "$1" config user.email t@t.t; git -C "$1" config user.name t
+  mkdir -p "$1/.git/hooks" "$1/.kerby"
+  printf '#!/bin/sh\nexec "%s" --git-hook\n' "$2" > "$1/.git/hooks/pre-commit"
+  chmod +x "$1/.git/hooks/pre-commit"
+}
+gh_count() { git -C "$1" rev-list --count HEAD 2>/dev/null || echo 0; }
+gh_try() { # $1=repo $2=want(block|pass) $3=label $4=command ; stderr kept in $TMP/gherr
+  local before after got; before=$(gh_count "$1")
+  ( cd "$1" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null eval "$4" ) >"$TMP/ghout" 2>"$TMP/gherr"
+  after=$(gh_count "$1"); got=pass; [ "$before" = "$after" ] && got=block
+  [[ "$got" == "$2" ]] && pass "git-hook: $3" || fail "git-hook: $3 (got $got, want $2; err: $(head -2 "$TMP/gherr" | tr '\n' ' '))"
+}
+
+G="$TMP/gh"; gh_repo "$G" "$HOOK"
+printf '%s' "$DIRTY_PR" > "$G/.kerby/STATUS.md"; git -C "$G" add .kerby/STATUS.md
+gh_try "$G" block "the first commit (unborn HEAD) with a bad STATUS staged is aborted" 'git commit -m x'
+grep -q '^BLOCKED: .kerby/STATUS.md (staged)' "$TMP/gherr" && pass "git-hook: the block names the staged copy" || fail "git-hook: block message: $(cat "$TMP/gherr")"
+grep -q 'working-tree copy are checked' "$TMP/gherr" && fail "git-hook: the message claims a working-tree scan it did not do" || pass "git-hook: the message does not claim a working-tree scan"
+printf '%s' "$CLEAN" > "$G/.kerby/STATUS.md"; git -C "$G" add .kerby/STATUS.md
+gh_try "$G" pass "a clean STATUS commit passes" 'git commit -m x'
+
+echo x > "$G/f"; git -C "$G" add f; printf '%s' "$DIRTY_PR" > "$G/.kerby/STATUS.md"
+gh_try "$G" pass "a bad STATUS only in the working tree does not block (git records the index)" 'git commit -m x'
+
+git -C "$G" add .kerby/STATUS.md; GIT_CONFIG_GLOBAL=/dev/null git -C "$G" commit -q --no-verify -m "bad status lands"
+echo y >> "$G/f"; git -C "$G" add f
+gh_try "$G" pass "a bad STATUS already committed does not block a commit that does not touch it" 'git commit -m x'
+
+printf '%s' "$CLEAN" > "$G/.kerby/STATUS.md"; git -C "$G" add .kerby/STATUS.md
+gh_try "$G" pass "fixing STATUS passes" 'git commit -m x'
+printf '%s' "$DIRTY_ISSUE" > "$G/.kerby/STATUS.md"; git -C "$G" add .kerby/STATUS.md
+before_sha=$(git -C "$G" rev-parse HEAD)
+( cd "$G" && GIT_CONFIG_GLOBAL=/dev/null git commit -q --amend -m x ) >/dev/null 2>&1
+[[ "$(git -C "$G" rev-parse HEAD)" == "$before_sha" ]] && pass "git-hook: --amend with a bad STATUS staged is aborted" || fail "git-hook: --amend let a bad STATUS through"
+gh_try "$G" block "git add x && git commit is caught (the kerby-web shape, any command form)" 'git add .kerby/STATUS.md && git commit -m x'
+
+before=$(gh_count "$G")
+( cd "$G" && PATH=/usr/bin:/bin:/usr/sbin:/sbin GIT_CONFIG_GLOBAL=/dev/null git commit -m x ) >/dev/null 2>&1
+[[ "$(gh_count "$G")" == "$before" ]] && pass "git-hook: blocks with NO jq on PATH (the GUI-client case)" || fail "git-hook: FAIL-OPEN without jq on PATH"
+
+git -C "$G" reset -q .kerby/STATUS.md; git -C "$G" checkout -q -- .kerby/STATUS.md
+git -C "$G" rm -q .kerby/STATUS.md
+gh_try "$G" pass "deleting STATUS.md passes (nothing to scan)" 'git commit -m x'
+
+gh_try "$G" pass "--no-verify skips the git door, as documented" 'mkdir -p .kerby; printf "%s" "$DIRTY_PR" > .kerby/STATUS.md; git add .kerby/STATUS.md; git commit --no-verify -m x'
+
+# Guard missing → stderr warning, commit allowed, nothing on stdout (no JSON in git mode).
+FG="$TMP/gh-noguard"; gh_repo "$FG" "$FAKE/status-provenance-check.sh"
+printf '%s' "$DIRTY_PR" > "$FG/.kerby/STATUS.md"; git -C "$FG" add .kerby/STATUS.md
+gh_try "$FG" pass "a missing guard fails open in git mode" 'git commit -m x'
+grep -q 'NOT checked' "$TMP/gherr" && pass "git-hook: the fail-open is named on stderr" || fail "git-hook: no fail-open warning: $(cat "$TMP/gherr")"
+grep -q 'hookSpecificOutput' "$TMP/ghout" "$TMP/gherr" && fail "git-hook: emitted PreToolUse JSON in git mode" || pass "git-hook: no PreToolUse JSON in git mode"
+
 echo "---"
 if [[ "$FAILS" -eq 0 ]]; then
   echo "All assertions passed."

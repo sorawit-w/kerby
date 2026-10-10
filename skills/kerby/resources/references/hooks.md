@@ -106,14 +106,16 @@ Defaults to enabled when the section is missing.
 
 ---
 
-### git pre-commit → Secret Scan (Optional, offered by `install`)
+### git pre-commit → every `git_hook` check (Optional, offered by `install`)
 
-**Script:** the declaring check's own enforcer, run as `<enforcer> --git-hook`
+**Script:** each declaring check's own enforcer, run as `<enforcer> --git-hook`, all from one file
 **Strictness:** Blocking (aborts the commit)
 **Trigger:** git's native `pre-commit` hook (not Claude Code lifecycle)
 
-**This is the same scanner as the `PreToolUse` secret check, through a different door.**
-Not a duplicate and not a replacement — they see different things:
+**Each check's git door is the same enforcer as its `PreToolUse` door.** Today the
+declaring checks are the bundled `base`'s `secrets-staged` and `swe`'s `status-provenance`
+(worked examples; the file runs whatever in-scope checks declare `git_hook = "pre-commit"`).
+Not a duplicate and not a replacement — the two doors see different things:
 
 | | PreToolUse hook | git `pre-commit` hook |
 |---|---|---|
@@ -132,7 +134,7 @@ one caught strictly more than the other, it still would not be a replacement.
 | | Not enforcing when |
 |---|---|
 | PreToolUse hook | Phase 2 was never accepted here, or its entry was later removed from the settings file |
-| git hook | Phase 3 was never accepted here; or this is a fresh clone (git hooks are never cloned); or `core.hooksPath` sends git to a *different* hooks dir, so the file kerby wrote is not the one git runs; or the hook file is not executable, in which case git skips it entirely; or its scanner is not executable, in which case the hook runs and its own guard exits 0 |
+| git hook | Phase 3 was never accepted here; or this is a fresh clone (git hooks are never cloned); or `core.hooksPath` sends git to a *different* hooks dir, so the file kerby wrote is not the one git runs; or the hook file is not executable, in which case git skips it entirely; or a scanner it runs is not executable, in which case the hook runs and that check's guard falls through without scanning |
 
 Two things that table is careful *not* to say. **Declining a whole phase does not remove
 anything** — saying no to Phase 2 or Phase 3 outright leaves whatever is installed exactly
@@ -159,13 +161,20 @@ It is per-clone: git hooks are never cloned, so teammates are not covered by you
 
 Behaviour worth knowing:
 
-- **Index-only.** It scans `git diff --cached`, not the working tree. Git writes a temporary
+- **One file, chained.** Git runs one `pre-commit`, so every declaring check runs from the
+  same file: install-owned checks first in merge order (the floor's checks first), then
+  approved externals in merge order. The first blocking check's status stops the commit. A
+  missing scanner fails open for that check only — the checks after it still run. Phase 3
+  is one y/n for the whole file; a check declined in Phase 2 still runs here.
+- **Index-only.** The secret scan reads `git diff --cached`, not the working tree. Git writes a temporary
   index and points `GIT_INDEX_FILE` at it *before* running the hook, so `--cached` sees
   exactly what will be committed — for `-a`, `-i`, a pathspec and `--only` alike. A dirty
-  tracked file the commit does not include will **not** block it.
+  tracked file the commit does not include will **not** block it. The STATUS.md check's git
+  door also reads only the index: the staged copy, and only when this commit adds or
+  changes `.kerby/STATUS.md`.
 - **Fails open if the scanner is gone.** If kerby's install moves, the hook warns and exits
   0 rather than aborting every commit with 127.
-- **Says so when it degrades.** With no `betterleaks`/`gitleaks` on `PATH` it prints one
+- **Says so when it degrades.** With no `betterleaks`/`gitleaks` on `PATH` the secret scan prints one
   line and falls back to the built-in regex floor. This matters more here than in the
   PreToolUse path: a GUI git client runs hooks with a launchd `PATH` of
   `/usr/bin:/bin:/usr/sbin:/sbin`, where an installed scanner is invisible.

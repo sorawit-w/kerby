@@ -11,7 +11,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | Release — the status file checked at commit time, and no footprint in the history; next, limeade alignment |
+| **Phase** | Release — the status-file check runs from git's own pre-commit too and sees chained commits; next, limeade alignment |
 | **Milestone** | Rules that survive a compaction, and a STATUS file that cannot state provenance |
 | **Milestone Goal** | After a compaction the SessionStart hook re-supplies every pinned builtin's rules without the agent asking; a staged STATUS.md naming a version, SHA or PR number is refused at commit time; commit and PR text carries no tool footprint |
 
@@ -73,7 +73,6 @@ re-review:
   sweep derives signatures from that rulebook's manifest, which cannot resolve. `install`'s
   dead-script prune is the working path; the text should say so or define the case.
 - **Sibling repos will meet the commit-time STATUS guard** — any repo on this swe release with the hook registered refuses a staged STATUS.md naming a PR number; limeade is cleaned, the six others may need the same rewording when they next touch the file.
-- **Install Phase 3 writes one git pre-commit file that runs one script** — a second check declaring `git_hook = "pre-commit"` cannot be chained yet, so the commit-time STATUS guard registers as a Claude Code hook only.
 - **`BOOTSTRAP.md` § 1b** — `rung:` is emitted with the grade, before investigation could
   change the approach, and nothing requires re-emitting it. Emitting at the decision point
   is what makes it bind, so moving it later has a real cost — a deliberate call, not a

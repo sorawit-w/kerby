@@ -120,6 +120,8 @@ Thirteen checks: seven hook-backed (`destructive-git` — floor, `protected-bran
 `status-provenance`) and six prose gates (`operating-rules` = BOOTSTRAP,
 `quality-gate-tiers`, `verification-before-completion`, `security-lens`,
 `guardrails-scope-security`, `intent-gate-on-behavior-change`).
+`status-provenance` also has a git door: it runs from git's `pre-commit` when
+`kerby install` Phase 3 is accepted, chained after `base`'s secret scan.
 Declared enforcement is honest: `kerby status` shows what is mechanically bound
 versus behavioral, per check.
 
