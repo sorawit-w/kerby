@@ -1450,3 +1450,12 @@ Files: skills/kerby/rulebooks/swe/references/working-patterns.md, .kerby/memory.
 Commit: (pending)
 Status: DONE (pending the fresh-session re-run on this SHA and Codex)
 Notes: skill-evaluator (in-session, split-role): clean (5/5) on the changed line — move with a rename-only Serena connected: no rename tool used, usages found first, typecheck after, `tool gap: Refactor` reported. Codex's other round-2 comment (fresh-session gate on the fixed tree) is the re-run already in progress.
+
+[2026-10-14T00:00:00Z]
+Task: fresh-session skill-evaluator re-run on code-intelligence routing
+Action: split-role re-run of the tests the d0aadca and 68e656b edits touch; test wording fixed for the four rubric misses of the 2e3741f run; one new move/delete test designed blind.
+Files: .kerby/memory.log
+Commit: (pending)
+Status: DONE (pending Codex)
+Notes: skill-evaluator: clean (38/38) at 68e656b — 2026-10-14 (fresh-session, split-role; tests 1 and 10 at 68e656b 13/13, tests 3/5/7/9 at d0aadca 25/25 — 68e656b changed only the refactor threshold line, which tests 1 and 10 cover). F1 (prepare route never loaded the suggestion rule) confirmed fixed: the test 3 executor reached recommendations.md and § Code-Intelligence Routing through adopt-existing.md with no search of its own. Test 10: a rename-only Serena does not stand in for a move; usages found first, typecheck after, one `tool gap: Refactor` line. Tests 2/4/6/8 not re-run (rule text they cover unchanged since 2e3741f, where they scored 18/19, the miss rubric). Residual wording, low: the rule says "one suggestion block" while recommendations.md's format is one block per tool — the agent used one section of per-tool blocks, which matches the intent.
+Observations: the 2e3741f run's 2 fails and 2 unclears were all test wording, fixed before the re-run.
