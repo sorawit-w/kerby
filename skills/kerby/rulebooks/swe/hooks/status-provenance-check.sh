@@ -57,8 +57,11 @@
 #     git commit` and `git -C "<dir>" commit` are seen; `git log --grep commit`
 #     and `echo "git commit"` are not commits. NOT seen: a wrapper before git
 #     (`env`, `command`, `sudo`, `xargs`, `bash -c '…'`) or a git alias. grep
-#     matches per line, so any line of a multi-line command can trigger it;
-#     matching too much only costs a scan.
+#     matches per line, so any line of a multi-line command can trigger it.
+#     A wrong match costs a scan, and a block only while STATUS.md already
+#     carries a token the rule forbids — so `git commit --help` and
+#     `git --help commit` are refused in that state, deliberately: telling
+#     them apart from a commit means modelling git's flags, the trap above.
 #   - The PreToolUse door scans the repo at the cwd, NOT a `-C`/`cd` target: a
 #     commit into another repo may be blocked on, or pass, this repo's STATUS.md.
 #     Resolving the target is the model-the-shell trap above. The git door

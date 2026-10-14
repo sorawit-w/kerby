@@ -483,13 +483,13 @@ fi
 # positive assertions never verified exit 0, and only one of five actually
 # caught the elif — a guard that reported more than it checked. `gh_control`
 # below is the proof that the base fixture is clean on its own.
-mk_gh() { # $1=dir  $2=check lines (the whole [[check]] body)
+mk_gh() { # $1=dir  $2=check lines (the whole [[check]] body)  $3=check id (default c)
   mkdir -p "$1/rules" "$1/hooks"
   printf '#!/bin/bash\nexit 0\n' > "$1/hooks/e.sh"; chmod +x "$1/hooks/e.sh"
   printf 'A rule body.\n' > "$1/rules/r.md"
   { echo 'id = "ghfix"'; echo 'version = "1.0.0"'; echo 'contract = 2'
     echo 'accepts = ["*"]'; echo 'description = "git_hook fixture"'
-    echo '[[check]]'; echo 'id = "c"'; printf '%s\n' "$2"
+    echo '[[check]]'; printf 'id = "%s"\n' "${3:-c}"; printf '%s\n' "$2"
   } > "$1/rulebook.toml"
 }
 PROSE='kind = "prose"
@@ -575,6 +575,35 @@ git_hook = $bad"
     fail "git_hook bad value $bad — expected nonzero + shape error, got exit $RC: $OUT"
   fi
 done
+
+# A git_hook check's id goes into the hook's comma-separated `kerby-managed:`
+# marker, which scoped uninstall reads back — so it must be a slug. The same
+# ids WITHOUT git_hook stay legal: the rule is scoped to the marker.
+for bad in 'lint,fast' 'Lint' 'a b' 'x_y'; do
+  TMP_GH="$(mktemp -d)"; mk_gh "$TMP_GH" "$CODE
+git_hook = \"pre-commit\"" "$bad"
+  run "$TMP_GH"; rm -rf "$TMP_GH"
+  if [[ "$RC" -ne 0 ]] && echo "$OUT" | grep -q "needs a slug id"; then
+    pass "git_hook: a non-slug check id ($bad) errors"
+  else
+    fail "git_hook non-slug id $bad — expected nonzero + slug error, got exit $RC: $OUT"
+  fi
+  TMP_GH="$(mktemp -d)"; mk_gh "$TMP_GH" "$CODE" "$bad"
+  run "$TMP_GH"; rm -rf "$TMP_GH"
+  if ! echo "$OUT" | grep -q "needs a slug id"; then
+    pass "git_hook: the same id ($bad) without git_hook gets no slug error"
+  else
+    fail "git_hook slug rule leaked to a check without git_hook ($bad): $OUT"
+  fi
+done
+TMP_GH="$(mktemp -d)"; mk_gh "$TMP_GH" "$CODE
+git_hook = \"pre-commit\"" "lint-fast-2"
+run "$TMP_GH"; rm -rf "$TMP_GH"
+if [[ "$RC" -eq 0 ]]; then
+  pass "git_hook: a hyphenated slug id (lint-fast-2) validates clean"
+else
+  fail "git_hook slug id lint-fast-2 — expected exit 0, got $RC: $OUT"
+fi
 
 # --- Validator stays stdlib-only ----------------------------------------------
 BAD_IMPORTS="$(grep -E '^(import|from) ' "$VALIDATOR" | grep -vE '^(import|from) (argparse|hashlib|re|sys|tomllib|pathlib)\b')"
