@@ -399,7 +399,7 @@ All paths in this index are relative to this rulebook's root — the folder wher
 
 | Topic | File |
 |-------|------|
-| Task approach, complexity routing, TDD (RED-GREEN-REFACTOR, characterization tests), scope discipline, anti-rationalization, code standards, checkpoints | `references/working-patterns.md` |
+| Task approach, complexity routing, TDD (RED-GREEN-REFACTOR, characterization tests), scope discipline, anti-rationalization, code standards, checkpoints, IDE-aware tools and code-intelligence routing (which tool to search, rename, move, or check impact with) | `references/working-patterns.md` |
 | Quality gates, retry budgets, error recovery | `references/quality-gates.md` |
 | Full error handling & recovery trees | `references/error-handling.md` |
 | Systematic debugging (reproduce → hypothesize → fix) | `references/debugging.md` |

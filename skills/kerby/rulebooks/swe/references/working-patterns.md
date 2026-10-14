@@ -57,16 +57,17 @@ Code-intelligence tools answer different questions. Pick the **layer** from the 
 |---|---|---|
 | "Did my edit break types or imports?" | Diagnostics | Diagnostics the harness reports after each edit (e.g. a Claude Code LSP plugin) → IDE MCP problems tool → the project's own type-check / lint command |
 | "Where is X defined? Who uses X?" | Precision | IDE MCP → LSP / Serena symbol tools → `rg`, then read the hits |
-| "Rename, move, or delete X safely" | Refactor | IDE MCP rename → Serena rename → per-file edits, then re-run the diagnostics layer |
+| "Rename X safely" | Refactor | IDE MCP rename → Serena rename → per-file edits, then re-run the diagnostics layer |
+| "Move or delete X safely" | Refactor | Find every usage first (Precision layer) → the IDE's move or safe-delete, if your tool list has one → per-file edits, then re-run the diagnostics layer. A rename tool does neither |
 | "Where do we handle <concept>?" | Discovery | Code-graph MCP hybrid search (SocratiCode; also cross-project and branch-aware) → `rg` with synonyms, then read the entry points |
-| "What breaks if I change X?" | Impact | Code-graph MCP impact / call-flow → IDE find-usages, followed caller by caller |
+| "What breaks if I change X?" | Impact | Code-graph MCP impact / call-flow → IDE find-usages → `rg` for the symbol; follow each caller in turn |
 | "How is this repo organized?" | Comprehension | Code-graph MCP graph, or Graphify on demand → manifests, entry points, `.kerby/knowledge/` |
 
 **When sources disagree:**
 
 - Compiler output, tests, and builds beat every index.
 - A live index (IDE, LSP) beats a stored index (code-graph MCP, Graphify) on any symbol.
-- A stored index is a snapshot. Before you trust it, compare its build time with recent commits.
+- A stored index is a snapshot. Before you trust it, compare its build time with recent commits. If it has no build time, or is older than them, check what you take from it with `rg` or the compiler.
 
 Tool names, setup, and caveats (licences, Graphify's auto-knowledge-base clash with `.kerby/knowledge/`) live in `references/external-resources.md`. Names differ between versions, so use what your tool list shows, not the names in this table.
 
@@ -74,15 +75,15 @@ Tool names, setup, and caveats (licences, Graphify's auto-knowledge-base clash w
 
 **Mid-task: do not ask, and do not stop.** Use the best tool you have. A question in the middle of a task blocks the task, and suggestions belong at onboarding (`references/recommendations.md` § Suggestion Guidelines).
 
-**In the final report, add one line only if the gap cost this task something real.** That means at least one of:
+**In the final report, add a `tool gap:` line only if the gap cost this task something real.** That means at least one of:
 
-- A rename or move touched 3+ files and no refactor-layer tool was connected.
-- Discovery took 3+ rounds of `rg` and reads before you found the right code.
+- A rename, move, or delete touched 3+ files and no refactor-layer tool was connected.
+- Discovery took 3+ rounds before you found the right code (a round is one search plus the reads that follow it).
 - A change to shared code needed impact analysis and no impact-layer tool was connected.
 
-Shape: `tool gap: <layer> — <what the tool would have changed> — see external-resources.md`.
+Shape, one line per layer that hit a threshold: `tool gap: <layer> — <what the tool would have changed> — see external-resources.md`.
 
-**At onboarding (`prepare`, `adopt-existing`, new project), suggest once** when no diagnostics or code-graph tool is connected and the repo is large or unfamiliar. Use the format in `references/recommendations.md` § How to Present Suggestions, and name the cost: memory, setup, and any code that leaves the machine. Install nothing without an explicit yes (`base/rules/approval-for-irreversible.md`).
+**At onboarding (`prepare`, `adopt-existing`, new project), make one suggestion block** — one tool per missing layer — when no diagnostics or code-graph tool is connected and the repo is large or unfamiliar. Use the format in `references/recommendations.md` § How to Present Suggestions, and name the cost: memory, setup, and whether any code leaves the machine. Install nothing without an explicit yes; on the `prepare` route, install nothing at all (its ring-fence).
 
 ---
 
