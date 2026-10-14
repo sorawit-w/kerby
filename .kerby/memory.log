@@ -1415,3 +1415,12 @@ Commit: (pending)
 Status: DONE (pending the GitHub @codex review on the PR)
 Notes: skill-evaluator: clean (31/31) at 56f0b68 — 2026-10-09 (in-session, split-role, 7 tests). skill-evaluator: clean (24/24) at 56f0b68 — 2026-10-09 (fresh-context, 5 tests designed blind by a separate agent). team-composer planning pass + Plan-subagent structural review (10 of 12 findings folded in). User decisions: Phase 3 stays one y/n for the whole file (a Phase-2 decline still runs in git); git door scans only when the commit changes STATUS.md; subcommand-position match, not "commit anywhere". Deferred (skipped): hollow-test-check.sh's identical ^git commit anchor; stale comments in pre-commit-check.sh:27-33 and pre-commit-check.test.sh:755-756.
 Observations: validate-rulebook.test.sh fails 1 assertion on main and on this branch — its expected swe check set (from docs/ENGINE-MAP.md § 9) lacks status-provenance, added in 10.2.0. The new shape tests failed 8/8 against the old ^git commit anchor. This repo's .claude/settings.local.json does not register status-provenance-check.sh and .git/hooks/pre-commit carries only the secret scan.
+
+[2026-10-13T00:00:00Z]
+Task: validator test check-set drift — docs/ENGINE-MAP.md § 9 lacks status-provenance
+Action: § 9 gains a status-provenance (v10.2.0) row in the style of the v9.12.0 intent-gate addition; scripts/validate-rulebook.test.sh EXPECT_SWE adds status-provenance.
+Files: docs/ENGINE-MAP.md, scripts/validate-rulebook.test.sh, .kerby/memory.log
+Commit: (pending)
+Status: DONE (pending the GitHub @codex review on the PR)
+Notes: the assertion had failed on main since 10.2.0 added the check. No version bump — neither file ships in the skill. Only these two places restate the swe check set (the swe README already lists thirteen).
+Observations: validate-rulebook.test.sh 81 passed, 0 failed (run with Homebrew Python 3.14; /usr/bin/python3 3.9 lacks tomllib).

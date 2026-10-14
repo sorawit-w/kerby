@@ -242,6 +242,7 @@ unit; per-section split is ring-fenced out.
 | `security-lens` | prose (block, high) | behavioral | `references/validation.md` in place (deduped by path) |
 | `guardrails-scope-security` | prose (block, high) | behavioral | `references/guardrails.md` in place |
 | `intent-gate-on-behavior-change` (v9.12.0) | prose (eager, low) | behavioral | `references/intent-gate.md` in place — the forced `INTENT:` line (absorbed from fable-method) |
+| `status-provenance` (v10.2.0) | code | partial (`status-provenance-check.sh`; also git's `pre-commit` via `git_hook` since v10.3.0), gap named | `references/communication.md` § Status Tracking — STATUS.md holds position, never provenance |
 
 Plus `[commands]` (`{build,lint,test}_command`) and `[gate]` per the handoff.
 
