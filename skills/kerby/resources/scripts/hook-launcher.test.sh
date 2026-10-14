@@ -158,5 +158,57 @@ else
   echo "SKIP: dash not installed (not a pass)"
 fi
 
+# 18. The chained git pre-commit file (SKILL.md § Phase 3 template — KEEP IN STEP):
+#     every check runs in order, the first blocking status stops the file, and a
+#     per-check fail-open (missing launcher, missing or unlaunchable external)
+#     never ends it early. Stubs stand in for real enforcers.
+mkdir -p "$HOME_T/.claude/kerby/bin" "$TMP/ext"
+cp "$L" "$HOME_T/.claude/kerby/bin/hook"; chmod +x "$HOME_T/.claude/kerby/bin/hook"
+setptr "$ROOT"
+CLOG="$TMP/chain.log"
+stub() { printf '#!/bin/sh\necho %s >> "%s"\nexit %s\n' "$2" "$CLOG" "$3" > "$1"; chmod +x "$1"; }
+stub "$ROOT/rulebooks/x/hooks/s0.sh" s0 0; stub "$ROOT/rulebooks/x/hooks/s2.sh" s2 2
+stub "$TMP/ext/e0.sh" e0 0; stub "$TMP/ext/e2.sh" e2 2; stub "$TMP/ext/e127.sh" e127 127
+render() { # $1=out $2=install-owned relpaths $3=external abs paths (space-separated)
+  {
+    echo '#!/bin/sh'
+    echo '# kerby-managed:a,b — remove with `kerby uninstall`'
+    echo '# bypass once: git commit --no-verify'
+    if [[ -n "$2" ]]; then
+      printf 'L="%s"\n' "$HOME_T/.claude/kerby/bin/hook"
+      echo 'if [ -x "$L" ]; then'
+      for r in $2; do printf '  "$L" git-hook %s --git-hook || exit $?\n' "$r"; done
+      echo 'else'
+      echo '  echo "kerby: hook launcher missing at $L — NOT scanning a,b in this commit; run kerby install." >&2'
+      echo 'fi'
+    fi
+    for e in $3; do
+      printf 'if [ -x "%s" ]; then\n  "%s" --git-hook; rc=$?\n  case $rc in\n    0) ;;\n    126|127) echo "kerby: scanner at %s could not be launched (exit $rc) — NOT scanning e in this commit." >&2 ;;\n    *) exit $rc ;;\n  esac\nelse\n  echo "kerby: scanner missing or not executable at %s — NOT scanning e in this commit." >&2\nfi\n' "$e" "$e" "$e" "$e"
+    done
+    echo 'exit 0'
+  } > "$1"; chmod +x "$1"
+}
+chain() { # $1=label $2=want rc $3=want log $4=install-owned $5=externals ; stderr in $TMP/cerr
+  local got log; rm -f "$CLOG"; render "$TMP/pre-commit" "$4" "$5"
+  HOME="$HOME_T" PATH="$SBIN" sh "$TMP/pre-commit" >/dev/null 2>"$TMP/cerr"; got=$?
+  log=$(cat "$CLOG" 2>/dev/null | tr '\n' ' '); log="${log% }"
+  [[ $got -eq $2 && "$log" == "$3" ]] && pass "chain: $1" || fail "chain: $1 (rc=$got want $2; ran '$log' want '$3'; err: $(cat "$TMP/cerr"))"
+}
+H=rulebooks/x/hooks
+chain "a blocking first check stops the file before the second" 2 "s2" "$H/s2.sh $H/s0.sh" ""
+chain "a blocking second check blocks after the first passes" 2 "s0 s2" "$H/s0.sh $H/s2.sh" ""
+chain "all checks pass → exit 0" 0 "s0 s0" "$H/s0.sh $H/s0.sh" ""
+chain "install-owned lines run before external blocks" 2 "s0 e2" "$H/s0.sh" "$TMP/ext/e2.sh"
+chain "an unlaunchable external (127) warns and the next block still runs" 0 "s0 e127 e0" "$H/s0.sh" "$TMP/ext/e127.sh $TMP/ext/e0.sh"
+grep -q 'could not be launched' "$TMP/cerr" && pass "chain: the 127 fail-open is named on stderr" || fail "chain: 127 not named: $(cat "$TMP/cerr")"
+chain "a missing external warns and a later blocking external still blocks" 2 "e2" "" "$TMP/ext/gone.sh $TMP/ext/e2.sh"
+mv "$HOME_T/.claude/kerby/bin/hook" "$TMP/hook.away"
+chain "launcher absent → warning, externals still run, exit 0" 0 "e0" "$H/s2.sh" "$TMP/ext/e0.sh"
+grep -q 'launcher missing' "$TMP/cerr" && pass "chain: the missing launcher is named on stderr" || fail "chain: missing launcher not named: $(cat "$TMP/cerr")"
+mv "$TMP/hook.away" "$HOME_T/.claude/kerby/bin/hook"
+rm -f "$PTR"
+chain "launcher present but no pointer → launcher's own fail-open, next line runs" 0 "" "$H/s2.sh $H/s0.sh" ""
+setptr "$ROOT"
+
 echo "---"
 if [[ "$FAILS" -eq 0 ]]; then echo "All assertions passed."; exit 0; else echo "$FAILS assertion(s) failed."; exit 1; fi

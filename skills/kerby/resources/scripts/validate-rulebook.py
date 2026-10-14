@@ -272,6 +272,12 @@ def check_fields(check: dict, idx: int, res: Result) -> str:
             res.warn("E09", f"check '{cid}': git_hook '{gh}' is not a known git hook ({', '.join(sorted(KNOWN_GIT_HOOKS))}) — install would write a file git never runs")
         if "enforcer" not in check:
             res.error("E09", f"check '{cid}': 'git_hook' needs an 'enforcer' — the git hook execs that script with --git-hook")
+        # install lists every git_hook check id in one comma-separated
+        # `kerby-managed:` marker, and scoped uninstall reads it back to decide
+        # which lines to drop — an id holding a comma (`lint,fast`) would read
+        # as two. Same slug rule as a rulebook id.
+        if isinstance(check.get("id"), str) and not RULEBOOK_ID_RE.match(check["id"]):
+            res.error("E09", f"check '{cid}': a check declaring 'git_hook' needs a slug id (lowercase alphanumeric with single hyphens) — install lists these ids in the git hook's comma-separated marker")
     if "enforcer" in check and ev is None:
         res.warn("E09", f"check '{cid}': enforcer declared without 'event' — install cannot auto-register this hook until the manifest declares its trigger")
     if enf == "partial" and "gap" not in check:

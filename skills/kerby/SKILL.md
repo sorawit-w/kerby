@@ -263,13 +263,13 @@ Check whether the rules are currently loaded.
    - Per check, one row: `<id> — <kind> — declared: <enforcement> — effective: <enforcement>` plus the `gap` text for `partial` checks. **Effective enforcement**: for `hard`/`partial` checks, the declared level holds only if the check's enforcer is actually registered — detect it with the **exact-tuple test** (`install` § Detect already-managed entries): the check is bound iff the **binding predicate** holds (`install` § 5 — the single authority; `hooks` and Phase 3 apply the same one): for an install-owned enforcer, a launcher that is present, marked, and `-x`, a canonical launcher-form entry matching `(event, matcher, relpath)`, and `<pointer-root>/<relpath>` `-x` where the pointer root is read from `~/.claude/kerby/install-root` — the launcher's only resolver; for an external enforcer, an entry matching `(event, matcher, exact resolved script path)` whose script is `-x` — never just the filename, so two external rulebooks that share a hook basename are tracked independently. A **legacy bare-path** entry — the pre-9.27 shape, an absolute path under a kerby hook root — whose file is `-x` reads `registered (legacy path — re-run kerby install to rewrite)` and counts bound; one whose file is gone is the `registered script missing` case below. **An external rulebook's enforcer bound from its own folder counts as bound** (not degraded). Unregistered → effective is `behavioral`; mark it `not registered (behavioral only)`, and for a `recommended`-tier check (contract § Hook tiers) append the standing notice `— recommended; not enforcing until kerby install binds it`. **The label states state, never intent:** declines are not persisted, so `status` cannot distinguish "the user declined this" from "nobody has run install here" — any wording implying a choice was made is a guess, and one that tells a user to undo a decision they took deliberately. **Report the consequence with its true sign, then stop.** An unregistered `recommended` check is a `block`-severity protection that is not running: say that it is not enforcing, never that something is now permitted, unblocked, or safe, and draw no operational conclusion about what the user may do next. This is not hypothetical — an evaluator run closed a `protect-env`-unregistered panel with "your overnight `.env` writes are unblocked", turning a report that credentials had lost their only guard into good news. `status` reports state; what to do about it is the user's call, not a recommendation kerby makes on their behalf. **A registered entry whose script is gone is flagged, never counted bound:** if a settings entry matches a kerby-managed root (the `install` § 5 "managed?" predicate) but its command path no longer resolves to an existing script — the state a builtin rename or removal can leave behind — list it as `registered script missing — re-run kerby install`, and report its check's effective enforcement as `behavioral` (degraded). **A managed entry whose script exists but whose tuple is not in the CANDIDATE set is an orphan, and is reported too:** list it as `orphaned registration — re-run kerby install`. **Except in global `~/.claude/settings.json`**, where an entry outside this project's candidate set may simply belong to another project — report those as `registered by another project's selection (global settings)` and offer no remediation, because there is none this project can run: `install` will not prune it either (step 5's scope rule), and telling the user to re-run a command that cannot help is the non-terminating loop this row exists to avoid. This is the state a `matcher`/`event` change leaves behind, and the only way a user finds out the entry is still firing. **Whether the check's own row also degrades depends on the case, and both must be reported independently:** if the current tuple is registered alongside the orphan, the check reads bound and only the orphan row appears; if only the *old* tuple is registered, the check is unbound and reads `not registered (behavioral only)` **as well as** producing an orphan row. Never infer one from the other. Without this row the step-5 prune that clears it has no discovery path, and the mismatch stays invisible while `status` reports healthy. `behavioral` checks show `behavioral (by design)`.
    - **Git-hook binding (only for checks declaring `git_hook`).** Degrade must be visible, but **every state must name who acts on it** — kerby, via `install` or `uninstall`, or the user, with the specific thing to do. A label with no actor is the loop this section already shipped once; "kerby cannot fix this, here is what you do" is an actor, "re-run install" when install does nothing is not. Check `core.hooksPath` with `git config --get --show-origin core.hooksPath` **first and directly**; do not resolve it with `git rev-parse --git-path hooks`, which returns the *configured* dir and therefore can never find a dormant file in `.git/hooks` to report on.
      **Which file:** always the repo's **default** hooks dir (`<git-common-dir>/hooks`), never the dir `core.hooksPath` points at. Compare the two as resolved paths before calling anything shadowed: `core.hooksPath` set *to the default dir itself* changes nothing, and reporting that as dormant would be wrong in both directions — git is running kerby's hook. kerby writes there and only there — Phase 3 refuses when `core.hooksPath` points somewhere *else* — so that is the only place its hook can be, and looking through the config instead would both miss a dormant hook left from before the config changed and pick up files kerby never wrote.
-     - `git-hook: installed but not running — core.hooksPath=<value> (<origin>)` — git runs hooks from that dir instead, so kerby's file is dormant. It is not gone; removing the config makes git run it again **provided it passes the enforcing test** — a dormant hook that is `0644`, or whose scanner is not `-x`, will come back still failing open. `kerby uninstall` removes it — ownership is the marker, so a dormant hook from an older kerby is still kerby's to clear. `install` will not add one while the config points elsewhere.
+     - `git-hook: installed but not running — core.hooksPath=<value> (<origin>)` — git runs hooks from that dir instead, so kerby's file is dormant. It is not gone; removing the config makes git run it again **provided it passes the enforcing test** — a dormant hook that is `0644`, or one of whose scanners is not `-x`, will come back still failing open. `kerby uninstall` removes it — ownership is the marker, so a dormant hook from an older kerby is still kerby's to clear. `install` will not add one while the config points elsewhere.
      - `git-hook: not enforcing — core.hooksPath=<value> (<origin>)` — the config is set and kerby has no hook here. Note this says nothing about whether *some* hook runs: a manually wired one in the configured dir may well be enforcing. kerby only reports on its own. **You** decide whether that dir's hooks cover you; kerby will not add one there, and `install` will keep refusing while the config points elsewhere.
-     - `git-hook: installed` — present, byte-identical, executable, and its scanner passes `-x`.
-     - `git-hook: installed but its scanner is not executable` — the hook is ours and runs, but the enforcer it points at is missing or not `-x`, so the hook's own guard exits 0 on every commit. **You** fix this, not kerby: `chmod +x` the scanner if it is merely mis-permissioned, otherwise reinstall whatever ships it — the kerby skill for a builtin rulebook's enforcer, or the external rulebook itself for one of theirs. Re-running `kerby install` cannot restore a file that is not there. Test `-x`, never mere existence — a `0644` scanner passes an existence check and still fails the guard.
+     - `git-hook: installed` — present, byte-identical to the template for the current in-scope set (`install` § Phase 3), executable, and every scanner it runs passes `-x`.
+     - `git-hook: installed but a scanner it runs is not executable — <id>` — the hook is ours and runs, but the enforcer that check's line points at is missing or not `-x`, so that line's guard skips it on every commit while the other lines still run. Name each such check id. **You** fix this, not kerby: `chmod +x` the scanner if it is merely mis-permissioned, otherwise reinstall whatever ships it — the kerby skill for a builtin rulebook's enforcer, or the external rulebook itself for one of theirs. Re-running `kerby install` cannot restore a file that is not there. Test `-x`, never mere existence — a `0644` scanner passes an existence check and still fails the guard.
      - `git-hook: installed but not executable` — git skips it silently. `re-run kerby install` (which chmods it).
      - `git-hook: not installed` — nothing at that path. `kerby install` offers it.
-     - `git-hook: installed, but not the current template` — carries kerby's marker, bytes differ (an older kerby wrote it, or it was hand-edited). It still runs. `re-run kerby install` rewrites it after showing you the diff.
+     - `git-hook: installed, but not the current template` — carries kerby's marker, bytes differ (an older kerby wrote it, it was hand-edited, or it runs a different set of checks than the current selection declares — an older one-check file, or a selection that changed since). Name the ids its marker carries and the ids it should carry. It still runs. `re-run kerby install` rewrites it after showing you the diff.
      - `git-hook: a different pre-commit hook is present` — no kerby marker, so not ours whoever wrote it. kerby will not modify or remove it; that file is yours.
 
    - **Stale builtin pin (report-only):** when a `selected` entry with install-resolved builtin identity carries a `version` differing from the installed manifest's, render its header row as `<id>@<pin-version> (builtin — install has <new-version>; next load re-pins)`. `status` never writes the lockfile — the reconcile itself belongs to `load`/`reload`.
@@ -708,6 +708,8 @@ Offered only when **at least one in-scope check declares `git_hook`** (contract 
 
 **Why it exists.** The Claude Code hook fires *before* a Bash command runs and reads the command **text**, so it structurally cannot see `git add x && git commit` (nothing is staged yet), a target named by a variable, or an alias. Git hands its own hook the real index. The two are complementary and **both are kept**: the git hook cannot see `git commit --no-verify`, which the PreToolUse hook can.
 
+**One file, every check.** Git runs exactly one `pre-commit`, so every in-scope check whose `git_hook` is `pre-commit` runs from the same file. Order: install-owned checks first, in merge order (the floor's checks first, per merge rule 1, then each rulebook in `selected` order, checks in manifest order), then approved external checks in merge order. The marker names every id the file runs, comma-separated with no spaces: `# kerby-managed:<id>,<id>`. Phase 3 is **one decision for the whole file** — there is no per-check decline, so a check declined in Phase 2 still runs here once Phase 3 is accepted, and the prompt says so. "Current" (step 3 below) means byte-identical to the template rendered from the **full** in-scope set; a file that runs fewer or other checks — an older kerby's one-check file included — is ours-but-not-current and takes the diff-and-rewrite branch.
+
 **Preconditions — check in this order, and skip with a reason rather than writing a file that cannot work:**
 
 1. **`core.hooksPath` is set to a different dir than the default** (`git config --get --show-origin core.hooksPath`, then compare resolved paths — set to the default dir itself is a no-op, not shadowing) → git runs hooks from there, so a file written to the default dir would sit dormant. Skip, naming the config origin. A **husky** repo usually presents with nothing at the default `pre-commit` path, so an existence-first test would wrongly read that as a free slot; note it can also present *with* a dormant hook, if kerby installed before husky was enabled.
@@ -721,39 +723,46 @@ Offered only when **at least one in-scope check declares `git_hook`** (contract 
 
 **The prompt** (literal — install copy carries no persona, per `VOICE.md` § Zoning):
 
-> Also install a git `pre-commit` hook in this repo? It runs the secret scan inside git at commit time, so it catches what the pre-command check cannot see — `git add x && git commit`, aliases, and a target named by a variable. Writes `<resolved hooks dir>/pre-commit` (this clone only — git hooks are never cloned, so teammates are not covered). Bypassable per-commit with `git commit --no-verify`. [y/n]
+> Also install a git `pre-commit` hook in this repo? It runs `<id>, <id>` inside git at commit time, so it catches what the pre-command check cannot see — `git add x && git commit`, aliases, and a target named by a variable. One answer covers every check listed; a check you declined in Phase 2 still runs here. Writes `<resolved hooks dir>/pre-commit` (this clone only — git hooks are never cloned, so teammates are not covered). Bypassable per-commit with `git commit --no-verify`. [y/n]
+
+The `<id>` list is the in-scope check ids, in file order, copied from the manifests.
 
 **Phase 3 has its own launcher and pointer preflight.** Phases are independently skippable, so a `none` at Phase 2 must not leave Phase 3 writing a hook whose launcher does not exist. Run the step 4a classification here too, stage what it finds, show it in this phase's own diff, and apply it on this phase's `y` before the hook file is written. This applies to install-owned enforcers only; the external template below needs neither.
 
-**What gets written** — every field rendered from the declaring check's manifest. Two templates, chosen by where the enforcer resolves (step 1 § Written form): an **install-owned** enforcer goes through the launcher, so the hook survives an install that moves; an **approved external** enforcer keeps the guarded absolute path, because it lives outside the install and has no install-relative path.
-
-Install-owned:
+**What gets written** — one file, every field rendered from the declaring checks' manifests. Each check gets one of two line shapes, chosen by where its enforcer resolves (step 1 § Written form): an **install-owned** enforcer goes through the launcher, so the hook survives an install that moves; an **approved external** enforcer keeps the guarded absolute path, because it lives outside the install and has no install-relative path. An external runs as a child, not `exec`, for the same reason the launcher runs its target as a child: an executable whose interpreter is missing exits 126/127, and inside git that blocks every commit. Those two statuses become the visible fail-open; every other status passes through (a scanner that itself exits 126/127 is reported the same way — the same ceiling the launcher documents).
 
 ```sh
 #!/bin/sh
-# kerby-managed:<check-id> — remove with `kerby uninstall`
+# kerby-managed:<id>,<id> — remove with `kerby uninstall`
 # bypass once: git commit --no-verify
-[ -x "<home>/.claude/kerby/bin/hook" ] || { echo "kerby: hook launcher missing at <home>/.claude/kerby/bin/hook — NOT scanning this commit; run 'kerby install'." >&2; exit 0; }
-exec "<home>/.claude/kerby/bin/hook" git-hook <relpath> --git-hook
+L="<home>/.claude/kerby/bin/hook"
+if [ -x "$L" ]; then
+  "$L" git-hook <relpath> --git-hook || exit $?
+  "$L" git-hook <relpath> --git-hook || exit $?
+else
+  echo "kerby: hook launcher missing at $L — NOT scanning <id>,<id> in this commit; run 'kerby install'." >&2
+fi
+if [ -x "<abs enforcer path>" ]; then
+  "<abs enforcer path>" --git-hook; rc=$?
+  case $rc in
+    0) ;;
+    126|127) echo "kerby: scanner at <abs enforcer path> could not be launched (exit $rc) — NOT scanning <id> in this commit. Repair the rulebook that ships it." >&2 ;;
+    *) exit $rc ;;
+  esac
+else
+  echo "kerby: scanner missing or not executable at <abs enforcer path> — NOT scanning <id> in this commit. Repair the rulebook that ships it; re-running 'kerby install' cannot restore it." >&2
+fi
+exit 0
 ```
 
-External — a child, not `exec`, for the same reason the launcher runs its target as a child: an executable whose interpreter is missing exits 126/127 from a bare `exec`, and inside git that blocks every commit. Those two statuses become the visible fail-open; every other status passes through (a scanner that itself exits 126/127 is reported the same way — the same ceiling the launcher documents):
+One `"$L" …` line per install-owned check, in file order, and one `if [ -x "<abs enforcer path>" ]` block per external check. The launcher block lists the install-owned ids in its warning; it is left out when there is no install-owned check, and the file has no external block when there is no external check.
 
-```sh
-#!/bin/sh
-# kerby-managed:<check-id> — remove with `kerby uninstall`
-# bypass once: git commit --no-verify
-[ -x "<abs enforcer path>" ] || { echo "kerby: scanner missing or not executable at <abs enforcer path> — NOT scanning this commit. Repair the rulebook that ships it; re-running 'kerby install' cannot restore it." >&2; exit 0; }
-"<abs enforcer path>" --git-hook; rc=$?
-case $rc in 126|127) echo "kerby: scanner at <abs enforcer path> could not be launched (exit $rc) — NOT scanning this commit. Repair the rulebook that ships it." >&2; exit 0 ;; esac
-exit $rc
-```
-
-Three deliberate properties:
+Four deliberate properties:
 
 - **The existence guard is not optional, and it now has two layers.** A bare `exec` at a path that later moves makes git abort *every* commit with 127 — the worst outcome available here, with a non-obvious escape. Warn and `exit 0` instead: failing open on a vanished scanner beats wedging a repo. The hook's own guard covers a missing *launcher*; a missing or moved *scanner* is the launcher's own fail-open (stderr, `exit 0`, in `git-hook` mode). Same doctrine, and the second layer is what lets the hook survive an install that moves — the scanner path is resolved at commit time, not baked in.
 - **`chmod +x`, then verify the mode took.** Git skips a non-executable hook **silently** — a fail-open that reports success.
 - **The file names its own escape**, so a user facing an unexpected block finds the answer in the file rather than the docs.
+- **A per-check fail-open never ends the file.** No line before the last may `exit 0`: the launcher guard wraps only the launcher lines, and an external block's warnings fall through, so one missing scanner never silences the checks after it. Any other non-zero status stops the file with that status — the first blocking check wins, which is why the floor's checks run first.
 
 **The enforcing test — one place, every outcome.** Before Phase 3 reports a hook as
 installed *by any route* — freshly written, already present, or just `chmod`ed — verify
@@ -763,24 +772,24 @@ exited 0 on every commit. It is a postcondition on the phase, not a step in a pa
 
 1. **The hook file is executable** (`[ -x <hook> ]`). Git skips a non-executable hook
    silently.
-2. **The binding predicate holds** (`install` § 5): for an install-owned hook, the launcher
-   exists, carries its marker, and is `-x` — *exactly* what the hook's own guard tests —
+2. **The binding predicate holds for every line** (`install` § 5): for each install-owned
+   line, the launcher exists, carries its marker, and is `-x` — *exactly* what the hook's own guard tests —
    **and** `<pointer-root>/<relpath>` is `-x`, with the pointer root **read back from
    `~/.claude/kerby/install-root`**, never taken from this session's resolved root: the
-   launcher consults only that file, so only that file predicts what it will run. For an
-   external hook, the absolute enforcer path is `-x`. Mirror the guards, never mere existence. A scanner at mode `0644` exists, fails
-   the launcher's guard, and the hook exits 0. **Any check weaker than the guard it stands in for is
+   launcher consults only that file, so only that file predicts what it will run. For each
+   external line, the absolute enforcer path is `-x`. Mirror the guards, never mere existence. A scanner at mode `0644` exists, fails
+   the launcher's guard, and that line exits 0. **Any check weaker than the guard it stands in for is
    a false green by construction**, which is why this mirrors the guard rather than
    approximating it.
 
-Either failing → do **not** report installed. Name the path and say the hook is failing
-open until it is fixed. `chmod` on the hook is install's to do; a non-executable or
+Either failing → do **not** report installed. Name the failing line's check id and path,
+and say that check is failing open until it is fixed. `chmod` on the hook is install's to do; a non-executable or
 missing *enforcer* means the kerby install itself is broken, and rewriting the hook cannot
 fix that.
 
 **Summarize:**
 
-> Phase 3: installed `<hooks-dir>/pre-commit` → `<check-id>`. Skipped: `<reason>`.
+> Phase 3: installed `<hooks-dir>/pre-commit` → `<id>, <id>`. Skipped: `<reason>`.
 
 ### Idempotency and re-runs
 
@@ -842,12 +851,12 @@ If `y`:
 
 ### Git `pre-commit` hook
 
-For each in-scope check declaring `git_hook`, look at the hook at the resolved hooks dir. Look in the same place `install` writes — the repo's **default** hooks dir, never the one `core.hooksPath` points at — and use the same ownership test: **the `kerby-managed:` marker**, not byte-identity. A hook kerby wrote with an older template, or against an install root that has since moved, is still kerby's to remove; requiring byte-identity would strand exactly the hooks an upgrade leaves behind.
+When any in-scope check declares `git_hook`, look at the one `pre-commit` hook at the resolved hooks dir. Look in the same place `install` writes — the repo's **default** hooks dir, never the one `core.hooksPath` points at — and use the same ownership test: **the `kerby-managed:` marker**, not byte-identity. A hook kerby wrote with an older template, or against an install root that has since moved, is still kerby's to remove; requiring byte-identity would strand exactly the hooks an upgrade leaves behind.
 
 - **Marker present** → include it in the removal confirmation, showing its content.
 - **No marker** → not ours. Left in place, never mentioned in the removal set.
 
-A scoped `uninstall <rulebook>` removes only the git hooks whose marker names a check from *that* rulebook — the marker carries the check id precisely so this is decidable.
+A bare `uninstall` removes the whole file. A scoped `uninstall <rulebook>` touches it only when its marker names a check from *that* rulebook — the marker carries the check ids precisely so this is decidable. It re-renders the file with the Phase 3 template from the ids that remain, shows the diff, and asks; the remaining checks keep running. When no ids remain, it removes the file instead. If a remaining id no longer resolves to a check in the current selection, leave the file as it is and report that id, rather than write a line kerby cannot derive.
 
 ### Lock-hygiene `.gitignore` entry
 
