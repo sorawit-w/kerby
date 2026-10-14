@@ -1442,3 +1442,11 @@ Commit: d0aadca
 Status: DONE (pending the Codex re-review and the fresh-session re-run on this SHA)
 Notes: skill-evaluator (in-session, split-role): clean on skill text (23/27) at d0aadca — 2026-10-14. One skill-text miss (delete not counted toward the refactor threshold) fixed and re-checked by a fresh executor and grader; the remaining misses are rubric (a test assumed a stored index is consulted for a precision question; a test asserted exactly one tool-gap line where two layers legitimately fired). skill-evaluator (fresh-session) at 2e3741f: 44/48, one skill-text finding (prepare route never loaded the suggestion rule), fixed here. Codex: four findings — three fixed here, one (no motivating failure) accepted by the maintainer and stated in the PR body.
 Observations: three executors and three file-save requests were stopped by the model's safety filter (reasoning_extraction); rephrasing the brief to drop "reasoning" wording cleared the reruns.
+
+[2026-10-14T00:00:00Z]
+Task: Codex round 2 on code-intelligence routing — refactor gap threshold matches the operation
+Action: the refactor tool-gap threshold now fires when a rename, move or delete was done by hand because no connected tool could do that operation; a rename tool does not count for a move or delete.
+Files: skills/kerby/rulebooks/swe/references/working-patterns.md, .kerby/memory.log
+Commit: (pending)
+Status: DONE (pending the fresh-session re-run on this SHA and Codex)
+Notes: skill-evaluator (in-session, split-role): clean (5/5) on the changed line — move with a rename-only Serena connected: no rename tool used, usages found first, typecheck after, `tool gap: Refactor` reported. Codex's other round-2 comment (fresh-session gate on the fixed tree) is the re-run already in progress.

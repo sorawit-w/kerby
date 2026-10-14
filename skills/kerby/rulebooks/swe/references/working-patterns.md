@@ -77,7 +77,7 @@ Tool names, setup, and caveats (licences, Graphify's auto-knowledge-base clash w
 
 **In the final report, add a `tool gap:` line only if the gap cost this task something real.** That means at least one of:
 
-- A rename, move, or delete touched 3+ files and no refactor-layer tool was connected.
+- A rename, move, or delete touched 3+ files by hand, because no connected tool could do that operation (a rename tool does not count for a move or delete).
 - Discovery took 3+ rounds before you found the right code (a round is one search plus the reads that follow it).
 - A change to shared code needed impact analysis and no impact-layer tool was connected.
 
