@@ -58,8 +58,8 @@ Code-intelligence tools answer different questions. Pick the **layer** from the 
 | "Did my edit break types or imports?" | Diagnostics | Diagnostics the harness reports after each edit (e.g. a Claude Code LSP plugin) → IDE MCP problems tool → the project's own type-check / lint command |
 | "Where is X defined? Who uses X?" | Precision | IDE MCP → LSP / Serena symbol tools → `rg`, then read the hits |
 | "Rename X safely" | Refactor | IDE MCP rename → Serena rename → per-file edits, then re-run the diagnostics layer |
-| "Move or delete X safely" | Refactor | Find every usage first (Precision layer) → the IDE's move or safe-delete, if your tool list has one → per-file edits, then re-run the diagnostics layer. A rename tool does neither |
-| "Where do we handle <concept>?" | Discovery | Code-graph MCP hybrid search (SocratiCode; also cross-project and branch-aware) → `rg` with synonyms, then read the entry points |
+| "Move or delete X safely" | Refactor | Find every usage first (Precision layer) → any connected move or safe-delete tool (IDE MCP; Serena has safe-delete) → per-file edits, then re-run the diagnostics layer. A rename tool does neither |
+| "Where do we handle <concept>?" | Discovery | Code-graph MCP hybrid search (SocratiCode; also cross-project and branch-aware) → IDE MCP content search (`search_in_files_content`) → `rg` with synonyms, then read the entry points |
 | "What breaks if I change X?" | Impact | Code-graph MCP impact / call-flow → IDE find-usages → `rg` for the symbol; follow each caller in turn |
 | "How is this repo organized?" | Comprehension | Code-graph MCP graph, or Graphify on demand → manifests, entry points, `.kerby/knowledge/` |
 
@@ -69,7 +69,7 @@ Code-intelligence tools answer different questions. Pick the **layer** from the 
 - A live index (IDE, LSP) beats a stored index (code-graph MCP, Graphify) on any symbol.
 - A stored index is a snapshot. Before you trust it, compare its build time with recent commits. If it has no build time, or is older than them, check what you take from it with `rg` or the compiler.
 
-Tool names, setup, and caveats (licences, Graphify's auto-knowledge-base clash with `.kerby/knowledge/`) live in `references/external-resources.md`. Names differ between versions, so use what your tool list shows, not the names in this table.
+Tool names, setup, and caveats (licences, Graphify's auto-knowledge-base clash with `.kerby/knowledge/`) live in `references/external-resources.md`. Names differ between versions, so use what your tool list shows, not the names in this table. The tools in each chain are examples, not a closed list: any connected tool that does a step's operation counts for that step.
 
 #### When a better tool is missing
 
