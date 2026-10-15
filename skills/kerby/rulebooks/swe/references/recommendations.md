@@ -86,6 +86,7 @@ If the agent doesn't support registry search, fall back to naming the MCP catego
 | `storybook` in package.json but `@storybook/test-runner` is not | Tool | @storybook/test-runner | Storybook is installed without auto-render-smoke | Every story becomes a Playwright-driven render test for free |
 | Brand/logo/visual identity work | Skill | Brand workshop | Visual brand not yet defined | Facilitate collaborative brand exploration |
 | Multiple languages in codebase (JS, Python, Go, etc.) | Skill | i18n (if content) or multi-language support skill | Polyglot codebase | Support development across multiple language ecosystems |
+| Large or unfamiliar repo at onboarding (`prepare`, `adopt-existing`, new project), no diagnostics or code-graph tool connected | MCP / Plugin | Code-intelligence tool for the missing layer (e.g., LSP plugin, JetBrains MCP, SocratiCode) | Onboarding only — never mid-task | `references/working-patterns.md` § Code-Intelligence Routing; mid-task gaps go in the report's `tool gap:` line instead |
 | Complex refactor or multi-file changes | Delegation | Sub-agent | Scope affects many files | Parallelize refactoring to speed execution |
 
 ---

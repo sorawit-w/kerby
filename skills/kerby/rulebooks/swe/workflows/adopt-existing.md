@@ -29,6 +29,7 @@ Read these before starting:
 2. `references/communication.md` — canonical `memory.log` format, commit format
 3. `references/knowledge-management.md` — knowledge entry schema, `confidence` tiers, proposal workflow
 4. `references/domain-glossary.md` — what belongs in `CONTEXT.md`
+5. `references/recommendations.md` — tool suggestions for § 5 Finish (suggest only; the ring-fence below still forbids installing)
 </pre_work>
 
 ---
@@ -160,6 +161,7 @@ Complete before declaring done:
 5. **`.kerby/memory.log`** onboarding entry appended.
 6. **Shared-state ignore checked** — if a generic pattern hid `.kerby/memory.log`, the `!.kerby/memory.log` negation was proposed and either appended (confirmed) or declined, with the machine-local consequence stated.
 7. **Tell the human what's now agent-drafted and needs review** — especially the `confidence: low` knowledge entries and proposed glossary terms.
+8. **Code-intelligence suggestion, if one is due** — per `references/working-patterns.md` § Code-Intelligence Routing (no diagnostics or code-graph tool connected, and the repo is large or unfamiliar). Suggest only: installing is outside `prepare` even on a yes, so the human installs it or asks for it as its own task.
 </finish>
 
 ---

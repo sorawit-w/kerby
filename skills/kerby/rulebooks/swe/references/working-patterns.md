@@ -25,7 +25,7 @@ For every task:
 
 When the agent's environment exposes IDE-native tools via MCP — most commonly **JetBrains MCP** (IntelliJ IDEA, PyCharm, WebStorm, GoLand, Rider, PhpStorm, Android Studio; bundled in 2025.2+) — **prefer them over generic file/grep tools** for the actions below. The IDE understands type hierarchies, language semantics, and project structure; grep doesn't. The gap matters most for typed languages (Java, Kotlin, Scala, Swift, C#, TypeScript).
 
-You don't need to "check" availability. If the JetBrains MCP tools are connected, they appear in your tool list. If they're not, fall back to the generic tools silently — no commentary needed.
+You don't need to "check" availability. If the JetBrains MCP tools are connected, they appear in your tool list. If they're not, fall back to the generic tools silently mid-task — the only note is the one-line `tool gap:` report in § Code-Intelligence Routing below, and only when the gap cost the task something real.
 
 | Action | Preferred (JetBrains MCP) | Fallback (generic) |
 |---|---|---|
@@ -47,20 +47,43 @@ You don't need to "check" availability. If the JetBrains MCP tools are connected
 - **Dynamic-heavy code where the indexer can't help.** For heavily-dynamic Python, JS with runtime introspection, or codegen-driven symbols, the IDE's `find_usages` / `go_to_declaration` may miss callers grep would catch. If results look incomplete, follow up with `Grep`.
 - **Sanity check disagreements.** If the MCP tool's output is ambiguous, run grep too and reconcile — but don't *default* to grep just because it's familiar.
 
-**When a standalone code-graph MCP (SocratiCode / CodeGraph) is *also* connected:**
-
-The IDE-vs-grep table above still governs symbol work. Route between the IDE MCP and the code-graph MCP by capability — they don't fully overlap:
-
-| Need | Use |
-|---|---|
-| Symbol resolution, go-to-def, rename, inspections | **IDE-native MCP** — live index, compiler-accurate, no staleness |
-| Call-flow / impact / blast-radius / trace | **code-graph MCP** — the IDE MCP has no equivalent |
-| Cross-project / branch-aware / polyglot graph search | **code-graph MCP** |
-| Plain content/symbol search when no IDE MCP is present | **code-graph MCP** — faster than grep on large repos |
-
-Tie-breaker: both keep an index, but the IDE's is live while the code-graph store is AST-derived and can drift. When they disagree on a symbol, trust the IDE. Full capability-gated rationale: the SocratiCode entry in `references/external-resources.md`.
-
 **Setup and the authoritative tool list:** see the JetBrains MCP entry in `references/external-resources.md`. Tool names above are accurate as of JetBrains 2025.2; the [JetBrains YouTrack MCP-Available-Tools article](https://youtrack.jetbrains.com/articles/SUPPORT-A-2156/MCP-Available-Tools) keeps the authoritative list.
+
+### Code-Intelligence Routing
+
+Code-intelligence tools answer different questions. Pick the **layer** from the question first. Then use the best tool for that layer that is connected now. A missing tool never stops the task. The JetBrains table above is the IDE row of this one.
+
+| Question | Layer | Tool chain (best → fallback) |
+|---|---|---|
+| "Did my edit break types or imports?" | Diagnostics | Diagnostics the harness reports after each edit (e.g. a Claude Code LSP plugin) → IDE MCP problems tool → the project's own type-check / lint command |
+| "Where is X defined? Who uses X?" | Precision | IDE MCP → LSP / Serena symbol tools → `rg`, then read the hits |
+| "Rename X safely" | Refactor | IDE MCP rename → Serena rename → per-file edits, then re-run the diagnostics layer |
+| "Move or delete X safely" | Refactor | Find every usage first (Precision layer) → any connected move or safe-delete tool (IDE MCP; Serena has safe-delete) → per-file edits, then re-run the diagnostics layer. A rename tool does neither |
+| "Where do we handle <concept>?" | Discovery | Code-graph MCP hybrid search (SocratiCode; also cross-project and branch-aware) → IDE MCP content search (`search_in_files_content`) → `rg` with synonyms, then read the entry points |
+| "What breaks if I change X?" | Impact | Code-graph MCP impact / call-flow → IDE find-usages → `rg` for the symbol; follow each caller in turn |
+| "How is this repo organized?" | Comprehension | Code-graph MCP graph, or Graphify on demand → manifests, entry points, `.kerby/knowledge/` |
+
+**When sources disagree:**
+
+- Compiler output, tests, and builds beat every index.
+- A live index (IDE, LSP) beats a stored index (code-graph MCP, Graphify) on any symbol.
+- A stored index is a snapshot. Before you trust it, compare its build time with recent commits. If it has no build time, or is older than them, check what you take from it with `rg` or the compiler.
+
+Tool names, setup, and caveats (licences, Graphify's auto-knowledge-base clash with `.kerby/knowledge/`) live in `references/external-resources.md`. Names differ between versions, so use what your tool list shows, not the names in this table. The tools in each chain are examples, not a closed list: any connected tool that does a step's operation counts for that step.
+
+#### When a better tool is missing
+
+**Mid-task: do not ask, and do not stop.** Use the best tool you have. A question in the middle of a task blocks the task, and suggestions belong at onboarding (`references/recommendations.md` § Suggestion Guidelines).
+
+**In the final report, add a `tool gap:` line only if the gap cost this task something real.** That means at least one of:
+
+- A rename, move, or delete touched 3+ files by hand, because no connected tool could do that operation (a rename tool does not count for a move or delete).
+- Discovery took 3+ rounds before you found the right code (a round is one search plus the reads that follow it).
+- A change to shared code needed impact analysis and no impact-layer tool was connected.
+
+Shape, one line per layer that hit a threshold: `tool gap: <layer> — <what the tool would have changed> — see external-resources.md`.
+
+**At onboarding (`prepare`, `adopt-existing`, new project), make one suggestion block** — one tool per missing layer — when no diagnostics or code-graph tool is connected and the repo is large or unfamiliar. Use the format in `references/recommendations.md` § How to Present Suggestions, and name the cost: memory, setup, and whether any code leaves the machine. Install nothing without an explicit yes; on the `prepare` route, install nothing at all (its ring-fence).
 
 ---
 

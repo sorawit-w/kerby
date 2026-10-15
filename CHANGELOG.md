@@ -3,6 +3,17 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [10.4.0] — 2026-10-14
+
+**swe 2.15.0 — code-intelligence tools are routed by the question.** `working-patterns.md` routed only between a JetBrains MCP and a code-graph MCP. It said nothing about LSP plugins, Serena or Graphify, and nothing about what to do when the right tool is missing.
+
+- **One table, six layers.** § Code-Intelligence Routing maps a question to a layer — diagnostics, precision, refactor, discovery, impact, comprehension — and each layer to a best-to-fallback chain that ends in plain `rg` and reading. It replaces the JetBrains-vs-code-graph block; that block's routes and its tie-breaker are kept. Two tie-breakers join it: compiler output, tests and builds beat every index, and a stored index is checked against recent commits before it is trusted.
+- **A missing tool never stops the task.** Mid-task the agent does not ask; it uses the best tool it has. If the gap cost the task something real (a rename across 3+ files with no refactor tool, discovery that took 3+ rounds, shared-code impact with no impact tool), the report carries one `tool gap:` line. Install suggestions happen once, at onboarding, in the existing `recommendations.md` format, and nothing installs without an explicit yes. § IDE-Aware Tools' "fall back silently" sentence now points here, so the two sections agree.
+- **Reachable where it applies.** The BOOTSTRAP reference index names code-intelligence routing, so routes that do not read `working-patterns.md` can find it; `adopt-existing.md` (the `prepare` route) now reads `recommendations.md` and ends with a suggest-only Finish item, because its pre-reads never loaded the onboarding suggestion and its ring-fence forbids installing. Rename and move/delete are separate rows: a rename tool does neither of the others, so a move or delete finds every usage first.
+- **One route changed on purpose.** The old block sent plain symbol search to the code-graph MCP when no IDE MCP was connected. "Where is X defined, who uses X?" now goes IDE MCP → LSP / Serena → `rg`, because a stored index loses to a live search on a symbol; the code-graph MCP stays the Discovery and Impact route. In the in-session audit an executor with a stale SocratiCode index connected took `rg` for a precision question and found the caller the index had missed.
+- **Nothing is stored.** An earlier draft recorded declined tools in `agent-context.yaml`. That file is committed and shared by the team, and a tool decline is one developer's choice; suggesting only at onboarding made the record unnecessary.
+- **Registry.** `external-resources.md` gains rows for Claude Code LSP plugins (terminal sessions only; the language-server binary is a separate install) and Serena (tool names vary by version). Its note asking for this rule to be generalized now says the routing section is that generalization. `recommendations.md` gains one onboarding signal row.
+
 ## [10.3.0] — 2026-10-09
 
 **swe 2.14.0 — the STATUS.md check holds however the commit is typed.** In a sibling repo an agent committed a STATUS.md naming a branch, a pull-request number and a review state. The commit-time guard was registered and never ran: it acted only when the command text started with `git commit`, and every commit there started `cd /path/to/repo; git add … && git commit`. Two doors now cover each other's holes.
