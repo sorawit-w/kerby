@@ -1509,3 +1509,11 @@ Files: skills/kerby/rulebooks/swe/references/{design-md,html-export,external-res
 Commit: 266c7d1, 9a5864a
 Status: DONE (pending Codex on this push)
 Notes: skill-evaluator: clean (6/6) at 9a5864a — 2026-10-20 (in-session, split-role; new test 12 token edit on docs/ui-design.md 4/4, new test 13 export with packages/app/DESIGN.md 2/2). Rounds 1 and 2 were one class (a rule still keyed on a root DESIGN.md); the one-definition line is the structural exit rather than a third per-site patch.
+
+[2026-10-20T00:00:00Z]
+Task: Codex round 3 on the swe design-skills change (two P2 findings; third round of the root-only class)
+Action: (1) design-md.md § Location suggests a move to the root only for a repo-level spec or a single-package repo; a package's own spec stays in its package. (2) Swept the whole rulebook for root-only DESIGN.md checks instead of patching the cited line: recommendations.md (two signal rows, two checklist lines), external-resources.md (the authority note), templates/html-export.html.template (override comment), workflows/adopt-existing.md (the "lacks one" line) now all refer to the spec § Location finds.
+Files: skills/kerby/rulebooks/swe/references/{design-md,recommendations,external-resources}.md, skills/kerby/rulebooks/swe/templates/html-export.html.template, skills/kerby/rulebooks/swe/workflows/adopt-existing.md, CHANGELOG.md, .kerby/memory.log
+Commit: f47c29a
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (6/6) at f47c29a — 2026-10-20 (in-session, split-role; new test 14 package spec used for its own package with no move-to-root 3/3, new test 15 prepare with docs/report-design.md proposes no new spec 3/3). Circuit breaker: if Codex returns this class a fourth time, stop and ask Kiang rather than patch. Codex's round-3 review was recorded against b1358c0, not cc1a407; the merge gate needs a review of the current head.
