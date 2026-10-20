@@ -21,7 +21,7 @@ If both conditions hold, this rule overrides any local guess about design tokens
 
 `DESIGN.md` lives at the repo root. If the root has none, look for the spec elsewhere before inventing tokens: a `DESIGN.md` in another folder, or a Markdown file in DESIGN.md format under another name — YAML design tokens such as `colors:` and `typography:`, often `docs/*design*.md`.
 
-- **Exactly one candidate, and it covers the UI you are changing** — it sits at the repo level (such as `docs/`) or inside that UI's own package → use it, tell the developer which file you used, and suggest moving it to the root.
+- **Exactly one candidate, and it covers the UI you are changing** — it sits at the repo level (such as `docs/`) or inside that UI's own package → use it and tell the developer which file you used. Suggest moving it to the root only when it is a repo-level spec or the repo has one package; a package's own spec stays in its package, because a root file would govern every package.
 - **Two or more, or the only one sits in a different package** → list them and ask which one is authoritative. Do not silently pick one.
 
 One exception: the `brand-workshop` skill emits `DESIGN.md` to its own output folder, and the founder moves it to the root when adopting. A spec found only in that output folder is a draft not yet adopted — ask before treating it as authoritative.

@@ -10,9 +10,9 @@
     {{SOURCE}}   source Markdown filename, e.g. postmortem.md
     {{DATE}}     export date, e.g. 2026-05-22
 
-  Styling override surface: the :root block below. When a DESIGN.md exists at
-  repo root, overwrite these custom properties with DESIGN.md tokens and change
-  nothing else. With no DESIGN.md, ship this default as-is.
+  Styling override surface: the :root block below. When a design spec exists
+  (references/design-md.md § Location), overwrite these custom properties with
+  its tokens and change nothing else. With no spec, ship this default as-is.
 -->
 <html lang="en">
 <head>
