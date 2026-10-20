@@ -1485,3 +1485,11 @@ Commit: (pending)
 Status: DONE (pending Codex)
 Notes: skill-evaluator: 36/37 pass, 1 unclear at 5b5acf8 — 2026-10-20 (in-session, split-role). The unclear item (test 6): the executor ran the render check, then a read-only taste-skill re-check after it, so "verify the render — always last" did not say whether a read-only check may follow. Not fixed in this run; candidate wording "after the last edit". Test 5: with the developer's explicit #ff0000, the executor still stopped to confirm adding the token to the spec, per the existing § Editing Safety diff-and-confirm rule.
 Observations: all 8 executors found the spec under another name or correctly found none; none mentioned ui-ux-pro-max; the non-UI bug run did not search for a spec.
+
+[2026-10-20T00:00:00Z]
+Task: fix the evaluator's one unclear item and re-run test 6
+Action: § Design skills "Verify the render" cell now reads "After the last edit; a read-only check may follow" (was "Always last"); the external-resources pointer, CHANGELOG and README say the same. Test 6 re-run with a fresh executor and grader; its T3 rubric was reworded to the new rule before the output was read.
+Files: skills/kerby/rulebooks/swe/references/design-md.md, skills/kerby/rulebooks/swe/references/external-resources.md, CHANGELOG.md, README.md, .kerby/memory.log
+Commit: 3e36d44
+Status: DONE (pending Codex)
+Notes: skill-evaluator: clean (5/5) on test 6 at 3e36d44 — 2026-10-20 (in-session, split-role). Tests 1–5, 7, 8 ran at 5b5acf8 (32/32); 3e36d44 changed only the render-verify wording, which test 6 covers. Test 5's "screenwright last" plan still satisfies the new wording.
