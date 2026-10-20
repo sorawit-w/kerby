@@ -1476,3 +1476,12 @@ Commit: f89755d
 Status: DONE (pending in-session skill-evaluator and Codex review)
 Notes: Handoff corrections — `version` is optional in the DESIGN.md spec, so the format test keys on `colors:`/`typography:`; the old Location rule said ask, so "use the single candidate" is a stated behavior change; impeccable `init` writes PRODUCT.md, so greenfield routes to brand-workshop. Skill picks live in swe, not user-local, because the team has no access to the user's private routing skill. Local ui-ux-pro-max plugin and its marketplace uninstalled; the claude.ai-synced copy was disabled locally and must be removed in claude.ai.
 Observations: check-skill-compat.py OK (version parity 10.5.0); swe validator 0 warnings; grep finds no ui-ux-pro-max in skills/, docs/, README.md. team-composer (agent-skills repo) and the user's private webdev-defaults skill still mention ui-ux-pro-max.
+
+[2026-10-20T00:00:00Z]
+Task: in-session skill-evaluator on the swe design-skills change
+Action: split-role run, 8 tests (one spec, two specs, brand-workshop draft, non-UI bug, three-skill split with pure red, only taste-skill installed, new UI no spec, existing UI no spec); executors read the branch's rulebook, graders saw no rule text.
+Files: .kerby/memory.log
+Commit: (pending)
+Status: DONE (pending Codex)
+Notes: skill-evaluator: 36/37 pass, 1 unclear at 5b5acf8 — 2026-10-20 (in-session, split-role). The unclear item (test 6): the executor ran the render check, then a read-only taste-skill re-check after it, so "verify the render — always last" did not say whether a read-only check may follow. Not fixed in this run; candidate wording "after the last edit". Test 5: with the developer's explicit #ff0000, the executor still stopped to confirm adding the token to the spec, per the existing § Editing Safety diff-and-confirm rule.
+Observations: all 8 executors found the spec under another name or correctly found none; none mentioned ui-ux-pro-max; the non-UI bug run did not search for a spec.
