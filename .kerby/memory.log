@@ -1501,3 +1501,11 @@ Files: skills/kerby/rulebooks/swe/references/{design-md,html-export,external-res
 Commit: 64928b2
 Status: DONE (pending Codex on this push)
 Notes: skill-evaluator: clean (16/16) at 64928b2 — 2026-10-20 (in-session, split-role; test 1 re-run 5/5, new test 9 monorepo 4/4, new test 10 HTML export 3/3, new test 11 impeccable+screenwright 4/4). Assertions written before executor output.
+
+[2026-10-20T00:00:00Z]
+Task: Codex round 2 on the swe design-skills change (two P2 findings, same class as round 1)
+Action: design-md.md defines "the spec" once at the top as the file § Location selects, whatever its folder or name, and says every DESIGN.md rule (Authority, Design skills, Editing Safety, Conflict Resolution) and every rule that points here applies to it; lint and export commands take `<spec path>`; html-export.md step 1 points to the selected file; the external-resources DESIGN.md row lints `<spec path>`.
+Files: skills/kerby/rulebooks/swe/references/{design-md,html-export,external-resources}.md, CHANGELOG.md, .kerby/memory.log
+Commit: 266c7d1, 9a5864a
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (6/6) at 9a5864a — 2026-10-20 (in-session, split-role; new test 12 token edit on docs/ui-design.md 4/4, new test 13 export with packages/app/DESIGN.md 2/2). Rounds 1 and 2 were one class (a rule still keyed on a root DESIGN.md); the one-definition line is the structural exit rather than a third per-site patch.
