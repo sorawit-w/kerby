@@ -172,7 +172,7 @@ No mutation, no commit, no merge — confirm completion with the report path.
 
 ## 8. Report rendering (Markdown → HTML)
 
-The `.md` is canonical and sufficient; the `.html` is a shareable snapshot. Render it by **reusing the `html-export` machinery** — `html-export.md` § How to Produce It (convert body → wrap in `templates/audit-report.html.template` filling `{{TITLE}}{{CONTENT}}{{SOURCE}}{{DATE}}` → apply DESIGN.md `:root` tokens if present). The audit wraps in its **own** `audit-report.html.template` (which shares the generic template's `:root` token contract and adds the audit-only `table.findings` / `.banner` / `--sev-*` styling), not the generic `html-export.html.template`. This is the **one sanctioned auto-render exception** to that file's opt-in rule — it's named there; do not generalize it.
+The `.md` is canonical and sufficient; the `.html` is a shareable snapshot. Render it by **reusing the `html-export` machinery** — `html-export.md` § How to Produce It (convert body → wrap in `templates/audit-report.html.template` filling `{{TITLE}}{{CONTENT}}{{SOURCE}}{{DATE}}` → apply the design spec's `:root` tokens if one exists — the file `references/design-md.md` § Location selects, whatever its folder or name). The audit wraps in its **own** `audit-report.html.template` (which shares the generic template's `:root` token contract and adds the audit-only `table.findings` / `.banner` / `--sev-*` styling), not the generic `html-export.html.template`. This is the **one sanctioned auto-render exception** to that file's opt-in rule — it's named there; do not generalize it.
 
 Two audit-specific obligations on top of the shared machinery:
 

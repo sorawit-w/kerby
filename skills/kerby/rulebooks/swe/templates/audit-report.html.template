@@ -9,11 +9,12 @@
 
   Styling override surface — the :root below:
     BASE tokens (--bg --ink --ink-muted --accent --border --code-bg --font-*
-      --radius --measure): overwrite from DESIGN.md when present; else ship as-is.
+      --radius --measure): overwrite from the design spec when one exists
+      (references/design-md.md § Location, any folder or name); else ship as-is.
     STATUS tokens (--sev-*, --notrun-*): semantic (danger/warning/neutral), NOT
       brand — keep fixed so a brand palette can't make "blocker" stop reading as
       danger, or a not-run pass read as clean.
-      Override only if DESIGN.md explicitly defines danger/warning tokens.
+      Override only if that spec explicitly defines danger/warning tokens.
 -->
 <html lang="en">
 <head>
