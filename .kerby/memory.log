@@ -1493,3 +1493,11 @@ Files: skills/kerby/rulebooks/swe/references/design-md.md, skills/kerby/rulebook
 Commit: 3e36d44
 Status: DONE (pending Codex)
 Notes: skill-evaluator: clean (5/5) on test 6 at 3e36d44 — 2026-10-20 (in-session, split-role). Tests 1–5, 7, 8 ran at 5b5acf8 (32/32); 3e36d44 changed only the render-verify wording, which test 6 covers. Test 5's "screenwright last" plan still satisfies the new wording.
+
+[2026-10-20T00:00:00Z]
+Task: Codex round 1 on the swe design-skills change (three P2 findings)
+Action: (1) html-export.md takes tokens from the spec design-md.md § Location finds, and "no spec" is the only route to the bundled default; (2) a single non-root candidate is used only when it covers the UI being changed (repo level or that UI's package), and one in a different package is a question; (3) screenwright runs its checks only, its fix loop off, and findings go back to the author. Also fixed two more root-only spots: design-md.md § Authority and html-export.md's "only styling input" line.
+Files: skills/kerby/rulebooks/swe/references/{design-md,html-export,external-resources}.md, CHANGELOG.md, .kerby/memory.log
+Commit: 64928b2
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (16/16) at 64928b2 — 2026-10-20 (in-session, split-role; test 1 re-run 5/5, new test 9 monorepo 4/4, new test 10 HTML export 3/3, new test 11 impeccable+screenwright 4/4). Assertions written before executor output.
