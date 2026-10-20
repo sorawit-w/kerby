@@ -101,7 +101,12 @@ If no spec exists — none at the repo root and none found per [Location](#locat
 3. shadcn `components.json` + `globals.css`
 4. Figma exports referenced in the README
 
-**Do not synthesize design tokens** unless the developer explicitly asks. If they want a spec: an existing UI → write `DESIGN.md` from its code (`impeccable document`); a new UI with nothing to keep → `brand-workshop` produces a starter `DESIGN.md`.
+**Do not synthesize design tokens** unless the developer explicitly asks. If they want a spec, use the first tool that is installed:
+
+- **A new UI with nothing to keep** → `brand-workshop` (a starter `DESIGN.md`) → `impeccable document` (seed mode) → neither installed: ask the developer, and suggest installing `impeccable`.
+- **An existing UI** → `impeccable document` (scan mode records the tokens already in the code) → not installed: ask the developer, and suggest installing it. Not `brand-workshop`: it declines to document a brand that already exists.
+
+If your platform has its own built-in way to write a `DESIGN.md`, you may suggest it alongside.
 
 ---
 
