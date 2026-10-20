@@ -57,7 +57,7 @@ A curated catalog of external skills, tools, and resources the agent can recomme
 
 > **When DESIGN.md is present at repo root**, treat its YAML front matter as authoritative for all UI/styling work. Full rule: `references/design-md.md`.
 
-**Which design skill does which job** — one author per surface, a read-only checker, the render verified last: `references/design-md.md` § Design skills.
+**Which design skill does which job** — one author per surface, a read-only checker, the render verified after the last edit: `references/design-md.md` § Design skills.
 
 ### Knowledge Base Tools
 

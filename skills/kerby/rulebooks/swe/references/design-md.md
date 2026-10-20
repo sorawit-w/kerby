@@ -44,7 +44,7 @@ When design skills work on a UI task, split the work by job. Only one skill chan
 |---|---|---|
 | Make the change | `impeccable` (`document` writes the spec from existing code; then `critique` → `polish`) | The only skill that edits this surface |
 | Check direction | `taste-skill`, read-only (`inspect.mjs --app`, `lint.mjs`) | Measures and reports; does not edit the surface |
-| Verify the render | `screenwright`'s loop: axe in light and dark, screenshots at desktop and phone width, print | Always last. 0 axe violations is necessary, not sufficient |
+| Verify the render | `screenwright`'s loop: axe in light and dark, screenshots at desktop and phone width, print | After the last edit; a read-only check may follow. 0 axe violations is necessary, not sufficient |
 
 - Give the skill the spec's path explicitly. Most design skills look only for a root `DESIGN.md`.
 - When a skill's house rule conflicts with the developer's explicit ask, the developer wins. A token change goes into the spec in the same commit as the code.
