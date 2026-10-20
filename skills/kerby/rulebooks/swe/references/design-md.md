@@ -19,8 +19,8 @@ If both conditions hold, this rule overrides any local guess about design tokens
 
 `DESIGN.md` lives at the repo root. If the root has none, look for the spec elsewhere before inventing tokens: a `DESIGN.md` in another folder, or a Markdown file in DESIGN.md format under another name — YAML design tokens such as `colors:` and `typography:`, often `docs/*design*.md`.
 
-- **Exactly one candidate** → use it, tell the developer which file you used, and suggest moving it to the root.
-- **Two or more** → list them and ask which one is authoritative. Do not silently pick one.
+- **Exactly one candidate, and it covers the UI you are changing** — it sits at the repo level (such as `docs/`) or inside that UI's own package → use it, tell the developer which file you used, and suggest moving it to the root.
+- **Two or more, or the only one sits in a different package** → list them and ask which one is authoritative. Do not silently pick one.
 
 One exception: the `brand-workshop` skill emits `DESIGN.md` to its own output folder, and the founder moves it to the root when adopting. A spec found only in that output folder is a draft not yet adopted — ask before treating it as authoritative.
 
@@ -28,7 +28,7 @@ One exception: the `brand-workshop` skill emits `DESIGN.md` to its own output fo
 
 ## Authority
 
-When `DESIGN.md` exists at repo root, the YAML front matter IS the canonical design contract. Treat its tokens — colors (hex, sRGB only), typography, spacing, rounded values, components — as authoritative.
+When `DESIGN.md` exists at repo root — or a spec was found per [Location](#location) — its YAML front matter IS the canonical design contract. Treat its tokens — colors (hex, sRGB only), typography, spacing, rounded values, components — as authoritative.
 
 - **DO NOT** invent alternative tokens, palettes, or scales when generating UI.
 - **DO NOT** silently override a token because the surrounding code uses a different value — flag the drift instead (see [Conflict Resolution](#conflict-resolution)).
@@ -44,7 +44,7 @@ When design skills work on a UI task, split the work by job. Only one skill chan
 |---|---|---|
 | Make the change | `impeccable` (`document` writes the spec from existing code; then `critique` → `polish`) | The only skill that edits this surface |
 | Check direction | `taste-skill`, read-only (`inspect.mjs --app`, `lint.mjs`) | Measures and reports; does not edit the surface |
-| Verify the render | `screenwright`'s loop: axe in light and dark, screenshots at desktop and phone width, print | After the last edit; a read-only check may follow. 0 axe violations is necessary, not sufficient |
+| Verify the render | `screenwright`'s checks only: axe in light and dark, screenshots at desktop and phone width, print | After the last edit; a read-only check may follow. Its fix loop is not used — findings go back to the author. 0 axe violations is necessary, not sufficient |
 
 - Give the skill the spec's path explicitly. Most design skills look only for a root `DESIGN.md`.
 - When a skill's house rule conflicts with the developer's explicit ask, the developer wins. A token change goes into the spec in the same commit as the code.
