@@ -1534,3 +1534,11 @@ Files: skills/kerby/rulebooks/swe/references/audit.md, skills/kerby/rulebooks/sw
 Commit: f1a3467
 Status: DONE (pending Codex on this push)
 Notes: skill-evaluator: clean (3/3) at f1a3467 — 2026-10-20 (in-session, split-role; new test 17 kerby audit HTML with only docs/report-design.md: spec tokens applied, --sev-* kept fixed). Round 5 slipped past the earlier sweeps because they matched "root" next to DESIGN.md; these lines said "DESIGN.md when present" with no "root".
+
+[2026-10-20T00:00:00Z]
+Task: Codex round 6 on the swe design-skills change (two P2) — ask-first rewrite
+Action: Kiang chose "always ask for non-root specs" at the circuit breaker. design-md.md § Location: any spec found outside the root, even just one, is named and the developer is asked which governs the UI; no coverage judgment from folder or name; whole-repo spec suggested for the root, package spec stays put; brand-workshop output folder flagged as a draft when asking. "The spec" = root DESIGN.md or a file the developer confirmed. BOOTSTRAP item 7 looks "in another folder or under another name". CHANGELOG and README release line rewritten to match.
+Files: skills/kerby/rulebooks/swe/{BOOTSTRAP.md,references/design-md.md}, CHANGELOG.md, README.md, .kerby/memory.log
+Commit: 1444dd4, e8f6715
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (13/13) at e8f6715 — 2026-10-20 (in-session, split-role; tests 1, 10, 15 re-run with rubrics reworded to ask-first before output was read, 4/4, 3/3, 3/3; new test 18 packages/app/DESIGN.md 3/3). This deletes the auto-use model that produced rounds 1–6's scope edges (package, docs/, move-to-root), per the circuit-breaker lesson. Tests 9, 14 (other-package / own-package) are superseded by the ask-first rule and were not re-run; test 14's "use without asking" expectation no longer holds.
