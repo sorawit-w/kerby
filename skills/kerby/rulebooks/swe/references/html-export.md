@@ -41,7 +41,7 @@ One file, zero network dependencies — matching the convention every HTML-produ
 
 The export has one styling decision: where the stylesheet's tokens come from.
 
-1. **A design spec exists** — a root `DESIGN.md`, or the one `references/design-md.md` § Location finds under another name → derive the stylesheet's tokens (colors, typography, spacing, radius) from it. The spec is the single design authority — see `references/design-md.md`. Do not invent alternative tokens.
+1. **A design spec exists** — the file `references/design-md.md` § Location selects, whatever its folder or name → derive the stylesheet's tokens (colors, typography, spacing, radius) from it. The spec is the single design authority — see `references/design-md.md`. Do not invent alternative tokens.
 2. **No spec** → use the bundled default stylesheet in `templates/html-export.html.template`.
 
 The bundled template exposes its tokens as CSS custom properties in `:root`. That `:root` block **is** the override surface: when a spec is present, overwrite those variables with its tokens and change nothing else. One override point, deterministic result.

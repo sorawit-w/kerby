@@ -2,6 +2,8 @@
 
 The agent's contract for repos that contain a project-level `DESIGN.md`.
 
+**"The spec" means the file [Location](#location) selects**: a root `DESIGN.md`, or the one candidate found elsewhere, whatever its name. Every rule below that says `DESIGN.md` — Authority, Design skills, Editing Safety, Conflict Resolution — applies to that file, and every command takes its path. So do the rules that point here.
+
 ---
 
 ## When This Rule Fires
@@ -64,7 +66,7 @@ When asked to edit `DESIGN.md`:
 - Preserve the canonical section order: Overview → Colors → Typography → Layout → Shapes → Do's and Don'ts → Voice. Custom sections are allowed and appear after Voice (preserved by spec-compliant consumers under the spec's "unknown section" rule).
 - If a spec linter is available, run it after the edit:
   ```bash
-  npx @google/design.md lint DESIGN.md
+  npx @google/design.md lint <spec path>   # e.g. DESIGN.md or docs/report-design.md
   ```
 
 This file is in the same category as `references/guardrails.md` → "Overwrite guideline/spec files" — read-only for unrelated tasks; edits require explicit instruction and a confirmed diff.
@@ -85,8 +87,8 @@ Behavior on drift:
 2. Flag the divergence — name which token diverges where.
 3. Offer to regenerate the downstream from `DESIGN.md`. The spec ships an `export` command; prefer it over hand-rewriting:
    ```bash
-   npx @google/design.md export DESIGN.md --format tailwind > tailwind.theme.js
-   npx @google/design.md export DESIGN.md --format dtcg > tokens.json
+   npx @google/design.md export <spec path> --format tailwind > tailwind.theme.js
+   npx @google/design.md export <spec path> --format dtcg > tokens.json
    ```
 4. Do not rewrite downstream files silently. The developer chooses whether to regenerate.
 
