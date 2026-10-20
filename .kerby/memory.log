@@ -1517,3 +1517,12 @@ Files: skills/kerby/rulebooks/swe/references/{design-md,recommendations,external
 Commit: f47c29a
 Status: DONE (pending Codex on this push)
 Notes: skill-evaluator: clean (6/6) at f47c29a — 2026-10-20 (in-session, split-role; new test 14 package spec used for its own package with no move-to-root 3/3, new test 15 prepare with docs/report-design.md proposes no new spec 3/3). Circuit breaker: if Codex returns this class a fourth time, stop and ask Kiang rather than patch. Codex's round-3 review was recorded against b1358c0, not cc1a407; the merge gate needs a review of the current head.
+
+[2026-10-20T00:00:00Z]
+Task: Codex round 4 on the swe design-skills change (one P2; fourth round of the root-only class)
+Action: external-resources.md frontend-design caveat (2) now applies to "a root DESIGN.md, or the one design-md.md § Location selects". Re-ran the root-only sweep with full lines; this caveat was the only remaining root-only condition.
+Files: skills/kerby/rulebooks/swe/references/external-resources.md, .kerby/memory.log
+Commit: a8cd398
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (3/3) at a8cd398 — 2026-10-20 (in-session, split-role; new test 16 frontend-design with only docs/report-design.md). Circuit breaker tripped (fourth round, same class). Cause: the round-3 sweep cut each grep line at 240 characters, so this caveat at the end of a long row was never seen; the full-line sweep finds no other root-only condition. Merge only on a clean Codex result for the new head, not on the 10-minute cap.
+Observations: Codex's earlier reviews were recorded against b1358c0 while newer heads existed; its round-4 review named 2be2179 correctly.
