@@ -1526,3 +1526,11 @@ Commit: a8cd398
 Status: DONE (pending Codex on this push)
 Notes: skill-evaluator: clean (3/3) at a8cd398 — 2026-10-20 (in-session, split-role; new test 16 frontend-design with only docs/report-design.md). Circuit breaker tripped (fourth round, same class). Cause: the round-3 sweep cut each grep line at 240 characters, so this caveat at the end of a long row was never seen; the full-line sweep finds no other root-only condition. Merge only on a clean Codex result for the new head, not on the 10-minute cap.
 Observations: Codex's earlier reviews were recorded against b1358c0 while newer heads existed; its round-4 review named 2be2179 correctly.
+
+[2026-10-20T00:00:00Z]
+Task: Codex round 5 on the swe design-skills change (one P2, audit report path)
+Action: references/audit.md § render step and templates/audit-report.html.template (BASE and STATUS override comments) take tokens from the spec design-md.md § Location selects, any folder or name. Kiang chose "fix 3 lines, test, merge" at the circuit breaker.
+Files: skills/kerby/rulebooks/swe/references/audit.md, skills/kerby/rulebooks/swe/templates/audit-report.html.template, .kerby/memory.log
+Commit: f1a3467
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (3/3) at f1a3467 — 2026-10-20 (in-session, split-role; new test 17 kerby audit HTML with only docs/report-design.md: spec tokens applied, --sev-* kept fixed). Round 5 slipped past the earlier sweeps because they matched "root" next to DESIGN.md; these lines said "DESIGN.md when present" with no "root".
