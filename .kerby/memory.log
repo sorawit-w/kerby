@@ -1467,3 +1467,12 @@ Files: skills/kerby/rulebooks/swe/references/working-patterns.md, skills/kerby/r
 Commit: (pending)
 Status: DONE (pending Codex on this SHA)
 Notes: skill-evaluator (in-session, split-role): clean (7/7) on the changed rows — discovery with JetBrains only took search_in_files_content before any grep; delete with Serena used safe_delete_symbol after a reference search, no tool-gap line. Serena safe-delete (both backends) and move (JetBrains backend only) checked against its README. Rounds 2 and 3 were one class (a chain row missed a capable tool); the examples-not-a-closed-list line is the structural exit rather than a third per-tool patch.
+
+[2026-10-20T00:00:00Z]
+Task: swe design-skill routing from the job-scout handoff (docs/handoffs/2026-10-20-kerby-swe-design-skills.md in job-scout)
+Action: design-md.md § Location finds a DESIGN.md-format spec under another name (one candidate used and named, two or more asked); new § Design skills (one author, read-only checker, render verified last, spec path passed explicitly); § Absence routes to impeccable document / brand-workshop; ui-ux-pro-max removed from every swe file; taste-skill row corrected per variant; screenwright catalog row added; swe 2.16.0, kerby 10.5.0.
+Files: skills/kerby/rulebooks/swe/{BOOTSTRAP.md,rulebook.toml}, swe/references/{design-md,recommendations,external-resources,html-export}.md, version files, README.md, CHANGELOG.md
+Commit: f89755d
+Status: DONE (pending in-session skill-evaluator and Codex review)
+Notes: Handoff corrections — `version` is optional in the DESIGN.md spec, so the format test keys on `colors:`/`typography:`; the old Location rule said ask, so "use the single candidate" is a stated behavior change; impeccable `init` writes PRODUCT.md, so greenfield routes to brand-workshop. Skill picks live in swe, not user-local, because the team has no access to the user's private routing skill. Local ui-ux-pro-max plugin and its marketplace uninstalled; the claude.ai-synced copy was disabled locally and must be removed in claude.ai.
+Observations: check-skill-compat.py OK (version parity 10.5.0); swe validator 0 warnings; grep finds no ui-ux-pro-max in skills/, docs/, README.md. team-composer (agent-skills repo) and the user's private webdev-defaults skill still mention ui-ux-pro-max.
