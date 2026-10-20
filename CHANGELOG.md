@@ -3,6 +3,15 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [10.5.0] — 2026-10-20
+
+**swe 2.16.0 — design work finds the spec and splits the design skills by job.** Four design skills redesigned the same job-scout report from one brief. None found the project's spec, because it was `docs/report-design.md`, not a root `DESIGN.md`, and the swe rules looked only at the root too. All four reached the same fix once they found the file themselves.
+
+- **The spec is found under another name.** BOOTSTRAP § 2 item 7 tells UI work with no root `DESIGN.md` to look further before inventing tokens. `design-md.md` § Location now covers a Markdown file in DESIGN.md format under any name (YAML design tokens such as `colors:` and `typography:`). One candidate is used, named, and suggested for a move to the root; two or more are still a question for the developer. The `version` key is not part of the test, because the spec marks it optional.
+- **One skill changes a surface.** A new § Design skills names three jobs: make the change (`impeccable`), check the direction read-only (`taste-skill`'s `inspect.mjs` and `lint.mjs`), and verify the render last (`screenwright`'s axe, screenshots and print loop). The skill is given the spec's path, because most design skills look only for a root `DESIGN.md`. An explicit developer ask beats a skill's house rule. The skill names are today's picks; a missing one is replaced by what is installed, with the same split.
+- **No spec yet.** An existing UI gets a `DESIGN.md` written from its code (`impeccable document`); a new UI gets a starter from `brand-workshop`. `impeccable init` is not the route: it writes `PRODUCT.md`, not a design spec.
+- **`ui-ux-pro-max` is no longer recommended.** Its design-system output did not fit app or report surfaces (a landing-page funnel, web fonts and GSAP that the report's CSP blocks). Its catalog row, its routing in `recommendations.md` and `design-md.md`, and the "Combining DESIGN.md with ui-ux-pro-max" block are removed. The `taste-skill` row no longer describes dials the default skill does not have; `screenwright` gains a catalog row.
+
 ## [10.4.0] — 2026-10-14
 
 **swe 2.15.0 — code-intelligence tools are routed by the question.** `working-patterns.md` routed only between a JetBrains MCP and a code-graph MCP. It said nothing about LSP plugins, Serena or Graphify, and nothing about what to do when the right tool is missing.

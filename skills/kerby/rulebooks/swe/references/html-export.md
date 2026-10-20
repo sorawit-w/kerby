@@ -62,7 +62,7 @@ Do **not** hand-author the HTML tag by tag. Hand-writing drifts in style on ever
 
 ## Do Not Reach for UI Skills
 
-`ui-ux-pro-max`, `taste-skill`, `impeccable`, and similar are **interface** tools — they build websites, dashboards, and app UIs with picked palettes and stacks. A document export is typography and a print stylesheet, not an interface.
+`taste-skill`, `impeccable`, and similar are **interface** tools — they build websites, dashboards, and app UIs with picked palettes and stacks. A document export is typography and a print stylesheet, not an interface.
 
 - Using them over-tools the job and pulls toward framework stacks, fighting the self-contained constraint.
 - They introduce a second design authority that conflicts with `DESIGN.md`. `DESIGN.md` (or the bundled default) is the only styling input.
