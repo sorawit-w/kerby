@@ -2,7 +2,7 @@
 
 The agent's contract for repos that contain a project-level `DESIGN.md`.
 
-**"The spec" means the file [Location](#location) selects**: a root `DESIGN.md`, or the one candidate found elsewhere, whatever its name. Every rule below that says `DESIGN.md` — Authority, Design skills, Editing Safety, Conflict Resolution — applies to that file, and every command takes its path. So do the rules that point here.
+**"The spec" means the file [Location](#location) selects**: a root `DESIGN.md`, or a file elsewhere that the developer confirmed, whatever its folder or name. Every rule below that says `DESIGN.md` — Authority, Design skills, Editing Safety, Conflict Resolution — applies to that file, and every command takes its path. So do the rules that point here.
 
 ---
 
@@ -21,10 +21,11 @@ If both conditions hold, this rule overrides any local guess about design tokens
 
 `DESIGN.md` lives at the repo root. If the root has none, look for the spec elsewhere before inventing tokens: a `DESIGN.md` in another folder, or a Markdown file in DESIGN.md format under another name — YAML design tokens such as `colors:` and `typography:`, often `docs/*design*.md`.
 
-- **Exactly one candidate, and it covers the UI you are changing** — it sits at the repo level (such as `docs/`) or inside that UI's own package → use it and tell the developer which file you used. Suggest moving it to the root only when it is a repo-level spec or the repo has one package; a package's own spec stays in its package, because a root file would govern every package.
-- **Two or more, or the only one sits in a different package** → list them and ask which one is authoritative. Do not silently pick one.
+- **Any spec found outside the root, even just one** → name each one and ask which, if any, governs the UI you are changing. Do not decide from its folder or name; only the developer knows what a file covers. The file they confirm is the spec for this task.
+- **Then suggest a home:** a spec that covers the whole repo belongs at the root as `DESIGN.md`, so the next task does not need to ask. A package's own spec stays in its package, because a root file would govern every package.
+- **Nothing found** → see [Absence](#absence).
 
-One exception: the `brand-workshop` skill emits `DESIGN.md` to its own output folder, and the founder moves it to the root when adopting. A spec found only in that output folder is a draft not yet adopted — ask before treating it as authoritative.
+A spec in a `brand-workshop` output folder is a draft the founder has not adopted yet — say so when you ask.
 
 ---
 
