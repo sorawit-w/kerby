@@ -2,11 +2,13 @@
 
 The agent's contract for repos that contain a project-level `DESIGN.md`.
 
+**"The spec" means the file [Location](#location) selects**: a root `DESIGN.md`, or a file elsewhere that the developer confirmed, whatever its folder or name. Every rule below that says `DESIGN.md` — Authority, Design skills, Editing Safety, Conflict Resolution — applies to that file, and every command takes its path. So do the rules that point here.
+
 ---
 
 ## When This Rule Fires
 
-- The repo has a file named exactly `DESIGN.md` (uppercase) at its root, AND
+- The repo has a file named exactly `DESIGN.md` (uppercase) at its root — or, failing that, a spec found per [Location](#location) — AND
 - The current task touches UI, styling, theming, or anything that references design tokens (colors, typography, spacing, radius, motion).
 
 **HTML document export counts.** Producing a self-contained HTML version of a document (see `references/html-export.md`) is a styling task — its stylesheet references design tokens — so `DESIGN.md` governs the export's colors and typography.
@@ -17,19 +19,41 @@ If both conditions hold, this rule overrides any local guess about design tokens
 
 ## Location
 
-`DESIGN.md` lives at the repo root. If you find a `DESIGN.md` elsewhere in the tree (e.g., under `outputs/`, a sub-package, or a sibling folder), surface it as a warning and ask the developer where the authoritative copy should live. Do not silently pick one.
+`DESIGN.md` lives at the repo root. If the root has none, look for the spec elsewhere before inventing tokens: a `DESIGN.md` in another folder, or a Markdown file in DESIGN.md format under another name — YAML design tokens such as `colors:` and `typography:`, often `docs/*design*.md`.
 
-The `brand-workshop` skill emits `DESIGN.md` to its own output folder; the founder moves it to repo root when adopting. If you find one only at a non-root path, the adoption step likely hasn't happened yet — ask before treating it as authoritative.
+- **Any spec found outside the root, even just one** → name each one and ask which, if any, governs the UI you are changing. Do not decide from its folder or name; only the developer knows what a file covers. The file they confirm is the spec for this task.
+- **Then suggest a home:** a spec that covers the whole repo belongs at the root as `DESIGN.md`, so the next task does not need to ask. A package's own spec stays in its package, because a root file would govern every package.
+- **Nothing found** → see [Absence](#absence).
+
+A spec in a `brand-workshop` output folder is a draft the founder has not adopted yet — say so when you ask.
 
 ---
 
 ## Authority
 
-When `DESIGN.md` exists at repo root, the YAML front matter IS the canonical design contract. Treat its tokens — colors (hex, sRGB only), typography, spacing, rounded values, components — as authoritative.
+When `DESIGN.md` exists at repo root — or a spec was found per [Location](#location) — its YAML front matter IS the canonical design contract. Treat its tokens — colors (hex, sRGB only), typography, spacing, rounded values, components — as authoritative.
 
 - **DO NOT** invent alternative tokens, palettes, or scales when generating UI.
 - **DO NOT** silently override a token because the surrounding code uses a different value — flag the drift instead (see [Conflict Resolution](#conflict-resolution)).
 - The markdown body explains *why* the tokens are what they are. Read it before generating UI; cite it when explaining design choices to the developer.
+
+---
+
+## Design skills
+
+When design skills work on a UI task, split the work by job. Only one skill changes a given surface.
+
+| Job | Current default | Rule |
+|---|---|---|
+| Make the change | `impeccable` (`document` writes the spec from existing code; then `critique` → `polish`) | The only skill that edits this surface |
+| Check direction | `taste-skill`, read-only (`inspect.mjs --app`, `lint.mjs`) | Measures and reports; does not edit the surface |
+| Verify the render | `screenwright`'s checks only: axe in light and dark, screenshots at desktop and phone width, print | After the last edit; a read-only check may follow. Its fix loop is not used — findings go back to the author. 0 axe violations is necessary, not sufficient |
+
+- Give the skill the spec's path explicitly. Most design skills look only for a root `DESIGN.md`.
+- When a skill's house rule conflicts with the developer's explicit ask, the developer wins. A token change goes into the spec in the same commit as the code.
+- The table names jobs; the skill names are today's picks. If a default is not installed, use what is, and keep the same split.
+
+*Source: job-scout design-skill comparison, 2026-10-20 — four skills on one brief; none found a spec that was not a root `DESIGN.md`, and axe passed every variant.*
 
 ---
 
@@ -43,7 +67,7 @@ When asked to edit `DESIGN.md`:
 - Preserve the canonical section order: Overview → Colors → Typography → Layout → Shapes → Do's and Don'ts → Voice. Custom sections are allowed and appear after Voice (preserved by spec-compliant consumers under the spec's "unknown section" rule).
 - If a spec linter is available, run it after the edit:
   ```bash
-  npx @google/design.md lint DESIGN.md
+  npx @google/design.md lint <spec path>   # e.g. DESIGN.md or docs/report-design.md
   ```
 
 This file is in the same category as `references/guardrails.md` → "Overwrite guideline/spec files" — read-only for unrelated tasks; edits require explicit instruction and a confirmed diff.
@@ -64,8 +88,8 @@ Behavior on drift:
 2. Flag the divergence — name which token diverges where.
 3. Offer to regenerate the downstream from `DESIGN.md`. The spec ships an `export` command; prefer it over hand-rewriting:
    ```bash
-   npx @google/design.md export DESIGN.md --format tailwind > tailwind.theme.js
-   npx @google/design.md export DESIGN.md --format dtcg > tokens.json
+   npx @google/design.md export <spec path> --format tailwind > tailwind.theme.js
+   npx @google/design.md export <spec path> --format dtcg > tokens.json
    ```
 4. Do not rewrite downstream files silently. The developer chooses whether to regenerate.
 
@@ -73,14 +97,19 @@ Behavior on drift:
 
 ## Absence
 
-If no `DESIGN.md` exists at repo root, fall back to existing project conventions in this order:
+If no spec exists — none at the repo root and none found per [Location](#location) — fall back to existing project conventions in this order:
 
 1. Tailwind config (`tailwind.config.{ts,js}`)
 2. CSS-in-JS theme or a `design-system/` / `tokens/` directory
 3. shadcn `components.json` + `globals.css`
 4. Figma exports referenced in the README
 
-**Do not synthesize design tokens** unless the developer explicitly asks. If they want a starter system, route to the `DESIGN.md + ui-ux-pro-max` pattern in `references/recommendations.md` (signal: "UI work needed, no DESIGN.md or design system").
+**Do not synthesize design tokens** unless the developer explicitly asks. If they want a spec, use the first tool that is installed:
+
+- **A new UI with nothing to keep** → `brand-workshop` (a starter `DESIGN.md`) → `impeccable document` (seed mode) → neither installed: ask the developer, and suggest installing `impeccable`.
+- **An existing UI** → `impeccable document` (scan mode records the tokens already in the code) → not installed: ask the developer, and suggest installing it. Not `brand-workshop`: it declines to document a brand that already exists.
+
+If your platform has its own built-in way to write a `DESIGN.md`, you may suggest it alongside.
 
 ---
 
@@ -98,8 +127,6 @@ The DESIGN.md spec is at `alpha` (current as of 2026-05). Schema may break befor
 - [DESIGN.md spec — google-labs-code](https://github.com/google-labs-code/design.md) — canonical schema and `export` command.
 - [Stitch — design-md docs](https://stitch.withgoogle.com/docs/design-md/overview) — Google's reference implementation context.
 - `references/external-resources.md` → `awesome-design-md` — 59 curated brand specs (Stripe, Linear, Notion, BMW…) usable as reference corpus or starting templates.
-- `references/external-resources.md` → `ui-ux-pro-max` — pairs with `DESIGN.md` for stack-specific UI generation.
-- `references/external-resources.md` → `impeccable` — frontend quality / anti-slop refinement after generation.
-- `references/external-resources.md` → `taste-skill` — opinionated dial-based bias (DESIGN_VARIANCE / MOTION_INTENSITY / VISUAL_DENSITY) for UI execution.
+- `references/external-resources.md` → `impeccable`, `taste-skill`, `screenwright` — the current defaults in § Design skills.
 - `agent-skills:brand-workshop` (upstream producer) — emits a starter `DESIGN.md` as part of a brand-identity package; the founder moves it to repo root when adopting.
 - `references/html-export.md` — opt-in self-contained HTML document export; consumes `DESIGN.md` tokens for its stylesheet when present.

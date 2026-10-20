@@ -80,8 +80,8 @@ If the agent doesn't support registry search, fall back to naming the MCP catego
 | Stripe, payment config, billing references | MCP | Payment MCP (e.g., Stripe MCP) | Payment integration exists or planned | Manage products, check subscriptions, inspect webhooks |
 | 3+ independent, non-blocking tasks | Delegation | Sub-agent or teammate | Parallelism possible | Speed up execution via delegation |
 | Team brainstorming, design critique, user research needed | Skill | Design/research skills | Feedback or validation required | Structured collaboration on design/product decisions |
-| UI work needed, `DESIGN.md` exists at repo root | Rule | Load `references/design-md.md` | Task touches design tokens (colors, typography, spacing, components) | YAML front matter is the canonical design contract — do not invent alternatives or silently override |
-| UI work needed, no DESIGN.md or design system present | Pattern | DESIGN.md + ui-ux-pro-max | UI/UX work with no brand constraints | Bootstrap a design system from a brand reference |
+| UI work needed, a design spec exists (root `DESIGN.md`, or one found per `references/design-md.md` § Location) | Rule | Load `references/design-md.md` | Task touches design tokens (colors, typography, spacing, components) | YAML front matter is the canonical design contract — do not invent alternatives or silently override |
+| UI work needed, no spec found per `references/design-md.md` § Location and no design system present | Pattern | New UI: `brand-workshop`, else `impeccable document`; existing UI: `impeccable document` | UI/UX work with no brand constraints | Write the spec before generating UI — order and fallbacks in `references/design-md.md` § Absence |
 | Component in shared dir (`components/`, `ui/`, `lib/`) imported by ≥2 callers, no `storybook` in package.json | Tool | Storybook | A reusable UI component exists with no interactive documentation tool | Document component states; prevent visual drift across consumers |
 | `storybook` in package.json but `@storybook/test-runner` is not | Tool | @storybook/test-runner | Storybook is installed without auto-render-smoke | Every story becomes a Playwright-driven render test for free |
 | Brand/logo/visual identity work | Skill | Brand workshop | Visual brand not yet defined | Facilitate collaborative brand exploration |
@@ -108,9 +108,9 @@ Example:
 ```
 Detected signal: UI work needed, no design system found
 
-Recommendation: ui-ux-pro-max + awesome-design-md
-Why: Generate a tailored design system; use BMW's DESIGN.md as brand reference
-Install: npm i -g uipro-cli && uipro init --ai claude
+Recommendation: brand-workshop + awesome-design-md
+Why: Create a starter DESIGN.md for this new UI; use BMW's DESIGN.md as brand reference
+Install: brand-workshop ships in https://github.com/sorawit-w/agent-skills
 ```
 
 ---
@@ -142,6 +142,6 @@ Use this when assessing a new project:
 [ ] Tests? Framework configured → note testing patterns; if missing → recommend testing strategy skill
 [ ] Multiple tasks? Task list created → consider sub-agents
 [ ] Brand work? Visual brand undefined → recommend brand workshop
-[ ] UI work? `DESIGN.md` present at repo root → load `references/design-md.md`; treat YAML front matter as authoritative
-[ ] UI work? No DESIGN.md or design system → suggest DESIGN.md pattern + ui-ux-pro-max
+[ ] UI work? A design spec exists (root `DESIGN.md`, or one found per `references/design-md.md` § Location) → load `references/design-md.md`; treat its YAML front matter as authoritative
+[ ] UI work? No spec found per § Location and no design system → new UI: suggest `brand-workshop`, else impeccable `document`; existing UI: impeccable `document` (`references/design-md.md` § Absence)
 ```

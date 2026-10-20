@@ -41,10 +41,10 @@ One file, zero network dependencies — matching the convention every HTML-produ
 
 The export has one styling decision: where the stylesheet's tokens come from.
 
-1. **`DESIGN.md` exists at repo root** → derive the stylesheet's tokens (colors, typography, spacing, radius) from it. `DESIGN.md` is the single design authority — see `references/design-md.md`. Do not invent alternative tokens.
-2. **No `DESIGN.md`** → use the bundled default stylesheet in `templates/html-export.html.template`.
+1. **A design spec exists** — the file `references/design-md.md` § Location selects, whatever its folder or name → derive the stylesheet's tokens (colors, typography, spacing, radius) from it. The spec is the single design authority — see `references/design-md.md`. Do not invent alternative tokens.
+2. **No spec** → use the bundled default stylesheet in `templates/html-export.html.template`.
 
-The bundled template exposes its tokens as CSS custom properties in `:root`. That `:root` block **is** the override surface: when `DESIGN.md` is present, overwrite those variables with `DESIGN.md` tokens and change nothing else. One override point, deterministic result.
+The bundled template exposes its tokens as CSS custom properties in `:root`. That `:root` block **is** the override surface: when a spec is present, overwrite those variables with its tokens and change nothing else. One override point, deterministic result.
 
 ---
 
@@ -62,10 +62,10 @@ Do **not** hand-author the HTML tag by tag. Hand-writing drifts in style on ever
 
 ## Do Not Reach for UI Skills
 
-`ui-ux-pro-max`, `taste-skill`, `impeccable`, and similar are **interface** tools — they build websites, dashboards, and app UIs with picked palettes and stacks. A document export is typography and a print stylesheet, not an interface.
+`taste-skill`, `impeccable`, and similar are **interface** tools — they build websites, dashboards, and app UIs with picked palettes and stacks. A document export is typography and a print stylesheet, not an interface.
 
 - Using them over-tools the job and pulls toward framework stacks, fighting the self-contained constraint.
-- They introduce a second design authority that conflicts with `DESIGN.md`. `DESIGN.md` (or the bundled default) is the only styling input.
+- They introduce a second design authority that conflicts with `DESIGN.md`. The design spec (or the bundled default) is the only styling input.
 
 ---
 

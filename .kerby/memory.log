@@ -1467,3 +1467,78 @@ Files: skills/kerby/rulebooks/swe/references/working-patterns.md, skills/kerby/r
 Commit: (pending)
 Status: DONE (pending Codex on this SHA)
 Notes: skill-evaluator (in-session, split-role): clean (7/7) on the changed rows — discovery with JetBrains only took search_in_files_content before any grep; delete with Serena used safe_delete_symbol after a reference search, no tool-gap line. Serena safe-delete (both backends) and move (JetBrains backend only) checked against its README. Rounds 2 and 3 were one class (a chain row missed a capable tool); the examples-not-a-closed-list line is the structural exit rather than a third per-tool patch.
+
+[2026-10-20T00:00:00Z]
+Task: swe design-skill routing from the job-scout handoff (docs/handoffs/2026-10-20-kerby-swe-design-skills.md in job-scout)
+Action: design-md.md § Location finds a DESIGN.md-format spec under another name (one candidate used and named, two or more asked); new § Design skills (one author, read-only checker, render verified last, spec path passed explicitly); § Absence routes to impeccable document / brand-workshop; ui-ux-pro-max removed from every swe file; taste-skill row corrected per variant; screenwright catalog row added; swe 2.16.0, kerby 10.5.0.
+Files: skills/kerby/rulebooks/swe/{BOOTSTRAP.md,rulebook.toml}, swe/references/{design-md,recommendations,external-resources,html-export}.md, version files, README.md, CHANGELOG.md
+Commit: f89755d
+Status: DONE (pending in-session skill-evaluator and Codex review)
+Notes: Handoff corrections — `version` is optional in the DESIGN.md spec, so the format test keys on `colors:`/`typography:`; the old Location rule said ask, so "use the single candidate" is a stated behavior change; impeccable `init` writes PRODUCT.md, so greenfield routes to brand-workshop. Skill picks live in swe, not user-local, because the team has no access to the user's private routing skill. Local ui-ux-pro-max plugin and its marketplace uninstalled; the claude.ai-synced copy was disabled locally and must be removed in claude.ai.
+Observations: check-skill-compat.py OK (version parity 10.5.0); swe validator 0 warnings; grep finds no ui-ux-pro-max in skills/, docs/, README.md. team-composer (agent-skills repo) and the user's private webdev-defaults skill still mention ui-ux-pro-max.
+
+[2026-10-20T00:00:00Z]
+Task: in-session skill-evaluator on the swe design-skills change
+Action: split-role run, 8 tests (one spec, two specs, brand-workshop draft, non-UI bug, three-skill split with pure red, only taste-skill installed, new UI no spec, existing UI no spec); executors read the branch's rulebook, graders saw no rule text.
+Files: .kerby/memory.log
+Commit: (pending)
+Status: DONE (pending Codex)
+Notes: skill-evaluator: 36/37 pass, 1 unclear at 5b5acf8 — 2026-10-20 (in-session, split-role). The unclear item (test 6): the executor ran the render check, then a read-only taste-skill re-check after it, so "verify the render — always last" did not say whether a read-only check may follow. Not fixed in this run; candidate wording "after the last edit". Test 5: with the developer's explicit #ff0000, the executor still stopped to confirm adding the token to the spec, per the existing § Editing Safety diff-and-confirm rule.
+Observations: all 8 executors found the spec under another name or correctly found none; none mentioned ui-ux-pro-max; the non-UI bug run did not search for a spec.
+
+[2026-10-20T00:00:00Z]
+Task: fix the evaluator's one unclear item and re-run test 6
+Action: § Design skills "Verify the render" cell now reads "After the last edit; a read-only check may follow" (was "Always last"); the external-resources pointer, CHANGELOG and README say the same. Test 6 re-run with a fresh executor and grader; its T3 rubric was reworded to the new rule before the output was read.
+Files: skills/kerby/rulebooks/swe/references/design-md.md, skills/kerby/rulebooks/swe/references/external-resources.md, CHANGELOG.md, README.md, .kerby/memory.log
+Commit: 3e36d44
+Status: DONE (pending Codex)
+Notes: skill-evaluator: clean (5/5) on test 6 at 3e36d44 — 2026-10-20 (in-session, split-role). Tests 1–5, 7, 8 ran at 5b5acf8 (32/32); 3e36d44 changed only the render-verify wording, which test 6 covers. Test 5's "screenwright last" plan still satisfies the new wording.
+
+[2026-10-20T00:00:00Z]
+Task: Codex round 1 on the swe design-skills change (three P2 findings)
+Action: (1) html-export.md takes tokens from the spec design-md.md § Location finds, and "no spec" is the only route to the bundled default; (2) a single non-root candidate is used only when it covers the UI being changed (repo level or that UI's package), and one in a different package is a question; (3) screenwright runs its checks only, its fix loop off, and findings go back to the author. Also fixed two more root-only spots: design-md.md § Authority and html-export.md's "only styling input" line.
+Files: skills/kerby/rulebooks/swe/references/{design-md,html-export,external-resources}.md, CHANGELOG.md, .kerby/memory.log
+Commit: 64928b2
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (16/16) at 64928b2 — 2026-10-20 (in-session, split-role; test 1 re-run 5/5, new test 9 monorepo 4/4, new test 10 HTML export 3/3, new test 11 impeccable+screenwright 4/4). Assertions written before executor output.
+
+[2026-10-20T00:00:00Z]
+Task: Codex round 2 on the swe design-skills change (two P2 findings, same class as round 1)
+Action: design-md.md defines "the spec" once at the top as the file § Location selects, whatever its folder or name, and says every DESIGN.md rule (Authority, Design skills, Editing Safety, Conflict Resolution) and every rule that points here applies to it; lint and export commands take `<spec path>`; html-export.md step 1 points to the selected file; the external-resources DESIGN.md row lints `<spec path>`.
+Files: skills/kerby/rulebooks/swe/references/{design-md,html-export,external-resources}.md, CHANGELOG.md, .kerby/memory.log
+Commit: 266c7d1, 9a5864a
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (6/6) at 9a5864a — 2026-10-20 (in-session, split-role; new test 12 token edit on docs/ui-design.md 4/4, new test 13 export with packages/app/DESIGN.md 2/2). Rounds 1 and 2 were one class (a rule still keyed on a root DESIGN.md); the one-definition line is the structural exit rather than a third per-site patch.
+
+[2026-10-20T00:00:00Z]
+Task: Codex round 3 on the swe design-skills change (two P2 findings; third round of the root-only class)
+Action: (1) design-md.md § Location suggests a move to the root only for a repo-level spec or a single-package repo; a package's own spec stays in its package. (2) Swept the whole rulebook for root-only DESIGN.md checks instead of patching the cited line: recommendations.md (two signal rows, two checklist lines), external-resources.md (the authority note), templates/html-export.html.template (override comment), workflows/adopt-existing.md (the "lacks one" line) now all refer to the spec § Location finds.
+Files: skills/kerby/rulebooks/swe/references/{design-md,recommendations,external-resources}.md, skills/kerby/rulebooks/swe/templates/html-export.html.template, skills/kerby/rulebooks/swe/workflows/adopt-existing.md, CHANGELOG.md, .kerby/memory.log
+Commit: f47c29a
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (6/6) at f47c29a — 2026-10-20 (in-session, split-role; new test 14 package spec used for its own package with no move-to-root 3/3, new test 15 prepare with docs/report-design.md proposes no new spec 3/3). Circuit breaker: if Codex returns this class a fourth time, stop and ask Kiang rather than patch. Codex's round-3 review was recorded against b1358c0, not cc1a407; the merge gate needs a review of the current head.
+
+[2026-10-20T00:00:00Z]
+Task: Codex round 4 on the swe design-skills change (one P2; fourth round of the root-only class)
+Action: external-resources.md frontend-design caveat (2) now applies to "a root DESIGN.md, or the one design-md.md § Location selects". Re-ran the root-only sweep with full lines; this caveat was the only remaining root-only condition.
+Files: skills/kerby/rulebooks/swe/references/external-resources.md, .kerby/memory.log
+Commit: a8cd398
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (3/3) at a8cd398 — 2026-10-20 (in-session, split-role; new test 16 frontend-design with only docs/report-design.md). Circuit breaker tripped (fourth round, same class). Cause: the round-3 sweep cut each grep line at 240 characters, so this caveat at the end of a long row was never seen; the full-line sweep finds no other root-only condition. Merge only on a clean Codex result for the new head, not on the 10-minute cap.
+Observations: Codex's earlier reviews were recorded against b1358c0 while newer heads existed; its round-4 review named 2be2179 correctly.
+
+[2026-10-20T00:00:00Z]
+Task: Codex round 5 on the swe design-skills change (one P2, audit report path)
+Action: references/audit.md § render step and templates/audit-report.html.template (BASE and STATUS override comments) take tokens from the spec design-md.md § Location selects, any folder or name. Kiang chose "fix 3 lines, test, merge" at the circuit breaker.
+Files: skills/kerby/rulebooks/swe/references/audit.md, skills/kerby/rulebooks/swe/templates/audit-report.html.template, .kerby/memory.log
+Commit: f1a3467
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (3/3) at f1a3467 — 2026-10-20 (in-session, split-role; new test 17 kerby audit HTML with only docs/report-design.md: spec tokens applied, --sev-* kept fixed). Round 5 slipped past the earlier sweeps because they matched "root" next to DESIGN.md; these lines said "DESIGN.md when present" with no "root".
+
+[2026-10-20T00:00:00Z]
+Task: Codex round 6 on the swe design-skills change (two P2) — ask-first rewrite
+Action: Kiang chose "always ask for non-root specs" at the circuit breaker. design-md.md § Location: any spec found outside the root, even just one, is named and the developer is asked which governs the UI; no coverage judgment from folder or name; whole-repo spec suggested for the root, package spec stays put; brand-workshop output folder flagged as a draft when asking. "The spec" = root DESIGN.md or a file the developer confirmed. BOOTSTRAP item 7 looks "in another folder or under another name". CHANGELOG and README release line rewritten to match.
+Files: skills/kerby/rulebooks/swe/{BOOTSTRAP.md,references/design-md.md}, CHANGELOG.md, README.md, .kerby/memory.log
+Commit: 1444dd4, e8f6715
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (13/13) at e8f6715 — 2026-10-20 (in-session, split-role; tests 1, 10, 15 re-run with rubrics reworded to ask-first before output was read, 4/4, 3/3, 3/3; new test 18 packages/app/DESIGN.md 3/3). This deletes the auto-use model that produced rounds 1–6's scope edges (package, docs/, move-to-root), per the circuit-breaker lesson. Tests 9, 14 (other-package / own-package) are superseded by the ask-first rule and were not re-run; test 14's "use without asking" expectation no longer holds.

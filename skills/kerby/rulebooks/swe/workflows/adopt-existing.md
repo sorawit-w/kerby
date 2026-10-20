@@ -173,7 +173,7 @@ Complete before declaring done:
 - run quality gates (build/lint/test) — onboarding reads, it doesn't verify the build;
 - install linters/formatters or any tooling — including the **SAST toolchain**: provisioning semgrep / the advisory snapshot is an audit-time `--sast` concern (`references/sast-provisioning.md`), never part of onboarding;
 - scaffold vendor-adapter dirs (`ports/`/`adapters/`/`composition.ts`) — that's `new-project.md`;
-- author `DESIGN.md` — design-token authority is a separate concern; tokens are only sometimes code-inferable and a wrong contract is worse than none. If a UI project lacks one, mention it; don't generate it. See `references/design-md.md`;
+- author `DESIGN.md` — design-token authority is a separate concern; tokens are only sometimes code-inferable and a wrong contract is worse than none. If a UI project lacks one (no spec found per `references/design-md.md` § Location), mention it; don't generate it. See `references/design-md.md`;
 - create `ROADMAP.md` — only on explicit user request;
 - create a working branch, commit, push, or merge — leave VCS actions to the human;
 - touch any adjacent user file **other than** the single line § 3 names: a `!.kerby/memory.log` negation in `.gitignore`, and only when a generic pattern would otherwise leave that file untracked. It is proposed behind diff-and-confirm, appended never rewritten, and exists only so shared state can actually be shared. Nothing else outside `.kerby/` and the context artifacts is in scope;
