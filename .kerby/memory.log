@@ -1800,3 +1800,11 @@ Files: skills/kerby/rulebooks/swe/workflows/feature.md, skills/kerby/rulebooks/s
 Commit: a223787
 Status: DONE (pending Codex)
 Notes: compat and validator pass. skill-evaluator: clean (8/8) at a223787 — 2026-10-21 (in-session, split-role; user asks for the exact change already reverted → named the revert and its reason, recommended another approach, asked 3/3; bug whose obvious fix was applied and reverted → read the revert, did not re-apply it 3/3 (Sonnet executor and grader after the Opus executor was stopped by a [reasoning_extraction] safeguard); clean history → checked, no invented finding, proceeded 2/2).
+
+[2026-10-21T20:55:00Z]
+Task: Codex round 1 on kerby 10.11.0 — the history command showed only subjects and had no limit
+Action: Codex P1: `git log --oneline` shows commit subjects only, so a repeated change under a vague subject could not be seen. Codex P2: the command had no bound, so an old, busy file could flood the context before planning. Both correct, and both holes in a prescribed command — the item 1 and item 2 lesson again — so the command was removed rather than patched: the step now reads the last ten or so commits that touched the files and opens the diff of any whose subject does not say what it changed. CHANGELOG matches.
+Files: skills/kerby/rulebooks/swe/workflows/feature.md, CHANGELOG.md, .kerby/memory.log
+Commit: 21a4d94
+Status: DONE (pending Codex on this push)
+Notes: validator passes. skill-evaluator: clean (3/3) at 21a4d94 — 2026-10-21 (in-session, split-role, Sonnet executor and grader; 300-commit file, the earlier attempt and its revert named "chore: cleanup" → read 10 commits, opened both diffs, named the reverted attempt 3/3).
