@@ -25,7 +25,7 @@ These apply to both the implementer and the QA sub-agent — a passing test suit
 
 ## Gate Edits
 
-A gate is anything that would have made your change fail: a test, an assertion, a threshold, a timeout, a retry count, a lint or type rule, a CI job, a snapshot. A **gate edit** is a change in your own diff that makes one easier to pass:
+A gate is anything that would have made your change fail: a test, an assertion, a threshold, a timeout, a retry count, a lint or type rule, a CI job, a snapshot. A **gate edit** is a change to a gate itself — in your own diff, or in how you ran it — that makes it easier to pass. A code change that makes a failing test pass is a fix, not a gate edit. Gate edits are:
 
 - a test deleted, skipped (`.skip`, `xit`, `@pytest.mark.skip`) or focused (`.only`)
 - an assertion loosened, or an expected value changed to match new output
