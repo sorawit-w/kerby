@@ -76,9 +76,9 @@ If root cause is clear:
 
 **A flaky test is a symptom, not a cause.** Do not skip it, retry it, widen its timeout or loosen its assertion to get a green run — each one hides the failure the test exists to catch, and a skipped test is not a pass (`references/validation.md` § What Counts as Evidence of Change). Find the cause instead:
 
-1. **Place it.** Find the smallest scope that still reproduces the failure — the test alone, else its file, else the suite (an order or shared-state flake can pass every time alone). Run that same scope at least 10 times on the base branch and on your branch, interleaved (`references/validation.md` § What Counts as Evidence of Change), and record `failed/N` for each. Then compare the two rates — a failure on the base branch shows the failure existed before, not that your change left it alone:
+1. **Place it.** Find the smallest scope that still reproduces the failure — the test alone, else its file, else the suite (an order or shared-state flake can pass every time alone). Run that same scope at least 10 times on the base branch and on your branch, interleaved (`references/validation.md` § What Counts as Evidence of Change), and record `failed/N` for each. Run the base side in its own checkout — a temporary `git worktree add <dir> <base>`, announced as `BOOTSTRAP.md` § Branching requires and removed when you are done — so your uncommitted edits and build output stay out of it. Then compare the two rates — a failure on the base branch shows the failure existed before, not that your change left it alone:
    - **About the same** (2/10 against 3/10) → it predates your change: flag it to the developer as pre-existing (the baseline rule in `workflows/feature.md` § 1) and leave the test as it is.
-   - **Clearly higher on your branch** (1/10 against 8/10, or never on the base branch) → your change caused it or made it worse. It is yours to fix.
+   - **Clearly higher on your branch** (1/10 against 8/10) → your change caused it or made it worse. It is yours to fix.
    - **Too close to call** → run more on both. Still unclear → treat it as yours.
 2. **Name what it depends on** — timing, test order, shared state, the clock, the network, a resource limit.
 3. **Prove it.** Make the test fail every time for the cause you named: inject the delay, pin the order, freeze the clock. No failing probe, no named cause.
