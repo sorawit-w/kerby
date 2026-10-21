@@ -1784,3 +1784,11 @@ Commit: fc7d964
 Status: DONE (pending Codex on this push)
 Notes: validator and compat pass. skill-evaluator: clean (6/6) at fc7d964 — 2026-10-21 (in-session, split-role; plain code fix → gate-edits: none in report and PR body 3/3; push-time hook bypass only → listed with the command as <where> 3/3).
 Observations: protect-git.sh blocked two Bash calls whose text named a push-time hook bypass next to a short form-field flag (once in a PR reply, once in this log entry's own text); nothing ran either time. Writing the text to a file first and posting it with --field body=@file avoids it.
+
+[2026-10-21T20:33:00Z]
+Task: Codex round 5 on kerby 10.10.0 — a sub-agent's commands cannot be checked from its diff
+Action: Codex (P2): a sub-agent's hook bypass leaves nothing in its diff, so the coordinator's check could not find it. Correct. Third hook-bypass finding and second sub-agent-verification finding; both are holes in a promise of complete detection, so the promise was narrowed instead of adding detection: the diff is what the coordinator can check; it reads the sub-agent's transcript where the platform keeps one, and otherwise writes "(sub-agent commands not inspected)" rather than pass the sub-agent's none on as checked. Circuit breaker for this PR: a further detection-completeness finding stops the loop and goes to the maintainer.
+Files: skills/kerby/rulebooks/swe/references/validation.md, CHANGELOG.md, .kerby/memory.log
+Commit: bf725cc
+Status: DONE (pending Codex on this push)
+Notes: validator passes. skill-evaluator: clean (3/3) at bf725cc — 2026-10-21 (in-session, split-role; coordinator on a platform with no sub-agent transcript, sub-agent reported none, diff clean → searched the diff, PR body says "none in the diff (sub-agent commands not inspected)", credited the gate results to the sub-agent's report 3/3).
