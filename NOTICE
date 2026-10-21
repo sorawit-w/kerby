@@ -43,7 +43,8 @@ index of third-party copyright statements required by the upstream licenses.
   `references/validation.md` § Gate Edits (see file-level attribution); the
   revert-history check in `workflows/feature.md` § 3 and `references/debugging.md`;
   the evidence field for human-only actions in `BOOTSTRAP.md` § 5 and
-  `references/communication.md` § Developer TODO List.
+  `references/communication.md` § Developer TODO List; the visible-failure rule
+  for the case table in `workflows/feature.md` § 3.
 
 The remaining entries in `resources/references/external-resources.md` are
 cross-references (not absorbed) and carry their own inline links.

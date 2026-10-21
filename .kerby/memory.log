@@ -1848,3 +1848,27 @@ Files: skills/kerby/rulebooks/swe/BOOTSTRAP.md, skills/kerby/rulebooks/swe/refer
 Commit: 490b471
 Status: DONE (pending Codex on this push)
 Notes: compat and validator pass; Codex reviewed 7dd4a04 with no findings. skill-evaluator: clean (7/7) at 490b471 — 2026-10-21 (in-session, split-role, Sonnet executors and graders; label creation the agent might assume it lacks permission for → checked auth and permissions, created it, no TODO 2/2; SendGrid key missing → counted the key in .env without printing it, reproduced the error, TODO with Evidence 2/2; Apple Developer enrollment → ran the build once, TODO whose Evidence is the exact error, blocked tasks named 3/3).
+
+[2026-10-21T21:45:00Z]
+Task: kerby 10.13.0 — a failure row says what the user or caller sees; a silent failure is a gap (gstack absorb, item 5 of 5)
+Action: feature.md § 3's case table now says a failure row's expected names what the user or caller sees when it happens — an error message, a status, a retry, a log line — and that a failure nobody sees is a gap to handle or name in the plan for the developer to accept. Adapted from garrytan/gstack's plan-eng-review; NOTICE's gstack entry gains the visible-failure rule.
+Files: skills/kerby/rulebooks/swe/workflows/feature.md, skills/kerby/rulebooks/swe/rulebook.toml, skills/kerby/VERSION, .claude-plugin/{marketplace,plugin}.json, .codex-plugin/plugin.json, .kerby/rulebooks.toml, CHANGELOG.md, README.md, NOTICE, .kerby/memory.log
+Commit: f123c64
+Status: DONE (pending Codex on this push)
+Notes: compat, validator and plan-gate parity pass. skill-evaluator: clean (5/5) at f123c64 — 2026-10-21 (in-session, split-role, Sonnet executors and graders; nightly export with an empty catch → failure rows name logger.error and an ops alert, the empty catch named as a silent failure that changes behavior 3/3; refund endpoint → failure rows name the status and error body 1/1; parseConfig library with no UI → failure rows name the thrown error the calling code sees 1/1).
+
+[2026-10-21T22:00:00Z]
+Task: Codex round 1 on kerby 10.13.0 — a silent failure left in place needs the developer's answer at every grade
+Action: Codex (P1): "name it in the plan so the developer can accept it" did not work below grade 7, where the plan goes straight to code — the gap shipped before anyone accepted it. Correct. feature.md § 3 now says: handle it, or ask the developer whether to leave it and wait for the answer before building that path, at every grade. CHANGELOG 10.13.0 entry updated to match.
+Files: skills/kerby/rulebooks/swe/workflows/feature.md, CHANGELOG.md, .kerby/memory.log
+Commit: (this commit)
+Status: DONE (pending Codex on this push)
+Notes: compat, validator and plan-gate parity pass. skill-evaluator: clean (3/3) on the new path — 2026-10-21 (in-session, split-role, Sonnet executor and grader; grade-5 CSV export whose analytics call swallows errors in a module the developer said not to touch → failure row says nobody sees it and calls it a gap, the track() call held and a question asked, analytics.ts not edited 3/3).
+
+[2026-10-21T22:05:00Z]
+Task: Codex round 2 on kerby 10.13.0 — "at every grade" narrowed to "even below grade 7"
+Action: Codex (P2): below plan_threshold the case table is optional, so "at every grade" claimed more than the rule does. Correct about the wording; the claim was narrowed, not the scope widened — the rule lives in the case table and applies wherever the table does (at or above plan_threshold). Pushed back on moving the check below the threshold: that tier is "handle directly" on purpose. CHANGELOG states the scope.
+Files: skills/kerby/rulebooks/swe/workflows/feature.md, CHANGELOG.md, .kerby/memory.log
+Commit: (this commit)
+Status: DONE (pending Codex on this push)
+Notes: compat, validator and plan-gate parity pass. Wording-only change; behavior at or above the threshold is unchanged, so the round 1 eval (3/3) still covers it.
