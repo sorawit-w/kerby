@@ -3,6 +3,13 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [10.8.0] — 2026-10-21
+
+**swe 2.19.0 — the official GSAP skills join the resource list, and the project decides when GSAP is used.** `external-resources.md` gains a `greensock/gsap-skills` row: eight MIT skills that teach correct GSAP code, including cleanup on unmount and `gsap.matchMedia()` for `prefers-reduced-motion`. The skill's own text tells the agent to recommend GSAP whenever no animation library is named, which conflicts with the decision ladder (native first, ask before a new dependency). Skills are installed per machine and dependencies belong to the repo, so letting the skill decide would add `gsap` on one laptop and use CSS on another for the same task.
+
+- **The decision ladder chooses the library, exactly as for any other package — never the installed skill.** The row does not restate the ladder; it names the one thing the skill gets wrong (its default) and points at the ladder as the authority. The skill is suggested once GSAP is the library: the project already depends on `gsap`, or the developer approved adding it. Three review rounds found three copies of the ladder that each skipped a rung — a simple/complex motion split that skipped native for fades, a scroll branch that skipped CSS scroll-driven animations, and an "otherwise add gsap" that skipped other installed motion libraries — so the copy was removed rather than patched a fourth time.
+- **Installing the skill installs nothing in the project.** GSAP code needs the `gsap` package; the row says so.
+
 ## [10.7.0] — 2026-10-21
 
 **swe 2.18.0 — STATUS.md is tested as the copy that lands.** The rule listed phrases STATUS.md must not hold (`in review`, `PR open`, `merged`). Agents kept writing phrases the list did not name, such as "not released" or a Next Up row for shipping the change itself. Those lines were true when committed and false once the PR merged, and the agent then offered a separate PR just to fix one line.

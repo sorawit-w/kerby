@@ -1630,3 +1630,46 @@ Files: skills/kerby/rulebooks/swe/references/communication.md, CHANGELOG.md, .ke
 Commit: c90c376
 Status: DONE (pending Codex on this push)
 Notes: skill-evaluator: clean (30/30) at c90c376 — 2026-10-21 (fresh-session, split-role; Q1 PR merge after the base moved and touched STATUS.md: merged base into the branch, stopped before commit, regenerated 10/10; Q2 local merge: switched to --no-commit and regenerated before the merge commit 10/10; Q3 hybrid already on main, no other work: no state-only offer 6/6; Q4 base moved without touching STATUS.md: left alone 4/6, two misses rubric-layer (a memory.log-only commit on a branch with other work is allowed) and left out of N). Regeneration findings in rounds 3 and 8; other rounds were different classes.
+
+[2026-10-21T00:00:00Z]
+Task: kerby 10.8.0 / swe 2.19.0 — official GSAP skills in the resource list
+Action: external-resources.md gains a greensock/gsap-skills row. The project's dependencies decide, never the installed skill: gsap already a dependency → GSAP for all motion; no gsap + simple motion → native CSS / View Transitions; no gsap + timelines, scroll-driven or complex SVG → suggest gsap, say why, ask before installing. The row also says installing the skill installs nothing in the project. Versions bumped (VERSION, plugin manifests, README, swe rulebook.toml, intent manifest) and CHANGELOG entry added.
+Files: skills/kerby/rulebooks/swe/references/external-resources.md, CHANGELOG.md, README.md, skills/kerby/VERSION, .claude-plugin/plugin.json, .claude-plugin/marketplace.json, .codex-plugin/plugin.json, skills/kerby/rulebooks/swe/rulebook.toml, .kerby/rulebooks.toml
+Commit: 93402c3
+Status: DONE (pending Codex on this push)
+Notes: Rule-cost precheck passed (one on-demand row; covers a skill default that conflicts with the decision ladder). check-skill-compat.py: version parity 10.8.0; validate-rulebook.py: swe ok, 0 warnings. skill-evaluator: clean (18/18) at 93402c3 — 2026-10-21 (in-session, split-role, 5 tests: gsap already a dependency 4/4, hero fade with no gsap and gsap-core in context 4/4, pinned scrubbed scroll sequence asks before install 4/4, "GSAP skills installed" hover stress 3/3, static site with no manifest 3/3). T5 passed its ask check only because the executor added no GSAP: it judged a two-step draw-then-type sequence as simple motion, so the ask path was not exercised there; T3 exercised it. Decided with the user in-session: gsap-skills worth one row; transitions.dev deferred until its CLI is tested; react-bits declined (a React component catalog is a stack choice).
+Observations: The GSAP skills are installed on this machine at ~/.claude/skills/gsap-* (symlinks into ~/.agents/skills).
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 1 on kerby 10.8.0 — native first even when gsap is installed
+Action: Codex (P1): case 1 sent simple motion to GSAP whenever the project had gsap, but BOOTSTRAP § 1b puts native (rung 3) ahead of an installed dependency (rung 4), and the row itself says the ladder decides, so the two instructions contradicted each other. The first T1 executor showed it: it called CSS "the wrong default" and skipped rung 3. Fixed in the row, not the ladder: simple motion → native CSS whether or not the project has gsap; timelines, scroll-driven or complex SVG → GSAP when it is a dependency, otherwise suggest it and ask. CHANGELOG and README match. This reverses the "simple fades included" clause the user agreed to; the ladder is the authority, so the row follows it.
+Files: skills/kerby/rulebooks/swe/references/external-resources.md, CHANGELOG.md, README.md, .kerby/memory.log
+Commit: 7ad926f
+Status: DONE (pending Codex on this push)
+Notes: check-skill-compat.py and validate-rulebook.py still pass. skill-evaluator: clean (10/10) at 7ad926f — 2026-10-21 (in-session, split-role; re-ran the cases the wording touches: gsap present + staggered fade now goes CSS 3/3, gsap present + pinned scroll sequence uses GSAP with no install 3/3, no gsap + scroll sequence asks first 4/4). T2, T4 and T5 from the first pass cover no-gsap simple motion, which the rewrite did not change.
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 2 on kerby 10.8.0 — the scroll branch skipped native too
+Action: Codex (P1): round 1's split sent timelines and scroll-driven work straight to GSAP, though CSS scroll-driven animations are native and the ladder puts native first. Same finding class as round 1 (a motion category that bypasses rung 3), so the category model was deleted rather than patched: the row now defers to the ladder — native first even when gsap is present (CSS transitions, View Transitions, CSS scroll-driven animations); GSAP only when native cannot do what was asked or cannot meet the project's browser support, with the reason stated; reuse when a dependency, otherwise suggest and ask. CHANGELOG and README match; the CHANGELOG names the deleted draft.
+Files: skills/kerby/rulebooks/swe/references/external-resources.md, CHANGELOG.md, README.md, .kerby/memory.log
+Commit: 14c43a1
+Status: DONE (pending Codex on this push)
+Notes: compat and validator pass. skill-evaluator: clean (9/9) at 14c43a1 — 2026-10-21 (in-session, split-role; gsap present + staggered fade → CSS 2/2; no gsap + pinned scroll sequence → native sticky + animation-timeline, no install 4/4; gsap present + pinned scroll sequence → weighed native, chose GSAP for browser support, no install 3/3). The ask-before-install clause is the same words as round 1, where T3′ exercised it 4/4; this round's no-gsap executor went native, so it did not reach the ask. Circuit-breaker note: two rounds, one class; the fix removed the model that produced the class.
+Observations: protect-git.sh blocked two Bash commands that each held a plain push plus, later on the same command line, a gh api call (or log text) with a short form-field flag; it reported a force push. Nothing ran either time. Keeping the push in its own command avoided it.
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 3 on kerby 10.8.0 — the Claude Code install step
+Action: Codex (P2): the row's Claude Code command only added the marketplace, which registers a catalog and installs no skill. Checked greensock/gsap-skills' own .claude-plugin/marketplace.json: marketplace "gsap-skills", one plugin "gsap-skills". The Install cell now reads `/plugin marketplace add greensock/gsap-skills && /plugin install gsap-skills@gsap-skills`, the same two-step form as the modern-web-guidance row.
+Files: skills/kerby/rulebooks/swe/references/external-resources.md, .kerby/memory.log
+Commit: 91c5d95
+Status: DONE (pending Codex on this push)
+Notes: validator passes. skill-evaluator not re-run: the change is an install command string, not a directive, threshold or trigger, so the 9/9 verdict at 14c43a1 still covers every decision the row asks the agent to make. Different finding class from rounds 1–2 (install mechanics, not ladder order).
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 4 on kerby 10.8.0 — the ladder copy skipped other installed libraries
+Action: Codex (P1): "otherwise suggest adding gsap" skipped rung 4 when the project already has another motion library (Framer Motion, anime.js). Third finding of one class (rounds 1, 2, 4: the row's copy of the decision ladder skipped a rung). Circuit breaker applied: the copy was removed, not patched. The Signals cell now says when to suggest the skill (GSAP already a dependency, or the developer approved adding it) and that choosing the animation library is the decision ladder's call (BOOTSTRAP § 1b), exactly as for any other package. The What It Does cell still names the skill's conflicting default. CHANGELOG records the three skipped rungs and why the copy went; README line matches.
+Files: skills/kerby/rulebooks/swe/references/external-resources.md, CHANGELOG.md, README.md, .kerby/memory.log
+Commit: d19d729
+Status: DONE (pending Codex on this push)
+Notes: compat and validator pass. skill-evaluator: clean (10/10) at d19d729 — 2026-10-21 (in-session, split-role; gsap present + staggered fade → CSS 2/2; no library + pinned scroll sequence → native sticky + scroll timelines, GSAP offered only behind approval 3/3; gsap present + pinned scroll sequence → named the native rung, reused gsap, no install 2/2; framer-motion present, no gsap + pinned scroll sequence → reused framer-motion with native sticky, no gsap 3/3). Lesson: a resource row that restates a central rule drifts from it; point at the authority and keep only what is specific to the resource.
+Observations: In the gsap-present scroll test the executor chose GSAP without checking native browser support, said so, and offered the CSS version once support is checked.
