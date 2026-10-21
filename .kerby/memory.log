@@ -1792,3 +1792,11 @@ Files: skills/kerby/rulebooks/swe/references/validation.md, CHANGELOG.md, .kerby
 Commit: bf725cc
 Status: DONE (pending Codex on this push)
 Notes: validator passes. skill-evaluator: clean (3/3) at bf725cc — 2026-10-21 (in-session, split-role; coordinator on a platform with no sub-agent transcript, sub-agent reported none, diff clean → searched the diff, PR body says "none in the diff (sub-agent commands not inspected)", credited the gate results to the sub-agent's report 3/3).
+
+[2026-10-21T20:45:00Z]
+Task: kerby 10.11.0 — a reverted attempt in a file's history is a planning and debugging finding (gstack absorb, item 3 of 5)
+Action: feature.md § 3 step 2 now reads the recent history of the affected files; a revert, or the same change made more than once, is a finding for the plan — say why the approach is not the one that was undone, or choose another. debugging.md step 1 adds that a revert or repeated fix in the files involved means an earlier attempt failed; find out why before trying it again. Adapted from garrytan/gstack plan-eng-review (MIT); NOTICE's gstack entry tidied and extended.
+Files: skills/kerby/rulebooks/swe/workflows/feature.md, skills/kerby/rulebooks/swe/references/debugging.md, skills/kerby/rulebooks/swe/rulebook.toml, skills/kerby/VERSION, .claude-plugin/{marketplace,plugin}.json, .codex-plugin/plugin.json, .kerby/rulebooks.toml, CHANGELOG.md, README.md, NOTICE, .kerby/memory.log
+Commit: a223787
+Status: DONE (pending Codex)
+Notes: compat and validator pass. skill-evaluator: clean (8/8) at a223787 — 2026-10-21 (in-session, split-role; user asks for the exact change already reverted → named the revert and its reason, recommended another approach, asked 3/3; bug whose obvious fix was applied and reverted → read the revert, did not re-apply it 3/3 (Sonnet executor and grader after the Opus executor was stopped by a [reasoning_extraction] safeguard); clean history → checked, no invented finding, proceeded 2/2).
