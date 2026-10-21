@@ -1832,3 +1832,11 @@ Files: skills/kerby/rulebooks/swe/workflows/feature.md, skills/kerby/rulebooks/s
 Commit: 8a9125e
 Status: DONE (pending Codex on this push)
 Notes: validator passes. skill-evaluator: clean (3/3) at 8a9125e — 2026-10-21 (in-session, split-role, Sonnet executor and grader; busy http.ts plus quiet retry.ts whose revert is hidden by a combined window → one log per file, found the revert and its reason, narrowed the plan to idempotent methods 3/3).
+
+[2026-10-21T21:25:00Z]
+Task: Codex round 5 on kerby 10.11.0 — a fix made twice with no revert; the "which diffs to open" list restated as a principle
+Action: Codex (P1): two commits with the same clear subject and no revert were not opened, and "the one that was undone" did not fit that case. Correct — and the third finding in the which-diffs-to-open class (vague subject; clear-subject revert; repeat without revert). Circuit breaker applied (memory: codex-loop-circuit-breaker): the list was replaced by the principle it stood for — open the diff and message of any commit whose subject alone does not tell what was tried and why it did not last — with the old cases kept as examples, and the plan's response generalized to "say how your approach deals with the reason it failed". Same change in debugging.md step 1. CHANGELOG records the three missed cases and why the step is now a principle. A further finding in this class goes to the maintainer.
+Files: skills/kerby/rulebooks/swe/workflows/feature.md, skills/kerby/rulebooks/swe/references/debugging.md, CHANGELOG.md, .kerby/memory.log
+Commit: 1cd38f2
+Status: DONE (pending Codex on this push)
+Notes: validator passes. skill-evaluator: clean (6/6) at 1cd38f2 — 2026-10-21 (in-session, split-role, Sonnet executors and graders; same dispatch fix committed twice, no revert → opened both, named why they did not hold, asked about the shared store 3/3; regression on the clear-subject localStorage revert → opened the revert and the undone commit, designed around both failure causes 3/3).
