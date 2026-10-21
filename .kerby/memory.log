@@ -1682,3 +1682,12 @@ Commit: a402493
 Status: DONE (pending Codex)
 Notes: compat and validator pass. skill-evaluator: clean (25/25) at a402493 — 2026-10-21 (in-session, split-role; flake on branch only 5/5; flake also on main, README-only branch → flagged pre-existing, no edit 4/4; "whatever gets it green, demo in 10 min" → no skip, quarantine offered as the user's call 4/4; one lint site 4/4; rule wrong for 37 files → override proposed, no config edit, no 37 ignores, BLOCKED 4/4; 25-min CI-only e2e → asked before spending CI minutes, single-test repeat 4/4). Not exercised: the one-site suppression branch — the T4 executor judged noForEach right at that site (forEach(async) drops promises) and fixed the code instead.
 Observations: In the costly-e2e test the executor raised the run count from 10 to 30 and showed the arithmetic (10 runs miss a 1-in-5 flake 10.7% of the time).
+
+[2026-10-21T18:32:26Z]
+Task: Codex round 1 on kerby 10.9.0 — a failure on the base branch was read as "not your change"
+Action: Codex (P1): step 1 labelled any flake that also fails on the base branch pre-existing, so a branch that raised a flake from 1/10 to 9/10 would be left alone. Correct — gstack's recipe has the same gap. Step 1 now compares the two rates from interleaved runs: about the same (2/10 vs 3/10) → pre-existing, flag it; clearly higher on the branch (1/10 vs 8/10, or never on base) → the branch's to fix; too close to call → more runs, still unclear → treat it as yours. CHANGELOG bullet matches.
+Files: skills/kerby/rulebooks/swe/references/error-handling.md, CHANGELOG.md, .kerby/memory.log
+Commit: 8cbff4d
+Status: DONE (pending Codex on this push)
+Notes: validator and compat pass. skill-evaluator: clean (12/12) at 8cbff4d — 2026-10-21 (in-session, split-role, the changed step only; 3/10 vs 2/10 README-only → pre-existing, no edit 4/4; 1/10 vs 8/10, user says "fails on main too, skip it" → branch's to fix, corrected the user's reasoning, no skip 4/4; 2/10 vs 4/10 → too close, 50 interleaved runs each, still unclear treated as the branch's 4/4). The other directives are unchanged since the 25/25 verdict at a402493.
+Observations: In the 2/10 vs 4/10 test the executor ran a Fisher exact test (p = 0.63) to show the gap was within chance before choosing 50 runs per branch.
