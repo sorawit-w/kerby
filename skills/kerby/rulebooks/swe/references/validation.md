@@ -29,13 +29,13 @@ A gate is anything that would have made your change fail: a test, an assertion, 
 
 - a test deleted, skipped (`.skip`, `xit`, `@pytest.mark.skip`) or focused (`.only`)
 - an assertion loosened, or an expected value changed to match new output
-- a timeout, retry count, tolerance or coverage threshold raised, or a minimum lowered
+- a limit loosened — a timeout, retry count or tolerance raised, or a minimum such as coverage lowered
 - a snapshot or golden file regenerated
 - a suppression added (`eslint-disable`, `biome-ignore`, `@ts-ignore`, `# noqa`, `# type: ignore`)
-- a test, lint, type or CI config change that weakens a check — a rule turned off or downgraded, a job or step removed, a path excluded (one that makes a check stricter is not a gate edit)
+- a test, lint, type or CI config change that weakens a check — a rule turned off or downgraded, a job or step removed, a path excluded
 - a commit made with `--no-verify`
 
-A new test is not a gate edit. Everything else on the list is, even when it is right — a test deleted with the code it covered, or an expected value changed because the intent gate (`references/intent-gate.md`) cleared the behavior change.
+The test is the direction: a change that makes a check harder to pass — a new test, a rule turned on, a limit tightened — is never a gate edit. Everything on the list is one, even when it is right — a test deleted with the code it covered, or an expected value changed because the intent gate (`references/intent-gate.md`) cleared the behavior change.
 
 **Ask each one a single question: does it silence the failure the gate exists to catch, or is it justified by something you can show — a measurement, a spec line, the user's instruction?** One you cannot justify that way is not yours to make: ask first. One you can justify still goes in the report, because the developer, not the agent, accepts a weakened gate.
 
