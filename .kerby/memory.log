@@ -1558,3 +1558,75 @@ Files: skills/kerby/rulebooks/swe/references/design-md.md, CHANGELOG.md, .kerby/
 Commit: bd3ba42
 Status: DONE (pending Codex on this push)
 Notes: skill-evaluator: clean (3/3) at bd3ba42 — 2026-10-21 (in-session, split-role; K2b fallback numbers: warn/bad 6.5 flagged despite icons, ok/NEW 11 passed). Thresholds read from the dataviz skill text (CVD ΔE ≥ 8 in OKLab ×100; normal-vision floor 15); dataviz is bundled with Claude Code, not a plugin.
+
+[2026-10-21T00:00:00Z]
+Task: kerby 10.7.0 — STATUS.md lines tested against the merge
+Action: communication.md § Status Tracking replaces the review/merge phrase list with one test (every line must still be true the moment the change that commits it merges); the list stays as examples; the change's own ship step is not a Next Up row; Phase example is now `Hardening — rate limits`; a stale line is fixed inside the next change with other work, never by a project-state-only change or an offer of one. STATUS.md.template header states the test. .kerby/STATUS.md refreshed: it still named the status-guard release as the next thing to ship, carried through #76–#79.
+Files: skills/kerby/rulebooks/swe/references/communication.md, skills/kerby/resources/templates/STATUS.md.template, .kerby/STATUS.md, version files, CHANGELOG.md, README.md, .kerby/memory.log
+Commit: 14b1a03
+Status: DONE (pending Codex on the PR)
+Notes: Prompted by agents offering a PR whose only change was one stale STATUS.md line ("not released"). Rule-cost precheck passed (about 4 net lines in an on-demand file; frequent; medium severity — an extra PR each time; the old rule covered the category but not unlisted wording; agent-testable). skill-evaluator: clean (28/28) at 14b1a03 — 2026-10-21 (in-session, split-role, sonnet executors and graders; T1 STATUS inside the PR 5/5, T2 stale line after merge with no other work — no standalone PR offered 5/5, T3 stale rows rewritten from git log during a real change 5/5, T4 unlisted phrasings "sign off Friday" / "next tagged release" kept out 5/5, T5 memory.log keeps PR number and review state 4/4, T6 no STATUS.md, created from template 4/4). T1, T3 and T6 would likely pass under the old rule too; T2 and T4 are the ones that test the new text. The PR-only-state hook was discussed and deferred until offers recur after this rule.
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 1 on kerby 10.7.0 — fresh-session evaluator gate, and its one finding
+Action: Codex (P1) classed the rule as commit discipline, which needs a fresh-session skill-evaluator run before merge; agreed and ran one in a separate session. Its one skill-text finding (F1: "change" read as a commit, so a state-only commit on an open PR branch with real work was refused) is fixed: communication.md § Status Tracking now says a change is what merges — the pull request, not a commit — and a state-only commit is fine on a branch whose pull request carries other work, open yet or not. CHANGELOG matches.
+Files: skills/kerby/rulebooks/swe/references/communication.md, CHANGELOG.md, .kerby/memory.log
+Commit: 585b8b7
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: 1 finding (60/62) at 493c7b6 — 2026-10-21 (fresh-session, split-role; 9 tests, Sonnet and Opus executors, fresh Sonnet graders; the 2 misses were F1 in both Sonnet runs of the same-branch test). skill-evaluator: clean (7/7) at 585b8b7 — 2026-10-21 (in-session, split-role; R1 log-only commit on an open PR branch with real work, allowed 3/3; R2 stale row on main with no other work, no state-only PR offered 4/4). Open for the maintainer, not changed: an explicit user request for a STATUS-only PR is refused under "never".
+
+[2026-10-21T00:00:00Z]
+Task: kerby 10.7.0 — an explicit user request overrides the no-state-only-PR rule
+Action: Kiang chose to let an explicit user request win. communication.md § Status Tracking: an explicit request from the user for a state-only pull request overrides the rule — open it; what the rule forbids is proposing one unprompted. CHANGELOG and README release line match.
+Files: skills/kerby/rulebooks/swe/references/communication.md, CHANGELOG.md, README.md, .kerby/memory.log
+Commit: a373668
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (8/8) at a373668 — 2026-10-21 (in-session, split-role; O1 explicit request for a STATUS-only PR: branched off main, opened it, wrote no review/release state 4/4; O2 stale Phase line after merge, unprompted: no state-only PR offered, fix deferred to the next real change 4/4). Grader note on O1, not graded: the executor also committed a memory.log entry yet described the PR as STATUS.md-only — a reporting slip, not a rule gap (both are project state).
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 3 on kerby 10.7.0 — post-merge regeneration vs the state-only ban
+Action: Codex (P2): the line requiring STATUS.md regeneration after any merge that touched it had no compliant landing once the merge was on a protected base. communication.md § STATUS.md is shared too now says to regenerate in the change that carries the merge — on your branch when you merged the base into it, or in the next change with other work when the merge landed on a protected base — and that regeneration is never a reason for a state-only pull request. Codex's round-2 P2 (honor explicit requests) was already fixed in a373668; replied on both threads.
+Files: skills/kerby/rulebooks/swe/references/communication.md, .kerby/memory.log
+Commit: d57b578
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean on skill text (7/8) at d57b578 — 2026-10-21 (in-session, split-role; G1 hybrid after merging main into a feature branch: regenerated from git log and the merged change, committed on the feature branch, no state-only PR 3/4 — the miss is fixture-layer: the brief gave only the two clashing rows, so the executor wrote a placeholder for the rest of Next Up; G2 hybrid on protected main, no other work: warned, no state-only PR, deferred to the next change 4/4). Three Codex rounds, three different finding classes (gate tier, user override, regeneration landing) — circuit breaker not tripped.
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 4 on kerby 10.7.0 — the "change" model replaced by "the copy that lands"
+Action: Codex (two P2): checkpoint commits during multi-session work, and the "Merge locally" finish with no pull request, fell outside the rule. Rounds 1, 3 and 4 were one class — holes in the definition of "change" (commit vs pull request vs local merge vs checkpoint) — so the model was deleted rather than patched again: communication.md now tests the copy of STATUS.md that lands on the base branch, however it lands; checkpoint commits may carry interim position if the landing copy passes; a stale line on the base is fixed by the next work that lands with other changes, never by landing state files alone; regeneration follows the same path. Template header, this repo's STATUS.md header, CHANGELOG and README match.
+Files: skills/kerby/rulebooks/swe/references/communication.md, skills/kerby/resources/templates/STATUS.md.template, .kerby/STATUS.md, CHANGELOG.md, README.md, .kerby/memory.log
+Commit: 621145d
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (12/12) at 621145d — 2026-10-21 (in-session, split-role; K1 mid-feature checkpoint records interim position and commits it on the branch 4/4; K2 "Merge locally" finish: state committed on the branch before the fast-forward, no PR needed 4/4; K3 stale line on main, unprompted: no state-only fix proposed 4/4). Circuit breaker applied per the saved lesson: the class was holes in a model, so the model went.
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 5 on kerby 10.7.0 — STATUS.md queue order
+Action: Codex (P2): the refreshed STATUS.md dropped the limeade row's dependency on refreshing the installed copy, so the live /compact check could run against the previous rules. Restored it as "row 4".
+Files: .kerby/STATUS.md, .kerby/memory.log
+Commit: 7450a0c
+Status: DONE (pending Codex on this push)
+Notes: No rule text changed, so no evaluator run. Codex found nothing new in the rule at 124f235.
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 6 on kerby 10.7.0 — fresh-session evaluator on the final rule
+Action: Codex (P1): the first fresh-session run covered 493c7b6, before the "copy that lands" rewrite (621145d), so no outer-bias result covered the merged text. Asked the same separate session (not the authoring one) to design new tests for the new model and run them.
+Files: .kerby/memory.log
+Commit: (pending)
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (66/66) at a2250f8 — 2026-10-21 (fresh-session, split-role; 9 new tests R1–R9, Sonnet and Opus executors, fresh Sonnet graders: same-branch state-only commit 12/12, checkpoint 3/4 with the miss classed rubric-layer (its check counted the required checkpoint push as landing) and left out of N, landing after a checkpoint 4/4, Merge locally with no PR 10/10, hybrid after merging main into a branch 6/6, stale STATUS on main with no offer 6/6, explicit user request for a state-only PR done 10/10, unlisted wording 5/5, local merge where main also changed STATUS 10/10). No skill-text findings. Rule text unchanged since 621145d.
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 7 on kerby 10.7.0 — second dropped STATUS.md dependency
+Action: Codex (P2): the refresh also dropped the sibling-cleanup row's dependency on refreshing the installed copy. Restored as "row 4". Same class as round 5 (a dependency lost while rewriting the queue), so every row's dependency cell was compared against main: none other was lost; the only removed row is the shipped status-guard release.
+Files: .kerby/STATUS.md, .kerby/memory.log
+Commit: b739772
+Status: DONE (pending Codex on this push)
+Notes: On this machine the dependency is already met (installed copy is past the codex-review removal), but STATUS.md is read on other machines. No rule text changed.
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 8 on kerby 10.7.0 — regenerate STATUS.md before it lands
+Action: Codex (P2): post-merge regeneration was deferred until after landing, which let a never-true hybrid land. communication.md § STATUS.md is shared too now says to regenerate before it lands — bring the moved base into the branch, or stop a local merge before it commits, and regenerate there; a hybrid that reached the base anyway is a stale line fixed by the next work that lands there. CHANGELOG matches.
+Files: skills/kerby/rulebooks/swe/references/communication.md, CHANGELOG.md, .kerby/memory.log
+Commit: c90c376
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (30/30) at c90c376 — 2026-10-21 (fresh-session, split-role; Q1 PR merge after the base moved and touched STATUS.md: merged base into the branch, stopped before commit, regenerated 10/10; Q2 local merge: switched to --no-commit and regenerated before the merge commit 10/10; Q3 hybrid already on main, no other work: no state-only offer 6/6; Q4 base moved without touching STATUS.md: left alone 4/6, two misses rubric-layer (a memory.log-only commit on a branch with other work is allowed) and left out of N). Regeneration findings in rounds 3 and 8; other rounds were different classes.

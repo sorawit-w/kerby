@@ -3,7 +3,9 @@
 > **Position only.** This file answers *where do things stand* — never *what
 > happened*, *which version*, or *what a PR is doing*. Those have authorities
 > already: the manifests, git, `.kerby/memory.log`, the tracker. Rewrite this from
-> what they currently say, never from memory of what you set an hour ago.
+> what they currently say, never from memory of what you set an hour ago. Every
+> line must still be true the moment this file lands on the base branch: no review
+> or release state, and no row for shipping the work that lands it.
 
 ---
 
@@ -11,9 +13,9 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | Release — the status-file check runs from git's own pre-commit too and sees chained commits; next, limeade alignment |
-| **Milestone** | Rules that survive a compaction, and a STATUS file that cannot state provenance |
-| **Milestone Goal** | After a compaction the SessionStart hook re-supplies every pinned builtin's rules without the agent asking; a staged STATUS.md naming a version, SHA or PR number is refused at commit time; commit and PR text carries no tool footprint |
+| **Phase** | Maintenance — rule fixes driven by failures seen in real sessions |
+| **Milestone** | Rules that hold in real use |
+| **Milestone Goal** | A failure seen in a real session becomes a rule or a guard that stops it coming back, without adding rules nobody needs |
 
 ---
 
@@ -21,15 +23,13 @@
 
 | Priority | Task | Dependencies |
 |----------|------|--------------|
-| 1 | **Ship the status-guard release** — Codex review on the pull request, address every comment against HEAD, squash-merge, then refresh the installed copy with `npx skills add sorawit-w/kerby` (the copy at `~/.agents/skills/kerby` is what every sibling repo's hooks run) | Codex review |
-| 2 | **limeade alignment** — complete the Azure DevOps change (squash, delete the source branch) once row 1 has landed and the copy is refreshed; then a live `/compact` in that repo to confirm the re-injected block and the imported AGENTS.md come back | row 1 |
-| 3 | **Fresh-session `skill-evaluator` pass for the protect-env scope change, the state-lands-inside-the-PR change, the codex-mark transcript fix, and the code-intelligence routing section.** All four are the higher-bar class in `skills/kerby/CLAUDE.md` § Gate tiers (safety / commit-discipline / new behavioral surface). The first three shipped without it; the routing section must clear it before it merges. It cannot run in the session that authored the change — that is the point of the outer-bias check | a session other than the authoring one |
-| 4 | Resolve the `prepare` ring-fence contradiction — `adopt-existing.md` creates tracked artifacts while its own ring-fence forbids committing them. Open P1 from the state-lands-inside-the-PR change, deliberately left as a scope decision | maintainer |
-| 5 | Keep the installed copy current — it is a plain copy fetched with `npx skills add sorawit-w/kerby`, not a link to this repo, so every merged release needs that command re-run before a session anywhere governs by it | none |
-| 6 | **Sibling-repo cleanup** — agent-skills, declair, dunkuri, konthai, oh-shift, piggy-hero each still select `codex-review` and register its gate hook: `kerby unload codex-review` then `kerby install` in each; konthai also drops the entry from its committed `.kerby/rulebooks.toml` | row 5 — the installed copy must be on this release first |
-| 7 | **laney follow-up** — seed `examples/swe`'s review phase with the `CODEX_VERDICT` grammar and P0/P1 triage from the retired rulebook (git history, not this tree) | laney |
-| 8 | Work the logged P2/P3 debt (below) | none |
-
+| 1 | **limeade alignment** — complete the Azure DevOps change (squash, delete the source branch); then a live `/compact` in that repo to confirm the re-injected block and the imported AGENTS.md come back | row 4 — the installed copy must be refreshed first, or the check runs against the previous rules |
+| 2 | **Fresh-session `skill-evaluator` pass for the protect-env scope change, the state-lands-inside-the-PR change, and the codex-mark transcript fix.** All three are the higher-bar class in `skills/kerby/CLAUDE.md` § Gate tiers (safety / commit-discipline / new behavioral surface) and shipped without it. It cannot run in the session that authored the change — that is the point of the outer-bias check | a session other than the authoring one |
+| 3 | Resolve the `prepare` ring-fence contradiction — `adopt-existing.md` creates tracked artifacts while its own ring-fence forbids committing them. Open P1 from the state-lands-inside-the-PR change, deliberately left as a scope decision | maintainer |
+| 4 | Keep the installed copy current — it is a plain copy fetched with `npx skills add sorawit-w/kerby`, not a link to this repo, so every merged release needs that command re-run before a session anywhere governs by it | none |
+| 5 | **Sibling-repo cleanup** — agent-skills, declair, dunkuri, konthai, oh-shift, piggy-hero each still select `codex-review` and register its gate hook: `kerby unload codex-review` then `kerby install` in each; konthai also drops the entry from its committed `.kerby/rulebooks.toml` | row 4 — the installed copy must be on a release without `codex-review`, or nothing reads as stale |
+| 6 | **laney follow-up** — seed `examples/swe`'s review phase with the `CODEX_VERDICT` grammar and P0/P1 triage from the retired rulebook (git history, not this tree) | laney |
+| 7 | Work the logged P2/P3 debt (below) | none |
 ---
 
 ## Blockers
