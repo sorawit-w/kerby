@@ -217,7 +217,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `10.7.0` — swe 2.18.0: every line in STATUS.md must still be true the moment the file lands on the base branch, so it carries no review or release state and no row for shipping the work that lands it; a line already out of date is fixed by the next work that lands with other changes, never by landing state files alone unless the user asks for it.
+Current release: `10.8.0` — swe 2.19.0: the resource list gains the official GSAP skills, suggested by the project's dependencies and never because the skill is installed — GSAP when the project already uses it, native CSS for simple motion, and an ask before adding `gsap` for timelines or scroll-driven work.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests
