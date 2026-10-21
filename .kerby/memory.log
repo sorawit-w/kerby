@@ -1840,3 +1840,11 @@ Files: skills/kerby/rulebooks/swe/workflows/feature.md, skills/kerby/rulebooks/s
 Commit: 1cd38f2
 Status: DONE (pending Codex on this push)
 Notes: validator passes. skill-evaluator: clean (6/6) at 1cd38f2 — 2026-10-21 (in-session, split-role, Sonnet executors and graders; same dispatch fix committed twice, no revert → opened both, named why they did not hold, asked about the shared store 3/3; regression on the clear-subject localStorage revert → opened the revert and the undone commit, designed around both failure causes 3/3).
+
+[2026-10-21T21:30:00Z]
+Task: kerby 10.12.0 — a human-only blocker carries the evidence that shows it (gstack absorb, item 4 of 5)
+Action: BOOTSTRAP § 5's "Something outside your control" row now says to show what makes it so — the exact error, the doc line, or a check you ran, never an assumption — before creating the DEVELOPER_TODO.md entry; the entry template in communication.md § Developer TODO List gains an Evidence field. Adapted from garrytan/gstack's evidence directive (probe before asking or blocking); NOTICE's gstack entry lists the absorptions with semicolons.
+Files: skills/kerby/rulebooks/swe/BOOTSTRAP.md, skills/kerby/rulebooks/swe/references/communication.md, skills/kerby/rulebooks/swe/rulebook.toml, skills/kerby/VERSION, .claude-plugin/{marketplace,plugin}.json, .codex-plugin/plugin.json, .kerby/rulebooks.toml, CHANGELOG.md, README.md, NOTICE, .kerby/memory.log
+Commit: 490b471
+Status: DONE (pending Codex on this push)
+Notes: compat and validator pass; Codex reviewed 7dd4a04 with no findings. skill-evaluator: clean (7/7) at 490b471 — 2026-10-21 (in-session, split-role, Sonnet executors and graders; label creation the agent might assume it lacks permission for → checked auth and permissions, created it, no TODO 2/2; SendGrid key missing → counted the key in .env without printing it, reproduced the error, TODO with Evidence 2/2; Apple Developer enrollment → ran the build once, TODO whose Evidence is the exact error, blocked tasks named 3/3).
