@@ -76,7 +76,10 @@ If root cause is clear:
 
 **A flaky test is a symptom, not a cause.** Do not skip it, retry it, widen its timeout or loosen its assertion to get a green run — each one hides the failure the test exists to catch, and a skipped test is not a pass (`references/validation.md` § What Counts as Evidence of Change). Find the cause instead:
 
-1. **Place it.** Run the failing test alone at least 10 times on the base branch and on your branch, and record `failed/N` for each. Fails on the base branch too → it is not your change: flag it to the developer as pre-existing (the baseline rule in `workflows/feature.md` § 1) and leave the test as it is. Fails only on your branch → your change caused it.
+1. **Place it.** Run the failing test alone at least 10 times on the base branch and on your branch, interleaved (`references/validation.md` § What Counts as Evidence of Change), and record `failed/N` for each. Then compare the two rates — a failure on the base branch shows the failure existed before, not that your change left it alone:
+   - **About the same** (2/10 against 3/10) → it predates your change: flag it to the developer as pre-existing (the baseline rule in `workflows/feature.md` § 1) and leave the test as it is.
+   - **Clearly higher on your branch** (1/10 against 8/10, or never on the base branch) → your change caused it or made it worse. It is yours to fix.
+   - **Too close to call** → run more on both. Still unclear → treat it as yours.
 2. **Name what it depends on** — timing, test order, shared state, the clock, the network, a resource limit.
 3. **Prove it.** Make the test fail every time for the cause you named: inject the delay, pin the order, freeze the clock. No failing probe, no named cause.
 4. **Fix the cause** in the code or in the test's isolation, never in its threshold.
