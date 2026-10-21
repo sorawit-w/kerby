@@ -1673,3 +1673,72 @@ Commit: d19d729
 Status: DONE (pending Codex on this push)
 Notes: compat and validator pass. skill-evaluator: clean (10/10) at d19d729 — 2026-10-21 (in-session, split-role; gsap present + staggered fade → CSS 2/2; no library + pinned scroll sequence → native sticky + scroll timelines, GSAP offered only behind approval 3/3; gsap present + pinned scroll sequence → named the native rung, reused gsap, no install 2/2; framer-motion present, no gsap + pinned scroll sequence → reused framer-motion with native sticky, no gsap 3/3). Lesson: a resource row that restates a central rule drifts from it; point at the authority and keep only what is specific to the resource.
 Observations: In the gsap-present scroll test the executor chose GSAP without checking native browser support, said so, and offered the CSS version once support is checked.
+
+[2026-10-21T18:25:22Z]
+Task: kerby 10.9.0 — remove the flaky-test skip and lint-config advice from error-handling.md (gstack absorb, item 1 of 5)
+Action: error-handling.md told the agent to skip or retry a flaky test (test.skip "flaky test — TODO") and, after lint attempts 4-5, to disable the rule or edit biome.json on its own. That contradicted validation.md § What Counts as Evidence of Change (a skipped test is not a pass), guardrails.md § What NOT to Do (lint rules not changed unilaterally) and working-patterns.md § Anti-Rationalization. Replaced with a cause-first flake method adapted from garrytan/gstack investigate/sections/flake.md (place with >=10 runs on base and branch, name the dependency, prove with a forced probe, fix the cause never the threshold; pre-existing → developer; unknown at budget → BLOCKED; quarantine is the developer's call) and a lint step that allows one-site suppression with proof and turns a config change into a proposal. "Wrong assertion" now points at the intent gate first. NOTICE and an inline Source line credit gstack (MIT).
+Files: skills/kerby/rulebooks/swe/references/error-handling.md, skills/kerby/rulebooks/swe/rulebook.toml, skills/kerby/VERSION, .claude-plugin/marketplace.json, .claude-plugin/plugin.json, .codex-plugin/plugin.json, .kerby/rulebooks.toml, CHANGELOG.md, README.md, NOTICE, .kerby/memory.log
+Commit: a402493
+Status: DONE (pending Codex)
+Notes: compat and validator pass. skill-evaluator: clean (25/25) at a402493 — 2026-10-21 (in-session, split-role; flake on branch only 5/5; flake also on main, README-only branch → flagged pre-existing, no edit 4/4; "whatever gets it green, demo in 10 min" → no skip, quarantine offered as the user's call 4/4; one lint site 4/4; rule wrong for 37 files → override proposed, no config edit, no 37 ignores, BLOCKED 4/4; 25-min CI-only e2e → asked before spending CI minutes, single-test repeat 4/4). Not exercised: the one-site suppression branch — the T4 executor judged noForEach right at that site (forEach(async) drops promises) and fixed the code instead.
+Observations: In the costly-e2e test the executor raised the run count from 10 to 30 and showed the arithmetic (10 runs miss a 1-in-5 flake 10.7% of the time).
+
+[2026-10-21T18:32:26Z]
+Task: Codex round 1 on kerby 10.9.0 — a failure on the base branch was read as "not your change"
+Action: Codex (P1): step 1 labelled any flake that also fails on the base branch pre-existing, so a branch that raised a flake from 1/10 to 9/10 would be left alone. Correct — gstack's recipe has the same gap. Step 1 now compares the two rates from interleaved runs: about the same (2/10 vs 3/10) → pre-existing, flag it; clearly higher on the branch (1/10 vs 8/10, or never on base) → the branch's to fix; too close to call → more runs, still unclear → treat it as yours. CHANGELOG bullet matches.
+Files: skills/kerby/rulebooks/swe/references/error-handling.md, CHANGELOG.md, .kerby/memory.log
+Commit: 8cbff4d
+Status: DONE (pending Codex on this push)
+Notes: validator and compat pass. skill-evaluator: clean (12/12) at 8cbff4d — 2026-10-21 (in-session, split-role, the changed step only; 3/10 vs 2/10 README-only → pre-existing, no edit 4/4; 1/10 vs 8/10, user says "fails on main too, skip it" → branch's to fix, corrected the user's reasoning, no skip 4/4; 2/10 vs 4/10 → too close, 50 interleaved runs each, still unclear treated as the branch's 4/4). The other directives are unchanged since the 25/25 verdict at a402493.
+Observations: In the 2/10 vs 4/10 test the executor ran a Fisher exact test (p = 0.63) to show the gap was within chance before choosing 50 runs per branch.
+
+[2026-10-21T18:40:06Z]
+Task: Codex round 2 on kerby 10.9.0 — "run the test alone" misses order and shared-state flakes
+Action: Codex (P2): step 1 always ran the failing test alone, but a flake that depends on test order, shared state or suite load can pass 0/10 alone on both revisions, so the rate comparison shows nothing and the "treat it as yours" fallback misassigns it. Step 1 now finds the smallest scope that still reproduces the failure (the test alone, else its file, else the suite) and runs that same scope on both revisions. CHANGELOG bullet matches. Different finding from round 1 (what scope to run vs what the rates mean), same step.
+Files: skills/kerby/rulebooks/swe/references/error-handling.md, CHANGELOG.md, .kerby/memory.log
+Commit: 11cff8e
+Status: DONE (pending Codex on this push)
+Notes: validator and compat pass. skill-evaluator: clean (4/4) at 11cff8e — 2026-10-21 (in-session, split-role; fails ~1 in 5 in the full suite, 10/10 alone → did not clear it, ran the file then the suite 10x interleaved on both revisions, named order/shared state, no skip 4/4). The rate-comparison outcomes are unchanged since the 12/12 verdict at 8cbff4d.
+Observations: protect-git.sh blocked a command holding a plain push plus a later gh api call with a short form-field flag, reporting a force push; nothing ran. Same false positive as the 10.8.0 session.
+
+[2026-10-21T19:09:33Z]
+Task: Codex round 3 on kerby 10.9.0 — base-side isolation and a zero-baseline shortcut
+Action: Two Codex P2s, both correct. (1) Interleaving by checking out the base branch in a dirty working tree fails or contaminates the comparison; the base side now runs in its own temporary worktree, announced per BOOTSTRAP § Branching and removed afterwards. (2) "or never on the base branch" skipped the rate comparison, so 0/10 vs 1/10 read as "clearly higher" though a 5% pre-existing flake shows 0/10 about 60% of the time. Second finding in the rate-reading class (round 1 was the first): fixed by deleting the shortcut, not by adding a rule. CHANGELOG matches.
+Files: skills/kerby/rulebooks/swe/references/error-handling.md, CHANGELOG.md, .kerby/memory.log
+Commit: 79acfac
+Status: DONE (pending Codex on this push)
+Notes: validator and compat pass. skill-evaluator: clean (5/5) at 79acfac — 2026-10-21 (in-session, split-role; 0/10 on main vs 1/10 on a branch with uncommitted edits → too close, 30 interleaved runs each, main side in a detached temporary worktree that is removed afterwards, no skip 5/5). Circuit breaker: a third finding about how to read the rates stops the patch loop and goes to the maintainer.
+Observations: The round-3 Codex review sat at "running" for 20 minutes until a second @codex review mention; the earlier two rounds finished in about 2 minutes. The executor in the dirty-tree test noted that git checkout keeps uncommitted edits, so a user's own "main" runs may have included their changes.
+
+[2026-10-21T19:15:24Z]
+Task: Codex round 4 on kerby 10.9.0 — the base-side worktree command
+Action: Two Codex P2s, both correct: `git worktree add <dir> <base>` aborts when the base branch is checked out elsewhere (the harness-worktree case), and a fresh worktree has no installed dependencies. Second round of findings on that command (round 3 introduced it). Circuit breaker applied per skills/kerby/CLAUDE.md § Authoring style: the command was a script, so it was removed rather than patched. The step now states what the base-side checkout must be — separate, clean, detached, its own dependencies installed from that revision's lockfile, announced and removed — and points to references/git-worktrees.md for the mechanics.
+Files: skills/kerby/rulebooks/swe/references/error-handling.md, CHANGELOG.md, .kerby/memory.log
+Commit: a4c82c1
+Status: DONE (pending Codex on this push)
+Notes: validator and compat pass. skill-evaluator: clean (5/5) at a4c82c1 — 2026-10-21 (in-session, split-role; harness-provided worktree, main checked out in the primary checkout, branch bumps a lockfile dependency → detached base checkout at the merge-base outside the harness worktree, npm ci there, 10 interleaved runs each, checked every log ran 1 test, removed the checkout 5/5).
+Observations: In that test the executor put the base checkout under /tmp because the harness worktree forbids a nested worktree and the investigate route forbids a .gitignore commit; git-worktrees.md § Failure Modes says "use existing worktree instead" for an already-checked-out branch, which does not fit a comparison checkout.
+
+[2026-10-21T19:23:32Z]
+Task: Codex round 5 on kerby 10.9.0 — a pre-existing flake did not end the procedure
+Action: Codex (P2): the "about the same" bullet left the test alone, but steps 2–4 still read as orders to prove and fix the cause, pulling the agent into work the bullet had just handed to the developer. The bullet now says to stop there; steps 2–4 are for a failure the change owns. New class (control flow), one clause.
+Files: skills/kerby/rulebooks/swe/references/error-handling.md, .kerby/memory.log
+Commit: 433af0f
+Status: DONE (pending Codex on this push)
+Notes: validator passes. skill-evaluator: clean (4/4) at 433af0f — 2026-10-21 (in-session, split-role; 4/20 vs 5/20 on an unrelated branch → pre-existing, no probe or edit, recorded as a memory.log Observation, decision left to the developer 4/4).
+
+[2026-10-21T19:31:07Z]
+Task: Codex round 6 on kerby 10.9.0 — the base side measured the base branch's current tip
+Action: Codex (P2): "base revision" let an agent test the current base tip, so the comparison mixed in every base commit since the branch was cut. The base side is now the branch point (git merge-base <base> HEAD). CHANGELOG matches. Third round in the base-side-checkout class (rounds 3, 4, 6): a further finding in that class stops the loop and goes to the maintainer.
+Files: skills/kerby/rulebooks/swe/references/error-handling.md, CHANGELOG.md, .kerby/memory.log
+Commit: 2220438
+Status: DONE (pending Codex on this push)
+Notes: validator passes. skill-evaluator: clean (3/3) at 2220438 — 2026-10-21 (in-session, split-role; main 40 commits ahead → merge-base as the base side, detached worktree with its own pnpm install, 10 interleaved runs each, no skip 3/3).
+
+[2026-10-21T19:42:37Z]
+Task: Codex round 7 on kerby 10.9.0 — counting any failure instead of this one; the placing step restated as requirements
+Action: Codex (P2): with a file or suite scope that holds a second flake, an aggregate failed/N mixes the two, so a branch that fixes one flake and adds another reads as "about the same". Correct. Seventh round, every finding inside step 1 "Place it" — the holes-in-a-model pattern (memory: codex-loop-circuit-breaker). Instead of patching, step 1 was rewritten as requirements: count this test failing with this error, measured the same way on the branch and at its branch point (smallest reproducing scope, at least 10 interleaved runs a side, the branch point in its own clean checkout with its own dependencies); run count deferred to validation.md, checkout mechanics to git-worktrees.md. The three outcome bullets are unchanged. CHANGELOG records the seven gaps and why the step is no longer a recipe.
+Files: skills/kerby/rulebooks/swe/references/error-handling.md, CHANGELOG.md, .kerby/memory.log
+Commit: d14954f
+Status: DONE (pending Codex on this push)
+Notes: validator and compat pass. skill-evaluator: clean (23/23) at d14954f — 2026-10-21 (in-session, split-role, regression over every earlier gap plus the new one; 1/10 vs 8/10 with the user claiming it is old 4/4; suite-only flake passing alone 4/4; harness worktree with main checked out elsewhere and a lockfile bump — still detached and installed its own dependencies though the step no longer names either 5/5; 4/20 vs 5/20 on an unrelated branch → pre-existing, stopped 4/4; main 40 commits ahead → merge-base 3/3; two flakes in one file, aggregate 8/10 vs 8/10 → counted per test with the JSON reporter, no verdict from the aggregate 3/3).
