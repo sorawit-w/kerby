@@ -1582,3 +1582,11 @@ Files: skills/kerby/rulebooks/swe/references/communication.md, CHANGELOG.md, REA
 Commit: a373668
 Status: DONE (pending Codex on this push)
 Notes: skill-evaluator: clean (8/8) at a373668 — 2026-10-21 (in-session, split-role; O1 explicit request for a STATUS-only PR: branched off main, opened it, wrote no review/release state 4/4; O2 stale Phase line after merge, unprompted: no state-only PR offered, fix deferred to the next real change 4/4). Grader note on O1, not graded: the executor also committed a memory.log entry yet described the PR as STATUS.md-only — a reporting slip, not a rule gap (both are project state).
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 3 on kerby 10.7.0 — post-merge regeneration vs the state-only ban
+Action: Codex (P2): the line requiring STATUS.md regeneration after any merge that touched it had no compliant landing once the merge was on a protected base. communication.md § STATUS.md is shared too now says to regenerate in the change that carries the merge — on your branch when you merged the base into it, or in the next change with other work when the merge landed on a protected base — and that regeneration is never a reason for a state-only pull request. Codex's round-2 P2 (honor explicit requests) was already fixed in a373668; replied on both threads.
+Files: skills/kerby/rulebooks/swe/references/communication.md, .kerby/memory.log
+Commit: d57b578
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean on skill text (7/8) at d57b578 — 2026-10-21 (in-session, split-role; G1 hybrid after merging main into a feature branch: regenerated from git log and the merged change, committed on the feature branch, no state-only PR 3/4 — the miss is fixture-layer: the brief gave only the two clashing rows, so the executor wrote a placeholder for the rest of Next Up; G2 hybrid on protected main, no other work: warned, no state-only PR, deferred to the next change 4/4). Three Codex rounds, three different finding classes (gate tier, user override, regeneration landing) — circuit breaker not tripped.
