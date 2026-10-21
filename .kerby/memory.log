@@ -1542,3 +1542,11 @@ Files: skills/kerby/rulebooks/swe/{BOOTSTRAP.md,references/design-md.md}, CHANGE
 Commit: 1444dd4, e8f6715
 Status: DONE (pending Codex on this push)
 Notes: skill-evaluator: clean (13/13) at e8f6715 — 2026-10-20 (in-session, split-role; tests 1, 10, 15 re-run with rubrics reworded to ask-first before output was read, 4/4, 3/3, 3/3; new test 18 packages/app/DESIGN.md 3/3). This deletes the auto-use model that produced rounds 1–6's scope edges (package, docs/, move-to-root), per the circuit-breaker lesson. Tests 9, 14 (other-package / own-package) are superseded by the ask-first rule and were not re-run; test 14's "use without asking" expectation no longer holds.
+
+[2026-10-21T00:00:00Z]
+Task: kerby 10.6.0 — render verifier names screenwright mode V; new "Check signal colors" row
+Action: design-md.md § Design skills verifier row and the external-resources screenwright row name screenwright's read-only mode V (agent-skills 5.9.0, PR sorawit-w/agent-skills#46); new row "Check signal colors" (status + accent colors as one set, light and dark, color-blind separation; dataviz palette validator today, any ΔE color-blind simulation without it; only when the work touches colors), requested by the redesign session from job-scout evidence; Kiang chose the tool-neutral form because the team may not have dataviz.
+Files: skills/kerby/rulebooks/swe/references/{design-md,external-resources}.md, version files, CHANGELOG.md, README.md, .kerby/memory.log
+Commit: 93fcf73, b3ce575
+Status: DONE (pending agent-skills#46 merge, then Codex on the kerby PR)
+Notes: Rule-cost precheck passed (one conditional row in an on-demand file; frequency = UI tasks that touch colors; severity medium; no existing coverage — axe and the three design skills passed job-scout's warn/bad pair at ΔE 0.6 deutan; agent-testable). skill-evaluator: clean (9/9) at b3ce575 — 2026-10-21 (in-session, split-role; K1 badges with dataviz 4/4, K2 badges without dataviz 2/2, K3 spacing-only runs no color check 1/1, K4 verifier is mode V 2/2).
