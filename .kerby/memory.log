@@ -1718,3 +1718,11 @@ Commit: a4c82c1
 Status: DONE (pending Codex on this push)
 Notes: validator and compat pass. skill-evaluator: clean (5/5) at a4c82c1 — 2026-10-21 (in-session, split-role; harness-provided worktree, main checked out in the primary checkout, branch bumps a lockfile dependency → detached base checkout at the merge-base outside the harness worktree, npm ci there, 10 interleaved runs each, checked every log ran 1 test, removed the checkout 5/5).
 Observations: In that test the executor put the base checkout under /tmp because the harness worktree forbids a nested worktree and the investigate route forbids a .gitignore commit; git-worktrees.md § Failure Modes says "use existing worktree instead" for an already-checked-out branch, which does not fit a comparison checkout.
+
+[2026-10-21T19:23:32Z]
+Task: Codex round 5 on kerby 10.9.0 — a pre-existing flake did not end the procedure
+Action: Codex (P2): the "about the same" bullet left the test alone, but steps 2–4 still read as orders to prove and fix the cause, pulling the agent into work the bullet had just handed to the developer. The bullet now says to stop there; steps 2–4 are for a failure the change owns. New class (control flow), one clause.
+Files: skills/kerby/rulebooks/swe/references/error-handling.md, .kerby/memory.log
+Commit: 433af0f
+Status: DONE (pending Codex on this push)
+Notes: validator passes. skill-evaluator: clean (4/4) at 433af0f — 2026-10-21 (in-session, split-role; 4/20 vs 5/20 on an unrelated branch → pre-existing, no probe or edit, recorded as a memory.log Observation, decision left to the developer 4/4).
