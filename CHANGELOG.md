@@ -8,7 +8,7 @@ All notable changes to `kerby` are documented here. Format follows
 **swe 2.22.0 — a reverted attempt is a finding, not a surprise.** Nothing asked the agent to look at a file's history before planning a change to it, so it could re-propose an approach that had already been tried and reverted. `git log` appeared only in debugging, and only to find what changed recently.
 
 - **`feature.md` § 3 step 2** — identifying the affected files now includes reading their recent history — the last ten or so commits that touched them, opening the diff of any whose subject does not say what it changed, so the check does not depend on good commit messages. A revert, or the same change made more than once, is a finding for the plan: say why the approach is not the one that was undone, or choose another.
-- **`debugging.md` step 1** — a revert or a repeated fix in the files involved means an earlier attempt failed; find out why before trying it again.
+- **`debugging.md` step 1** — reads the same bounded history, diffs included; a revert or a repeated fix in the files involved means an earlier attempt failed; find out why before trying it again.
 
 Adapted from gstack's engineering-plan review (`garrytan/gstack`, MIT, `plan-eng-review`), which checks file history for reverts before a plan is accepted.
 
