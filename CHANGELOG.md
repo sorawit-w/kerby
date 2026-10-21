@@ -3,6 +3,14 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [10.13.0] — 2026-10-21
+
+**swe 2.24.0 — a failure row says what the user sees.** The plan's case table required a failure row but not what anyone experiences when it happens, so a failure that is swallowed — no error shown, no log, no handling — could be planned as a row and still ship silent.
+
+- **`feature.md` § 3 case table** — a failure row's `expected` says what the user or caller sees: an error message, a status, a retry, a log line. If the answer is nothing, the silent failure is a gap: handle it, or name it in the plan so the developer can accept it.
+
+Adapted from gstack's engineering-plan review (`garrytan/gstack`, MIT, `plan-eng-review`), which treats a failure with no test, no handling and no visible effect as a critical gap.
+
 ## [10.12.0] — 2026-10-21
 
 **swe 2.23.0 — "needs a human" is a claim until something shows it.** The When Stuck row for something outside the agent's control filed a `DEVELOPER_TODO.md` entry with no evidence, so "I don't have access to X" or "this needs a key" could reach the developer without the agent ever trying.

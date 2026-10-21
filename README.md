@@ -217,7 +217,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `10.12.0` — swe 2.23.0: before saying something is outside its control — a missing permission, a credential, a tool it cannot run — the agent shows what makes it so: the exact error, the doc line, or a check it ran; every `DEVELOPER_TODO.md` entry carries that evidence.
+Current release: `10.13.0` — swe 2.24.0: a plan's failure rows say what the user or caller sees when the failure happens; a failure nobody would see is a gap the plan handles or names for the developer to accept.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests
