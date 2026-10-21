@@ -3,6 +3,15 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [10.11.0] — 2026-10-21
+
+**swe 2.22.0 — a reverted attempt is a finding, not a surprise.** Nothing asked the agent to look at a file's history before planning a change to it, so it could re-propose an approach that had already been tried and reverted. `git log` appeared only in debugging, and only to find what changed recently.
+
+- **`feature.md` § 3 step 2** — identifying the affected files now includes reading their recent history. A revert, or the same change made more than once, is a finding for the plan: say why the approach is not the one that was undone, or choose another.
+- **`debugging.md` step 1** — a revert or a repeated fix in the files involved means an earlier attempt failed; find out why before trying it again.
+
+Adapted from gstack's engineering-plan review (`garrytan/gstack`, MIT, `plan-eng-review`), which checks file history for reverts before a plan is accepted.
+
 ## [10.10.0] — 2026-10-21
 
 **swe 2.21.0 — every weakened check is named in the report.** Nothing made the agent report its own skips, suppressions, raised timeouts, lowered thresholds or `--no-verify`; weakened tests were looked for only in the periodic `audit`, and a coordinator skipped reading a sub-agent's changes whenever its report was green.

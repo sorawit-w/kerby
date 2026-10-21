@@ -217,7 +217,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `10.10.0` — swe 2.21.0: every report of a change, and its PR body, carries a `gate-edits:` line naming each edit that made a test, threshold, lint or CI check easier to pass, with the reason the agent can show for it — so the developer, not the agent, decides on every weakened check.
+Current release: `10.11.0` — swe 2.22.0: planning a change and debugging a bug both read the history of the files involved, and a revert or a change made more than once is a finding — the plan says why its approach is not the one that was undone.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests
