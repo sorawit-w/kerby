@@ -1824,3 +1824,11 @@ Files: skills/kerby/rulebooks/swe/workflows/feature.md, skills/kerby/rulebooks/s
 Commit: c4cd580
 Status: DONE (pending Codex on this push)
 Notes: validator passes. skill-evaluator: clean (3/3) at c4cd580 — 2026-10-21 (in-session, split-role, Sonnet executor and grader; clear-subject cache commit and its revert → opened both, plan fixes the cause the revert named 3/3).
+
+[2026-10-21T21:15:00Z]
+Task: Codex round 4 on kerby 10.11.0 — one shared ten-commit window across several files
+Action: Codex (P2): with several affected files, one combined window lets a busy file push a quiet file's revert out of view. Correct; one word in each file — the last ten or so commits that touched each of them (feature.md § 3 step 2) / on each file involved (debugging.md step 1). CHANGELOG matches.
+Files: skills/kerby/rulebooks/swe/workflows/feature.md, skills/kerby/rulebooks/swe/references/debugging.md, CHANGELOG.md, .kerby/memory.log
+Commit: 8a9125e
+Status: DONE (pending Codex on this push)
+Notes: validator passes. skill-evaluator: clean (3/3) at 8a9125e — 2026-10-21 (in-session, split-role, Sonnet executor and grader; busy http.ts plus quiet retry.ts whose revert is hidden by a combined window → one log per file, found the revert and its reason, narrowed the plan to idempotent methods 3/3).
