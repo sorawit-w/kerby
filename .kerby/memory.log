@@ -1606,3 +1606,11 @@ Files: .kerby/STATUS.md, .kerby/memory.log
 Commit: 7450a0c
 Status: DONE (pending Codex on this push)
 Notes: No rule text changed, so no evaluator run. Codex found nothing new in the rule at 124f235.
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 6 on kerby 10.7.0 — fresh-session evaluator on the final rule
+Action: Codex (P1): the first fresh-session run covered 493c7b6, before the "copy that lands" rewrite (621145d), so no outer-bias result covered the merged text. Asked the same separate session (not the authoring one) to design new tests for the new model and run them.
+Files: .kerby/memory.log
+Commit: (pending)
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (66/66) at a2250f8 — 2026-10-21 (fresh-session, split-role; 9 new tests R1–R9, Sonnet and Opus executors, fresh Sonnet graders: same-branch state-only commit 12/12, checkpoint 3/4 with the miss classed rubric-layer (its check counted the required checkpoint push as landing) and left out of N, landing after a checkpoint 4/4, Merge locally with no PR 10/10, hybrid after merging main into a branch 6/6, stale STATUS on main with no offer 6/6, explicit user request for a state-only PR done 10/10, unlisted wording 5/5, local merge where main also changed STATUS 10/10). No skill-text findings. Rule text unchanged since 621145d.
