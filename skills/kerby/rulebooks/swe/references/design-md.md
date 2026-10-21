@@ -47,13 +47,14 @@ When design skills work on a UI task, split the work by job. Only one skill chan
 |---|---|---|
 | Make the change | `impeccable` (`document` writes the spec from existing code; then `critique` → `polish`) | The only skill that edits this surface |
 | Check direction | `taste-skill`, read-only (`inspect.mjs --app`, `lint.mjs`) | Measures and reports; does not edit the surface |
-| Verify the render | `screenwright`'s checks only: axe in light and dark, screenshots at desktop and phone width, print | After the last edit; a read-only check may follow. Its fix loop is not used — findings go back to the author. 0 axe violations is necessary, not sufficient |
+| Check signal colors | the `dataviz` skill's palette validator, read-only; without it, any color-blind simulation that reports a color difference (ΔE) | Only when the work touches colors. Check the status and accent colors as one set (for example accent, ok, warn, bad, new) in light and dark. A pair whose color-blind difference (protan, deutan or tritan) is below ΔE 8 in OKLab ×100, or whose normal-vision difference is below 15, goes back to the author as a finding, even when icons and words also carry the meaning |
+| Verify the render | `screenwright`'s read-only **mode V** (verify-only): axe in light and dark, screenshots at desktop and phone width, the 320px reflow pass, print | After the last edit; a read-only check may follow. Mode V never edits — findings go back to the author. Its other modes paint and fix, so they are not the verifier. 0 axe violations is necessary, not sufficient |
 
 - Give the skill the spec's path explicitly. Most design skills look only for a root `DESIGN.md`.
 - When a skill's house rule conflicts with the developer's explicit ask, the developer wins. A token change goes into the spec in the same commit as the code.
 - The table names jobs; the skill names are today's picks. If a default is not installed, use what is, and keep the same split.
 
-*Source: job-scout design-skill comparison, 2026-10-20 — four skills on one brief; none found a spec that was not a root `DESIGN.md`, and axe passed every variant.*
+*Source: job-scout design-skill comparison, 2026-10-20 — four skills on one brief; none found a spec that was not a root `DESIGN.md`, and axe passed every variant. The `dataviz` validator then caught a warn/bad pair at ΔE 0.6 for deutan readers that every other check had passed.*
 
 ---
 
