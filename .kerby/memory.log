@@ -1647,3 +1647,12 @@ Files: skills/kerby/rulebooks/swe/references/external-resources.md, CHANGELOG.md
 Commit: 7ad926f
 Status: DONE (pending Codex on this push)
 Notes: check-skill-compat.py and validate-rulebook.py still pass. skill-evaluator: clean (10/10) at 7ad926f — 2026-10-21 (in-session, split-role; re-ran the cases the wording touches: gsap present + staggered fade now goes CSS 3/3, gsap present + pinned scroll sequence uses GSAP with no install 3/3, no gsap + scroll sequence asks first 4/4). T2, T4 and T5 from the first pass cover no-gsap simple motion, which the rewrite did not change.
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 2 on kerby 10.8.0 — the scroll branch skipped native too
+Action: Codex (P1): round 1's split sent timelines and scroll-driven work straight to GSAP, though CSS scroll-driven animations are native and the ladder puts native first. Same finding class as round 1 (a motion category that bypasses rung 3), so the category model was deleted rather than patched: the row now defers to the ladder — native first even when gsap is present (CSS transitions, View Transitions, CSS scroll-driven animations); GSAP only when native cannot do what was asked or cannot meet the project's browser support, with the reason stated; reuse when a dependency, otherwise suggest and ask. CHANGELOG and README match; the CHANGELOG names the deleted draft.
+Files: skills/kerby/rulebooks/swe/references/external-resources.md, CHANGELOG.md, README.md, .kerby/memory.log
+Commit: 14c43a1
+Status: DONE (pending Codex on this push)
+Notes: compat and validator pass. skill-evaluator: clean (9/9) at 14c43a1 — 2026-10-21 (in-session, split-role; gsap present + staggered fade → CSS 2/2; no gsap + pinned scroll sequence → native sticky + animation-timeline, no install 4/4; gsap present + pinned scroll sequence → weighed native, chose GSAP for browser support, no install 3/3). The ask-before-install clause is the same words as round 1, where T3′ exercised it 4/4; this round's no-gsap executor went native, so it did not reach the ask. Circuit-breaker note: two rounds, one class; the fix removed the model that produced the class.
+Observations: protect-git.sh blocked two Bash commands that each held a plain push plus, later on the same command line, a gh api call (or log text) with a short form-field flag; it reported a force push. Nothing ran either time. Keeping the push in its own command avoided it.
