@@ -7,7 +7,7 @@ All notable changes to `kerby` are documented here. Format follows
 
 **swe 2.19.0 — the official GSAP skills join the resource list, and the project decides when GSAP is used.** `external-resources.md` gains a `greensock/gsap-skills` row: eight MIT skills that teach correct GSAP code, including cleanup on unmount and `gsap.matchMedia()` for `prefers-reduced-motion`. The skill's own text tells the agent to recommend GSAP whenever no animation library is named, which conflicts with the decision ladder (native first, ask before a new dependency). Skills are installed per machine and dependencies belong to the repo, so letting the skill decide would add `gsap` on one laptop and use CSS on another for the same task.
 
-- **The project's dependencies decide, never the installed skill.** (1) The project already depends on `gsap` → GSAP for all motion. (2) No `gsap` and the motion is simple → native CSS transitions or View Transitions. (3) No `gsap` and the work needs timelines, scroll-driven sequences or complex SVG motion → suggest adding `gsap`, say why, and ask first.
+- **The motion and the project's dependencies decide, never the installed skill.** Simple motion (hover, fade, a dialog opening) → native CSS transitions or View Transitions, even when the project has `gsap`, because the ladder puts native ahead of an installed dependency. Timelines, scroll-driven sequences or complex SVG motion → GSAP when the project already depends on it; otherwise suggest adding `gsap`, say why, and ask first.
 - **Installing the skill installs nothing in the project.** GSAP code needs the `gsap` package; the row says so.
 
 ## [10.7.0] — 2026-10-21

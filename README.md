@@ -217,7 +217,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `10.8.0` — swe 2.19.0: the resource list gains the official GSAP skills, suggested by the project's dependencies and never because the skill is installed — GSAP when the project already uses it, native CSS for simple motion, and an ask before adding `gsap` for timelines or scroll-driven work.
+Current release: `10.8.0` — swe 2.19.0: the resource list gains the official GSAP skills, suggested by the project's dependencies and never because the skill is installed — native CSS for simple motion, GSAP for timelines or scroll-driven work when the project already uses it, and an ask before adding `gsap` when it does not.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests
