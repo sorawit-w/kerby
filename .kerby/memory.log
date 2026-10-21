@@ -1700,3 +1700,12 @@ Commit: 11cff8e
 Status: DONE (pending Codex on this push)
 Notes: validator and compat pass. skill-evaluator: clean (4/4) at 11cff8e — 2026-10-21 (in-session, split-role; fails ~1 in 5 in the full suite, 10/10 alone → did not clear it, ran the file then the suite 10x interleaved on both revisions, named order/shared state, no skip 4/4). The rate-comparison outcomes are unchanged since the 12/12 verdict at 8cbff4d.
 Observations: protect-git.sh blocked a command holding a plain push plus a later gh api call with a short form-field flag, reporting a force push; nothing ran. Same false positive as the 10.8.0 session.
+
+[2026-10-21T19:09:33Z]
+Task: Codex round 3 on kerby 10.9.0 — base-side isolation and a zero-baseline shortcut
+Action: Two Codex P2s, both correct. (1) Interleaving by checking out the base branch in a dirty working tree fails or contaminates the comparison; the base side now runs in its own temporary worktree, announced per BOOTSTRAP § Branching and removed afterwards. (2) "or never on the base branch" skipped the rate comparison, so 0/10 vs 1/10 read as "clearly higher" though a 5% pre-existing flake shows 0/10 about 60% of the time. Second finding in the rate-reading class (round 1 was the first): fixed by deleting the shortcut, not by adding a rule. CHANGELOG matches.
+Files: skills/kerby/rulebooks/swe/references/error-handling.md, CHANGELOG.md, .kerby/memory.log
+Commit: 79acfac
+Status: DONE (pending Codex on this push)
+Notes: validator and compat pass. skill-evaluator: clean (5/5) at 79acfac — 2026-10-21 (in-session, split-role; 0/10 on main vs 1/10 on a branch with uncommitted edits → too close, 30 interleaved runs each, main side in a detached temporary worktree that is removed afterwards, no skip 5/5). Circuit breaker: a third finding about how to read the rates stops the patch loop and goes to the maintainer.
+Observations: The round-3 Codex review sat at "running" for 20 minutes until a second @codex review mention; the earlier two rounds finished in about 2 minutes. The executor in the dirty-tree test noted that git checkout keeps uncommitted edits, so a user's own "main" runs may have included their changes.
