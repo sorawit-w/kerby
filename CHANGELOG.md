@@ -3,6 +3,14 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [10.9.0] — 2026-10-21
+
+**swe 2.20.0 — a flaky test gets its cause found, never a skip; lint config changes need the developer.** `error-handling.md` told the agent to skip or retry a flaky test (`test.skip("flaky test — TODO…")`) and, after a few lint failures, to disable the rule or edit `biome.json` on its own. Three other rules already said the opposite: a skipped test is not a pass (`validation.md`), lint rules are not changed unilaterally (`guardrails.md` § What NOT to Do), and a linter is proved wrong before it is disabled (`working-patterns.md` § Anti-Rationalization). The reference now agrees with them.
+
+- **Flaky tests: place it, name it, prove it, fix it.** Run the test alone at least 10 times on the base branch and on the branch; a failure on the base branch too is pre-existing and goes to the developer, not into a skip. Then name what it depends on (timing, order, shared state, clock, network, resource limit), make it fail every time for that cause, and fix the cause in the code or the test's isolation — never its threshold. An unknown cause at the end of the budget is BLOCKED; quarantining is the developer's call. Adapted from gstack's flake recipe (`garrytan/gstack`, MIT, `investigate/sections/flake.md`).
+- **Lint: one site with proof, or ask.** A single-site suppression needs a reason showing the rule is wrong there and is named in the report. A rule wrong for many files becomes a proposal to the developer, not a config edit.
+- **Correcting a test's assertion now points at the intent gate first**, so "wrong assertion" cannot become a way around it.
+
 ## [10.8.0] — 2026-10-21
 
 **swe 2.19.0 — the official GSAP skills join the resource list, and the project decides when GSAP is used.** `external-resources.md` gains a `greensock/gsap-skills` row: eight MIT skills that teach correct GSAP code, including cleanup on unmount and `gsap.matchMedia()` for `prefers-reduced-motion`. The skill's own text tells the agent to recommend GSAP whenever no animation library is named, which conflicts with the decision ladder (native first, ask before a new dependency). Skills are installed per machine and dependencies belong to the repo, so letting the skill decide would add `gsap` on one laptop and use CSS on another for the same task.

@@ -13,8 +13,8 @@ Each error type has a maximum retry count and recovery strategy:
 | Error Type | Max Attempts | Primary Strategy |
 |------------|--------------|------------------|
 | **Build failures** | 5 | Check logs, fix imports, reinstall deps, verify syntax |
-| **Test failures** | 3 | Read output, fix logic, add logging, skip flaky tests |
-| **Lint errors** | 5 | Auto-fix first, then adjust code or update config |
+| **Test failures** | 3 | Read output, fix logic, add logging; a flaky test gets its cause found, never a skip or retry |
+| **Lint errors** | 5 | Auto-fix first, then adjust code; suppress one site only with proof; config changes need approval |
 | **Dependency issues** | 5 | Clear cache, reinstall, check versions, try --force |
 | **Schema validation** | 1 | Validate input — deterministic, either valid or not |
 
@@ -67,16 +67,23 @@ Each error type has a maximum retry count and recovery strategy:
 2. Read the full test output carefully
 3. Identify root cause: logic error, assertion, flakiness, or environment issue
 
-### Attempt 2: Fix or Skip
+### Attempt 2: Fix the Cause
 
 If root cause is clear:
 - **Logic error:** Fix the code
-- **Wrong assertion:** Correct the test
-- **Flaky test:** Add retry logic or skip with comment:
-  ```typescript
-  test.skip("flaky test — TODO: fix race condition");
-  ```
+- **Wrong assertion:** Correct the test — after the intent gate (`references/intent-gate.md`) says the test, not the code, is wrong
 - **Environment issue:** Check env vars, setup, teardown
+
+**A flaky test is a symptom, not a cause.** Do not skip it, retry it, widen its timeout or loosen its assertion to get a green run — each one hides the failure the test exists to catch, and a skipped test is not a pass (`references/validation.md` § What Counts as Evidence of Change). Find the cause instead:
+
+1. **Place it.** Run the failing test alone at least 10 times on the base branch and on your branch, and record `failed/N` for each. Fails on the base branch too → it is not your change: flag it to the developer as pre-existing (the baseline rule in `workflows/feature.md` § 1) and leave the test as it is. Fails only on your branch → your change caused it.
+2. **Name what it depends on** — timing, test order, shared state, the clock, the network, a resource limit.
+3. **Prove it.** Make the test fail every time for the cause you named: inject the delay, pin the order, freeze the clock. No failing probe, no named cause.
+4. **Fix the cause** in the code or in the test's isolation, never in its threshold.
+
+If the cause is still unknown when the budget runs out, mark BLOCKED. Quarantining a flaky test is the developer's decision, not a way out of the budget.
+
+**Source:** adapted from `garrytan/gstack` (MIT, 2026-10-21) — its flake recipe (`investigate/sections/flake.md`): place the failure with repeated runs on the base branch, name the dependency, prove it with a forced probe, never loosen. Its tooling (`ship-measure.ts`, CI-run comparison) is not adopted.
 
 ### Attempt 3: Add Logging and Retest
 
@@ -104,16 +111,17 @@ If auto-fix doesn't resolve:
 2. Adjust code to meet the rule
 3. Re-run lint
 
-### Attempt 4-5: Config or Disable
+### Attempt 4-5: Suppress One Site, or Ask
 
-If a rule is too strict for your use case:
-1. Disable rule with inline comment:
+If you can show the rule is wrong **at this one site** — not merely inconvenient:
+1. Suppress that site only, with the reason in the comment:
    ```typescript
-   // biome-ignore lint/rule-name: <reason>
+   // biome-ignore lint/rule-name: <why the rule is wrong here>
    const someCode = ...;
    ```
-2. Document the exception in `.kerby/memory.log`
-3. If multiple files affected: update `biome.json` config instead
+2. Document the exception in `.kerby/memory.log` and name it in your report
+
+If the rule is wrong for many files, do **not** edit the linter config yourself — changing lint rules needs the team's agreement (`references/guardrails.md` § What NOT to Do). Propose the config change to the developer and mark the task BLOCKED until they decide.
 
 ---
 

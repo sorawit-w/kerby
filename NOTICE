@@ -37,6 +37,9 @@ index of third-party copyright statements required by the upstream licenses.
   injects a context pointer), reimplemented to kerby's hook convention as
   `skills/kerby/resources/hooks/route-high-stakes.sh`. Concept only — no
   verbatim shell.
+- `garrytan/gstack` (MIT, Copyright (c) 2026 Garry Tan) — the cause-first
+  flaky-test method in `skills/kerby/rulebooks/swe/references/error-handling.md`
+  (see file-level attribution).
 
 The remaining entries in `resources/references/external-resources.md` are
 cross-references (not absorbed) and carry their own inline links.

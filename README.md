@@ -217,7 +217,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `10.8.0` — swe 2.19.0: the resource list gains the official GSAP skills, suggested by the project's dependencies and never because the skill is installed — the decision ladder picks the animation library as for any package, and adding `gsap` still needs approval.
+Current release: `10.9.0` — swe 2.20.0: a flaky test gets its cause found — placed with repeated runs on the base branch and the branch, named, proved and fixed — never skipped or retried; a lint rule is suppressed at one site only with proof, and a lint config change is the developer's decision.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests
