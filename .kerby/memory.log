@@ -1558,3 +1558,11 @@ Files: skills/kerby/rulebooks/swe/references/design-md.md, CHANGELOG.md, .kerby/
 Commit: bd3ba42
 Status: DONE (pending Codex on this push)
 Notes: skill-evaluator: clean (3/3) at bd3ba42 — 2026-10-21 (in-session, split-role; K2b fallback numbers: warn/bad 6.5 flagged despite icons, ok/NEW 11 passed). Thresholds read from the dataviz skill text (CVD ΔE ≥ 8 in OKLab ×100; normal-vision floor 15); dataviz is bundled with Claude Code, not a plugin.
+
+[2026-10-21T00:00:00Z]
+Task: kerby 10.7.0 — STATUS.md lines tested against the merge
+Action: communication.md § Status Tracking replaces the review/merge phrase list with one test (every line must still be true the moment the change that commits it merges); the list stays as examples; the change's own ship step is not a Next Up row; Phase example is now `Hardening — rate limits`; a stale line is fixed inside the next change with other work, never by a project-state-only change or an offer of one. STATUS.md.template header states the test. .kerby/STATUS.md refreshed: it still named the status-guard release as the next thing to ship, carried through #76–#79.
+Files: skills/kerby/rulebooks/swe/references/communication.md, skills/kerby/resources/templates/STATUS.md.template, .kerby/STATUS.md, version files, CHANGELOG.md, README.md, .kerby/memory.log
+Commit: 14b1a03
+Status: DONE (pending Codex on the PR)
+Notes: Prompted by agents offering a PR whose only change was one stale STATUS.md line ("not released"). Rule-cost precheck passed (about 4 net lines in an on-demand file; frequent; medium severity — an extra PR each time; the old rule covered the category but not unlisted wording; agent-testable). skill-evaluator: clean (28/28) at 14b1a03 — 2026-10-21 (in-session, split-role, sonnet executors and graders; T1 STATUS inside the PR 5/5, T2 stale line after merge with no other work — no standalone PR offered 5/5, T3 stale rows rewritten from git log during a real change 5/5, T4 unlisted phrasings "sign off Friday" / "next tagged release" kept out 5/5, T5 memory.log keeps PR number and review state 4/4, T6 no STATUS.md, created from template 4/4). T1, T3 and T6 would likely pass under the old rule too; T2 and T4 are the ones that test the new text. The PR-only-state hook was discussed and deferred until offers recur after this rule.
