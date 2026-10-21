@@ -33,7 +33,7 @@ A gate is anything that would have made your change fail: a test, an assertion, 
 - a snapshot or golden file regenerated
 - a suppression added (`eslint-disable`, `biome-ignore`, `@ts-ignore`, `# noqa`, `# type: ignore`)
 - a test, lint, type or CI config change that weakens a check — a rule turned off or downgraded, a job or step removed, a path excluded
-- a commit made with `--no-verify`
+- a hook bypassed — `--no-verify` on a commit or a push, or any flag or variable that skips a project hook (`HUSKY=0`, `SKIP=`)
 
 The test is the direction: a change that makes a check harder to pass — a new test, a rule turned on, a limit tightened — is never a gate edit. Everything on the list is one, even when it is right — a test deleted with the code it covered, or an expected value changed because the intent gate (`references/intent-gate.md`) cleared the behavior change.
 
@@ -45,7 +45,7 @@ The test is the direction: a change that makes a check harder to pass — a new 
 gate-edits: <where — what was relaxed — why> | none
 ```
 
-`<where>` is the file:line, or the commit for a hook bypassed with `--no-verify`. One entry per edit; one cause repeated across files (one timeout raised in 12 tests) is one entry listing the files. `none` is a valid answer and is still emitted. Build the line from two sources, not from memory: your whole diff against the base, searched for the markers above as well as the test and config changes; and the commands you ran, since a `--no-verify` commit leaves nothing in the diff.
+`<where>` is the file:line, or for a bypassed hook the command you ran. One entry per edit; one cause repeated across files (one timeout raised in 12 tests) is one entry listing the files. `none` is a valid answer and is still emitted. Build the line from two sources, not from memory: your whole diff against the base, searched for the markers above as well as the test and config changes; and the commands you ran, since a bypassed hook leaves nothing in the diff.
 
 **A sub-agent's report is a claim.** Read its gate edits yourself — its `gate-edits:` line, and its whole diff searched the same way, since a suppression can sit in any source file — even when it reports green (`references/sub-agent-delegation.md` rule 2).
 
