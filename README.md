@@ -217,7 +217,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `10.11.0` — swe 2.22.0: planning a change and debugging a bug both read the history of the files involved, and a revert or a change made more than once is a finding — the plan says why its approach is not the one that was undone.
+Current release: `10.11.0` — swe 2.22.0: the feature and bug-fix workflows read the history of each file involved before planning or fixing, and an earlier attempt that did not last — a revert, or the same change made more than once — is a finding the plan has to answer. Quick tasks rely on the repo-wide recent log instead.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests
