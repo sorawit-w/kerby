@@ -6,8 +6,8 @@
 > `.kerby/memory.log`, ticket state in the tracker. A copy here can only drift from
 > them, so do not restate one. Rewrite this file from what those sources currently
 > say — never from memory of what you set an hour ago. Every line must still be
-> true the moment the change that commits it merges: no review or release state,
-> and no row for shipping that change.
+> true the moment this file lands on the base branch: no review or release state,
+> and no row for shipping the work that lands it.
 
 ---
 

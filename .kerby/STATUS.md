@@ -4,8 +4,8 @@
 > happened*, *which version*, or *what a PR is doing*. Those have authorities
 > already: the manifests, git, `.kerby/memory.log`, the tracker. Rewrite this from
 > what they currently say, never from memory of what you set an hour ago. Every
-> line must still be true the moment the change that commits it merges: no review
-> or release state, and no row for shipping that change.
+> line must still be true the moment this file lands on the base branch: no review
+> or release state, and no row for shipping the work that lands it.
 
 ---
 
