@@ -77,7 +77,7 @@ When breaking work into parallel sub-agent tasks, prefer **vertical slices** (ea
 
 1. **Non-overlapping files** — Each sub-agent works on different files. If two tasks touch the same file, execute sequentially.
 
-2. **Trust-but-verify** — Read the sub-agent's verification report. Only re-run quality gates if the report is missing, incomplete, or shows failures. Its gate edits are the exception: read them yourself whatever the report says — its `gate-edits:` line and its diff to tests, config and thresholds (`references/validation.md` § Gate Edits).
+2. **Trust-but-verify** — Read the sub-agent's verification report. Only re-run quality gates if the report is missing, incomplete, or shows failures. Its gate edits are the exception: read them yourself whatever the report says — its `gate-edits:` line, and its whole diff searched for gate edits, since a suppression can sit in any source file (`references/validation.md` § Gate Edits).
 
 3. **No nested sub-agents** — Sub-agents do not spawn their own sub-agents. All spawning is done by the coordinating agent. If work expands beyond scope, report `BLOCKED_SCOPE_EXPANDED` with a proposed split — see `sub-agent-coordinator` for the full protocol.
 
