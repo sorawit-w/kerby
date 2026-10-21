@@ -217,7 +217,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `10.8.0` — swe 2.19.0: the resource list gains the official GSAP skills, suggested by the project's dependencies and never because the skill is installed — native motion first, GSAP only when native cannot do the job, and an ask before adding `gsap` to a project that does not have it.
+Current release: `10.8.0` — swe 2.19.0: the resource list gains the official GSAP skills, suggested by the project's dependencies and never because the skill is installed — the decision ladder picks the animation library as for any package, and adding `gsap` still needs approval.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests
