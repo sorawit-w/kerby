@@ -3,6 +3,15 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [10.12.0] — 2026-10-21
+
+**swe 2.23.0 — "needs a human" is a claim until something shows it.** The When Stuck row for something outside the agent's control filed a `DEVELOPER_TODO.md` entry with no evidence, so "I don't have access to X" or "this needs a key" could reach the developer without the agent ever trying.
+
+- **`BOOTSTRAP.md` § 5** — before filing it, show what makes it so: the exact error, the doc line, or a check you ran, never an assumption.
+- **`communication.md` § Developer TODO List** — the entry template gains an **Evidence** field.
+
+Adapted from gstack's evidence directive (`garrytan/gstack`, MIT): probe before asking or blocking.
+
 ## [10.11.0] — 2026-10-21
 
 **swe 2.22.0 — a reverted attempt is a finding, not a surprise.** Nothing asked the agent to look at a file's history before planning a change to it, so it could re-propose an approach that had already been tried and reverted. `git log` appeared only in debugging, and only to find what changed recently.

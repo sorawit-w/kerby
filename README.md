@@ -217,7 +217,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `10.11.0` — swe 2.22.0: the feature and bug-fix workflows read the history of each file involved before planning or fixing, and an earlier attempt that did not last — a revert, or the same change made more than once — is a finding the plan has to answer. Quick tasks rely on the repo-wide recent log instead.
+Current release: `10.12.0` — swe 2.23.0: before saying something is outside its control — a missing permission, a credential, a tool it cannot run — the agent shows what makes it so: the exact error, the doc line, or a check it ran; every `DEVELOPER_TODO.md` entry carries that evidence.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests

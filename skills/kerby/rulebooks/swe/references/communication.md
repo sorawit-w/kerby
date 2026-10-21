@@ -175,6 +175,7 @@ When your implementation depends on something only a human can do:
 - **Why:** [Which part of the implementation depends on this]
 - **How:** [Step-by-step instructions or link to docs]
 - **Where to put the result:** [e.g., "Add to .env as `STRIPE_SECRET_KEY`"]
+- **Evidence:** [The exact error, the doc line, or the check you ran that shows you cannot do this yourself — "needs a human" is a claim until something shows it]
 - **Blocked tasks:** [What can't proceed until this is done]
 ```
 

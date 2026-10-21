@@ -377,7 +377,7 @@ When asked to add code to a file that already imports a third-party vendor SDK d
 | Implementation approach | Search codebase for analogous code. Start simple. |
 | Can't find evidence for the cause | Apply §Diagnosis escape valve — surface a labeled hypothesis + verification path + 1–3 candidate fixes. Do NOT ship a guess. |
 | After 3 focused attempts | Apply §Diagnosis escape valve first (hypothesis + path + options). Then mark BLOCKED. |
-| Something outside your control | Create `DEVELOPER_TODO.md` entry and continue. |
+| Something outside your control | Show what makes it so — the exact error, the doc line, or a check you ran, never an assumption — then create a `DEVELOPER_TODO.md` entry and continue. |
 </when_stuck>
 
 <context_save>

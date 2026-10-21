@@ -39,9 +39,11 @@ index of third-party copyright statements required by the upstream licenses.
   verbatim shell.
 - `garrytan/gstack` (MIT, Copyright (c) 2026 Garry Tan) — in
   `skills/kerby/rulebooks/swe/`: the cause-first flaky-test method in
-  `references/error-handling.md` and the gate-edit question in
-  `references/validation.md` § Gate Edits (see file-level attribution), and the
-  revert-history check in `workflows/feature.md` § 3 and `references/debugging.md`.
+  `references/error-handling.md`; the gate-edit question in
+  `references/validation.md` § Gate Edits (see file-level attribution); the
+  revert-history check in `workflows/feature.md` § 3 and `references/debugging.md`;
+  the evidence field for human-only actions in `BOOTSTRAP.md` § 5 and
+  `references/communication.md` § Developer TODO List.
 
 The remaining entries in `resources/references/external-resources.md` are
 cross-references (not absorbed) and carry their own inline links.
