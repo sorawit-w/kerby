@@ -1664,3 +1664,12 @@ Files: skills/kerby/rulebooks/swe/references/external-resources.md, .kerby/memor
 Commit: 91c5d95
 Status: DONE (pending Codex on this push)
 Notes: validator passes. skill-evaluator not re-run: the change is an install command string, not a directive, threshold or trigger, so the 9/9 verdict at 14c43a1 still covers every decision the row asks the agent to make. Different finding class from rounds 1–2 (install mechanics, not ladder order).
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 4 on kerby 10.8.0 — the ladder copy skipped other installed libraries
+Action: Codex (P1): "otherwise suggest adding gsap" skipped rung 4 when the project already has another motion library (Framer Motion, anime.js). Third finding of one class (rounds 1, 2, 4: the row's copy of the decision ladder skipped a rung). Circuit breaker applied: the copy was removed, not patched. The Signals cell now says when to suggest the skill (GSAP already a dependency, or the developer approved adding it) and that choosing the animation library is the decision ladder's call (BOOTSTRAP § 1b), exactly as for any other package. The What It Does cell still names the skill's conflicting default. CHANGELOG records the three skipped rungs and why the copy went; README line matches.
+Files: skills/kerby/rulebooks/swe/references/external-resources.md, CHANGELOG.md, README.md, .kerby/memory.log
+Commit: d19d729
+Status: DONE (pending Codex on this push)
+Notes: compat and validator pass. skill-evaluator: clean (10/10) at d19d729 — 2026-10-21 (in-session, split-role; gsap present + staggered fade → CSS 2/2; no library + pinned scroll sequence → native sticky + scroll timelines, GSAP offered only behind approval 3/3; gsap present + pinned scroll sequence → named the native rung, reused gsap, no install 2/2; framer-motion present, no gsap + pinned scroll sequence → reused framer-motion with native sticky, no gsap 3/3). Lesson: a resource row that restates a central rule drifts from it; point at the authority and keep only what is specific to the resource.
+Observations: In the gsap-present scroll test the executor chose GSAP without checking native browser support, said so, and offered the CSS version once support is checked.
