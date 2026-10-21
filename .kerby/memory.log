@@ -1574,3 +1574,11 @@ Files: skills/kerby/rulebooks/swe/references/communication.md, CHANGELOG.md, .ke
 Commit: 585b8b7
 Status: DONE (pending Codex on this push)
 Notes: skill-evaluator: 1 finding (60/62) at 493c7b6 — 2026-10-21 (fresh-session, split-role; 9 tests, Sonnet and Opus executors, fresh Sonnet graders; the 2 misses were F1 in both Sonnet runs of the same-branch test). skill-evaluator: clean (7/7) at 585b8b7 — 2026-10-21 (in-session, split-role; R1 log-only commit on an open PR branch with real work, allowed 3/3; R2 stale row on main with no other work, no state-only PR offered 4/4). Open for the maintainer, not changed: an explicit user request for a STATUS-only PR is refused under "never".
+
+[2026-10-21T00:00:00Z]
+Task: kerby 10.7.0 — an explicit user request overrides the no-state-only-PR rule
+Action: Kiang chose to let an explicit user request win. communication.md § Status Tracking: an explicit request from the user for a state-only pull request overrides the rule — open it; what the rule forbids is proposing one unprompted. CHANGELOG and README release line match.
+Files: skills/kerby/rulebooks/swe/references/communication.md, CHANGELOG.md, README.md, .kerby/memory.log
+Commit: a373668
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (8/8) at a373668 — 2026-10-21 (in-session, split-role; O1 explicit request for a STATUS-only PR: branched off main, opened it, wrote no review/release state 4/4; O2 stale Phase line after merge, unprompted: no state-only PR offered, fix deferred to the next real change 4/4). Grader note on O1, not graded: the executor also committed a memory.log entry yet described the PR as STATUS.md-only — a reporting slip, not a rule gap (both are project state).
