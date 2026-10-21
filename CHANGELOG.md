@@ -7,7 +7,7 @@ All notable changes to `kerby` are documented here. Format follows
 
 **swe 2.24.0 — a failure row says what the user sees.** The plan's case table required a failure row but not what anyone experiences when it happens, so a failure that is swallowed — no error shown, no log, no handling — could be planned as a row and still ship silent.
 
-- **`feature.md` § 3 case table** — a failure row's `expected` says what the user or caller sees: an error message, a status, a retry, a log line. If the answer is nothing, the silent failure is a gap: handle it, or name it in the plan so the developer can accept it.
+- **`feature.md` § 3 case table** — a failure row's `expected` says what the user or caller sees: an error message, a status, a retry, a log line. If the answer is nothing, the silent failure is a gap: handle it, or ask the developer whether to leave it and wait for the answer before building that path. The wait applies at every grade — below grade 7 the plan does not otherwise wait for approval, so a gap only "named in the plan" would ship before anyone accepted it (Codex review).
 
 Adapted from gstack's engineering-plan review (`garrytan/gstack`, MIT, `plan-eng-review`), which treats a failure with no test, no handling and no visible effect as a critical gap.
 

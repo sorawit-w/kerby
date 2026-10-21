@@ -1856,3 +1856,11 @@ Files: skills/kerby/rulebooks/swe/workflows/feature.md, skills/kerby/rulebooks/s
 Commit: f123c64
 Status: DONE (pending Codex on this push)
 Notes: compat, validator and plan-gate parity pass. skill-evaluator: clean (5/5) at f123c64 — 2026-10-21 (in-session, split-role, Sonnet executors and graders; nightly export with an empty catch → failure rows name logger.error and an ops alert, the empty catch named as a silent failure that changes behavior 3/3; refund endpoint → failure rows name the status and error body 1/1; parseConfig library with no UI → failure rows name the thrown error the calling code sees 1/1).
+
+[2026-10-21T22:00:00Z]
+Task: Codex round 1 on kerby 10.13.0 — a silent failure left in place needs the developer's answer at every grade
+Action: Codex (P1): "name it in the plan so the developer can accept it" did not work below grade 7, where the plan goes straight to code — the gap shipped before anyone accepted it. Correct. feature.md § 3 now says: handle it, or ask the developer whether to leave it and wait for the answer before building that path, at every grade. CHANGELOG 10.13.0 entry updated to match.
+Files: skills/kerby/rulebooks/swe/workflows/feature.md, CHANGELOG.md, .kerby/memory.log
+Commit: (this commit)
+Status: DONE (pending Codex on this push)
+Notes: compat, validator and plan-gate parity pass. skill-evaluator: clean (3/3) on the new path — 2026-10-21 (in-session, split-role, Sonnet executor and grader; grade-5 CSV export whose analytics call swallows errors in a module the developer said not to touch → failure row says nobody sees it and calls it a gap, the track() call held and a question asked, analytics.ts not edited 3/3).
