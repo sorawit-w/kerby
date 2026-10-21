@@ -42,7 +42,7 @@ Test: [how to confirm or eliminate this hypothesis]
 **Test hypotheses one at a time.** Don't change multiple things simultaneously — you won't know which change mattered.
 
 Priority order for hypotheses:
-1. **What changed recently?** — Check `git diff` and the last ten or so commits on each file involved, opening the diff and message of every revert, of the commit it undid, and of any commit whose subject does not say what it changed. Most bugs are caused by recent changes. A revert, or the same fix made more than once in those files, means an earlier attempt failed — find out why before you try it again.
+1. **What changed recently?** — Check `git diff` and the last ten or so commits on each file involved, opening the diff and message of any commit whose subject alone does not tell you what was tried and why it did not last — a revert and the commit it undid, the same fix made more than once, a vague subject. Most bugs are caused by recent changes. An earlier fix that did not last means an earlier attempt failed — find out why before you try it again.
 2. **What does the error message actually say?** — Read it literally, not interpretively.
 3. **What assumptions am I making?** — State them explicitly. Wrong assumptions are a top root cause.
 
