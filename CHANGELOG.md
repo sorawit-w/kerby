@@ -3,6 +3,10 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [10.5.1] — 2026-10-21
+
+**swe 2.16.1 — the render verifier uses a mode that exists.** 10.5.0 named `screenwright`'s "checks only" as the verifier, with its fix loop off. screenwright had no such mode: every mode painted and ran a fix loop, dark mode was checked only when declared, and print was not checked at all. agent-skills 5.9.0 adds a read-only **mode V** (verify-only) to screenwright — one pass over axe in light and dark, desktop and phone width, the 320px reflow check and print, returning findings without edits. `design-md.md` § Design skills and the `external-resources.md` screenwright row now name mode V, and say its other modes are not the verifier.
+
 ## [10.5.0] — 2026-10-20
 
 **swe 2.16.0 — design work finds the spec and splits the design skills by job.** Four design skills redesigned the same job-scout report from one brief. None found the project's spec, because it was `docs/report-design.md`, not a root `DESIGN.md`, and the swe rules looked only at the root too. All four reached the same fix once they found the file themselves.
