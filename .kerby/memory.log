@@ -1848,3 +1848,11 @@ Files: skills/kerby/rulebooks/swe/BOOTSTRAP.md, skills/kerby/rulebooks/swe/refer
 Commit: 490b471
 Status: DONE (pending Codex on this push)
 Notes: compat and validator pass; Codex reviewed 7dd4a04 with no findings. skill-evaluator: clean (7/7) at 490b471 — 2026-10-21 (in-session, split-role, Sonnet executors and graders; label creation the agent might assume it lacks permission for → checked auth and permissions, created it, no TODO 2/2; SendGrid key missing → counted the key in .env without printing it, reproduced the error, TODO with Evidence 2/2; Apple Developer enrollment → ran the build once, TODO whose Evidence is the exact error, blocked tasks named 3/3).
+
+[2026-10-21T21:45:00Z]
+Task: kerby 10.13.0 — a failure row says what the user or caller sees; a silent failure is a gap (gstack absorb, item 5 of 5)
+Action: feature.md § 3's case table now says a failure row's expected names what the user or caller sees when it happens — an error message, a status, a retry, a log line — and that a failure nobody sees is a gap to handle or name in the plan for the developer to accept. Adapted from garrytan/gstack's plan-eng-review; NOTICE's gstack entry gains the visible-failure rule.
+Files: skills/kerby/rulebooks/swe/workflows/feature.md, skills/kerby/rulebooks/swe/rulebook.toml, skills/kerby/VERSION, .claude-plugin/{marketplace,plugin}.json, .codex-plugin/plugin.json, .kerby/rulebooks.toml, CHANGELOG.md, README.md, NOTICE, .kerby/memory.log
+Commit: f123c64
+Status: DONE (pending Codex on this push)
+Notes: compat, validator and plan-gate parity pass. skill-evaluator: clean (5/5) at f123c64 — 2026-10-21 (in-session, split-role, Sonnet executors and graders; nightly export with an empty catch → failure rows name logger.error and an ops alert, the empty catch named as a silent failure that changes behavior 3/3; refund endpoint → failure rows name the status and error body 1/1; parseConfig library with no UI → failure rows name the thrown error the calling code sees 1/1).
