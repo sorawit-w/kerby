@@ -217,7 +217,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `10.7.0` — swe 2.18.0: every line in STATUS.md must still be true the moment the change that commits it merges, so it carries no review or release state and no row for shipping that change; a line already out of date is fixed inside the next change with other work in it, never by a PR of its own.
+Current release: `10.7.0` — swe 2.18.0: every line in STATUS.md must still be true the moment the change that commits it merges, so it carries no review or release state and no row for shipping that change; a line already out of date is fixed inside the next change with other work in it, never by a PR of its own unless the user asks for one.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests
