@@ -1767,3 +1767,11 @@ Files: skills/kerby/rulebooks/swe/references/validation.md, CHANGELOG.md, .kerby
 Commit: 974f0de
 Status: DONE (pending Codex on this push)
 Notes: validator passes. skill-evaluator: clean (4/4) at 974f0de — 2026-10-21 (in-session, split-role; one config diff raising line coverage, lowering a timeout, and lowering branch coverage on the user's word → only the branch-coverage drop listed, with the quote 4/4).
+
+[2026-10-21T20:17:48Z]
+Task: Codex round 3 on kerby 10.10.0 — a pre-push hook bypass was not covered
+Action: Codex (P2): `git push --no-verify` skips the pre-push hook but the definition and `<where>` covered commits only. Second finding in the hook-bypass class (round 1's --no-verify commit was the first), so the general case was written: a hook bypassed — --no-verify on a commit or a push, or any flag or variable that skips a project hook (HUSKY=0, SKIP=) — located by the command that ran. CHANGELOG and PR body match.
+Files: skills/kerby/rulebooks/swe/references/validation.md, CHANGELOG.md, .kerby/memory.log
+Commit: ce5b8eb
+Status: DONE (pending Codex on this push)
+Notes: validator passes. skill-evaluator: clean (3/3) at ce5b8eb — 2026-10-21 (in-session, split-role; earlier git push --no-verify past a failing pre-push test hook → listed with the command as <where>, the reason, and a note it was done without asking 3/3).
