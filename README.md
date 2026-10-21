@@ -217,7 +217,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `10.9.0` — swe 2.20.0: a flaky test gets its cause found — placed with repeated runs on the base branch and the branch, named, proved and fixed — never skipped or retried; a lint rule is suppressed at one site only with proof, and a lint config change is the developer's decision.
+Current release: `10.10.0` — swe 2.21.0: every report of a change, and its PR body, carries a `gate-edits:` line naming each edit that made a test, threshold, lint or CI check easier to pass, with the reason the agent can show for it — so the developer, not the agent, decides on every weakened check.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests

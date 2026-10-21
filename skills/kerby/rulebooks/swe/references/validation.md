@@ -23,6 +23,36 @@ These apply to both the implementer and the QA sub-agent — a passing test suit
 
 ---
 
+## Gate Edits
+
+A gate is anything that would have made your change fail: a test, an assertion, a threshold, a timeout, a retry count, a lint or type rule, a CI job, a snapshot. A **gate edit** is a change to a gate itself — in your own diff, or in how you ran it — that makes it easier to pass. A code change that makes a failing test pass is a fix, not a gate edit. Gate edits are:
+
+- a test deleted, skipped (`.skip`, `xit`, `@pytest.mark.skip`) or focused (`.only`)
+- an assertion loosened, or an expected value changed to match new output
+- a limit loosened — a timeout, retry count or tolerance raised, or a minimum such as coverage lowered
+- a snapshot or golden file regenerated
+- a suppression added (`eslint-disable`, `biome-ignore`, `@ts-ignore`, `# noqa`, `# type: ignore`)
+- a test, lint, type or CI config change that weakens a check — a rule turned off or downgraded, a job or step removed, a path excluded
+- a hook bypassed — `--no-verify` on a commit or a push, or any flag or variable that skips a project hook (`HUSKY=0`, `SKIP=`)
+
+The test is the direction: a change that makes a check harder to pass — a new test, a rule turned on, a limit tightened — is never a gate edit. Everything on the list is one, even when it is right — a test deleted with the code it covered, or an expected value changed because the intent gate (`references/intent-gate.md`) cleared the behavior change.
+
+**Ask each one a single question: does it silence the failure the gate exists to catch, or is it justified by something you can show — a measurement, a spec line, the user's instruction?** One you cannot justify that way is not yours to make: ask first. One you can justify still goes in the report, because the developer, not the agent, accepts a weakened gate.
+
+**The forced line.** Every completion report of a change, and the PR body, carries:
+
+```
+gate-edits: <where — what was relaxed — why> | none
+```
+
+`<where>` is the file:line, or for a bypassed hook the command you ran. One entry per edit; one cause repeated across files (one timeout raised in 12 tests) is one entry listing the files. `none` is a valid answer and is still emitted. Build the line from two sources, not from memory: your whole diff against the base, searched for the markers above as well as the test and config changes; and the commands you ran, since a bypassed hook leaves nothing in the diff.
+
+**A sub-agent's report is a claim.** Read its gate edits yourself — its `gate-edits:` line, and its whole diff searched the same way, since a suppression can sit in any source file — even when it reports green (`references/sub-agent-delegation.md` rule 2). Its diff is the part you can check; its commands are not, since a bypassed hook leaves nothing in the diff. Read its transcript where your platform keeps one. Where it does not, say so in your own line — `(sub-agent commands not inspected)` — rather than pass its `none` on as checked.
+
+**Source:** adapted from `garrytan/gstack` (MIT, 2026-10-21) — `review/gate-integrity.md` and the Gate Integrity check in `review/checklist.md`: the one question, and the rule that a person decides on every relaxation. Its detector (`gstack-gate-diff`) is not adopted.
+
+---
+
 ## Verification by Complexity
 
 Match verification depth to the risk of the work. Over-verifying simple tasks wastes time; under-verifying complex tasks causes regressions.
