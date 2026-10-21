@@ -1709,3 +1709,12 @@ Commit: 79acfac
 Status: DONE (pending Codex on this push)
 Notes: validator and compat pass. skill-evaluator: clean (5/5) at 79acfac — 2026-10-21 (in-session, split-role; 0/10 on main vs 1/10 on a branch with uncommitted edits → too close, 30 interleaved runs each, main side in a detached temporary worktree that is removed afterwards, no skip 5/5). Circuit breaker: a third finding about how to read the rates stops the patch loop and goes to the maintainer.
 Observations: The round-3 Codex review sat at "running" for 20 minutes until a second @codex review mention; the earlier two rounds finished in about 2 minutes. The executor in the dirty-tree test noted that git checkout keeps uncommitted edits, so a user's own "main" runs may have included their changes.
+
+[2026-10-21T19:15:24Z]
+Task: Codex round 4 on kerby 10.9.0 — the base-side worktree command
+Action: Two Codex P2s, both correct: `git worktree add <dir> <base>` aborts when the base branch is checked out elsewhere (the harness-worktree case), and a fresh worktree has no installed dependencies. Second round of findings on that command (round 3 introduced it). Circuit breaker applied per skills/kerby/CLAUDE.md § Authoring style: the command was a script, so it was removed rather than patched. The step now states what the base-side checkout must be — separate, clean, detached, its own dependencies installed from that revision's lockfile, announced and removed — and points to references/git-worktrees.md for the mechanics.
+Files: skills/kerby/rulebooks/swe/references/error-handling.md, CHANGELOG.md, .kerby/memory.log
+Commit: a4c82c1
+Status: DONE (pending Codex on this push)
+Notes: validator and compat pass. skill-evaluator: clean (5/5) at a4c82c1 — 2026-10-21 (in-session, split-role; harness-provided worktree, main checked out in the primary checkout, branch bumps a lockfile dependency → detached base checkout at the merge-base outside the harness worktree, npm ci there, 10 interleaved runs each, checked every log ran 1 test, removed the checkout 5/5).
+Observations: In that test the executor put the base checkout under /tmp because the harness worktree forbids a nested worktree and the investigate route forbids a .gitignore commit; git-worktrees.md § Failure Modes says "use existing worktree instead" for an already-checked-out branch, which does not fit a comparison checkout.
