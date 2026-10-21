@@ -3,9 +3,11 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
-## [10.5.1] — 2026-10-21
+## [10.6.0] — 2026-10-21
 
-**swe 2.16.1 — the render verifier uses a mode that exists.** 10.5.0 named `screenwright`'s "checks only" as the verifier, with its fix loop off. screenwright had no such mode: every mode painted and ran a fix loop, dark mode was checked only when declared, and print was not checked at all. agent-skills 5.9.0 adds a read-only **mode V** (verify-only) to screenwright — one pass over axe in light and dark, desktop and phone width, the 320px reflow check and print, returning findings without edits. `design-md.md` § Design skills and the `external-resources.md` screenwright row now name mode V, and say its other modes are not the verifier.
+**swe 2.17.0 — the render verifier uses a mode that exists, and signal colors are checked as a set.** 10.5.0 named `screenwright`'s "checks only" as the verifier, with its fix loop off. screenwright had no such mode: every mode painted and ran a fix loop, dark mode was checked only when declared, and print was not checked at all. agent-skills 5.9.0 adds a read-only **mode V** (verify-only) to screenwright — one pass over axe in light and dark, desktop and phone width, the 320px reflow check and print, returning findings without edits. `design-md.md` § Design skills and the `external-resources.md` screenwright row now name mode V, and say its other modes are not the verifier.
+
+- **Check signal colors (new row).** When the work touches colors, the status and accent colors are checked together, in light and dark, for color-blind separation; a pair a color-blind reader cannot tell apart goes back to the author as a finding. Today's pick is the `dataviz` skill's palette validator; without it, any color-blind simulation that reports ΔE does the job. Evidence: on job-scout's report, the warn amber (#a14a07) and bad red (#b91c1c) were ΔE 0.6 apart for deutan readers (target 8), and impeccable, taste-skill, screenwright and axe had all passed that palette, because none of them checks a set of signal colors together.
 
 ## [10.5.0] — 2026-10-20
 
