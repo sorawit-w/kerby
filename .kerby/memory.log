@@ -1792,3 +1792,51 @@ Files: skills/kerby/rulebooks/swe/references/validation.md, CHANGELOG.md, .kerby
 Commit: bf725cc
 Status: DONE (pending Codex on this push)
 Notes: validator passes. skill-evaluator: clean (3/3) at bf725cc — 2026-10-21 (in-session, split-role; coordinator on a platform with no sub-agent transcript, sub-agent reported none, diff clean → searched the diff, PR body says "none in the diff (sub-agent commands not inspected)", credited the gate results to the sub-agent's report 3/3).
+
+[2026-10-21T20:45:00Z]
+Task: kerby 10.11.0 — a reverted attempt in a file's history is a planning and debugging finding (gstack absorb, item 3 of 5)
+Action: feature.md § 3 step 2 now reads the recent history of the affected files; a revert, or the same change made more than once, is a finding for the plan — say why the approach is not the one that was undone, or choose another. debugging.md step 1 adds that a revert or repeated fix in the files involved means an earlier attempt failed; find out why before trying it again. Adapted from garrytan/gstack plan-eng-review (MIT); NOTICE's gstack entry tidied and extended.
+Files: skills/kerby/rulebooks/swe/workflows/feature.md, skills/kerby/rulebooks/swe/references/debugging.md, skills/kerby/rulebooks/swe/rulebook.toml, skills/kerby/VERSION, .claude-plugin/{marketplace,plugin}.json, .codex-plugin/plugin.json, .kerby/rulebooks.toml, CHANGELOG.md, README.md, NOTICE, .kerby/memory.log
+Commit: a223787
+Status: DONE (pending Codex)
+Notes: compat and validator pass. skill-evaluator: clean (8/8) at a223787 — 2026-10-21 (in-session, split-role; user asks for the exact change already reverted → named the revert and its reason, recommended another approach, asked 3/3; bug whose obvious fix was applied and reverted → read the revert, did not re-apply it 3/3 (Sonnet executor and grader after the Opus executor was stopped by a [reasoning_extraction] safeguard); clean history → checked, no invented finding, proceeded 2/2).
+
+[2026-10-21T20:55:00Z]
+Task: Codex round 1 on kerby 10.11.0 — the history command showed only subjects and had no limit
+Action: Codex P1: `git log --oneline` shows commit subjects only, so a repeated change under a vague subject could not be seen. Codex P2: the command had no bound, so an old, busy file could flood the context before planning. Both correct, and both holes in a prescribed command — the item 1 and item 2 lesson again — so the command was removed rather than patched: the step now reads the last ten or so commits that touched the files and opens the diff of any whose subject does not say what it changed. CHANGELOG matches.
+Files: skills/kerby/rulebooks/swe/workflows/feature.md, CHANGELOG.md, .kerby/memory.log
+Commit: 21a4d94
+Status: DONE (pending Codex on this push)
+Notes: validator passes. skill-evaluator: clean (3/3) at 21a4d94 — 2026-10-21 (in-session, split-role, Sonnet executor and grader; 300-commit file, the earlier attempt and its revert named "chore: cleanup" → read 10 commits, opened both diffs, named the reverted attempt 3/3).
+
+[2026-10-21T21:00:00Z]
+Task: Codex round 2 on kerby 10.11.0 — the debugging check still read unbounded subjects; quick-task route has no history check
+Action: Codex P1 (fixed): debugging.md still said only "check git log", so a bug fix that does not pass through feature.md § 3 could miss a revert under a vague subject; it now reads the same bounded history, diffs included. Codex P2 (pushed back, reasoning in the PR thread): adding the check to quick-task. Quick-task's fit check already excludes new logic, refactors, schema/contract changes and high-stakes paths; a revert's lesson is about an approach, which a one-line copy or data fix does not have; the read would cost every quick task; and BOOTSTRAP § 2 already reads the repo's last 20 commits on that route.
+Files: skills/kerby/rulebooks/swe/references/debugging.md, CHANGELOG.md, .kerby/memory.log
+Commit: bb4f8f6
+Status: DONE (pending Codex on this push)
+Notes: validator passes. skill-evaluator: clean (3/3) at bb4f8f6 — 2026-10-21 (in-session, split-role, Sonnet executor and grader; bug whose obvious fix and its revert are both "chore: cleanup" in a 150-commit file → read 10 commits, opened both diffs, did not re-apply 3/3).
+
+[2026-10-21T21:08:00Z]
+Task: Codex round 3 on kerby 10.11.0 — a revert with a clear subject still hides the approach and the reason
+Action: Codex (P1): with "feat: cache users" and its revert, both subjects say what changed, so the rule did not ask to open either diff, yet neither the approach nor the reason for the revert is in a subject. Correct. Second finding about which diffs to open (round 1's vague-subject finding was the first), so the full set is stated once in both feature.md § 3 step 2 and debugging.md step 1: open the diff and message of every revert, of the commit it undid, and of any commit whose subject does not say what it changed. CHANGELOG matches. A third finding in this class stops the loop and goes to the maintainer.
+Files: skills/kerby/rulebooks/swe/workflows/feature.md, skills/kerby/rulebooks/swe/references/debugging.md, CHANGELOG.md, .kerby/memory.log
+Commit: c4cd580
+Status: DONE (pending Codex on this push)
+Notes: validator passes. skill-evaluator: clean (3/3) at c4cd580 — 2026-10-21 (in-session, split-role, Sonnet executor and grader; clear-subject cache commit and its revert → opened both, plan fixes the cause the revert named 3/3).
+
+[2026-10-21T21:15:00Z]
+Task: Codex round 4 on kerby 10.11.0 — one shared ten-commit window across several files
+Action: Codex (P2): with several affected files, one combined window lets a busy file push a quiet file's revert out of view. Correct; one word in each file — the last ten or so commits that touched each of them (feature.md § 3 step 2) / on each file involved (debugging.md step 1). CHANGELOG matches.
+Files: skills/kerby/rulebooks/swe/workflows/feature.md, skills/kerby/rulebooks/swe/references/debugging.md, CHANGELOG.md, .kerby/memory.log
+Commit: 8a9125e
+Status: DONE (pending Codex on this push)
+Notes: validator passes. skill-evaluator: clean (3/3) at 8a9125e — 2026-10-21 (in-session, split-role, Sonnet executor and grader; busy http.ts plus quiet retry.ts whose revert is hidden by a combined window → one log per file, found the revert and its reason, narrowed the plan to idempotent methods 3/3).
+
+[2026-10-21T21:25:00Z]
+Task: Codex round 5 on kerby 10.11.0 — a fix made twice with no revert; the "which diffs to open" list restated as a principle
+Action: Codex (P1): two commits with the same clear subject and no revert were not opened, and "the one that was undone" did not fit that case. Correct — and the third finding in the which-diffs-to-open class (vague subject; clear-subject revert; repeat without revert). Circuit breaker applied (memory: codex-loop-circuit-breaker): the list was replaced by the principle it stood for — open the diff and message of any commit whose subject alone does not tell what was tried and why it did not last — with the old cases kept as examples, and the plan's response generalized to "say how your approach deals with the reason it failed". Same change in debugging.md step 1. CHANGELOG records the three missed cases and why the step is now a principle. A further finding in this class goes to the maintainer.
+Files: skills/kerby/rulebooks/swe/workflows/feature.md, skills/kerby/rulebooks/swe/references/debugging.md, CHANGELOG.md, .kerby/memory.log
+Commit: 1cd38f2
+Status: DONE (pending Codex on this push)
+Notes: validator passes. skill-evaluator: clean (6/6) at 1cd38f2 — 2026-10-21 (in-session, split-role, Sonnet executors and graders; same dispatch fix committed twice, no revert → opened both, named why they did not hold, asked about the shared store 3/3; regression on the clear-subject localStorage revert → opened the revert and the undone commit, designed around both failure causes 3/3).

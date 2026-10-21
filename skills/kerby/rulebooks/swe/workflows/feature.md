@@ -50,7 +50,7 @@ Check the knowledge base (`.kerby/knowledge/`) for relevant decisions, conventio
 This block is added *on top of* the `plan:` line (`BOOTSTRAP.md` § 4 Plan Gate), which is emitted on every change route regardless of grade. Steps 1–3 expand what that line states in one sentence.
 
 1. Restate the problem — confirm you understand what's being asked
-2. Identify affected files — scope the change before editing
+2. Identify affected files — scope the change before editing — and read their recent history: the last ten or so commits that touched each of them. Open the diff and message of any commit whose subject alone does not tell you what was tried and why it did not last — a revert and the commit it undid, the same change made more than once, a vague subject. An earlier attempt that did not last is a finding for the plan: say how your approach deals with the reason it failed, or choose another
 3. Check dependencies — will this change break anything downstream?
 3b. **State the check** — how you will know the change worked: the command to run, the endpoint to call, the screen to open. This is the third slot of the `plan:` line (`BOOTSTRAP.md` § 4 Plan Gate), restated in full here; at or above `plan_threshold` the Expected Outcomes block below refines it into a prediction, but the check itself is named here so a plan is never missing it.
 4. **If the feature introduces a new third-party vendor** (auth, db, payments, mailer, etc.), consult `references/vendor-adapters.md` for the ports/adapters pattern. Define the port from consumer needs; add the adapter under `adapters/<vendor>/`.

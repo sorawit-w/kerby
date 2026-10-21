@@ -3,6 +3,16 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [10.11.0] — 2026-10-21
+
+**swe 2.22.0 — a reverted attempt is a finding, not a surprise.** Nothing asked the agent to look at a file's history before planning a change to it, so it could re-propose an approach that had already been tried and reverted. `git log` appeared only in debugging, and only to find what changed recently.
+
+- **`feature.md` § 3 step 2** — identifying the affected files now includes reading their recent history — the last ten or so commits that touched each of them, opening the diff and message of any commit whose subject alone does not tell what was tried and why it did not last (a revert and the commit it undid, the same change made more than once, a vague subject). An earlier attempt that did not last is a finding for the plan: say how the approach deals with the reason it failed, or choose another.
+- **`debugging.md` step 1** — reads the same bounded history, diffs included; an earlier fix that did not last means an earlier attempt failed; find out why before trying it again.
+- **Why the step names a principle, not a list.** Three review rounds each found one more kind of commit the list of "which diffs to open" missed (a vague subject; a clear-subject revert; the same change made twice with no revert). The step now says what to look for — any commit whose subject alone does not tell what was tried and why it did not last — and keeps the cases as examples.
+
+Adapted from gstack's engineering-plan review (`garrytan/gstack`, MIT, `plan-eng-review`), which checks file history for reverts before a plan is accepted.
+
 ## [10.10.0] — 2026-10-21
 
 **swe 2.21.0 — every weakened check is named in the report.** Nothing made the agent report its own skips, suppressions, raised timeouts, lowered thresholds or `--no-verify`; weakened tests were looked for only in the periodic `audit`, and a coordinator skipped reading a sub-agent's changes whenever its report was green.
