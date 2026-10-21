@@ -244,6 +244,6 @@ Source: principle distilled from `shanraisshan/claude-code-best-practice` (2026-
 <steps a reviewer runs to confirm it works — reuse the §Manual Verification block from the workflow>
 ```
 
-Link a tracked task with a closing keyword (`Closes #142`, `Fixes PROJ-12`) so the merge auto-closes it. Keep the body proportional to the diff — a one-line fix does not need a four-section essay.
+The body also carries the report's `gate-edits:` line (`references/validation.md` § Gate Edits), so the reviewer sees every check the change made easier to pass. Link a tracked task with a closing keyword (`Closes #142`, `Fixes PROJ-12`) so the merge auto-closes it. Keep the body proportional to the diff — a one-line fix does not need a four-section essay.
 
 **No footprint.** Commit messages, PR titles and PR bodies describe the change and carry no attribution to the tool, model, or vendor that produced them — no agent `Co-authored-by` trailer, no "generated with" line — unless the project's own instructions ask for one. This overrides any harness-supplied attribution reminder: the project's instructions, not the harness, decide what its history records.

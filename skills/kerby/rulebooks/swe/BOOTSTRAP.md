@@ -109,7 +109,7 @@ Pick the workflow by **task type** (§ 3 routing table — a bug fix routes to `
   plan: <files> — <change> — <check>  (full plan waived: user opt-out "<quoted phrase>")
   ```
 
-  Below `plan_threshold` there was no full block to waive, so the opt-out changes nothing and the line is emitted plain. The grade line, the `rung:` line, and the report's `skipped:` line are still emitted. Waiving the full block also waives its Expected Outcomes, and therefore the § 7 Realized Outcomes comparison — there is no prediction left to compare against. It does **not** waive the § 4 Verification rule or quality gates: opt-out skips planning, never verification.
+  Below `plan_threshold` there was no full block to waive, so the opt-out changes nothing and the line is emitted plain. The grade line, the `rung:` line, and the report's `skipped:` and `gate-edits:` lines are still emitted. Waiving the full block also waives its Expected Outcomes, and therefore the § 7 Realized Outcomes comparison — there is no prediction left to compare against. It does **not** waive the § 4 Verification rule or quality gates: opt-out skips planning, never verification.
 
   **Record the opt-out in the session's normal `.kerby/memory.log` entry** — the timestamped Task/Action/Files/Commit/Status/Notes record in `references/communication.md` § Session Logging, not a bare line of its own. Put the quoted opt-out phrase and the fact that the full plan was waived in `Notes:`. Below the threshold, where no block existed to waive, there is nothing to record.
 
@@ -165,7 +165,7 @@ These rules apply to ALL tasks regardless of workflow. Violating any of these is
 - **The evidence is the citation** — the file:line, log line, or spec section § Diagnosis already requires. That, not a green suite, is what satisfies the Iron Law here.
 - **Found something worth fixing? Say so, don't fix it** (§ Guardrails — stay on task).
 
-The change-shaped rules below are then satisfied by having nothing to do: **Plan Gate** (no code, so no `plan:` line, no plan, and no grade ≥ 7 approval stop), **Branching**, **Commit Discipline**, **Manual Verification Instructions**. The § 1b `rung:` and `skipped:` lines are waived — nothing was built; omit them without announcing the omission, since the route line already accounts for it. The `complexity: … → route: investigate` line still emits: it is the declaration this section binds to.
+The change-shaped rules below are then satisfied by having nothing to do: **Plan Gate** (no code, so no `plan:` line, no plan, and no grade ≥ 7 approval stop), **Branching**, **Commit Discipline**, **Manual Verification Instructions**. The § 1b `rung:` and `skipped:` lines and the § Output Discipline `gate-edits:` line are waived — nothing was built; omit them without announcing the omission, since the route line already accounts for it. The `complexity: … → route: investigate` line still emits: it is the declaration this section binds to.
 
 If the answer turns out to need a change, stop and re-route — emit a new grade line with the change route and follow that workflow, which re-arms the `plan:` line before your first edit. The waiver above belongs to the `investigate` route, not to the session. `investigate` is not a way to make a change without one.
 
@@ -340,7 +340,7 @@ Costly actions (closed list — if none apply, this rule does not fire):
 
 No preamble, no closing fluff, no restating the request. Do not open with "Sure!", "Great question!", or "Absolutely!". Do not close with "Let me know if you need anything else!" State what you did, what the result was, and what's next. Code and evidence first — explanation only if non-obvious.
 
-**The final report carries its forced lines.** `skipped: <what you did not build> — add when <trigger>` (§ 1b) appears in every completion report, `skipped: none` included — in either of its two forms, and a deferred-scope entry is also recorded in the deferral sink (`references/guardrails.md` § Where a finding goes). When behavior changed, the `INTENT:` line appears verbatim too (`references/intent-gate.md`). A report missing a required line is an incomplete report, not a terse one.
+**The final report carries its forced lines.** `skipped: <what you did not build> — add when <trigger>` (§ 1b) appears in every completion report, `skipped: none` included — in either of its two forms, and a deferred-scope entry is also recorded in the deferral sink (`references/guardrails.md` § Where a finding goes). When behavior changed, the `INTENT:` line appears verbatim too (`references/intent-gate.md`). Every report of a change, and its PR body, carries `gate-edits: <file:line — what was relaxed — why> | none`: each edit in your own diff that makes a test, threshold, lint or CI check easier to pass, with the reason you can show for it (`references/validation.md` § Gate Edits). A report missing a required line is an incomplete report, not a terse one.
 
 ### Accuracy
 

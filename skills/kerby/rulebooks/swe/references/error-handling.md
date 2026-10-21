@@ -122,7 +122,7 @@ If you can show the rule is wrong **at this one site** — not merely inconvenie
    // biome-ignore lint/rule-name: <why the rule is wrong here>
    const someCode = ...;
    ```
-2. Document the exception in `.kerby/memory.log` and name it in your report
+2. Document the exception in `.kerby/memory.log` and name it in your report's `gate-edits:` line (`references/validation.md` § Gate Edits)
 
 If the rule is wrong for many files, do **not** edit the linter config yourself — changing lint rules needs the team's agreement (`references/guardrails.md` § What NOT to Do). Propose the config change to the developer and mark the task BLOCKED until they decide.
 

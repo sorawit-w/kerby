@@ -3,6 +3,14 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [10.10.0] — 2026-10-21
+
+**swe 2.21.0 — every weakened check is named in the report.** Nothing made the agent report its own skips, suppressions, raised timeouts, lowered thresholds or `--no-verify`; weakened tests were looked for only in the periodic `audit`, and a coordinator skipped reading a sub-agent's changes whenever its report was green.
+
+- **A forced `gate-edits:` line.** Every report of a change, and its PR body, carries `gate-edits: <file:line — what was relaxed — why> | none`. `validation.md` § Gate Edits defines a gate edit — a test deleted, skipped or focused; an assertion or expected value loosened; a timeout, retry, tolerance or threshold raised; a snapshot regenerated; a suppression; a test/lint/type/CI config change; `--no-verify` — and asks one question of each: does it silence the failure the gate exists to catch, or is it justified by something the agent can show? One it cannot justify is not its to make. One it can still goes in the line, because the developer accepts a weakened gate. Adapted from gstack's Gate Integrity check (`garrytan/gstack`, MIT, `review/gate-integrity.md`); its detector is not adopted.
+- **A sub-agent's gate edits are always read.** `sub-agent-delegation.md` rule 2 still skips re-running gates on a green report, but the coordinator now reads the sub-agent's `gate-edits:` line and its diff to tests, config and thresholds whatever the report says.
+- The line is waived on the `investigate` route like `rung:` and `skipped:`, is not waived by a plan opt-out, and the one-site lint suppression from 10.9.0 is now named in it.
+
 ## [10.9.0] — 2026-10-21
 
 **swe 2.20.0 — a flaky test gets its cause found, never a skip; lint config changes need the developer.** `error-handling.md` told the agent to skip or retry a flaky test (`test.skip("flaky test — TODO…")`) and, after a few lint failures, to disable the rule or edit `biome.json` on its own. Three other rules already said the opposite: a skipped test is not a pass (`validation.md`), lint rules are not changed unilaterally (`guardrails.md` § What NOT to Do), and a linter is proved wrong before it is disabled (`working-patterns.md` § Anti-Rationalization). The reference now agrees with them.

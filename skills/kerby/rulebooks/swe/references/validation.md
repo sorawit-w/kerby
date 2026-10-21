@@ -23,6 +23,36 @@ These apply to both the implementer and the QA sub-agent — a passing test suit
 
 ---
 
+## Gate Edits
+
+A gate is anything that would have made your change fail: a test, an assertion, a threshold, a timeout, a retry count, a lint or type rule, a CI job, a snapshot. A **gate edit** is a change in your own diff that makes one easier to pass:
+
+- a test deleted, skipped (`.skip`, `xit`, `@pytest.mark.skip`) or focused (`.only`)
+- an assertion loosened, or an expected value changed to match new output
+- a timeout, retry count, tolerance or coverage threshold raised, or a minimum lowered
+- a snapshot or golden file regenerated
+- a suppression added (`eslint-disable`, `biome-ignore`, `@ts-ignore`, `# noqa`, `# type: ignore`)
+- a test, lint, type or CI config changed
+- a commit made with `--no-verify`
+
+A new test is not a gate edit. Everything else on the list is, even when it is right — a test deleted with the code it covered, or an expected value changed because the intent gate (`references/intent-gate.md`) cleared the behavior change.
+
+**Ask each one a single question: does it silence the failure the gate exists to catch, or is it justified by something you can show — a measurement, a spec line, the user's instruction?** One you cannot justify that way is not yours to make: ask first. One you can justify still goes in the report, because the developer, not the agent, accepts a weakened gate.
+
+**The forced line.** Every completion report of a change, and the PR body, carries:
+
+```
+gate-edits: <file:line — what was relaxed — why> | none
+```
+
+One entry per edit; one cause repeated across files (one timeout raised in 12 tests) is one entry listing the files. `none` is a valid answer and is still emitted. Build the line from your diff against the base — the test files, the test/lint/type/CI config, and the markers above — not from memory.
+
+**A sub-agent's report is a claim.** Read its gate edits yourself — its `gate-edits:` line and its diff to tests, config and thresholds — even when it reports green (`references/sub-agent-delegation.md` rule 2).
+
+**Source:** adapted from `garrytan/gstack` (MIT, 2026-10-21) — `review/gate-integrity.md` and the Gate Integrity check in `review/checklist.md`: the one question, and the rule that a person decides on every relaxation. Its detector (`gstack-gate-diff`) is not adopted.
+
+---
+
 ## Verification by Complexity
 
 Match verification depth to the risk of the work. Over-verifying simple tasks wastes time; under-verifying complex tasks causes regressions.
