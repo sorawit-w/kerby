@@ -47,7 +47,7 @@ gate-edits: <where — what was relaxed — why> | none
 
 `<where>` is the file:line, or for a bypassed hook the command you ran. One entry per edit; one cause repeated across files (one timeout raised in 12 tests) is one entry listing the files. `none` is a valid answer and is still emitted. Build the line from two sources, not from memory: your whole diff against the base, searched for the markers above as well as the test and config changes; and the commands you ran, since a bypassed hook leaves nothing in the diff.
 
-**A sub-agent's report is a claim.** Read its gate edits yourself — its `gate-edits:` line, and its whole diff searched the same way, since a suppression can sit in any source file — even when it reports green (`references/sub-agent-delegation.md` rule 2).
+**A sub-agent's report is a claim.** Read its gate edits yourself — its `gate-edits:` line, and its whole diff searched the same way, since a suppression can sit in any source file — even when it reports green (`references/sub-agent-delegation.md` rule 2). Its diff is the part you can check; its commands are not, since a bypassed hook leaves nothing in the diff. Read its transcript where your platform keeps one. Where it does not, say so in your own line — `(sub-agent commands not inspected)` — rather than pass its `none` on as checked.
 
 **Source:** adapted from `garrytan/gstack` (MIT, 2026-10-21) — `review/gate-integrity.md` and the Gate Integrity check in `review/checklist.md`: the one question, and the rule that a person decides on every relaxation. Its detector (`gstack-gate-diff`) is not adopted.
 
