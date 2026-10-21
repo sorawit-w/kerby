@@ -1816,3 +1816,11 @@ Files: skills/kerby/rulebooks/swe/references/debugging.md, CHANGELOG.md, .kerby/
 Commit: bb4f8f6
 Status: DONE (pending Codex on this push)
 Notes: validator passes. skill-evaluator: clean (3/3) at bb4f8f6 — 2026-10-21 (in-session, split-role, Sonnet executor and grader; bug whose obvious fix and its revert are both "chore: cleanup" in a 150-commit file → read 10 commits, opened both diffs, did not re-apply 3/3).
+
+[2026-10-21T21:08:00Z]
+Task: Codex round 3 on kerby 10.11.0 — a revert with a clear subject still hides the approach and the reason
+Action: Codex (P1): with "feat: cache users" and its revert, both subjects say what changed, so the rule did not ask to open either diff, yet neither the approach nor the reason for the revert is in a subject. Correct. Second finding about which diffs to open (round 1's vague-subject finding was the first), so the full set is stated once in both feature.md § 3 step 2 and debugging.md step 1: open the diff and message of every revert, of the commit it undid, and of any commit whose subject does not say what it changed. CHANGELOG matches. A third finding in this class stops the loop and goes to the maintainer.
+Files: skills/kerby/rulebooks/swe/workflows/feature.md, skills/kerby/rulebooks/swe/references/debugging.md, CHANGELOG.md, .kerby/memory.log
+Commit: c4cd580
+Status: DONE (pending Codex on this push)
+Notes: validator passes. skill-evaluator: clean (3/3) at c4cd580 — 2026-10-21 (in-session, split-role, Sonnet executor and grader; clear-subject cache commit and its revert → opened both, plan fixes the cause the revert named 3/3).
