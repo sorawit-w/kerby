@@ -1734,3 +1734,11 @@ Files: skills/kerby/rulebooks/swe/references/error-handling.md, CHANGELOG.md, .k
 Commit: 2220438
 Status: DONE (pending Codex on this push)
 Notes: validator passes. skill-evaluator: clean (3/3) at 2220438 — 2026-10-21 (in-session, split-role; main 40 commits ahead → merge-base as the base side, detached worktree with its own pnpm install, 10 interleaved runs each, no skip 3/3).
+
+[2026-10-21T19:42:37Z]
+Task: Codex round 7 on kerby 10.9.0 — counting any failure instead of this one; the placing step restated as requirements
+Action: Codex (P2): with a file or suite scope that holds a second flake, an aggregate failed/N mixes the two, so a branch that fixes one flake and adds another reads as "about the same". Correct. Seventh round, every finding inside step 1 "Place it" — the holes-in-a-model pattern (memory: codex-loop-circuit-breaker). Instead of patching, step 1 was rewritten as requirements: count this test failing with this error, measured the same way on the branch and at its branch point (smallest reproducing scope, at least 10 interleaved runs a side, the branch point in its own clean checkout with its own dependencies); run count deferred to validation.md, checkout mechanics to git-worktrees.md. The three outcome bullets are unchanged. CHANGELOG records the seven gaps and why the step is no longer a recipe.
+Files: skills/kerby/rulebooks/swe/references/error-handling.md, CHANGELOG.md, .kerby/memory.log
+Commit: d14954f
+Status: DONE (pending Codex on this push)
+Notes: validator and compat pass. skill-evaluator: clean (23/23) at d14954f — 2026-10-21 (in-session, split-role, regression over every earlier gap plus the new one; 1/10 vs 8/10 with the user claiming it is old 4/4; suite-only flake passing alone 4/4; harness worktree with main checked out elsewhere and a lockfile bump — still detached and installed its own dependencies though the step no longer names either 5/5; 4/20 vs 5/20 on an unrelated branch → pre-existing, stopped 4/4; main 40 commits ahead → merge-base 3/3; two flakes in one file, aggregate 8/10 vs 8/10 → counted per test with the JSON reporter, no verdict from the aggregate 3/3).
