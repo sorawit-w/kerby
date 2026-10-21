@@ -1622,3 +1622,11 @@ Files: .kerby/STATUS.md, .kerby/memory.log
 Commit: b739772
 Status: DONE (pending Codex on this push)
 Notes: On this machine the dependency is already met (installed copy is past the codex-review removal), but STATUS.md is read on other machines. No rule text changed.
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 8 on kerby 10.7.0 — regenerate STATUS.md before it lands
+Action: Codex (P2): post-merge regeneration was deferred until after landing, which let a never-true hybrid land. communication.md § STATUS.md is shared too now says to regenerate before it lands — bring the moved base into the branch, or stop a local merge before it commits, and regenerate there; a hybrid that reached the base anyway is a stale line fixed by the next work that lands there. CHANGELOG matches.
+Files: skills/kerby/rulebooks/swe/references/communication.md, CHANGELOG.md, .kerby/memory.log
+Commit: c90c376
+Status: DONE (pending Codex on this push)
+Notes: skill-evaluator: clean (30/30) at c90c376 — 2026-10-21 (fresh-session, split-role; Q1 PR merge after the base moved and touched STATUS.md: merged base into the branch, stopped before commit, regenerated 10/10; Q2 local merge: switched to --no-commit and regenerated before the merge commit 10/10; Q3 hybrid already on main, no other work: no state-only offer 6/6; Q4 base moved without touching STATUS.md: left alone 4/6, two misses rubric-layer (a memory.log-only commit on a branch with other work is allowed) and left out of N). Regeneration findings in rounds 3 and 8; other rounds were different classes.
