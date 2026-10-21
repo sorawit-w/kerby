@@ -1656,3 +1656,11 @@ Commit: 14c43a1
 Status: DONE (pending Codex on this push)
 Notes: compat and validator pass. skill-evaluator: clean (9/9) at 14c43a1 — 2026-10-21 (in-session, split-role; gsap present + staggered fade → CSS 2/2; no gsap + pinned scroll sequence → native sticky + animation-timeline, no install 4/4; gsap present + pinned scroll sequence → weighed native, chose GSAP for browser support, no install 3/3). The ask-before-install clause is the same words as round 1, where T3′ exercised it 4/4; this round's no-gsap executor went native, so it did not reach the ask. Circuit-breaker note: two rounds, one class; the fix removed the model that produced the class.
 Observations: protect-git.sh blocked two Bash commands that each held a plain push plus, later on the same command line, a gh api call (or log text) with a short form-field flag; it reported a force push. Nothing ran either time. Keeping the push in its own command avoided it.
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 3 on kerby 10.8.0 — the Claude Code install step
+Action: Codex (P2): the row's Claude Code command only added the marketplace, which registers a catalog and installs no skill. Checked greensock/gsap-skills' own .claude-plugin/marketplace.json: marketplace "gsap-skills", one plugin "gsap-skills". The Install cell now reads `/plugin marketplace add greensock/gsap-skills && /plugin install gsap-skills@gsap-skills`, the same two-step form as the modern-web-guidance row.
+Files: skills/kerby/rulebooks/swe/references/external-resources.md, .kerby/memory.log
+Commit: 91c5d95
+Status: DONE (pending Codex on this push)
+Notes: validator passes. skill-evaluator not re-run: the change is an install command string, not a directive, threshold or trigger, so the 9/9 verdict at 14c43a1 still covers every decision the row asks the agent to make. Different finding class from rounds 1–2 (install mechanics, not ladder order).
