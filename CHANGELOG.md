@@ -3,6 +3,14 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [10.7.0] — 2026-10-21
+
+**swe 2.18.0 — STATUS.md lines are tested against the merge.** The rule listed phrases STATUS.md must not hold (`in review`, `PR open`, `merged`). Agents kept writing phrases the list did not name, such as "not released" or a Next Up row for shipping the change itself. Those lines were true when committed and false once the PR merged, and the agent then offered a separate PR just to fix one line.
+
+- **One test replaces the list.** Every line must still be true the moment the change that commits it merges. The phrases stay as examples of the test, not as the rule, because no list and no guard can match every phrasing. The change's own ship step is not a Next Up row; the work after it is. The Phase example is now `Hardening — rate limits`, since `Review — rate-limit fix` failed the same test.
+- **No PR for project state alone.** A line that is already false is fixed inside the next change that has other work in it, never by a change whose only diff is `STATUS.md` or `memory.log`, and never by offering one.
+- **The STATUS.md template header states the test**, so an agent editing the file reads it there too.
+
 ## [10.6.0] — 2026-10-21
 
 **swe 2.17.0 — the render verifier uses a mode that exists, and signal colors are checked as a set.** 10.5.0 named `screenwright`'s "checks only" as the verifier, with its fix loop off. screenwright had no such mode: every mode painted and ran a fix loop, dark mode was checked only when declared, and print was not checked at all. agent-skills 5.9.0 adds a read-only **mode V** (verify-only) to screenwright — one pass over axe in light and dark, desktop and phone width, the 320px reflow check and print, returning findings without edits. `design-md.md` § Design skills and the `external-resources.md` screenwright row now name mode V, and say its other modes are not the verifier.
