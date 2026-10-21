@@ -1808,3 +1808,11 @@ Files: skills/kerby/rulebooks/swe/workflows/feature.md, CHANGELOG.md, .kerby/mem
 Commit: 21a4d94
 Status: DONE (pending Codex on this push)
 Notes: validator passes. skill-evaluator: clean (3/3) at 21a4d94 — 2026-10-21 (in-session, split-role, Sonnet executor and grader; 300-commit file, the earlier attempt and its revert named "chore: cleanup" → read 10 commits, opened both diffs, named the reverted attempt 3/3).
+
+[2026-10-21T21:00:00Z]
+Task: Codex round 2 on kerby 10.11.0 — the debugging check still read unbounded subjects; quick-task route has no history check
+Action: Codex P1 (fixed): debugging.md still said only "check git log", so a bug fix that does not pass through feature.md § 3 could miss a revert under a vague subject; it now reads the same bounded history, diffs included. Codex P2 (pushed back, reasoning in the PR thread): adding the check to quick-task. Quick-task's fit check already excludes new logic, refactors, schema/contract changes and high-stakes paths; a revert's lesson is about an approach, which a one-line copy or data fix does not have; the read would cost every quick task; and BOOTSTRAP § 2 already reads the repo's last 20 commits on that route.
+Files: skills/kerby/rulebooks/swe/references/debugging.md, CHANGELOG.md, .kerby/memory.log
+Commit: bb4f8f6
+Status: DONE (pending Codex on this push)
+Notes: validator passes. skill-evaluator: clean (3/3) at bb4f8f6 — 2026-10-21 (in-session, split-role, Sonnet executor and grader; bug whose obvious fix and its revert are both "chore: cleanup" in a 150-commit file → read 10 commits, opened both diffs, did not re-apply 3/3).
