@@ -1864,3 +1864,11 @@ Files: skills/kerby/rulebooks/swe/workflows/feature.md, CHANGELOG.md, .kerby/mem
 Commit: (this commit)
 Status: DONE (pending Codex on this push)
 Notes: compat, validator and plan-gate parity pass. skill-evaluator: clean (3/3) on the new path — 2026-10-21 (in-session, split-role, Sonnet executor and grader; grade-5 CSV export whose analytics call swallows errors in a module the developer said not to touch → failure row says nobody sees it and calls it a gap, the track() call held and a question asked, analytics.ts not edited 3/3).
+
+[2026-10-21T22:05:00Z]
+Task: Codex round 2 on kerby 10.13.0 — "at every grade" narrowed to "even below grade 7"
+Action: Codex (P2): below plan_threshold the case table is optional, so "at every grade" claimed more than the rule does. Correct about the wording; the claim was narrowed, not the scope widened — the rule lives in the case table and applies wherever the table does (at or above plan_threshold). Pushed back on moving the check below the threshold: that tier is "handle directly" on purpose. CHANGELOG states the scope.
+Files: skills/kerby/rulebooks/swe/workflows/feature.md, CHANGELOG.md, .kerby/memory.log
+Commit: (this commit)
+Status: DONE (pending Codex on this push)
+Notes: compat, validator and plan-gate parity pass. Wording-only change; behavior at or above the threshold is unchanged, so the round 1 eval (3/3) still covers it.
