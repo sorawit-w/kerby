@@ -1726,3 +1726,11 @@ Files: skills/kerby/rulebooks/swe/references/error-handling.md, .kerby/memory.lo
 Commit: 433af0f
 Status: DONE (pending Codex on this push)
 Notes: validator passes. skill-evaluator: clean (4/4) at 433af0f — 2026-10-21 (in-session, split-role; 4/20 vs 5/20 on an unrelated branch → pre-existing, no probe or edit, recorded as a memory.log Observation, decision left to the developer 4/4).
+
+[2026-10-21T19:31:07Z]
+Task: Codex round 6 on kerby 10.9.0 — the base side measured the base branch's current tip
+Action: Codex (P2): "base revision" let an agent test the current base tip, so the comparison mixed in every base commit since the branch was cut. The base side is now the branch point (git merge-base <base> HEAD). CHANGELOG matches. Third round in the base-side-checkout class (rounds 3, 4, 6): a further finding in that class stops the loop and goes to the maintainer.
+Files: skills/kerby/rulebooks/swe/references/error-handling.md, CHANGELOG.md, .kerby/memory.log
+Commit: 2220438
+Status: DONE (pending Codex on this push)
+Notes: validator passes. skill-evaluator: clean (3/3) at 2220438 — 2026-10-21 (in-session, split-role; main 40 commits ahead → merge-base as the base side, detached worktree with its own pnpm install, 10 interleaved runs each, no skip 3/3).
