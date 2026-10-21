@@ -1614,3 +1614,11 @@ Files: .kerby/memory.log
 Commit: (pending)
 Status: DONE (pending Codex on this push)
 Notes: skill-evaluator: clean (66/66) at a2250f8 — 2026-10-21 (fresh-session, split-role; 9 new tests R1–R9, Sonnet and Opus executors, fresh Sonnet graders: same-branch state-only commit 12/12, checkpoint 3/4 with the miss classed rubric-layer (its check counted the required checkpoint push as landing) and left out of N, landing after a checkpoint 4/4, Merge locally with no PR 10/10, hybrid after merging main into a branch 6/6, stale STATUS on main with no offer 6/6, explicit user request for a state-only PR done 10/10, unlisted wording 5/5, local merge where main also changed STATUS 10/10). No skill-text findings. Rule text unchanged since 621145d.
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 7 on kerby 10.7.0 — second dropped STATUS.md dependency
+Action: Codex (P2): the refresh also dropped the sibling-cleanup row's dependency on refreshing the installed copy. Restored as "row 4". Same class as round 5 (a dependency lost while rewriting the queue), so every row's dependency cell was compared against main: none other was lost; the only removed row is the shipped status-guard release.
+Files: .kerby/STATUS.md, .kerby/memory.log
+Commit: b739772
+Status: DONE (pending Codex on this push)
+Notes: On this machine the dependency is already met (installed copy is past the codex-review removal), but STATUS.md is read on other machines. No rule text changed.
