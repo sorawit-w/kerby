@@ -1598,3 +1598,11 @@ Files: skills/kerby/rulebooks/swe/references/communication.md, skills/kerby/reso
 Commit: 621145d
 Status: DONE (pending Codex on this push)
 Notes: skill-evaluator: clean (12/12) at 621145d — 2026-10-21 (in-session, split-role; K1 mid-feature checkpoint records interim position and commits it on the branch 4/4; K2 "Merge locally" finish: state committed on the branch before the fast-forward, no PR needed 4/4; K3 stale line on main, unprompted: no state-only fix proposed 4/4). Circuit breaker applied per the saved lesson: the class was holes in a model, so the model went.
+
+[2026-10-21T00:00:00Z]
+Task: Codex round 5 on kerby 10.7.0 — STATUS.md queue order
+Action: Codex (P2): the refreshed STATUS.md dropped the limeade row's dependency on refreshing the installed copy, so the live /compact check could run against the previous rules. Restored it as "row 4".
+Files: .kerby/STATUS.md, .kerby/memory.log
+Commit: 7450a0c
+Status: DONE (pending Codex on this push)
+Notes: No rule text changed, so no evaluator run. Codex found nothing new in the rule at 124f235.
