@@ -112,7 +112,7 @@ Only create `.kerby/BLOCKERS.md` when there is an actual blocker. Track using: p
 
 **Do not give it `merge=union` either** — it is a table rewritten whole, so union would keep both sides of every row and produce duplicated headers with contradictory counts.
 
-**After any merge that touched STATUS.md, regenerate it — do not rely on getting a conflict.** Git merges non-overlapping edits cleanly, so two machines editing different sections produce a hybrid snapshot with no conflict at all: a status that was never true on either side, arriving silently. Never hand-merge it.
+**After any merge that touched STATUS.md, regenerate it — do not rely on getting a conflict.** Git merges non-overlapping edits cleanly, so two machines editing different sections produce a hybrid snapshot with no conflict at all: a status that was never true on either side, arriving silently. Never hand-merge it. Regenerate it in the change that carries the merge: on your branch when you merged the base into it, or — when the merge landed on a protected base — in the next change with other work, exactly like any other stale line (above). Regeneration is never a reason for a state-only pull request.
 
 **Rewrite it by reading, not by recalling.** "Regenerate from current state" is two different acts, and only one of them is correct: open the sources and read them back, or type what you remember. The second is what fails. A file you wrote an hour ago feels known rather than lookup-able, so **a fact you authored yourself is exactly the one to re-read** — the § Accuracy rule ("if you have not read a file, do not reference its contents") covers your own prior output too, and that is the reading under which it is most often skipped.
 
