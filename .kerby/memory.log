@@ -1872,3 +1872,11 @@ Files: skills/kerby/rulebooks/swe/workflows/feature.md, CHANGELOG.md, .kerby/mem
 Commit: (this commit)
 Status: DONE (pending Codex on this push)
 Notes: compat, validator and plan-gate parity pass. Wording-only change; behavior at or above the threshold is unchanged, so the round 1 eval (3/3) still covers it.
+
+[2026-10-21T22:30:00Z]
+Task: kerby 10.13.1 — the force-push guard in protect-git.sh reads each command on its own
+Action: Check 1 matched a force push across the whole line, so a later command's -f (a gh api form field) blocked a safe push, and a lease in one command excused -f in another. The same loose regex now runs once per command segment from the shared tokenizer (quoted separators stay inside their command); a command containing a heredoc is still matched whole because the tokenizer drops bodies a shell may run. Found when the hook blocked this session's own push-then-comment commands during the gstack absorb.
+Files: skills/kerby/rulebooks/swe/hooks/protect-git.sh, skills/kerby/rulebooks/swe/hooks/protect-git.test.sh, skills/kerby/rulebooks/swe/references/threat-model.md, skills/kerby/rulebooks/swe/rulebook.toml, skills/kerby/VERSION, .claude-plugin/{marketplace,plugin}.json, .codex-plugin/plugin.json, .kerby/rulebooks.toml, CHANGELOG.md, README.md, .kerby/memory.log
+Commit: (this commit)
+Status: DONE (pending Codex on this push)
+Notes: protect-git.test.sh 151 assertions pass (3 new allows, 9 new blocks incl. 2 former misses, 2 pinned over-blocks); all other hook tests, check-hook-disable-tier, compat, validator and plan-gate parity pass. Test-first: the 5 changed outcomes failed before the fix. Hook change, not rule text, so skill-evaluator does not apply; the test is the check.

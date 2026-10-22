@@ -53,12 +53,7 @@ block() {
   exit 2
 }
 
-# 1. Force push (but allow --force-with-lease, which checks remote state first).
-if echo "$LC" | grep -qE '\bgit\b.*\bpush\b.*(--force\b|[[:space:]]-f\b|[[:space:]]-[a-z]*f[a-z]*\b)'; then
-  if ! echo "$LC" | grep -qE -- '--force-with-lease'; then
-    block "git push --force / -f"
-  fi
-fi
+# 1. Force push — checked per command segment, below the shared tokenizer.
 
 # 2. Push to a protected branch. Matches BOOTSTRAP.md branching list.
 PROTECTED='(main|master|dev|develop|staging|trunk|release/[^[:space:]]+)'
@@ -124,8 +119,8 @@ fi
 # `git` … `commit` token pair is the whole test. (Issue #48; the same rebuild
 # base/hooks/pre-commit-check.sh got for issue #46.)
 #
-# The DESTRUCTIVE matchers above deliberately stay loose (`\bgit\b.*\bpush\b.*
-# --force`): they over-block, which is the safe direction for a data-loss guard.
+# The DESTRUCTIVE matchers deliberately stay loose (`\bgit\b.*\breset\b.*
+# --hard`): they over-block, which is the safe direction for a data-loss guard.
 # This gate needs precision in BOTH directions — a miss is a commit on a
 # protected branch, a false positive blocks legitimate work — so only it is
 # rebuilt here.
@@ -343,6 +338,29 @@ is_sep() { [ "${TOKSEP[$1]:-0}" = 1 ]; }   # $1 = index, not text
 # --- END SHARED SHELL TOKENIZER --------------------------------------------
 
 tokenize "$CMD"
+
+# 1. Force push (but allow --force-with-lease, which checks remote state first).
+# Matched once per command SEGMENT, never across the whole string: a `-f` that
+# belongs to the next command (`git push … && gh api … -f body=…`) is not a push
+# flag, and a lease in one command must not excuse `-f` in another. Segments come
+# from the tokenizer, so a quoted `;` stays inside its command. Inside a segment
+# the match stays loose, so `bash -c "git push -f"` and `$(git push -f)` still
+# block. The tokenizer drops heredoc bodies, and a shell may run one
+# (`bash <<EOF`), so a command with `<<` is matched as a whole — an over-block.
+FORCE_RE='\bgit\b.*\bpush\b.*(--force\b|[[:space:]]-f\b|[[:space:]]-[a-z]*f[a-z]*\b)'
+force_push() { echo "$1" | grep -qE "$FORCE_RE" && ! echo "$1" | grep -qE -- '--force-with-lease'; }
+case "$CMD" in *'<<'*) force_push "$LC" && block "git push --force / -f" ;; esac
+SEG=""; _s=0
+while [ "$_s" -le "${#TOKENS[@]}" ]; do
+  if [ "$_s" -lt "${#TOKENS[@]}" ] && ! is_sep "$_s"; then
+    SEG="$SEG ${TOKENS[$_s]}"
+  else
+    force_push "$(echo "$SEG" | tr '[:upper:]' '[:lower:]')" && block "git push --force / -f"
+    SEG=""
+  fi
+  _s=$((_s+1))
+done
+
 HAS_GIT=0
 _i=0
 while [ "$_i" -lt "${#TOKENS[@]}" ]; do

@@ -217,7 +217,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `10.13.0` — swe 2.24.0: a plan's failure rows say what the user or caller sees when the failure happens; a failure nobody would see is a gap the plan handles or names for the developer to accept.
+Current release: `10.13.1` — swe 2.24.1: the force-push guard reads each command on its own, so a `-f` that belongs to the next command (such as a `gh api` form field) no longer blocks a safe push.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests
