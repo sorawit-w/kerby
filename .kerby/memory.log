@@ -1880,3 +1880,11 @@ Files: skills/kerby/rulebooks/swe/hooks/protect-git.sh, skills/kerby/rulebooks/s
 Commit: (this commit)
 Status: DONE (pending Codex on this push)
 Notes: protect-git.test.sh 151 assertions pass (3 new allows, 9 new blocks incl. 2 former misses, 2 pinned over-blocks); all other hook tests, check-hook-disable-tier, compat, validator and plan-gate parity pass. Test-first: the 5 changed outcomes failed before the fix. Hook change, not rule text, so skill-evaluator does not apply; the test is the check.
+
+[2026-10-22T02:45:00Z]
+Task: Codex round 1 on kerby 10.13.1 — trust the per-segment split only when it cannot lose a flag
+Action: Codex (P1): the tokenizer does not nest $(...), so splitting every line let a flag produced inside a substitution with its own separator through, where the old whole-line match blocked it. Correct. The same hole exists through variables, aliases, functions and backticks. Circuit breaker applied up front (memory: codex-loop-circuit-breaker): instead of teaching the loop about nesting, the split is trusted only when the line has no ( or backtick or heredoc and every segment mentioning git push starts with git; any other line uses the old whole-line match. Codex's case plus the variable, alias, function and backtick forms are pinned as blocked; a quoted ( in a --jq filter is pinned as an over-block. Threat model names the residual: an alias, function or variable defined in an earlier tool call.
+Files: skills/kerby/rulebooks/swe/hooks/protect-git.sh, skills/kerby/rulebooks/swe/hooks/protect-git.test.sh, skills/kerby/rulebooks/swe/references/threat-model.md, CHANGELOG.md, .kerby/memory.log
+Commit: (this commit)
+Status: DONE (pending Codex on this push)
+Notes: protect-git.test.sh 157 assertions pass (5 new blocks failed before the fix); pre-commit-check test, check-hook-disable-tier, compat and validator pass. Probed this session's real push-then-comment commands: allowed.

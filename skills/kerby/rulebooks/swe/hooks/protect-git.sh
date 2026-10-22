@@ -340,26 +340,41 @@ is_sep() { [ "${TOKSEP[$1]:-0}" = 1 ]; }   # $1 = index, not text
 tokenize "$CMD"
 
 # 1. Force push (but allow --force-with-lease, which checks remote state first).
-# Matched once per command SEGMENT, never across the whole string: a `-f` that
-# belongs to the next command (`git push … && gh api … -f body=…`) is not a push
-# flag, and a lease in one command must not excuse `-f` in another. Segments come
-# from the tokenizer, so a quoted `;` stays inside its command. Inside a segment
-# the match stays loose, so `bash -c "git push -f"` and `$(git push -f)` still
-# block. The tokenizer drops heredoc bodies, and a shell may run one
-# (`bash <<EOF`), so a command with `<<` is matched as a whole — an over-block.
+# The loose match runs once per command SEGMENT when splitting cannot lose a
+# flag, so a `-f` that belongs to the next command (`git push … && gh api … -f
+# body=…`) is not a push flag, and a lease in one command does not excuse `-f` in
+# another. Splitting is safe only when the tokenizer's separators are the shell's
+# top-level ones and no other command can carry a push: no `(` or backtick (a
+# substitution or function hides separators the tokenizer does not nest), no
+# `<<` (the tokenizer drops heredoc bodies a shell may run), and every segment
+# that mentions `git push` starts with `git` itself (not an alias, variable,
+# function, `sudo` or `bash -c`). Any other line is matched as a whole, exactly
+# as before — over-blocking is the safe direction. This is a rule about when to
+# trust the split, never more shell grammar: modelling nesting was the first
+# hole a review found, and every form of it lands in the fallback.
 FORCE_RE='\bgit\b.*\bpush\b.*(--force\b|[[:space:]]-f\b|[[:space:]]-[a-z]*f[a-z]*\b)'
 force_push() { echo "$1" | grep -qE "$FORCE_RE" && ! echo "$1" | grep -qE -- '--force-with-lease'; }
-case "$CMD" in *'<<'*) force_push "$LC" && block "git push --force / -f" ;; esac
-SEG=""; _s=0
+SEGS=(); SEG=""; FIRST=""; SPLIT_OK=1
+case "$CMD" in *'('*|*'`'*|*'<<'*) SPLIT_OK=0 ;; esac
+_s=0
 while [ "$_s" -le "${#TOKENS[@]}" ]; do
   if [ "$_s" -lt "${#TOKENS[@]}" ] && ! is_sep "$_s"; then
+    [ -z "$SEG" ] && FIRST=$(echo "${TOKENS[$_s]}" | tr '[:upper:]' '[:lower:]')
     SEG="$SEG ${TOKENS[$_s]}"
-  else
-    force_push "$(echo "$SEG" | tr '[:upper:]' '[:lower:]')" && block "git push --force / -f"
-    SEG=""
+  elif [ -n "$SEG" ]; then
+    SEG=$(echo "$SEG" | tr '[:upper:]' '[:lower:]')
+    if echo "$SEG" | grep -qE '\bgit\b.*\bpush\b'; then
+      case "$FIRST" in git|*/git) : ;; *) SPLIT_OK=0 ;; esac
+    fi
+    SEGS[${#SEGS[@]}]="$SEG"; SEG=""
   fi
   _s=$((_s+1))
 done
+if [ "$SPLIT_OK" -eq 1 ]; then
+  for SEG in ${SEGS[@]+"${SEGS[@]}"}; do force_push "$SEG" && block "git push --force / -f"; done
+else
+  force_push "$LC" && block "git push --force / -f"
+fi
 
 HAS_GIT=0
 _i=0

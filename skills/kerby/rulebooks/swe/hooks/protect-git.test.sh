@@ -67,6 +67,13 @@ BLOCK=(
   "bash <<EOF
 git push -f origin feature/x
 EOF"
+  # The flag reaches the push from ANOTHER top-level command. Splitting by
+  # segment would lose it, so these lines fall back to the whole-line match.
+  "git push \$(true; printf -- -f) origin feature/x"
+  "git push \`true; echo -f\` origin feature/x"
+  "c=\"git push\"; \$c -f origin feature/x"
+  "alias p='git push'; p -f origin feature/x"
+  "f() { git push \"\$@\"; }; f -f origin feature/x"
   "git branch -D oldfeature"
   "git checkout ."
   "git restore ."
@@ -117,6 +124,8 @@ KNOWN_OVERBLOCK=(
   "git push origin feature/x && cat <<EOF > n.md && gh api x -f body=@n.md
 done
 EOF"
+  # Any `(` sends the line to the whole-line match, even a quoted one.
+  "git push origin feature/x && gh api x --jq '.[]|select(.a)' -f b=1"
 )
 for cmd in "${KNOWN_OVERBLOCK[@]}"; do
   run "$cmd"
