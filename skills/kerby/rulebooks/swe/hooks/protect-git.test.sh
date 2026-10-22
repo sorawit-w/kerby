@@ -53,6 +53,27 @@ BLOCK=(
   "git clean -e 'a;b' -fd"
   "git clean -e 'a|b' -fd"
   "git clean -e \"*.log\" \"-fd\""
+  # Force push is matched per command segment. Every form that keeps the flag in
+  # the push's own command must still block, including a command run by another.
+  "gh api repos/o/r/issues/1/comments -f body=hi && git push -f origin feature/x"
+  "git push --force-with-lease origin feature/x && git push -f origin feature/y"
+  "git -C repo push -f origin feature/x"
+  "sudo git push --force origin feature/x"
+  "git push \\
+  -f origin feature/x"
+  "git push origin feature/x ';' -f"
+  "bash -c \"git push -f origin feature/x\""
+  "echo \$(git push --force origin feature/x)"
+  "bash <<EOF
+git push -f origin feature/x
+EOF"
+  # The flag reaches the push from ANOTHER top-level command. Splitting by
+  # segment would lose it, so these lines fall back to the whole-line match.
+  "git push \$(true; printf -- -f) origin feature/x"
+  "git push \`true; echo -f\` origin feature/x"
+  "c=\"git push\"; \$c -f origin feature/x"
+  "alias p='git push'; p -f origin feature/x"
+  "f() { git push \"\$@\"; }; f -f origin feature/x"
   "git branch -D oldfeature"
   "git checkout ."
   "git restore ."
@@ -78,6 +99,10 @@ ALLOW=(
   "echo 'log: git diff --check clean ; touched business-profile-form.tsx'"
   "echo \"git diff --check clean, business-profile-form.tsx\""
   "git commit -m 'make the tree clean and update business-profile-form.tsx'"
+  # A `-f` that belongs to the NEXT command is not a push flag.
+  "git push -u origin feature/x && gh api repos/o/r/issues/1/comments -f body=hi"
+  "git push origin feature/x; gh pr create -f"
+  "git push origin feature/x | tee push.log && gh api x -f body=@push.log"
 )
 for cmd in "${ALLOW[@]}"; do
   run "$cmd"
@@ -92,6 +117,15 @@ done
 KNOWN_OVERBLOCK=(
   "git log --oneline | grep clean -f"
   "git commit -m 'fix: push handler runs on main loop'"
+  # Inside one segment the force-push match still reads text, so a message that
+  # mentions it blocks. A heredoc body may be run by a shell, so a command with
+  # `<<` is matched as a whole.
+  "git commit -m 'note: never push -f'"
+  "git push origin feature/x && cat <<EOF > n.md && gh api x -f body=@n.md
+done
+EOF"
+  # Any `(` sends the line to the whole-line match, even a quoted one.
+  "git push origin feature/x && gh api x --jq '.[]|select(.a)' -f b=1"
 )
 for cmd in "${KNOWN_OVERBLOCK[@]}"; do
   run "$cmd"

@@ -53,12 +53,7 @@ block() {
   exit 2
 }
 
-# 1. Force push (but allow --force-with-lease, which checks remote state first).
-if echo "$LC" | grep -qE '\bgit\b.*\bpush\b.*(--force\b|[[:space:]]-f\b|[[:space:]]-[a-z]*f[a-z]*\b)'; then
-  if ! echo "$LC" | grep -qE -- '--force-with-lease'; then
-    block "git push --force / -f"
-  fi
-fi
+# 1. Force push — checked per command segment, below the shared tokenizer.
 
 # 2. Push to a protected branch. Matches BOOTSTRAP.md branching list.
 PROTECTED='(main|master|dev|develop|staging|trunk|release/[^[:space:]]+)'
@@ -124,8 +119,8 @@ fi
 # `git` … `commit` token pair is the whole test. (Issue #48; the same rebuild
 # base/hooks/pre-commit-check.sh got for issue #46.)
 #
-# The DESTRUCTIVE matchers above deliberately stay loose (`\bgit\b.*\bpush\b.*
-# --force`): they over-block, which is the safe direction for a data-loss guard.
+# The DESTRUCTIVE matchers deliberately stay loose (`\bgit\b.*\breset\b.*
+# --hard`): they over-block, which is the safe direction for a data-loss guard.
 # This gate needs precision in BOTH directions — a miss is a commit on a
 # protected branch, a false positive blocks legitimate work — so only it is
 # rebuilt here.
@@ -343,6 +338,44 @@ is_sep() { [ "${TOKSEP[$1]:-0}" = 1 ]; }   # $1 = index, not text
 # --- END SHARED SHELL TOKENIZER --------------------------------------------
 
 tokenize "$CMD"
+
+# 1. Force push (but allow --force-with-lease, which checks remote state first).
+# The loose match runs once per command SEGMENT when splitting cannot lose a
+# flag, so a `-f` that belongs to the next command (`git push … && gh api … -f
+# body=…`) is not a push flag, and a lease in one command does not excuse `-f` in
+# another. Splitting is safe only when the tokenizer's separators are the shell's
+# top-level ones and no other command can carry a push: no `(` or backtick (a
+# substitution or function hides separators the tokenizer does not nest), no
+# `<<` (the tokenizer drops heredoc bodies a shell may run), and every segment
+# that mentions `git push` starts with `git` itself (not an alias, variable,
+# function, `sudo` or `bash -c`). Any other line is matched as a whole, exactly
+# as before — over-blocking is the safe direction. This is a rule about when to
+# trust the split, never more shell grammar: modelling nesting was the first
+# hole a review found, and every form of it lands in the fallback.
+FORCE_RE='\bgit\b.*\bpush\b.*(--force\b|[[:space:]]-f\b|[[:space:]]-[a-z]*f[a-z]*\b)'
+force_push() { echo "$1" | grep -qE "$FORCE_RE" && ! echo "$1" | grep -qE -- '--force-with-lease'; }
+SEGS=(); SEG=""; FIRST=""; SPLIT_OK=1
+case "$CMD" in *'('*|*'`'*|*'<<'*) SPLIT_OK=0 ;; esac
+_s=0
+while [ "$_s" -le "${#TOKENS[@]}" ]; do
+  if [ "$_s" -lt "${#TOKENS[@]}" ] && ! is_sep "$_s"; then
+    [ -z "$SEG" ] && FIRST=$(echo "${TOKENS[$_s]}" | tr '[:upper:]' '[:lower:]')
+    SEG="$SEG ${TOKENS[$_s]}"
+  elif [ -n "$SEG" ]; then
+    SEG=$(echo "$SEG" | tr '[:upper:]' '[:lower:]')
+    if echo "$SEG" | grep -qE '\bgit\b.*\bpush\b'; then
+      case "$FIRST" in git|*/git) : ;; *) SPLIT_OK=0 ;; esac
+    fi
+    SEGS[${#SEGS[@]}]="$SEG"; SEG=""
+  fi
+  _s=$((_s+1))
+done
+if [ "$SPLIT_OK" -eq 1 ]; then
+  for SEG in ${SEGS[@]+"${SEGS[@]}"}; do force_push "$SEG" && block "git push --force / -f"; done
+else
+  force_push "$LC" && block "git push --force / -f"
+fi
+
 HAS_GIT=0
 _i=0
 while [ "$_i" -lt "${#TOKENS[@]}" ]; do

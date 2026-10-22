@@ -3,6 +3,14 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [10.13.1] — 2026-10-21
+
+**swe 2.24.1 — the force-push guard reads each command on its own.** `protect-git.sh` matched a force push across the whole command line, so a `-f` belonging to a later command blocked a safe push: `git push origin feat/x && gh api … -f body=…` was refused as a force push. The same whole-line match also let a lease in one command excuse `-f` in another (`git push --force-with-lease … && git push -f …` passed).
+
+- **`hooks/protect-git.sh` check 1** — the force-push match now runs once per command segment, split by the shared tokenizer, but only when splitting cannot lose a flag: the line has no `(`, backtick or `<<`, and every segment that mentions `git push` starts with `git` itself. Any other line — a substitution, function, alias, variable, heredoc, `sudo` or `bash -c` — is matched as a whole, exactly as before. Inside a segment the match is as loose as before, and a line continuation now joins the flag to its push. A first version split every line and let `git push $(true; printf -- -f) …` through, because the tokenizer does not nest substitutions (Codex review). The fix is a rule about when to trust the split, not more shell grammar, so every form of that hole falls back to the old match.
+- **`hooks/protect-git.test.sh`** — three safe commands that were blocked now pass; fourteen force-push forms are pinned as blocked, two of which slipped through before; three over-blocks are pinned.
+- **`references/threat-model.md`** — the force-push row says where the match now stops.
+
 ## [10.13.0] — 2026-10-21
 
 **swe 2.24.0 — a failure row says what the user sees.** The plan's case table required a failure row but not what anyone experiences when it happens, so a failure that is swallowed — no error shown, no log, no handling — could be planned as a row and still ship silent.
