@@ -63,7 +63,7 @@ Fill the mechanical fields from step 2 against `templates/agent-context.yaml.tem
 
 ### Medium inferability — `CONTEXT.md` (propose)
 
-If `CONTEXT.md` is missing, start from the engine template `<install-root>/resources/templates/CONTEXT.md.template`. Propose:
+If the repo already has a `GLOSSARY.md` (or `GLOSSARY-MAP.md`), that is the glossary: propose terms in its own format, never create `CONTEXT.md` beside it, and skip the module map (`references/domain-glossary.md` § File name). Otherwise, if `CONTEXT.md` is missing, start from the engine template `<install-root>/resources/templates/CONTEXT.md.template`. Propose:
 - **Glossary:** the recurring domain terms from step 2 — aim for ≥3 real entries, each a one/two-line definition with a code pointer.
 - **Module map:** one line per top-level source dir.
 
@@ -140,7 +140,7 @@ This ignore line is the one adjacent, non-`.kerby/` file `prepare` may touch.
 `prepare` is idempotent — re-running is a **diffs-only near-no-op**. Per tier:
 
 - **`agent-context.yaml`** — re-derive mechanical fields only; show the diff; confirm. **Never touch `agentNotes`, `ai`, `preferences`, or any human-edited field.**
-- **`CONTEXT.md`** — **append only**. Propose newly-discovered terms under the existing markers. Never rewrite or reorder existing glossary entries.
+- **`CONTEXT.md`** — **append only**. Propose newly-discovered terms under the existing markers (in a `GLOSSARY.md`, in that file's own entry format). Never rewrite or reorder existing glossary entries.
 - **`.kerby/knowledge/`** — re-draft **only entries still tagged `confidence: low`**. Any entry promoted to `confidence: high` (or `medium` after human review) is frozen — leave it untouched.
 - **`.kerby/STATUS.md`** — leave an existing STATUS alone; it belongs to live work now, not onboarding.
 
@@ -155,7 +155,7 @@ If nothing changed since the last run, say so and write nothing.
 Complete before declaring done:
 
 1. **`agent-context.yaml`** populated (mechanical fields), confirmed before write.
-2. **`CONTEXT.md`** has ≥3 real glossary terms + a module map, confirmed.
+2. **`CONTEXT.md`** has ≥3 real glossary terms + a module map, confirmed (a `GLOSSARY.md` needs the terms only).
 3. **`.kerby/knowledge/`** candidates drafted (auto on first run, opt-in after) as `confidence: low`, each confirmed; index regenerated.
 4. **`.kerby/STATUS.md`** honest onboarding stub created.
 5. **`.kerby/memory.log`** onboarding entry appended.

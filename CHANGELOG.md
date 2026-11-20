@@ -3,6 +3,16 @@
 All notable changes to `kerby` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [10.14.0] — 2026-11-20
+
+**swe 2.25.0 — three ideas absorbed from mattpocock/skills.** Matt renamed his glossary `CONTEXT.md` → `GLOSSARY.md` (upstream `d80fa0f`), and his setup skill now offers to `git mv` the old file. kerby's SessionStart hook only looked for `CONTEXT.md`, so after that move it recreated an empty one: two glossaries, and the agent reading the empty one. The installed copy of his skills now uses the new name, so this could happen at the next glossary write.
+
+- **`resources/hooks/context-bootstrap.sh`** — a glossary is now `CONTEXT.md`, `GLOSSARY.md` or `GLOSSARY-MAP.md`; the hook scaffolds `CONTEXT.md` only when none exists, and never writes beside one. New `context-bootstrap.test.sh` (8 cases); the two Matt-named cases failed before the fix.
+- **`references/domain-glossary.md` § File name** — the single authority: either name is the glossary, a `GLOSSARY.md` is edited in its own format, and a leftover unedited `CONTEXT.md` template beside one is offered for deletion once. `BOOTSTRAP.md` § 2, the `prepare` workflow (`workflows/adopt-existing.md`) and the engine's readiness nudge (`SKILL.md`) accept either name; `prepare` no longer adds template markers or a module map to a `GLOSSARY.md`.
+- **`references/sub-agent-delegation.md` rule 7** — a reviewer sub-agent (the QA agent, a blind lens) starts with a fresh context, never one that inherits this conversation; a forked reviewer carries the author's reasoning. Implementers are unaffected. `references/validation.md` points the QA stage at it.
+- **`references/validation.md` § What Counts as Evidence** — two more fakes are not passes: an expected value recomputed the way the code computes it, and a test that only asserts internal calls or call counts. Both stay agent-judged; the `hollow-test-heuristic` gap string and the audit's hollow-test row list them too.
+- **`NOTICE`** credits `mattpocock/skills`; its `external-resources.md` row now names the current skills.
+
 ## [10.13.1] — 2026-10-21
 
 **swe 2.24.1 — the force-push guard reads each command on its own.** `protect-git.sh` matched a force push across the whole command line, so a `-f` belonging to a later command blocked a safe push: `git push origin feat/x && gh api … -f body=…` was refused as a force push. The same whole-line match also let a lease in one command excuse `-f` in another (`git push --force-with-lease … && git push -f …` passed).

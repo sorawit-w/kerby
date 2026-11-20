@@ -14,7 +14,7 @@ Verification produces *claims* about behavior — "the bug is fixed," "the perf 
 
 **Single observations are noise, not signal — especially for timing.** Perf claims, race-condition fixes, flaky-test stabilization, and any "this is faster / slower / now reliable" claim need repeated, interleaved trials before they're load-bearing. Use n≥10 as a floor; raise the floor when variance is high or stakes are large. A single fast/slow run is jitter, not evidence.
 
-**A passing test is non-evidence if it's hollow or its target is a stub.** The Iron Law already forbids claiming done without evidence; this names the specific fakes that *look* like evidence. Before trusting green: always-true assertions (`expect(true).toBe(true)`), `.skip`/`.only`-narrowed tests, 0-match runs, and gates run over placeholder code (`TODO`, stubbed returns) are not passes. The `hollow-test-check` hook statically surfaces the first two — always-true assertions and focused/disabled markers (`.only`/`.skip`/`fit`/`xit`) — over your *added* test lines as a soft advisory; the runtime fakes (0-match runs, gates over stubs) are not statically detectable and stay agent-judged.
+**A passing test is non-evidence if it's hollow or its target is a stub.** The Iron Law already forbids claiming done without evidence; this names the specific fakes that *look* like evidence. Before trusting green: always-true assertions (`expect(true).toBe(true)`), `.skip`/`.only`-narrowed tests, 0-match runs, and gates run over placeholder code (`TODO`, stubbed returns) are not passes. Neither is a **recomputed expected value** — the test works out its expected result the same way the code does, so it agrees with any bug; take the expected value from an independent source (a literal, the spec, a worked example). Nor is a **wiring-only test** — it asserts that internal collaborators were called, or how many times, instead of the behavior a caller sees; mock only at system boundaries. The `hollow-test-check` hook statically surfaces the first two — always-true assertions and focused/disabled markers (`.only`/`.skip`/`fit`/`xit`) — over your *added* test lines as a soft advisory; the other fakes (0-match runs, gates over stubs, recomputed expected values, wiring-only tests) are not statically detectable and stay agent-judged.
 
 These apply to both the implementer and the QA sub-agent — a passing test suite the same run as the change is necessary but not sufficient for the three claim shapes above.
 
@@ -90,7 +90,7 @@ Both checks must pass. If either surfaces issues, fix and re-verify.
 
 ### High/Critical Complexity (7+): Two-Stage QA Sub-Agent
 
-Spawn a **separate QA sub-agent** that performs both stages independently. The sub-agent has fresh eyes and no implementation bias.
+Spawn a **separate QA sub-agent** that performs both stages independently. The sub-agent has fresh eyes and no implementation bias — start it with a fresh context, never one that inherits this conversation (`references/sub-agent-delegation.md` rule 7).
 
 **Stage 1 — Spec Compliance:**
 > "Does this do what was asked?"

@@ -6,10 +6,11 @@
 #
 # Behavior:
 # - If agent-context.yaml has `context.enabled: false`, exits silently.
-# - Otherwise, if CONTEXT.md at project root is missing, scaffolds it
-#   from templates/CONTEXT.md.template (resolved via $KERBY_DIR
-#   or repo-relative fallback).
-# - Never overwrites an existing CONTEXT.md.
+# - Otherwise, if the project root has no glossary at all, scaffolds
+#   CONTEXT.md from templates/CONTEXT.md.template (resolved via
+#   $KERBY_DIR or repo-relative fallback). A glossary is CONTEXT.md,
+#   GLOSSARY.md, or GLOSSARY-MAP.md (the names mattpocock/skills uses).
+# - Never overwrites a glossary, and never writes next to one.
 #
 # Disable with: CODING_RULES_HOOK_DISABLED=context-bootstrap
 # See references/hooks.md for the env-var convention.
@@ -34,8 +35,9 @@ if [[ -f "agent-context.yaml" ]]; then
   fi
 fi
 
-# Already exists — nothing to do. Never overwrite human-curated content.
-if [[ -f "CONTEXT.md" ]]; then
+# A glossary already exists — nothing to do. Never overwrite human-curated
+# content, and never add CONTEXT.md beside a GLOSSARY.md (two glossaries).
+if [[ -f "CONTEXT.md" || -f "GLOSSARY.md" || -f "GLOSSARY-MAP.md" ]]; then
   exit 0
 fi
 

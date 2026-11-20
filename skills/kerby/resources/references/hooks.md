@@ -91,7 +91,7 @@ The `KNOWLEDGE.md` written by this hook contains `<!-- AUTO-INDEX:START -->` / `
 **Script:** `hooks/context-bootstrap.sh`
 **Strictness:** Informational (no blocking)
 
-Runs at the start of every session. If `CONTEXT.md` is missing at project root, scaffolds it from `templates/CONTEXT.md.template`. Never overwrites an existing `CONTEXT.md` — human-curated content is treated as authoritative.
+Runs at the start of every session. If the project root has no glossary — no `CONTEXT.md`, and no `GLOSSARY.md` or `GLOSSARY-MAP.md` (the names mattpocock/skills uses) — scaffolds `CONTEXT.md` from `templates/CONTEXT.md.template`. Never overwrites a glossary or writes beside one — human-curated content is treated as authoritative.
 
 `CONTEXT.md` is the project's enduring domain glossary (see `references/domain-glossary.md`). It's read at session start as part of BOOTSTRAP step 2 and used in code, plans, and prose to keep terminology consistent.
 

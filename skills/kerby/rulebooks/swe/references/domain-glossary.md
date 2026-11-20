@@ -11,6 +11,14 @@ This is distinct from:
 
 `CONTEXT.md` is **enduring vocabulary**, edited deliberately, read on every session.
 
+### File name
+
+The glossary is `CONTEXT.md`, or `GLOSSARY.md` (`GLOSSARY-MAP.md` in a multi-context repo) when the repo follows mattpocock/skills, which renamed it. Everywhere this rulebook says `CONTEXT.md`, it means whichever of these the repo has.
+
+- **Never create `CONTEXT.md` next to a `GLOSSARY.md` or `GLOSSARY-MAP.md`** — that leaves two glossaries.
+- **Edit a `GLOSSARY.md` in its own format** — `**Term**:` entries under `## Language`, with `_Avoid_` lines for rejected synonyms. Do not add `CONTEXT.md`'s template markers or module map to it.
+- **Both names present:** if `CONTEXT.md` is still the unedited template (identical to `templates/CONTEXT.md.template`), it is a leftover scaffold — suggest deleting it, once. If both carry real terms, tell the user the repo has two glossaries and let them choose; do not merge them yourself.
+
 ---
 
 ## When agents read it
@@ -41,7 +49,7 @@ After completing a task, scan your changes. Propose adding a glossary entry when
 
 ## Bootstrap and lifecycle
 
-- **Scaffold if missing.** The `context-bootstrap` SessionStart hook scaffolds `CONTEXT.md` at project root from `templates/CONTEXT.md.template` on first session. It never overwrites an existing file.
+- **Scaffold if no glossary exists.** The `context-bootstrap` SessionStart hook scaffolds `CONTEXT.md` at project root from `templates/CONTEXT.md.template` on first session, only when none of the glossary files above exists. It never overwrites or writes beside one.
 - **Update at task wrap-up.** The Finish steps of `workflows/feature.md`, `workflows/bugfix.md`, and `workflows/new-project.md` include a glossary check.
 - **Opt-out.** Set `context.enabled: false` in `agent-context.yaml` to disable bootstrapping. The rule itself still applies if `CONTEXT.md` exists.
 
