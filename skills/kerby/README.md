@@ -167,7 +167,7 @@ If accepted, the skill:
    | `optional` | `PreToolUse` | `"Edit\|Write"` | `route-high-stakes.sh` | `rulebooks/swe/hooks/` | Remind when editing a §3 high-stakes path — advisory routing, not a block |
    | `optional` | `SessionStart` | `""` | `session-start-context.sh` | `resources/hooks/` | Inject `.kerby/STATUS.md` head + recent `.kerby/memory.log` so the agent resumes with state |
    | `optional` | `SessionStart` | `""` | `knowledge-bootstrap.sh` | `resources/hooks/` | Scaffold `.kerby/knowledge/KNOWLEDGE.md` if missing; reindex AUTO-INDEX block; flag entries older than 180 days |
-   | `optional` | `SessionStart` | `""` | `context-bootstrap.sh` | `resources/hooks/` | Scaffold `CONTEXT.md` (project domain glossary) if missing; never overwrites |
+   | `optional` | `SessionStart` | `""` | `context-bootstrap.sh` | `resources/hooks/` | Scaffold `CONTEXT.md` (project domain glossary) if no glossary exists (`CONTEXT.md`, `GLOSSARY.md` or `GLOSSARY-MAP.md`); never overwrites |
 
    (`SKILL.md` is the source of truth for the full derivation — base-first dedup, with shim-following still supported for an *external* rulebook that shims into a shared script. As of v9.3 the bundled `swe` is self-contained: base's secret scan and swe's `hollow-test-check.sh` are **two distinct `Bash` entries**, not one shimmed registration. The table above is a `swe`-on-`base` install.)
 

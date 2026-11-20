@@ -71,7 +71,7 @@ Agent judgment. Each finding must **name the heuristic it used** so a human can 
 |---|---|---|
 | **Abstraction for one use** | interface/abstract type with exactly one implementer; factory producing one product; config key whose value never varies. | `working-patterns.md` § Code Standards |
 | **Shortcut without upgrade-trigger** | a known smell (O(n²) over a collection, in-memory accumulation, inline-vs-extracted) with no adjacent comment naming the measurable flip condition. | `working-patterns.md` + `validation.md` gate |
-| **Hollow / stub tests** | tests asserting nothing, always-true assertions, `.skip`/`.only`, 0-match runs, stubs returning constants counted as coverage. | `validation.md` § What Counts as Evidence |
+| **Hollow / stub tests** | tests asserting nothing, always-true assertions, `.skip`/`.only`, 0-match runs, stubs returning constants counted as coverage, expected values recomputed the way the code computes them, tests that assert only internal calls or call counts. | `validation.md` § What Counts as Evidence |
 
 **Partials** (`partial` — check the visible slice, declare the blind spot): protected-branch direct commits (git topology is lossy post-merge), `.kerby/memory.log` cadence (presence/rough-cadence only — can't judge content), docs-not-updated-with-behavior (can't confirm behavior actually changed).
 

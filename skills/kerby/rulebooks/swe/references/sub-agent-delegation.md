@@ -87,6 +87,8 @@ When breaking work into parallel sub-agent tasks, prefer **vertical slices** (ea
 
 6. **Integration gate after fan-out** — When parallel sub-agents have each reported done, the coordinator runs one cross-slice verification before declaring the feature complete: the full build plus the union of tests covering every touched module, run together. Building on rule 4 (shared worktree), the slices already live in one tree — but slice-local green is necessary, not sufficient: the seam between slices is unverified until they run as one. If the gate fails, the conflict is the coordinator's to resolve or re-delegate as a scoped fix; never declare done on slice-local passes alone.
 
+7. **Reviewers start fresh** — A reviewer sub-agent (the QA agent in `references/validation.md`, a rule-5 lens) must not inherit this conversation: start it with a fresh context and put what it needs in the brief. Some tools fork the parent conversation by default, and a forked reviewer carries the author's reasoning — the bias rule 5 and the QA stage exist to remove. This rule is for reviewers only; an implementer may keep the parent's context, which is how it keeps kerby's rules and its `gate-edits:` line (rule 2).
+
 ---
 
 ## Capability Tier + Reasoning Effort

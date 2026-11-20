@@ -45,6 +45,13 @@ index of third-party copyright statements required by the upstream licenses.
   the evidence field for human-only actions in `BOOTSTRAP.md` § 5 and
   `references/communication.md` § Developer TODO List; the visible-failure rule
   for the case table in `workflows/feature.md` § 3.
+- `mattpocock/skills` (MIT) — in `skills/kerby/rulebooks/swe/`: the domain
+  glossary and its lifecycle in `references/domain-glossary.md`, including the
+  `GLOSSARY.md` file name honored by `resources/hooks/context-bootstrap.sh`;
+  feedback-loop discipline in `references/debugging.md`; reviewer sub-agents
+  that start with a fresh context in `references/sub-agent-delegation.md`
+  rule 7; the recomputed-expected-value and wiring-only test fakes in
+  `references/validation.md` § What Counts as Evidence.
 
 The remaining entries in `resources/references/external-resources.md` are
 cross-references (not absorbed) and carry their own inline links.

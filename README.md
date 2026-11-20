@@ -217,7 +217,7 @@ These are not decoration. They are what every verdict comes back to:
 
 ## Status
 
-Current release: `10.13.1` — swe 2.24.1: the force-push guard reads each command on its own, so a `-f` that belongs to the next command (such as a `gh api` form field) no longer blocks a safe push.
+Current release: `10.14.0` — swe 2.25.0: a repo that names its glossary `GLOSSARY.md` (the mattpocock/skills rename) no longer gets a second, empty `CONTEXT.md`; reviewer sub-agents start with a fresh context; and two more fake tests no longer count as evidence.
 
 **Opinionated — read first.** Each rulebook carries its author's opinions; read a
 rulebook's README before adopting it, and fork-and-edit rather than file feature requests
